@@ -5,13 +5,14 @@ Criar Produto
 {% endblock title %}
 
 {% block content %}
-
 <div class="container-xxl mt-4">
   <div class="row">
     <div class="col-12">
       <div class="card">
         <div class="container-xxl flex-grow-1 container-p-y">
-          <h4 class="py-3 mb-4"><span class="text-muted fw-light">Produtos/</span> Criar</h4>
+          <h4 class="py-3 mb-4">
+            <span class="text-muted fw-light">Produtos/</span> Criar
+          </h4>
           <div class="row">
             <div class="col-xl">
               <div class="card mb-4">
@@ -21,92 +22,80 @@ Criar Produto
                 <div class="card-body">
                   <form method="post">
                     {% csrf_token %}
+                    {{ form.non_field_errors }}
 
-                    <!-- Campo Código -->
+                    <!-- Campos do Produto -->
+                    <div class="form-group mb-3">{{ form.codigo.label_tag }} {{ form.codigo }}</div>
+                    <div class="form-group mb-3">{{ form.nome.label_tag }} {{ form.nome }}</div>
+                    <div class="form-group mb-3">{{ form.valor_repasse_logista.label_tag }} {{ form.valor_repasse_logista }}</div>
+                    <div class="form-group mb-3">{{ form.entrada_cliente.label_tag }} {{ form.entrada_cliente }}</div>
                     <div class="form-group mb-3">
-                      {{ form.codigo.label_tag }}
-                      {{ form.codigo }}
-                    </div>
-
-                    <!-- Campo Nome -->
-                    <div class="form-group mb-3">
-                      {{ form.nome.label_tag }}
-                      {{ form.nome }}
-                    </div>
-
-                    <!-- Campo Valor Repasse Logista -->
-                    <div class="form-group mb-3">
-                      {{ form.valor_repasse_logista.label_tag }}
-                      {{ form.valor_repasse_logista }}
-                    </div>
-
-                    <!-- Campo Entrada Cliente -->
-                    <div class="form-group mb-3">
-                      {{ form.entrada_cliente.label_tag }}
-                      {{ form.entrada_cliente }}
-                    </div>
-
-                    <!-- Campo Valor 8 Vezes -->
-                    <div class="form-group mb-3">
-                      {{ form.valor_8_vezes.label_tag }}
-                      {{ form.valor_8_vezes }}
-
-                      <!-- Campo calculado 8 vezes -->
+                      {{ form.valor_8_vezes.label_tag }} {{ form.valor_8_vezes }}
                       <label for="id_valor_8_vezes_calculado" class="mt-2">Valor da parcela 8x</label>
                       <input type="text" id="id_valor_8_vezes_calculado" class="form-control" readonly>
                     </div>
-                    <!-- Campo Valor 6 Vezes -->
                     <div class="form-group mb-3">
-                      {{ form.valor_6_vezes.label_tag }}
-                      {{ form.valor_6_vezes }}
-
-                      <!-- Campo calculado 6 vezes -->
+                      {{ form.valor_6_vezes.label_tag }} {{ form.valor_6_vezes }}
                       <label for="id_valor_6_vezes_calculado" class="mt-2">Valor da parcela 6x</label>
                       <input type="text" id="id_valor_6_vezes_calculado" class="form-control" readonly>
                     </div>
-
-                    <!-- Campo Valor 4 Vezes -->
                     <div class="form-group mb-3">
-                      {{ form.valor_4_vezes.label_tag }}
-                      {{ form.valor_4_vezes }}
-
-                      <!-- Campo calculado 4 vezes -->
+                      {{ form.valor_4_vezes.label_tag }} {{ form.valor_4_vezes }}
                       <label for="id_valor_4_vezes_calculado" class="mt-2">Valor da parcela 4x</label>
                       <input type="text" id="id_valor_4_vezes_calculado" class="form-control" readonly>
                     </div>
+                    <div class="form-group mb-3">{{ form.tipo.label_tag }} {{ form.tipo }}</div>
+                    <div class="form-group mb-3">{{ form.fabricante.label_tag }} {{ form.fabricante }}</div>
+                    <div class="form-group mb-3">{{ form.cor.label_tag }} {{ form.cor }}</div>
+                    <div class="form-group mb-3">{{ form.memoria.label_tag }} {{ form.memoria }}</div>
+                    <div class="form-group mb-3">{{ form.estado.label_tag }} {{ form.estado }}</div>
 
-                    <!-- Campo Tipo -->
-                    <div class="form-group mb-3">
-                      {{ form.tipo.label_tag }}
-                      {{ form.tipo }}
+                    <!-- InlineFormSet de Opções de Pagamento -->
+                    <h5 class="mt-4">Opções de Pagamento</h5>
+                    {{ opcoes_formset.management_form }}
+                    <div id="opcoes-container">
+                      {% for f in opcoes_formset.forms %}
+                        {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                        <div class="row mb-3 align-items-center">
+                          <div class="col">{{ f.nome.label_tag }} {{ f.nome }}</div>
+                          <div class="col">{{ f.valor_repasse_logista.label_tag }} {{ f.valor_repasse_logista }}</div>
+                          <div class="col">{{ f.entrada_cliente.label_tag }} {{ f.entrada_cliente }}</div>
+                          <div class="col">{{ f.valor_4_vezes.label_tag }} {{ f.valor_4_vezes }}</div>
+                          <div class="col">{{ f.valor_6_vezes.label_tag }} {{ f.valor_6_vezes }}</div>
+                          <div class="col">{{ f.valor_8_vezes.label_tag }} {{ f.valor_8_vezes }}</div>
+                          <div class="col-auto text-end">
+                            <button type="button" class="btn btn-danger btn-sm remove-opcao">Remover</button>
+                          </div>
+                        </div>
+                      {% endfor %}
                     </div>
 
-                    <!-- Campo Fabricante -->
-                    <div class="form-group mb-3">
-                      {{ form.fabricante.label_tag }}
-                      {{ form.fabricante }}
+                    <!-- Template oculto para nova opção -->
+                    <div id="empty-form" style="display: none;">
+                      {% with f=opcoes_formset.empty_form %}
+                        {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                        <div class="row mb-3 align-items-center">
+                          <div class="col">{{ f.nome.label_tag }} {{ f.nome }}</div>
+                          <div class="col">{{ f.valor_repasse_logista.label_tag }} {{ f.valor_repasse_logista }}</div>
+                          <div class="col">{{ f.entrada_cliente.label_tag }} {{ f.entrada_cliente }}</div>
+                          <div class="col">{{ f.valor_4_vezes.label_tag }} {{ f.valor_4_vezes }}</div>
+                          <div class="col">{{ f.valor_6_vezes.label_tag }} {{ f.valor_6_vezes }}</div>
+                          <div class="col">{{ f.valor_8_vezes.label_tag }} {{ f.valor_8_vezes }}</div>
+                          <div class="col-auto text-end">
+                            <button type="button" class="btn btn-danger btn-sm remove-opcao">Remover</button>
+                          </div>
+                        </div>
+                      {% endwith %}
                     </div>
 
-                    <!-- Campo Cor -->
-                    <div class="form-group mb-3">
-                      {{ form.cor.label_tag }}
-                      {{ form.cor }}
-                    </div>
-
-                    <!-- Campo Memória -->
-                    <div class="form-group mb-3">
-                      {{ form.memoria.label_tag }}
-                      {{ form.memoria }}
-                    </div>
-
-                    <!-- Campo Estado -->
-                    <div class="form-group mb-3">
-                      {{ form.estado.label_tag }}
-                      {{ form.estado }}
+                    <div class="d-flex justify-content-between mb-3">
+                      <button type="button" class="btn btn-secondary btn-sm" id="add-opcao">+ Adicionar opção</button>
                     </div>
 
                     {% if user|has_perm:"produtos.add_produto" %}
-                    <button type="submit" class="btn btn-primary mt-3">Salvar</button>
+                      <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                      </div>
                     {% endif %}
                   </form>
                 </div>
@@ -120,25 +109,47 @@ Criar Produto
 </div>
 
 <script>
-function updateValues() {
-    const valor6Vezes = parseFloat(document.getElementById('id_valor_6_vezes').value) || 0;
-    const valor4Vezes = parseFloat(document.getElementById('id_valor_4_vezes').value) || 0;
-    const valor8Vezes = parseFloat(document.getElementById('id_valor_8_vezes').value) || 0;
-    
-    document.getElementById('id_valor_6_vezes_calculado').value = (valor6Vezes / 6).toFixed(2);
-    document.getElementById('id_valor_4_vezes_calculado').value = (valor4Vezes / 4).toFixed(2);
-    document.getElementById('id_valor_8_vezes_calculado').value = (valor8Vezes / 8).toFixed(2);
-}
+  function updateValues() {
+    const v6 = parseFloat(document.getElementById('id_valor_6_vezes').value) || 0;
+    const v4 = parseFloat(document.getElementById('id_valor_4_vezes').value) || 0;
+    const v8 = parseFloat(document.getElementById('id_valor_8_vezes').value) || 0;
+    document.getElementById('id_valor_6_vezes_calculado').value = (v6 / 6).toFixed(2);
+    document.getElementById('id_valor_4_vezes_calculado').value = (v4 / 4).toFixed(2);
+    document.getElementById('id_valor_8_vezes_calculado').value = (v8 / 8).toFixed(2);
+  }
 
-// Ativa o update automático ao digitar
-document.addEventListener('DOMContentLoaded', function() {
-    const campo6 = document.getElementById('id_valor_6_vezes');
-    const campo4 = document.getElementById('id_valor_4_vezes');
-    const campo8 = document.getElementById('id_valor_8_vezes');
-    if (campo6) campo6.addEventListener('input', updateValues);
-    if (campo4) campo4.addEventListener('input', updateValues);
-    if (campo8) campo8.addEventListener('input', updateValues);
-});
+  document.addEventListener('DOMContentLoaded', function() {
+    ['6', '4', '8'].forEach(function(n) {
+      const campo = document.getElementById('id_valor_' + n + '_vezes');
+      if (campo) campo.addEventListener('input', updateValues);
+    });
+
+    const prefixo = "{{ opcoes_formset.prefix }}";
+    const botaoAdd = document.getElementById('add-opcao');
+    const container = document.getElementById('opcoes-container');
+    const totalForms = document.getElementById('id_' + prefixo + '-TOTAL_FORMS');
+
+    botaoAdd.addEventListener('click', function() {
+      const index = parseInt(totalForms.value, 10);
+      const template = document.getElementById('empty-form').innerHTML;
+      const novoHtml = template.replace(/__prefix__/g, index);
+      container.insertAdjacentHTML('beforeend', novoHtml);
+      totalForms.value = index + 1;
+      attachRemoveHandlers();
+    });
+
+    function attachRemoveHandlers() {
+      document.querySelectorAll('.remove-opcao').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const row = this.closest('.row');
+          const deleteInput = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+          if (deleteInput) deleteInput.checked = true;
+          row.style.display = 'none';
+        });
+      });
+    }
+
+    attachRemoveHandlers();
+  });
 </script>
-
-{% endblock %}
+{% endblock content %}

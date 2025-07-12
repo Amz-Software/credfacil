@@ -33,6 +33,17 @@ class Produto(Base):
     def __str__(self):
         return f"{self.nome} ({self.codigo})"
 
+class OpcaoProduto(Base):
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='opcoes')
+    nome = models.CharField(max_length=100)  # Ex: "Opção A", "Plano B"
+    valor_repasse_logista = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    entrada_cliente = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    valor_8_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    valor_6_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    valor_4_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    def __str__(self):
+        return self.nome
 
 class TipoProduto(Base):
     nome = models.CharField(max_length=100)

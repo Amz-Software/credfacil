@@ -1,8 +1,8 @@
 from typing import Any
 from django import forms
-
 from produtos.models import *
-
+from django.forms import inlineformset_factory
+from .models import Produto, OpcaoProduto
 
 class ProdutoForms(forms.ModelForm):
     class Meta:
@@ -55,7 +55,36 @@ class ProdutoForms(forms.ModelForm):
         if commit:
             instance.save()
         return instance
-    
+
+
+class OpcaoProdutoForm(forms.ModelForm):
+    class Meta:
+        model = OpcaoProduto
+        fields = [
+            'nome',
+            'valor_repasse_logista',
+            'entrada_cliente',
+            'valor_8_vezes',
+            'valor_6_vezes',
+            'valor_4_vezes'
+        ]
+        widgets = {
+            'nome': forms.TextInput(attrs={'class': 'form-control'}),
+            'valor_repasse_logista': forms.NumberInput(attrs={'class': 'form-control'}),
+            'entrada_cliente': forms.NumberInput(attrs={'class': 'form-control'}),
+            'valor_8_vezes': forms.NumberInput(attrs={'class': 'form-control'}),
+            'valor_6_vezes': forms.NumberInput(attrs={'class': 'form-control'}),
+            'valor_4_vezes': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+OpcaoProdutoFormSet = inlineformset_factory(
+    Produto,
+    OpcaoProduto,
+    form=OpcaoProdutoForm,
+    extra=1,
+    can_delete=False
+)
+
 class CorProdutoForms(forms.ModelForm):
     class Meta:
         model = CorProduto
