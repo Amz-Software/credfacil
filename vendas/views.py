@@ -483,6 +483,7 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
             informacao = form_informacao.save()
             loja_id = request.session.get('loja_id')
 
+
             # Atribui os comprovantes ao form_cliente antes de salvar
             cliente = form_cliente.save(commit=False)
             cliente.criado_por = request.user
@@ -500,7 +501,9 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
                 print(f"❌ Loja com ID {loja_id} não encontrada")
                 return self.form_invalid(form_cliente)
 
+            opcao_selecionada = request.POST.get('opcao_preco')
             analise = form_analise_credito.save(commit=False)
+            analise.opcao_preco = opcao_selecionada
             analise.cliente = cliente
             analise.loja = loja
             analise.criado_por = request.user

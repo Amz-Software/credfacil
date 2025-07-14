@@ -455,6 +455,14 @@ class AnaliseCreditoCliente(Base):
         ('6', '6x'),
         ('8', '8x'),
     ))
+    opcao_preco = models.ForeignKey(
+        'produtos.OpcaoProduto',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='analise_credito',
+        verbose_name='Opção de Preço'
+    )
     produto = models.ForeignKey('produtos.Produto', on_delete=models.CASCADE, related_name='analises_credito')
     imei = models.ForeignKey('estoque.EstoqueImei', on_delete=models.CASCADE, related_name='analises_credito_imei', null=True, blank=True)
     venda = models.ForeignKey('vendas.Venda', on_delete=models.CASCADE, related_name='analises_credito_venda', null=True, blank=True)

@@ -2,7 +2,7 @@ from django import forms
 from django.db.models import OuterRef, Exists
 from accounts.models import User
 from estoque.models import Estoque, EstoqueImei
-from produtos.models import Produto
+from produtos.models import OpcaoProduto, Produto
 from .models import *
 from django_select2.forms import Select2Widget, ModelSelect2Widget, Select2MultipleWidget
 from django_select2.forms import ModelSelect2MultipleWidget, HeavySelect2Widget
@@ -397,9 +397,15 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         widget=Select2Widget(attrs={'class': 'form-control'}),
         label='Produto'
     )
+    opcao_preco = forms.ModelChoiceField(
+        queryset=OpcaoProduto.objects.none(),
+        widget=forms.Select(attrs={'class':'form-select'}),
+        label='Opção de Preço',
+        required=True
+    )
     class Meta:
         model = AnaliseCreditoCliente
-        fields = ['produto','data_pagamento','numero_parcelas', 'imei', 'observacao']
+        fields = ['produto','opcao_preco','data_pagamento','numero_parcelas', 'imei', 'observacao']
         widgets = {
             'data_pagamento': forms.Select(attrs={'class': 'form-control'}),
             'numero_parcelas': forms.Select(attrs={'class': 'form-control'}),
@@ -418,23 +424,41 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
+
+        # Se veio POST com produto, popula opções e remove o disabled
+        if 'produto' in self.data:
+            try:
+                prod_id = int(self.data.get('produto'))
+                qs = OpcaoProduto.objects.filter(produto_id=prod_id)
+            except (ValueError, TypeError):
+                qs = OpcaoProduto.objects.none()
+            self.fields['opcao_preco'].queryset = qs
+            # destrava o campo
+            self.fields['opcao_preco'].widget.attrs.pop('disabled', None)
+
+        # Se for edição, pré-carrega as opções do produto atual
+        elif self.instance.pk and self.instance.produto_id:
+            qs = self.instance.produto.opcoes.all()
+            self.fields['opcao_preco'].queryset = qs
+            self.fields['opcao_preco'].widget.attrs.pop('disabled', None)
+
+        # Controle de permissão: desabilita campos após salvar certos status
         if self.instance and self.instance.pk:
             if user and not user.has_perm('vendas.change_status_analise'):
-                # if self.instance.status == 'EA':
                 self.fields['produto'].disabled = True
-                # self.fields['imei'].disabled = True
                 self.fields['numero_parcelas'].disabled = True
                 self.fields['data_pagamento'].disabled = True
-            
+
             if user and not user.has_perm('vendas.can_edit_finished_sale'):
-                if not self.instance.cliente.analise_credito.status == 'EA':
+                if self.instance.cliente.analise_credito.status != 'EA':
                     self.fields['produto'].disabled = True
+                    self.fields['opcao_preco'].disabled = True
                     self.fields['numero_parcelas'].disabled = True
                     self.fields['data_pagamento'].disabled = True
                     self.fields['observacao'].disabled = True
                     if self.instance.venda:
                         self.fields['imei'].disabled = True
+                        
 class AnaliseCreditoClienteImeiForm(forms.ModelForm):
     produto = ProdutoChoiceField(
         queryset=Produto.objects.all(),

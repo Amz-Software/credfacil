@@ -211,63 +211,88 @@
             </div>
           </div>
 
-          <!-- ABA ANÁLISE DE CRÉDITO -->
-          <div class="tab-pane fade" id="tab-analise" role="tabpanel">
-            <h5>Produto</h5><hr>
-            {% if form_analise_credito.non_field_errors %}
-              <div class="alert alert-danger">
-          {{ form_analise_credito.non_field_errors }}
-              </div>
-            {% endif %}
-            <div class="row">
-              {% for field in form_analise_credito %}
-          <div class="col-md-12 mb-3">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.errors %}
-              <div class="text-danger small">{{ field.errors|striptags }}</div>
-            {% endif %}
-          </div>
-              {% endfor %}
-              <div class="col-md-12 mb-3">
+        <!-- === ABA ANÁLISE DE CRÉDITO === -->
+        <div class="tab-pane fade" id="tab-analise" role="tabpanel">
+          <h5>Produto</h5>
+          <hr>
+          {% if form_analise_credito.non_field_errors %}
+            <div class="alert alert-danger">
+              {{ form_analise_credito.non_field_errors }}
+            </div>
+          {% endif %}
+          <div class="row">
+            <!-- Campo Produto -->
+            <div class="col-md-12 mb-3">
+              {{ form_analise_credito.produto.label_tag }}
+              {{ form_analise_credito.produto }}
+              {% if form_analise_credito.produto.errors %}
+                <div class="text-danger small">{{ form_analise_credito.produto.errors|striptags }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Campo Opção de Preço -->
+            <div class="col-md-12 mb-3">
+              {{ form_analise_credito.opcao_preco.label_tag }}
+              {{ form_analise_credito.opcao_preco }}
+              {% if form_analise_credito.opcao_preco.errors %}
+                <div class="text-danger small">{{ form_analise_credito.opcao_preco.errors|striptags }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Demais campos -->
+            <div class="col-md-12 mb-3">
+              {{ form_analise_credito.data_pagamento.label_tag }}
+              {{ form_analise_credito.data_pagamento }}
+            </div>
+            <div class="col-md-12 mb-3">
+              {{ form_analise_credito.numero_parcelas.label_tag }}
+              {{ form_analise_credito.numero_parcelas }}
+            </div>
+            <div class="col-md-12 mb-3">
+              {{ form_analise_credito.imei.label_tag }}
+              {{ form_analise_credito.imei }}
+            </div>
+            <div class="col-md-12 mb-3">
+              {{ form_analise_credito.observacao.label_tag }}
+              {{ form_analise_credito.observacao }}
+            </div>
+
+            <!-- Previsão de vencimento -->
+            <div class="col-md-12 mb-3">
               <label class="form-label">Previsão dos vencimentos</label>
               <div id="vencimento-previsao-analise" class="form-text text-primary"></div>
             </div>
-              <div class="row text-center mb-4" id="parcelas-info">
-          <div class="col-12 col-md-4 mb-2">
-            <div class="card border-primary h-100">
-              <div class="card-body">
-                <h6 class="card-subtitle fs-5 fw-semibold text-primary text-uppercase">
-            Entrada
-                </h6>
-                <p class="card-text display-6" id="info-entrada">—</p>
+
+            <!-- Cards resumo parcelas -->
+            <div class="row text-center mb-4" id="parcelas-info">
+              <div class="col-12 col-md-4 mb-2">
+                <div class="card border-primary h-100">
+                  <div class="card-body">
+                    <h6 class="fs-6 fw-semibold text-primary text-uppercase">Entrada</h6>
+                    <p class="display-6" id="info-entrada">—</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-md-4 mb-2">
+                <div class="card border-success h-100">
+                  <div class="card-body">
+                    <h6 class="fs-6 fw-semibold text-success text-uppercase">Total</h6>
+                    <p class="display-6" id="info-total">—</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-md-4 mb-2">
+                <div class="card border-warning h-100">
+                  <div class="card-body">
+                    <h6 class="fs-6 fw-semibold text-warning text-uppercase">Parcelas</h6>
+                    <p class="display-6" id="info-parcela">—</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div class="col-12 col-md-4 mb-2">
-            <div class="card border-success h-100">
-              <div class="card-body">
-                <h6 class="card-subtitle fs-5 fw-semibold text-success text-uppercase">
-            Total
-                </h6>
-                <p class="card-text display-6" id="info-total">—</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-12 col-md-4 mb-2">
-            <div class="card border-warning h-100">
-              <div class="card-body">
-                <h6 class="card-subtitle fs-5 fw-semibold text-warning text-uppercase">
-            Parcelas
-                </h6>
-                <p class="card-text display-6" id="info-parcela">—</p>
-              </div>
-            </div>
-          </div>
-              </div>
-              
-            </div>
-          </div>
+        </div>
+
         </div>
       </div>
 
@@ -312,16 +337,8 @@
 {% block extra_scripts %}
   {{ form_analise_credito.media.js }}
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
   <script>
-    $('.tel').mask('00 00000-0000');
-    $('.cpf').mask('000.000.000-00');
-    $('.rg').mask('00000000');
-    $('.cep').mask('00000000');
-  </script>
-  <script>
-    $(function(){
-      // lista de produtos do contexto
+    $(document).ready(function(){
       const produtos = JSON.parse('{{ produtos_json|escapejs }}');
 
       function formatBRL(v) {
@@ -331,46 +348,61 @@
       function atualizaInfo() {
         const prodId = $('#id_produto').val();
         const np     = $('#id_numero_parcelas').val();
-
-        // se não houver produto selecionado, limpa tudo
         if (!prodId) {
-          $('#info-entrada, #info-total, #info-parcela').text('—');
+          $('#info-entrada,#info-total,#info-parcela').text('—');
           return;
         }
-
-        // busca dados do produto
         const p = produtos.find(x => x.id == prodId) || {};
-        const entrada = p.entrada  || 0;
-        const valor4  = p.valor4   || 0;
-        const valor6  = p.valor6   || 0;
-        const valor8  = p.valor8   || 0;
-
-        // escolhe total conforme parcelas
-        const total = { '4': valor4, '6': valor6, '8': valor8 }[np] || 0;
-        const parcela = (np && total)
-          ? total / parseInt(np, 10)
-          : 0;
-
-        // preenche os cards
+        const entrada = p.entrada || 0;
+        const totalMap = { '4': p.valor4, '6': p.valor6, '8': p.valor8 };
+        const total = totalMap[np] || 0;
+        const parcela = (np && total) ? total / parseInt(np, 10) : 0;
         $('#info-entrada').text(formatBRL(entrada));
-        $('#info-total')  .text(formatBRL(total));
-
-        const textoParcela = np
-          ? `${np}× de ${formatBRL(parcela)}`
-          : '—';
-        $('#info-parcela').text(textoParcela);
+        $('#info-total').text(formatBRL(total));
+        $('#info-parcela').text(np ? `${np}× de ${formatBRL(parcela)}` : '—');
       }
 
-      // dispara ao mudar produto (Select2) ou número de parcelas
-      $('#id_produto')
-        .on('change select2:select', atualizaInfo);
-      $('#id_numero_parcelas')
-        .on('change', atualizaInfo);
+      function populaOpcoes() {
+        console.log('>> populaOpcoes chamado, produto=', $('#id_produto').val());
+        const prodId = $('#id_produto').val();
+        const select = $('#id_opcao_preco');
+        select.empty().append('<option value="">Selecione uma opção</option>');
+        if (!prodId) {
+          select.prop('disabled', true);
+          return;
+        }
+        const p = produtos.find(x => x.id == prodId) || {};
+        const list = [
+          { key:'entrada_cliente', label:'Entrada',      valor: p.entrada },
+          { key:'valor_4_vezes',  label:'4×',           valor: p.valor4 },
+          { key:'valor_6_vezes',  label:'6×',           valor: p.valor6 },
+          { key:'valor_8_vezes',  label:'8×',           valor: p.valor8 }
+        ];
+        list.forEach(o => {
+          select.append(
+            `<option value="${o.key}">${o.label} – ${formatBRL(o.valor)}</option>`
+          );
+        });
+        select.prop('disabled', false);
+      }
 
-      // inicializa ao carregar a página
+      // bind nos dois eventos: change e select2:select
+      $('#id_produto')
+        .on('change select2:select', function() {
+          atualizaInfo();
+          populaOpcoes();
+        });
+
+      // número de parcelas
+      $('#id_numero_parcelas').on('change', atualizaInfo);
+
+      // inicializa ao carregar
       atualizaInfo();
+      populaOpcoes();
     });
   </script>
+
+
   <script>
     // Previsão de vencimento na aba Produto
     function calcularPrevisaoVencimentoAnalise() {
