@@ -986,26 +986,11 @@ def gerar_venda(request, cliente_id):
 
     produto = analise.produto
     imei = analise.imei
-    if imei.vendido:
-        messages.error(request, "❌ IMEI já vendido. Altere o IMEI para continuar.")
-        return redirect('vendas:cliente_list')
 
-    estoque = Estoque.objects.filter(produto__nome=produto.nome, loja=analise.loja)
-
-    if not estoque.exists():
-        messages.error(request, f"❌ Estoque não encontrado para o produto {produto.nome} na loja {analise.loja.nome}.")
-        return redirect('vendas:cliente_list')
-    
-    # verificar se em algum produto com o mesmo nome possui estoque
-    estoque_produto = None
-    for est in estoque:
-        if est.quantidade_disponivel > 0:
-            estoque_produto = est
-            break
-        
-    if not estoque_produto:
-        messages.error(request, f"❌ Estoque insuficiente para o produto {produto.nome} na loja {analise.loja.nome}.")
-        return redirect('vendas:cliente_list')
+    # Verifica se o IMEI já está sendo usado em outra venda (único)
+    if ProdutoVenda.objects.filter(imei=imei.imei).exists():
+        messages.error(request, f"❌ IMEI {imei.imei} já está sendo usado em outra venda. IMEI deve ser único.")
+        return redirect('vendas:cliente_update', pk=cliente.pk)
 
     # Cria venda
     venda = Venda.objects.create(
@@ -1050,11 +1035,7 @@ def gerar_venda(request, cliente_id):
         valor_desconto=0
     )
 
-    # Atualiza IMEI e estoque
-    imei.vendido = True
-    imei.data_venda = timezone.now()
-    imei.save()
-    estoque_produto.remover_estoque(1)
+    # IMEI e estoque não são mais atualizados automaticamente
 
     # Pagamentos
     tipo_entrada = TipoPagamento.objects.get(nome__iexact='ENTRADA')
@@ -1267,26 +1248,7 @@ class VendaCreateView(PermissionRequiredMixin, CreateView):
             produto_venda.loja = loja
             produto_venda.save()
 
-    def _validar_estoque(self, produto, quantidade, loja):
-        estoque = Estoque.objects.filter(produto=produto, loja=loja).first()
-        if not estoque or quantidade > estoque.quantidade_disponivel:
-            raise ValueError(f"Quantidade indisponível para o produto {produto}")
-
-    def _validar_imei(self, produto, imei):
-        try:
-            produto_imei = EstoqueImei.objects.get(imei=imei, produto=produto)
-            if produto_imei.vendido:
-                raise ValueError(f"IMEI {imei} já vendido")
-            produto_imei.vendido = True
-            produto_imei.save()
-        except EstoqueImei.DoesNotExist:
-            raise ValueError(f"IMEI {imei} não encontrado")
-
-    def _atualizar_estoque(self, produto, quantidade, loja):
-        estoque = Estoque.objects.filter(produto=produto, loja=loja).first()
-        if estoque:
-            estoque.remover_estoque(quantidade)
-            estoque.save()
+    # Métodos de validação de estoque e IMEI removidos - não são mais necessários
 
     def _processar_pagamentos(self, formset, loja):
         for pagamento in formset.save(commit=False):
@@ -1399,8 +1361,7 @@ class VendaUpdateView(PermissionRequiredMixin, UpdateView):
         # 1) Deletar itens marcados para exclusão
         for deletado in formset.deleted_objects:
             logger.debug("Deletando produto venda: %s", deletado)
-            if deletado.produto.tipo.numero_serial and deletado.imei:
-                self._restaurar_imei(deletado.produto, deletado.imei)
+            # Restauração de IMEI removida - não é mais necessária
             deletado.delete()
 
         # 2) Salvar/atualizar itens (novos ou já existentes)
@@ -1409,12 +1370,7 @@ class VendaUpdateView(PermissionRequiredMixin, UpdateView):
             quantidade = produto_venda.quantidade
             imei = produto_venda.imei
 
-            self._validar_estoque(produto, quantidade, loja)
-            if produto.tipo.numero_serial:
-                print(produto, imei)
-                # self._validar_imei(produto, imei)
-                
-            #LÓGICA DE ATUALIZAR ESTOQUE ESTÁ NOS SIGNALS
+            # Validações de estoque e IMEI removidas - não são mais necessárias
 
             produto_venda.venda = self.object
             produto_venda.loja = loja
@@ -1466,21 +1422,7 @@ class VendaUpdateView(PermissionRequiredMixin, UpdateView):
             logger.error("IMEI não encontrado para o produto %s: %s", produto, imei)
             raise ValueError(error_message)
 
-    def _restaurar_estoque(self, produto, quantidade, loja):
-        """Restaura a quantidade do estoque se o item for removido."""
-        estoque = Estoque.objects.filter(produto=produto, loja=loja).first()
-        if estoque:
-            estoque.adicionar_estoque(quantidade)
-            estoque.save()
-
-    def _restaurar_imei(self, produto, imei):
-        """Reverte o status do IMEI se o item for removido."""
-        try:
-            produto_imei = EstoqueImei.objects.get(imei=imei, produto=produto)
-            produto_imei.vendido = False
-            produto_imei.save()
-        except EstoqueImei.DoesNotExist:
-            logger.warning("Tentativa de restaurar IMEI inexistente %s para o produto %s", imei, produto)
+    # Métodos de restauração de estoque e IMEI removidos - não são mais necessários
             
             
 class VendaDetailView(PermissionRequiredMixin, DetailView):
@@ -1538,33 +1480,14 @@ class VendaTrocarProdutoView(PermissionRequiredMixin, View):
             produto_antigo_nome = produto_atual.produto.nome
             produto_antigo_imei = produto_atual.imei
 
-            # Valida estoque do novo produto
-            self._validar_estoque(novo_produto, quantidade, loja)
-            # Valida IMEI do novo produto
-            self._validar_imei(novo_produto, imei)
-
-            # Restaura estoque e IMEI do produto antigo
-            self._restaurar_estoque(produto_atual.produto, quantidade, loja)
-            self._restaurar_imei(produto_atual.produto, produto_atual.imei)
+            # Validações de estoque e IMEI removidas - não são mais necessárias
 
             # Atualiza ProdutoVenda
             produto_atual.produto = novo_produto
             produto_atual.imei = imei
             produto_atual.save(user=request.user)
 
-            # Remove do estoque o novo produto
-            estoque_novo = Estoque.objects.filter(produto=novo_produto, loja=loja).first()
-            if estoque_novo:
-                estoque_novo.remover_estoque(quantidade)
-                estoque_novo.save(user=request.user)
-
-            # Marca IMEI como vendido
-            estoque_imei = EstoqueImei.objects.filter(imei=imei, produto=novo_produto).first()
-            if estoque_imei:
-                estoque_imei.vendido = True
-                estoque_imei.aplicativo_instalado = True
-                estoque_imei.data_venda = localtime(now())
-                estoque_imei.save(user=request.user)
+            # Atualizações de estoque e IMEI removidas - não são mais necessárias
             
             data_atual = localtime(now()).date().strftime('%d/%m/%Y')
             hora_atual = localtime(now()).time().strftime('%H:%M')
@@ -1589,63 +1512,7 @@ class VendaTrocarProdutoView(PermissionRequiredMixin, View):
 
         return redirect('vendas:venda_detail', pk=pk)
 
-    def _validar_estoque(self, produto, quantidade, loja):
-        estoque = Estoque.objects.filter(produto__nome=produto.nome, loja=loja, quantidade_disponivel__gt=0).first()
-        if not estoque or quantidade > estoque.quantidade_disponivel:
-            error_message = f"Quantidade indisponível para o produto {produto}"
-            logger.error(
-                "Estoque insuficiente para o produto %s: solicitado %s, disponível %s",
-                produto, quantidade, estoque.quantidade_disponivel if estoque else 0
-            )
-            raise ValueError(error_message)
-
-    def _validar_imei(self, produto, imei):
-        try:
-            # Verificar se o IMEI existe no estoque para o produto específico
-            estoque_imei = EstoqueImei.objects.filter(imei=imei, produto=produto).first()
-            if not estoque_imei:
-                error_message = f"IMEI {imei} não encontrado para o produto {produto.nome}"
-                logger.error("IMEI não encontrado para o produto %s: %s", produto, imei)
-                raise ValueError(error_message)
-            
-            # Verificar se o IMEI já está vendido
-            if estoque_imei.vendido:
-                error_message = f"IMEI {imei} já vendido"
-                logger.error("IMEI já vendido para o produto %s: %s", produto, imei)
-                raise ValueError(error_message)
-            
-            # Verificar se o IMEI já está sendo usado em outra venda (exceto a atual)
-            produto_venda_existente = ProdutoVenda.objects.filter(imei=imei).exclude(
-                venda=self.venda_atual
-            ).first()
-            
-            if produto_venda_existente:
-                # Em vez de bloquear, apenas registrar um warning
-                logger.warning(f"IMEI {imei} já está sendo usado na venda {produto_venda_existente.venda.id}")
-                # Não bloquear a operação, apenas alertar
-
-        except Exception as e:
-            if isinstance(e, ValueError):
-                raise e
-            error_message = f"Erro ao validar IMEI {imei}: {str(e)}"
-            logger.error("Erro ao validar IMEI %s: %s", imei, e)
-            raise ValueError(error_message)
-
-    def _restaurar_estoque(self, produto, quantidade, loja):
-        estoque = Estoque.objects.filter(produto=produto, loja=loja).first()
-        if estoque:
-            estoque.adicionar_estoque(quantidade)
-            estoque.save(user=self.request.user)
-
-    def _restaurar_imei(self, produto, imei):
-        try:
-            produto_imei = EstoqueImei.objects.get(imei=imei, produto=produto)
-            produto_imei.vendido = False
-            produto_imei.aplicativo_instalado = False
-            produto_imei.data_venda = None
-            produto_imei.save(user=self.request.user)
-        except EstoqueImei.DoesNotExist:
-            logger.warning("Tentativa de restaurar IMEI inexistente %s para o produto %s", imei, produto)
+    # Métodos de validação e restauração de estoque e IMEI removidos - não são mais necessários
 
 def cancelar_venda(request, id):
     venda = get_object_or_404(Venda, id=id)
