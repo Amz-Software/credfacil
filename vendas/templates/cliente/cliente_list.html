@@ -19,12 +19,118 @@ Clientes
 
     .dark-style {
       --kpi-card-bg-approved: rgba(113, 221, 55, 0.15);
-      --kpi-card-bg-rejected: rgba(255, 62, 29, 0.15);
+      --kpi-card-bg-rejected: rgba(161, 172, 184, 0.15);
       --kpi-card-bg-cancelled: rgba(161, 172, 184, 0.15);
       --kpi-card-bg-pending: rgba(255, 171, 0, 0.15);
       --alert-info-bg: rgba(3, 195, 236, 0.15);
       --alert-info-border: rgba(3, 195, 236, 0.3);
       --alert-info-color: #03c3ec;
+    }
+
+    /* Estilos do Modal de QR Code */
+    .bg-gradient-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    }
+
+    .qr-icon-wrapper {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      width: 80px;
+      height: 80px;
+      line-height: 80px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .qr-image {
+      transition: box-shadow 0.3s ease;
+    }
+
+    .qr-image:hover {
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15) !important;
+    }
+
+    .code-display {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+      border: 2px solid #dee2e6 !important;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .code-display:hover {
+      border-color: #667eea !important;
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
+    }
+
+
+
+    .btn-success {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+      border: none !important;
+      transition: all 0.3s ease !important;
+    }
+
+    .btn-success:hover {
+      box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3) !important;
+    }
+
+    /* Animações do Modal */
+    .modal.fade .modal-dialog {
+      transition: transform 0.3s ease-out;
+      transform: scale(0.8);
+    }
+
+    .modal.show .modal-dialog {
+      transform: scale(1);
+    }
+
+    .modal-content {
+      animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-50px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      }
+      50% {
+        transform: scale(1.05);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      }
+    }
+
+    .modal-opening .modal-content {
+      animation: modalSlideIn 0.3s ease-out;
+    }
+
+    /* Responsividade */
+    @media (max-width: 768px) {
+      .qr-image {
+        max-width: 220px !important;
+      }
+      
+      .code-display span {
+        font-size: 1.5rem !important;
+      }
+      
+      .modal-body {
+        padding: 1.5rem !important;
+      }
     }
 
     /* CSS personalizado para aumentar a largura do offcanvas */
@@ -437,49 +543,79 @@ Clientes
             </div>
             
           </td> -->
+          <!-- Modal de Confirmação de Leitura do QR Code -->
           <div class="modal fade" id="installModal{{ cliente.pk }}" tabindex="-1"
           aria-labelledby="installModalLabel{{ cliente.pk }}" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
-              <div class="modal-content rounded-3">
-          
-                <!-- Header -->
-                <div class="modal-header border-0 justify-content-center">
-                  <h5 class="modal-title fs-5" id="installModalLabel{{ cliente.pk }}">
-                    Instalar Aplicativo
-                  </h5>
+              <div class="modal-content border-0 shadow-lg">
+                
+                <!-- Header com gradiente e ícone -->
+                <div class="modal-header bg-gradient-primary text-white border-0 text-center position-relative">
+                  <div class="w-100 text-center">
+                    <div class="qr-icon-wrapper mb-2">
+                      <i class="bx bx-qr-scan fs-1 text-white"></i>
+                    </div>
+                    <h4 class="modal-title fw-bold mb-0" id="installModalLabel{{ cliente.pk }}">
+                      📱 Instalar Aplicativo
+                    </h4>
+                    <p class="text-white-50 mb-0 mt-2">Escaneie o QR Code para instalar o aplicativo</p>
+                  </div>
                   <button type="button"
-                          class="btn-close position-absolute top-0 end-0 m-3"
+                          class="btn-close btn-close-white position-absolute top-0 end-0 m-3"
                           data-bs-dismiss="modal"
                           aria-label="Fechar">
                   </button>
                 </div>
           
-                <!-- Body: QR → Código → Botão -->
-                <div class="modal-body d-flex flex-column align-items-center text-center p-3">
-          
-                  {# 1) QR Code #}
+                <!-- Body com layout melhorado -->
+                <div class="modal-body p-4">
+                  
+                  <!-- QR Code Section -->
                   {% if loja.qr_code_aplicativo %}
-                    <img src="{{ loja.qr_code_aplicativo.url }}"
-                          alt="QR Code"
-                          class="img-fluid mb-3"
-                          style="max-width: 250px;">
+                    <div class="qr-section text-center mb-4">
+                      <div class="qr-container p-3 mb-3">
+                        <img src="{{ loja.qr_code_aplicativo.url }}"
+                              alt="QR Code para instalação"
+                              class="img-fluid qr-image"
+                              style="max-width: 280px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+                      </div>
+                      <p class="text-muted mb-0">
+                        <i class="bx bx-info-circle me-1"></i>
+                        Use a câmera do seu celular para escanear este QR Code
+                      </p>
+                    </div>
                   {% endif %}
-          
-                  {# 2) Código em destaque #}
-                  <div class="fs-2 fw-bold mb-4">
-                    {{ loja.codigo_aplicativo|default:"Código não disponível" }}
+                  
+                  <!-- Código Section -->
+                  <div class="code-section text-center mb-4">
+                    <label class="form-label text-muted mb-2">
+                      <i class="bx bx-code-alt me-1"></i>
+                      Código de Instalação
+                    </label>
+                    <div class="code-display p-3 bg-light rounded-3 border">
+                      <span class="fs-1 fw-bold text-primary font-monospace">
+                        {{ loja.codigo_aplicativo|default:"Código não disponível" }}
+                      </span>
+                    </div>
+                    <p class="text-muted small mt-2 mb-0">
+                      Digite este código no aplicativo se preferir
+                    </p>
                   </div>
+                  
+
           
-                  {# 3) Botão Operação Finalizada #}
+                  <!-- Botão de Confirmação -->
                   <form method="post"
                         action="{% url 'vendas:cliente_instalar_app' cliente.pk %}"
-                        class="w-100 px-3">
+                        class="w-100">
                     {% csrf_token %}
                     <button type="submit"
-                            class="btn btn-primary btn-lg w-100">
-                      Operação Finalizada
+                            class="btn btn-success btn-lg w-100 py-3 fw-bold shadow-sm">
+                      <i class="bx bx-check-circle me-2"></i>
+                      ✅ Confirmar Instalação
                     </button>
                   </form>
+                  
                 </div>
               </div>
             </div>
@@ -551,5 +687,69 @@ Clientes
     }
     document.addEventListener('DOMContentLoaded', refreshKpis);
     setInterval(refreshKpis, 15000);
+
+    // Melhorias para o Modal de QR Code
+    document.addEventListener('DOMContentLoaded', function() {
+      // Adiciona efeitos visuais aos modais de QR Code
+      const qrModals = document.querySelectorAll('[id^="installModal"]');
+      
+      qrModals.forEach(modal => {
+        const modalElement = new bootstrap.Modal(modal);
+        
+        // Quando o modal é aberto
+        modal.addEventListener('show.bs.modal', function() {
+          // Adiciona classe para animação
+          this.querySelector('.modal-content').classList.add('modal-opening');
+          
+          // Efeito de destaque no QR Code
+          const qrImage = this.querySelector('.qr-image');
+          if (qrImage) {
+            setTimeout(() => {
+              qrImage.style.animation = 'pulse 2s infinite';
+            }, 300);
+          }
+        });
+        
+        // Quando o modal é fechado
+        modal.addEventListener('hidden.bs.modal', function() {
+          // Remove classes de animação
+          this.querySelector('.modal-content').classList.remove('modal-opening');
+          
+          // Para animação do QR Code
+          const qrImage = this.querySelector('.qr-image');
+          if (qrImage) {
+            qrImage.style.animation = '';
+          }
+        });
+        
+
+      });
+      
+      // Adiciona funcionalidade de copiar código (se suportado)
+      const codeDisplays = document.querySelectorAll('.code-display');
+      codeDisplays.forEach(display => {
+        display.style.cursor = 'pointer';
+        display.title = 'Clique para copiar o código';
+        
+        display.addEventListener('click', function() {
+          const code = this.querySelector('span').textContent;
+          if (navigator.clipboard && code !== 'Código não disponível') {
+            navigator.clipboard.writeText(code).then(() => {
+              // Feedback visual
+              const originalText = this.querySelector('span').textContent;
+              this.querySelector('span').textContent = 'Código copiado!';
+              this.style.background = 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%) !important';
+              this.style.borderColor = '#28a745 !important';
+              
+              setTimeout(() => {
+                this.querySelector('span').textContent = originalText;
+                this.style.background = 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important';
+                this.style.borderColor = '#dee2e6 !important';
+              }, 2000);
+            });
+          }
+        });
+      });
+    });
   </script>
 {% endblock %}
