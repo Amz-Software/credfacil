@@ -1,6 +1,7 @@
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from notificacao.utils import enviar_ws_para_usuario
 from .models import Estoque, EntradaEstoque, ProdutoEntrada, EstoqueImei
 from vendas.models import ProdutoVenda, Venda
@@ -67,6 +68,8 @@ def atualizar_estoque_apos_cancelar_venda(sender, instance, **kwargs):
                 estoque_imei = EstoqueImei.objects.filter(imei=item.imei, loja=item.loja).first()
                 if estoque_imei:  # Apenas processa se encontrar algo
                     estoque_imei.vendido = False
+                    estoque_imei.data_venda = None
+                    estoque_imei.loja = None
                     estoque_imei.save()
                 else:
                     raise Exception(f"Estoque IMEI não encontrado para o IMEI {item.imei}.")
@@ -95,13 +98,26 @@ def salvar_quantidade_antiga(instance, **kwargs):
 
 @receiver(post_save, sender=ProdutoVenda)
 def atualizar_estoque_apos_editar_venda(sender, created, instance, **kwargs):
-    if not created:
-        with transaction.atomic():
+    with transaction.atomic():
+        if created:
+            # Quando ProdutoVenda é criado pela primeira vez, marca o IMEI como vendido
+            if instance.imei:
+                estoque_imei = EstoqueImei.objects.filter(imei=instance.imei, loja=instance.loja).select_for_update().first()
+                if estoque_imei:
+                    estoque_imei.vendido = True
+                    estoque_imei.data_venda = timezone.now()
+                    estoque_imei.loja = instance.loja
+                    estoque_imei.save()
+                else:
+                    raise Exception(f"Estoque IMEI não encontrado para o IMEI {instance.imei}.")
+        else:
             # Atualização de IMEI se houver mudança
             if getattr(instance._produto_antigo, 'imei', None) and instance.imei and instance._produto_antigo.imei != instance.imei:
                 estoque_imei_antigo = EstoqueImei.objects.filter(imei=instance._produto_antigo.imei, loja=instance.loja).select_for_update().first()
                 if estoque_imei_antigo:
                     estoque_imei_antigo.vendido = False
+                    estoque_imei_antigo.data_venda = None
+                    estoque_imei_antigo.loja = None
                     estoque_imei_antigo.save()
                 else:
                     raise Exception(f"Estoque IMEI não encontrado para o IMEI {instance._produto_antigo.imei}.")
@@ -109,6 +125,8 @@ def atualizar_estoque_apos_editar_venda(sender, created, instance, **kwargs):
                 estoque_imei_novo = EstoqueImei.objects.filter(imei=instance.imei, loja=instance.loja).select_for_update().first()
                 if estoque_imei_novo:
                     estoque_imei_novo.vendido = True
+                    estoque_imei_novo.data_venda = timezone.now()
+                    estoque_imei_novo.loja = instance.loja
                     estoque_imei_novo.save()
                 else:
                     raise Exception(f"Estoque IMEI não encontrado para o IMEI {instance.imei}.")
@@ -127,6 +145,8 @@ def atualizar_estoque_apos_editar_venda(sender, created, instance, **kwargs):
                         estoque_imei_antigo = EstoqueImei.objects.filter(imei=instance._produto_antigo.imei, loja=instance.loja).select_for_update().first()
                         if estoque_imei_antigo:
                             estoque_imei_antigo.vendido = False
+                            estoque_imei_antigo.data_venda = None
+                            estoque_imei_antigo.loja = None
                             estoque_imei_antigo.save()
                         else:
                             raise Exception(f"Estoque IMEI não encontrado para o IMEI {instance._produto_antigo.imei}.")

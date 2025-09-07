@@ -1041,7 +1041,7 @@ def gerar_venda(request, cliente_id):
         valor_desconto=0
     )
 
-    # IMEI e estoque não são mais atualizados automaticamente
+    # IMEI é automaticamente marcado como vendido via signal
 
     # Pagamentos
     tipo_entrada = TipoPagamento.objects.get(nome__iexact='ENTRADA')
@@ -2854,7 +2854,7 @@ def informar_imei_analise(request, pk):
             # IMEI não existe, criar novo registro no estoque
             try:
                 # Criar novo registro no EstoqueImei
-                novo_estoque_imei = EstoqueImei.objects.create(
+                novo_estoque_imei = EstoqueImei(
                     produto=analise.produto,
                     imei=imei_informado,
                     loja=loja,
@@ -2862,6 +2862,7 @@ def informar_imei_analise(request, pk):
                     aplicativo_instalado=False,
                     cancelado=False
                 )
+                # Salvar com o usuário para preencher criado_por
                 novo_estoque_imei.save(user=request.user)
                 
                 # Associar à análise

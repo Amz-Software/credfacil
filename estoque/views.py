@@ -172,7 +172,7 @@ class EntradaUpdateView(PermissionRequiredMixin, UpdateView):
                 
                 # Se o produto for serializado, salve os IMEIs na tabela EstoqueImei
                 if produto.imei:  # Presumindo que o IMEI é obrigatório
-                    estoque_imei = EstoqueImei.objects.create(
+                    estoque_imei = EstoqueImei(
                         produto=produto.produto,
                         imei=produto.imei,
                         produto_entrada=produto,
@@ -341,6 +341,8 @@ def cancelar_imei(request, id):
     
     if imei.cancelado:
         messages.error(request, 'Este IMEI já está cancelado.')
+    elif imei.vendido or imei.id_venda:
+        messages.error(request, 'Não é possível cancelar um IMEI que possui venda associada.')
     else:
         imei.cancelado = True
         imei.save(user=request.user)
