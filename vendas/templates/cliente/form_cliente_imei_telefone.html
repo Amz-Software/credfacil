@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static iam_tags l10n %}
+{% load static iam_tags l10n file_utils %}
 
 {% block extra_head %}
   {{ form_analise_credito.media.css }}
@@ -11,6 +11,25 @@
       padding: 1rem;
       border-top: 1px solid #ddd;
       z-index: 10;
+    }
+
+    /* Estilos para botões de download de arquivos */
+    .btn-outline-primary {
+      border: 2px solid #007bff;
+      color: #007bff;
+      background-color: transparent;
+      transition: all 0.3s ease;
+    }
+
+    .btn-outline-primary:hover {
+      background-color: #007bff;
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    }
+
+    .btn-outline-primary i {
+      font-size: 1.1em;
     }
   </style>
 {% endblock extra_head %}
@@ -155,21 +174,165 @@
           <div class="tab-pane fade" id="tab-comprovantes" role="tabpanel">
             <h5>Comprovantes</h5><hr>
             <div class="row">
-              {% for field in form_comprovantes %}
-                <div class="col-md-12 mb-3">
-                  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                  {% if field.field.widget.input_type == 'checkbox' %}
-                    <input type="hidden" name="{{ field.html_name }}" value="False">
-                  {% endif %}
-                  {% if field.value and field.field.widget.input_type != 'checkbox' %}
-                    <a href="{{ field.value.url }}" target="_blank" class="d-block mb-2">
-                      <img src="{{ field.value.url }}" class="img-thumbnail" style="max-height:100px;">
+              <!-- Documentos Básicos - Sempre visíveis -->
+              <div class="col-md-12 mb-3">
+                <label for="{{ form_comprovantes.documento_identificacao_frente.id_for_label }}">{{ form_comprovantes.documento_identificacao_frente.label }}</label>
+                {% if form_comprovantes.documento_identificacao_frente.value %}
+                  {% if form_comprovantes.documento_identificacao_frente.value|is_image_file %}
+                    <a href="{{ form_comprovantes.documento_identificacao_frente.value.url }}" target="_blank" class="d-block mb-2">
+                      <img src="{{ form_comprovantes.documento_identificacao_frente.value.url }}" class="img-thumbnail" style="max-height:100px;">
                     </a>
+                  {% else %}
+                    <div class="d-block mb-2">
+                      <a href="{{ form_comprovantes.documento_identificacao_frente.value.url }}" download="{{ form_comprovantes.documento_identificacao_frente.value|get_file_name }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bx bx-download me-1"></i>
+                        Ver arquivo ({{ form_comprovantes.documento_identificacao_frente.value|get_file_extension|upper }})
+                      </a>
+                      <small class="text-muted d-block mt-1">{{ form_comprovantes.documento_identificacao_frente.value|get_file_name }}</small>
+                    </div>
+                  {% endif %}
+                  <small>Escolha um novo arquivo se quiser substituir.</small>
+                {% endif %}
+                {{ form_comprovantes.documento_identificacao_frente }}
+                {% if form_comprovantes.documento_identificacao_frente_analise %}
+                  <div class="form-check mt-2">
+                    {{ form_comprovantes.documento_identificacao_frente_analise }}
+                    <label class="form-check-label" for="{{ form_comprovantes.documento_identificacao_frente_analise.id_for_label }}">
+                      {{ form_comprovantes.documento_identificacao_frente_analise.label }}
+                    </label>
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="col-md-12 mb-3">
+                <label for="{{ form_comprovantes.documento_identificacao_verso.id_for_label }}">{{ form_comprovantes.documento_identificacao_verso.label }}</label>
+                {% if form_comprovantes.documento_identificacao_verso.value %}
+                  {% if form_comprovantes.documento_identificacao_verso.value|is_image_file %}
+                    <a href="{{ form_comprovantes.documento_identificacao_verso.value.url }}" target="_blank" class="d-block mb-2">
+                      <img src="{{ form_comprovantes.documento_identificacao_verso.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                    </a>
+                  {% else %}
+                    <div class="d-block mb-2">
+                      <a href="{{ form_comprovantes.documento_identificacao_verso.value.url }}" download="{{ form_comprovantes.documento_identificacao_verso.value|get_file_name }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bx bx-download me-1"></i>
+                        Ver arquivo ({{ form_comprovantes.documento_identificacao_verso.value|get_file_extension|upper }})
+                      </a>
+                      <small class="text-muted d-block mt-1">{{ form_comprovantes.documento_identificacao_verso.value|get_file_name }}</small>
+                    </div>
+                  {% endif %}
+                  <small>Escolha um novo arquivo se quiser substituir.</small>
+                {% endif %}
+                {{ form_comprovantes.documento_identificacao_verso }}
+                {% if form_comprovantes.documento_identificacao_verso_analise %}
+                  <div class="form-check mt-2">
+                    {{ form_comprovantes.documento_identificacao_verso_analise }}
+                    <label class="form-check-label" for="{{ form_comprovantes.documento_identificacao_verso_analise.id_for_label }}">
+                      {{ form_comprovantes.documento_identificacao_verso_analise.label }}
+                    </label>
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="col-md-12 mb-3">
+                <label for="{{ form_comprovantes.comprovante_residencia.id_for_label }}">{{ form_comprovantes.comprovante_residencia.label }}</label>
+                {% if form_comprovantes.comprovante_residencia.value %}
+                  {% if form_comprovantes.comprovante_residencia.value|is_image_file %}
+                    <a href="{{ form_comprovantes.comprovante_residencia.value.url }}" target="_blank" class="d-block mb-2">
+                      <img src="{{ form_comprovantes.comprovante_residencia.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                    </a>
+                  {% else %}
+                    <div class="d-block mb-2">
+                      <a href="{{ form_comprovantes.comprovante_residencia.value.url }}" download="{{ form_comprovantes.comprovante_residencia.value|get_file_name }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bx bx-download me-1"></i>
+                        Ver arquivo ({{ form_comprovantes.comprovante_residencia.value|get_file_extension|upper }})
+                      </a>
+                      <small class="text-muted d-block mt-1">{{ form_comprovantes.comprovante_residencia.value|get_file_name }}</small>
+                    </div>
+                  {% endif %}
+                  <small>Escolha um novo arquivo se quiser substituir.</small>
+                {% endif %}
+                {{ form_comprovantes.comprovante_residencia }}
+                {% if form_comprovantes.comprovante_residencia_analise %}
+                  <div class="form-check mt-2">
+                    {{ form_comprovantes.comprovante_residencia_analise }}
+                    <label class="form-check-label" for="{{ form_comprovantes.comprovante_residencia_analise.id_for_label }}">
+                      {{ form_comprovantes.comprovante_residencia_analise.label }}
+                    </label>
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="col-md-12 mb-3">
+                <label for="{{ form_comprovantes.foto_cliente.id_for_label }}">{{ form_comprovantes.foto_cliente.label }}</label>
+                {% if form_comprovantes.foto_cliente.value %}
+                  {% if form_comprovantes.foto_cliente.value|is_image_file %}
+                    <a href="{{ form_comprovantes.foto_cliente.value.url }}" target="_blank" class="d-block mb-2">
+                      <img src="{{ form_comprovantes.foto_cliente.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                    </a>
+                  {% else %}
+                    <div class="d-block mb-2">
+                      <a href="{{ form_comprovantes.foto_cliente.value.url }}" download="{{ form_comprovantes.foto_cliente.value|get_file_name }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bx bx-download me-1"></i>
+                        Ver arquivo ({{ form_comprovantes.foto_cliente.value|get_file_extension|upper }})
+                      </a>
+                      <small class="text-muted d-block mt-1">{{ form_comprovantes.foto_cliente.value|get_file_name }}</small>
+                    </div>
+                  {% endif %}
+                  <small>Escolha um novo arquivo se quiser substituir.</small>
+                {% endif %}
+                {{ form_comprovantes.foto_cliente }}
+              </div>
+
+              <!-- Consulta Serasa - Apenas para usuários com permissão -->
+              {% if can_view_consulta_serasa %}
+                <div class="col-md-12 mb-3">
+                  <div class="alert alert-info">
+                    <i class="bx bx-shield-check me-2"></i>
+                    <strong>Consulta Serasa</strong> - Documento adicional disponível
+                  </div>
+                  <label for="{{ form_comprovantes.consulta_serasa.id_for_label }}">{{ form_comprovantes.consulta_serasa.label }}</label>
+                  {% if form_comprovantes.consulta_serasa.value %}
+                    {% if form_comprovantes.consulta_serasa.value|is_image_file %}
+                      <a href="{{ form_comprovantes.consulta_serasa.value.url }}" target="_blank" class="d-block mb-2">
+                        <img src="{{ form_comprovantes.consulta_serasa.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                      </a>
+                    {% else %}
+                      <div class="d-block mb-2">
+                        <a href="{{ form_comprovantes.consulta_serasa.value.url }}" download="{{ form_comprovantes.consulta_serasa.value|get_file_name }}" class="btn btn-outline-primary btn-sm">
+                          <i class="bx bx-download me-1"></i>
+                          Ver arquivo ({{ form_comprovantes.consulta_serasa.value|get_file_extension|upper }})
+                        </a>
+                        <small class="text-muted d-block mt-1">{{ form_comprovantes.consulta_serasa.value|get_file_name }}</small>
+                      </div>
+                    {% endif %}
                     <small>Escolha um novo arquivo se quiser substituir.</small>
                   {% endif %}
-                  {{ field }}
+                  {{ form_comprovantes.consulta_serasa }}
+                  {% if form_comprovantes.consulta_serasa_analise %}
+                    <div class="form-check mt-2">
+                      {{ form_comprovantes.consulta_serasa_analise }}
+                      <label class="form-check-label" for="{{ form_comprovantes.consulta_serasa_analise.id_for_label }}">
+                        {{ form_comprovantes.consulta_serasa_analise.label }}
+                      </label>
+                    </div>
+                  {% endif %}
+                  {% if form_comprovantes.restricao %}
+                    <div class="form-check mt-2">
+                      {{ form_comprovantes.restricao }}
+                      <label class="form-check-label" for="{{ form_comprovantes.restricao.id_for_label }}">
+                        {{ form_comprovantes.restricao.label }}
+                      </label>
+                    </div>
+                  {% endif %}
                 </div>
-              {% endfor %}
+              {% else %}
+                <div class="col-md-12 mb-3">
+                  <div class="alert alert-warning">
+                    <i class="bx bx-lock-alt me-2"></i>
+                    <strong>Consulta Serasa</strong> - Documento restrito. Permissão necessária para visualizar.
+                  </div>
+                </div>
+              {% endif %}
             </div>
           </div>
 

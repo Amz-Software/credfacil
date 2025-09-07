@@ -18,7 +18,7 @@ from financeiro.forms import *
 from vendas.models import Pagamento
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.auth.decorators import permission_required
-from django.db.models import OuterRef, Subquery, DateField
+from django.db.models import OuterRef, Subquery, DateField, Q
 
 
 class CaixaMensalListView(BaseView, PermissionRequiredMixin, ListView):
@@ -383,8 +383,9 @@ class ContasAReceberListView(BaseView, PermissionRequiredMixin, ListView):
             qs = qs.filter(
                 Q(venda__cliente__nome__icontains=search) |
                 Q(venda__cliente__cpf__icontains=search) |
+                Q(venda__cliente__contatos__observacao__icontains=search) |
                 Q(id__iexact=search) 
-            )
+            ).distinct()
 
         if self.request.GET.get('bloqueado'):
             qs = qs.filter(bloqueado=True)

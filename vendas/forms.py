@@ -518,7 +518,8 @@ class ComprovantesClienteForm(forms.ModelForm):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
-        if not (user and user.has_perm('vendas.change_status_analise')):
+        # Se não tiver permissão para alterar status de análise E não tiver permissão para visualizar consulta Serasa
+        if not (user and (user.has_perm('vendas.change_status_analise') or user.has_perm('vendas.view_consulta_serasa'))):
             self.fields.pop('consulta_serasa', None)
             self.fields.pop('consulta_serasa_analise', None)
             self.fields.pop('restricao', None)
@@ -606,7 +607,8 @@ class ComprovantesClienteEditForm(forms.ModelForm):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
-        if not (user and user.has_perm('vendas.change_status_analise')):
+        # Se não tiver permissão para alterar status de análise E não tiver permissão para visualizar consulta Serasa
+        if not (user and (user.has_perm('vendas.change_status_analise') or user.has_perm('vendas.view_consulta_serasa'))):
             self.fields.pop('consulta_serasa', None)
             self.fields.pop('consulta_serasa_analise', None)
             self.fields.pop('restricao', None)

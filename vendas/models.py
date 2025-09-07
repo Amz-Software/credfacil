@@ -430,6 +430,7 @@ class Venda(Base):
             ('can_edit_finished_sale', 'Pode editar venda finalizada'),
             ('can_view_your_dashboard', 'Pode ver seu dashboard'),
             ('can_view_all_dashboard', 'Pode ver todos os dashboards'),
+            ('view_consulta_serasa', 'Pode visualizar consulta Serasa'),
         )
 
 

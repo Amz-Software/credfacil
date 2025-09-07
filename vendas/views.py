@@ -502,6 +502,9 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
         context['form_comprovantes'] = kwargs.get('form_comprovantes', ComprovantesClienteForm(user=self.request.user))
         context['form_analise_credito'] = kwargs.get('form_analise_credito', AnaliseCreditoClienteForm(user=self.request.user))
         
+        # Adiciona informação sobre permissão de visualizar consulta Serasa
+        context['can_view_consulta_serasa'] = self.request.user.has_perm('vendas.view_consulta_serasa')
+        
         produtos = Produto.objects.all().values('id', 'nome', 'valor_4_vezes', 'valor_6_vezes', 'valor_8_vezes', 'entrada_cliente')
         produtos_list = [
             {
@@ -622,6 +625,9 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
         context['form_comprovantes'] = kwargs.get('form_comprovantes', ComprovantesClienteForm(instance=cliente.comprovantes, user=self.request.user))
         context['form_analise_credito'] = kwargs.get('form_analise_credito', AnaliseCreditoClienteForm(instance=cliente.analise_credito, user=self.request.user))
         context['cliente_id'] = cliente.id
+        
+        # Adiciona informação sobre permissão de visualizar consulta Serasa
+        context['can_view_consulta_serasa'] = self.request.user.has_perm('vendas.view_consulta_serasa')
         
         analise = get_object_or_404(AnaliseCreditoCliente, cliente=self.object)
         # expõe no template
