@@ -206,8 +206,12 @@ class IndexView(LoginRequiredMixin, TemplateView):
         return context
     
 
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views import View
+from django.template.loader import get_template
+from django.template import Context
+import weasyprint
+from io import BytesIO
 
 class CaixaKpiCountsView(View):
     def get(self, request, *args, **kwargs):
@@ -2991,3 +2995,114 @@ class AnalistaConfirmInstalledView(PermissionRequiredMixin, View):
         
         messages.success(request, "✅ Instalação confirmada pelo analista! Venda liberada para geração.")
         return redirect('vendas:cliente_list')
+
+
+class DashboardReportPDFView(PermissionRequiredMixin, View):
+    permission_required = 'vendas.can_generate_dashboard_report'
+    
+    def get(self, request, *args, **kwargs):
+        # Reutilizar a lógica da GraficoTemplateView para calcular os dados
+        context = self.get_dashboard_data()
+        
+        # Renderizar o template PDF
+        template = get_template('dash/relatorio_pdf.html')
+        html = template.render(context)
+        
+        # Gerar PDF
+        pdf_buffer = BytesIO()
+        weasyprint.HTML(string=html).write_pdf(pdf_buffer)
+        pdf_buffer.seek(0)
+        
+        # Retornar o PDF
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="relatorio_dashboard_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+        return response
+    
+    def get_dashboard_data(self):
+        """Reutiliza a lógica da GraficoTemplateView para calcular os dados"""
+        # Buscar todas as lojas
+        lojas = Loja.objects.all()
+        
+        vendas = Venda.objects.filter(is_deleted=False)
+        parcelas_qs = Parcela.objects.filter(
+            pagamento__venda__in=vendas,
+            pagamento__tipo_pagamento__nome='CREDFACIL'
+        ).select_related('pagamento', 'pagamento__venda')
+
+        parcelas_por_venda = defaultdict(list)
+        for parcela in parcelas_qs:
+            parcelas_por_venda[parcela.pagamento.venda_id].append(parcela)
+
+        # Dados por loja
+        dados_por_loja = {}
+        
+        for loja in lojas:
+            vendas_loja = vendas.filter(loja=loja)
+            parcelas_loja = Parcela.objects.filter(
+                pagamento__venda__in=vendas_loja,
+                pagamento__tipo_pagamento__nome='CREDFACIL'
+            ).select_related('pagamento', 'pagamento__venda')
+
+            # Calcular KPIs para esta loja
+            total_vendas_loja = vendas_loja.count()
+            total_de_parcelas_vencidas = total_de_parcelas_pagas = total_de_parcelas_a_vencer = 0
+            total_pagas = total_vencidas = total_a_vencer = 0
+
+            for venda in vendas_loja:
+                parcelas = parcelas_por_venda.get(venda.id, [])
+                
+                parcelas_vencidas = [p for p in parcelas if p.data_vencimento < timezone.now().date() and not p.pago and not p.pagamento_efetuado]
+                parcelas_pagas = [p for p in parcelas if p.pago and not p.pagamento_efetuado]
+                parcelas_a_vencer = [p for p in parcelas if p.data_vencimento >= timezone.now().date() and not p.pago and not p.pagamento_efetuado]
+
+                total_de_parcelas_vencidas += len(parcelas_vencidas)
+                total_de_parcelas_pagas += len(parcelas_pagas)
+                total_de_parcelas_a_vencer += len(parcelas_a_vencer)
+
+                total_vencidas += sum(p.valor for p in parcelas_vencidas)
+                total_pagas += sum(p.valor for p in parcelas_pagas)
+                total_a_vencer += sum(p.valor for p in parcelas_a_vencer)
+
+            # Calcular desativados para esta loja
+            parcelas_desativadas = Parcela.objects.filter(
+                pagamento__venda__in=vendas_loja,
+                pagamento__tipo_pagamento__nome='CREDFACIL',
+                pagamento__desativado=True,
+                pago=False
+            )
+            
+            total_desativados_vencidas = sum(p.valor for p in parcelas_desativadas if p.data_vencimento < timezone.now().date())
+            total_desativados_a_vencer = sum(p.valor for p in parcelas_desativadas if p.data_vencimento >= timezone.now().date())
+            qtd_desativados_vencidas = sum(1 for p in parcelas_desativadas if p.data_vencimento < timezone.now().date())
+            qtd_desativados_a_vencer = sum(1 for p in parcelas_desativadas if p.data_vencimento >= timezone.now().date())
+
+            # Calcular repasses para esta loja
+            produtos_vendidos = ProdutoVenda.objects.filter(venda__in=vendas_loja)
+            total_repasses = sum(pv.produto.valor_repasse_logista or 0 for pv in produtos_vendidos)
+
+            # Valor total das parcelas
+            valor_total_parcelas = total_pagas + total_vencidas + total_a_vencer + total_desativados_vencidas + total_desativados_a_vencer
+
+            dados_por_loja[loja.nome] = {
+                'loja': loja,
+                'total_vendas': total_vendas_loja,
+                'total_parcelas': total_de_parcelas_vencidas + total_de_parcelas_pagas + total_de_parcelas_a_vencer,
+                'parcelas_pagas': total_de_parcelas_pagas,
+                'parcelas_vencidas': total_de_parcelas_vencidas,
+                'parcelas_a_vencer': total_de_parcelas_a_vencer,
+                'total_pagas': total_pagas,
+                'total_vencidas': total_vencidas,
+                'total_a_vencer': total_a_vencer,
+                'total_desativados_vencidas': total_desativados_vencidas,
+                'total_desativados_a_vencer': total_desativados_a_vencer,
+                'qtd_desativados_vencidas': qtd_desativados_vencidas,
+                'qtd_desativados_a_vencer': qtd_desativados_a_vencer,
+                'total_repasses': total_repasses,
+                'valor_total_parcelas': valor_total_parcelas,
+            }
+
+        return {
+            'dados_por_loja': dados_por_loja,
+            'data_geracao': timezone.now(),
+            'usuario': self.request.user,
+        }

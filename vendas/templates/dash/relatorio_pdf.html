@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório Dashboard - Todas as Lojas</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #333;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 15px;
+        }
+        
+        .header h1 {
+            color: #007bff;
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .header .subtitle {
+            color: #666;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .loja-section {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+        }
+        
+        .loja-title {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            margin: 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .kpi-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+            background-color: #f8f9fa;
+        }
+        
+        .kpi-card h4 {
+            margin: 0 0 5px 0;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        
+        .kpi-card .value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .kpi-card .value.currency {
+            color: #28a745;
+        }
+        
+        .kpi-card .value.danger {
+            color: #dc3545;
+        }
+        
+        .kpi-card .value.warning {
+            color: #ffc107;
+        }
+        
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        .summary-table th,
+        .summary-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        
+        .summary-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .summary-table .loja-name {
+            text-align: left;
+            font-weight: bold;
+        }
+        
+        .summary-table small {
+            font-size: 10px;
+            color: #666;
+            display: block;
+            margin-top: 2px;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+        
+        .no-data {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Relatório Dashboard - Todas as Lojas</h1>
+        <div class="subtitle">Gerado em: {{ data_geracao|date:"d/m/Y H:i" }}</div>
+        <div class="subtitle">Usuário: {{ usuario.username }}</div>
+    </div>
+
+    {% if dados_por_loja %}
+        <!-- Resumo Geral -->
+        <div class="loja-section">
+            <h2 class="loja-title">Resumo Geral</h2>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Loja</th>
+                        <th>Vendas</th>
+                        <th>Parcelas</th>
+                        <th>Pagas</th>
+                        <th>Vencidas</th>
+                        <th>A Vencer</th>
+                        <th>Valor Total</th>
+                        <th>Repasses</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loja_nome, dados in dados_por_loja.items %}
+                    <tr>
+                        <td class="loja-name">{{ loja_nome|title }}</td>
+                        <td>{{ dados.total_vendas }}</td>
+                        <td>{{ dados.total_parcelas }}</td>
+                        <td>{{ dados.parcelas_pagas }}<br><small class="currency">R$ {{ dados.total_pagas|floatformat:2 }}</small></td>
+                        <td>{{ dados.parcelas_vencidas }}<br><small class="currency">R$ {{ dados.total_vencidas|floatformat:2 }}</small></td>
+                        <td>{{ dados.parcelas_a_vencer }}<br><small class="currency">R$ {{ dados.total_a_vencer|floatformat:2 }}</small></td>
+                        <td class="currency">R$ {{ dados.valor_total_parcelas|floatformat:2 }}</td>
+                        <td class="currency">R$ {{ dados.total_repasses|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Detalhamento por Loja -->
+        {% for loja_nome, dados in dados_por_loja.items %}
+        <div class="loja-section">
+            <h2 class="loja-title">{{ loja_nome|title }}</h2>
+            
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <h4>Total de Vendas</h4>
+                    <div class="value">{{ dados.total_vendas }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Total de Parcelas</h4>
+                    <div class="value">{{ dados.total_parcelas }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Valor Total</h4>
+                    <div class="value currency">R$ {{ dados.valor_total_parcelas|floatformat:2 }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Parcelas Pagas</h4>
+                    <div class="value">{{ dados.parcelas_pagas }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Valor Pago</h4>
+                    <div class="value currency">R$ {{ dados.total_pagas|floatformat:2 }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Parcelas Vencidas</h4>
+                    <div class="value danger">{{ dados.parcelas_vencidas }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Valor Vencido</h4>
+                    <div class="value danger">R$ {{ dados.total_vencidas|floatformat:2 }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Parcelas a Vencer</h4>
+                    <div class="value warning">{{ dados.parcelas_a_vencer }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Valor a Vencer</h4>
+                    <div class="value warning">R$ {{ dados.total_a_vencer|floatformat:2 }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Desativados Vencidos</h4>
+                    <div class="value">{{ dados.qtd_desativados_vencidas }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Valor Desativados Vencidos</h4>
+                    <div class="value">R$ {{ dados.total_desativados_vencidas|floatformat:2 }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Desativados a Vencer</h4>
+                    <div class="value">{{ dados.qtd_desativados_a_vencer }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Valor Desativados a Vencer</h4>
+                    <div class="value">R$ {{ dados.total_desativados_a_vencer|floatformat:2 }}</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <h4>Total Repasses</h4>
+                    <div class="value currency">R$ {{ dados.total_repasses|floatformat:2 }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-data">
+            <p>Nenhum dado encontrado para as lojas.</p>
+        </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>Relatório gerado automaticamente pelo sistema CredFácil</p>
+        <p>Data: {{ data_geracao|date:"d/m/Y H:i:s" }} | Usuário: {{ usuario.username }}</p>
+    </div>
+</body>
+</html>

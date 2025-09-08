@@ -6,16 +6,27 @@
 <div class="container py-4">
     <div class="row mb-4">
         <div class="col-12">
-            <form method="get" class="mb-3 d-flex justify-content-center align-items-center gap-2">
-                <label for="loja-select" class="form-label mb-0">Filtrar por loja:</label>
-                <select id="loja-select" name="loja" class="form-select w-auto">
-                    <option value="">Todas</option>
-                    {% for loja in lojas %}
-                        <option value="{{ loja.id }}"{% if loja.id == loja_get %} selected{% endif %}>{{ loja.nome|title }}</option>
-                    {% endfor %}
-                </select>
-                <button type="submit" class="btn btn-primary">Filtrar</button>
-            </form>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <form method="get" class="d-flex align-items-center gap-2">
+                    <label for="loja-select" class="form-label mb-0">Filtrar por loja:</label>
+                    <select id="loja-select" name="loja" class="form-select w-auto">
+                        <option value="">Todas</option>
+                        {% for loja in lojas %}
+                            <option value="{{ loja.id }}"{% if loja.id == loja_get %} selected{% endif %}>{{ loja.nome|title }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                </form>
+                
+                {% if user|has_perm:"vendas.can_generate_dashboard_report" %}
+                <div>
+                    <a href="{% url 'vendas:dashboard_report_pdf' %}" class="btn btn-success">
+                        <i class="bx bx-file-pdf me-1"></i>
+                        Gerar Relatório PDF
+                    </a>
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
     <!-- KPIs Grid -->

@@ -78,6 +78,7 @@
             <th>Cliente</th>
             <th>Produto</th>
             <th class="center">IMEI</th>
+            <th class="center">Status</th>
             <th class="center">Contato do Cliente</th>
             <th class="end">Valor Atrasado</th>
             <th class="end">Primeiro Vencimento</th>
@@ -112,6 +113,15 @@
                 {{ conta.venda.itens_venda.first.imei }}
             {% else %}
                 -
+            {% endif %}
+            </td>
+            <td class="center">
+            {% if conta.desativado %}
+                <span style="color: #6c757d; font-weight: bold;">DESATIVADO</span>
+            {% elif conta.bloqueado %}
+                <span style="color: #6f42c1; font-weight: bold;">BLOQUEADO</span>
+            {% else %}
+                <span style="color: #28a745; font-weight: bold;">ATIVO</span>
             {% endif %}
             </td>
             <td class="center">

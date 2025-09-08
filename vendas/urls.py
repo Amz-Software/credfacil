@@ -135,6 +135,7 @@ urlpatterns = [
     ),
 
     path('graficos/', GraficoTemplateView.as_view(), name='grafico'),
+    path('graficos/relatorio-pdf/', DashboardReportPDFView.as_view(), name='dashboard_report_pdf'),
     
     path(
         'pagamentos/<int:pagamento_pk>/contato/add/',

@@ -50,4 +50,5 @@ tzdata==2024.2
 wheel==0.42.0
 whitenoise==6.8.2
 openpyxl==3.1.2
+weasyprint==62.3
 zope.interface==7.2
