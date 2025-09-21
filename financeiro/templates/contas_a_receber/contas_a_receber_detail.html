@@ -168,6 +168,54 @@
                 </div>
               {% endif %}
             </div>
+            <div class="col-12">
+              {% if user|has_perm:"vendas.change_pagamento" %}
+                <div class="d-flex justify-content-start">
+                  <form
+                    action="{% url 'vendas:toggle_sem_contato_pagamento' conta_a_receber.id %}"
+                    method="post"
+                  >
+                    {% csrf_token %}
+                    <div class="form-check form-switch">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="semContatoSwitch"
+                        onchange="this.form.submit()"
+                        {% if conta_a_receber.sem_contato %}checked{% endif %}
+                      >
+                      <label class="form-check-label" for="semContatoSwitch">
+                        Sem contato
+                      </label>
+                    </div>
+                  </form>
+                </div>
+              {% endif %}
+            </div>
+            <div class="col-12">
+              {% if user|has_perm:"vendas.change_pagamento" %}
+                <div class="d-flex justify-content-start">
+                  <form
+                    action="{% url 'vendas:toggle_mais_prazo_pagamento' conta_a_receber.id %}"
+                    method="post"
+                  >
+                    {% csrf_token %}
+                    <div class="form-check form-switch">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="maisPrazoSwitch"
+                        onchange="this.form.submit()"
+                        {% if conta_a_receber.mais_prazo %}checked{% endif %}
+                      >
+                      <label class="form-check-label" for="maisPrazoSwitch">
+                        Mais prazo
+                      </label>
+                    </div>
+                  </form>
+                </div>
+              {% endif %}
+            </div>
               <small class="text-muted">% Desconto</small>
               <form id="descontoForm" method="post">
                 {% csrf_token %}

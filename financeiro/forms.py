@@ -170,6 +170,8 @@ class RelatorioContasAReceberForm(forms.Form):
             ('atrasado', 'Atrasado'),
             ('desativado', 'Desativados'),
             ('bloqueado', 'Bloqueados'),
+            ('sem_contato', 'Sem contato'),
+            ('mais_prazo', 'Mais prazo'),
             ('todos', 'Todos')
         ],
         label='Status',

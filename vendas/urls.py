@@ -86,6 +86,16 @@ urlpatterns = [
         toggle_desativar_pagamento,
         name='toggle_desativar_pagamento'
     ),
+    path(
+        'pagamento/<int:pk>/toggle-sem-contato/',
+        toggle_sem_contato_pagamento,
+        name='toggle_sem_contato_pagamento'
+    ),
+    path(
+        'pagamento/<int:pk>/toggle-mais-prazo/',
+        toggle_mais_prazo_pagamento,
+        name='toggle_mais_prazo_pagamento'
+    ),
     
     path(
         'consultar-pagamentos/',

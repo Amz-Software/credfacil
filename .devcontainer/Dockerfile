@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     libffi-dev \
     libssl-dev \
-    redis-server
+    redis-server \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
     libgobject-2.0-0 \

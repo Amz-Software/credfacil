@@ -7,6 +7,7 @@ from .models import *
 from django_select2.forms import Select2Widget, ModelSelect2Widget, Select2MultipleWidget
 from django_select2.forms import ModelSelect2MultipleWidget, HeavySelect2Widget
 from collections import OrderedDict
+from datetime import date
 
 
 class ProdutoChoiceField(forms.ModelChoiceField):
@@ -48,6 +49,13 @@ class EstoqueImeiSelectWidget(HeavySelect2Widget):
 
 
 class ClienteForm(forms.ModelForm):
+    recebe_auxilio = forms.TypedChoiceField(
+        label='Recebe Auxílio*',
+        choices=[('', '---------'), ('True', 'Sim'), ('False', 'Não')],
+        coerce=lambda v: True if v == 'True' else (False if v == 'False' else None),
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
     class Meta:
         model = Cliente
         fields = '__all__'
@@ -66,6 +74,10 @@ class ClienteForm(forms.ModelForm):
             'bairro': forms.TextInput(attrs={'class': 'form-control'}),
             'endereco': forms.TextInput(attrs={'class': 'form-control'}),
             'cidade': forms.TextInput(attrs={'class': 'form-control'}),
+            'profissao': forms.TextInput(attrs={'class': 'form-control'}),
+            'quantidade_dependentes': forms.NumberInput(attrs={'class': 'form-control'}),
+            'total_renda': forms.TextInput(attrs={'class': 'form-control money'}),
+            'observacao_cliente': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
         labels = {
             'nome': 'Nome*',
@@ -77,6 +89,10 @@ class ClienteForm(forms.ModelForm):
             'bairro': 'Bairro*',
             'endereco': 'Endereço*',
             'cidade': 'Cidade*',
+            'profissao': 'Profissão*',
+            'quantidade_dependentes': 'Quantidade de Dependentes*',
+            'total_renda': 'Total de Renda*',
+            'observacao_cliente': 'Observação*',
         }
 
     def __init__(self, *args, **kwargs):
@@ -85,6 +101,8 @@ class ClienteForm(forms.ModelForm):
         for name, field in self.fields.items():
             if name not in ['email']:
                 field.required = True
+        # Garante que a escolha vazia force seleção
+        self.fields['recebe_auxilio'].choices = [('', '---------'), ('True', 'Sim'), ('False', 'Não')]
                 
         if self.instance and self.instance.pk:
             if user and not user.has_perm('vendas.can_edit_finished_sale'):
@@ -151,6 +169,17 @@ class ClienteForm(forms.ModelForm):
             if len(cep) != 8:
                 raise forms.ValidationError("CEP deve ter exatamente 8 dígitos.")
         return cep
+
+    def clean(self):
+        cleaned_data = super().clean()
+        nascimento = cleaned_data.get('nascimento')
+        # Validação de idade mínima: 22 anos (erro no campo CPF)
+        if nascimento:
+            today = date.today()
+            age = today.year - nascimento.year - ((today.month, today.day) < (nascimento.month, nascimento.day))
+            if age < 22:
+                self.add_error('cpf', 'Cliente deve ter pelo menos 22 anos.')
+        return cleaned_data
     
 class ClienteTelefoneForm(forms.ModelForm):
     class Meta:

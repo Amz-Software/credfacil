@@ -395,6 +395,10 @@ class ContasAReceberListView(BaseView, PermissionRequiredMixin, ListView):
         
         if self.request.GET.get('pagamento_efetuado'):
             qs = qs.filter(parcelas_pagamento__pagamento_efetuado=True)
+        if self.request.GET.get('sem_contato'):
+            qs = qs.filter(sem_contato=True)
+        if self.request.GET.get('mais_prazo'):
+            qs = qs.filter(mais_prazo=True)
 
         if not user.has_perm('vendas.can_view_all_payments'):
             qs = qs.filter(loja_id=loja_id)
@@ -425,11 +429,11 @@ class ContasAReceberListView(BaseView, PermissionRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        queryset = self.get_queryset()
-        for pagamento in queryset:
+        # Usar apenas os itens paginados para evitar quebrar a paginação
+        page_items = context.get('contas_a_receber', [])
+        for pagamento in page_items:
             status = self.verificar_atraso_parcela(pagamento)
             pagamento.atrasado = status
-        context['contas_a_receber'] = queryset
         if self.request.user.has_perm('vendas.can_view_all_stores'):
             context['lojas'] = Loja.objects.all()
         return context

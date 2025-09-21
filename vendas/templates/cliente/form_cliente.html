@@ -422,7 +422,7 @@
                         {% endif %}
                       </div>
                     </div>
-                  {% elif field.label == 'Nascimento' %}
+                  {% elif field.name == 'nascimento' %}
                     <div class="col-md-6">
                       <div class="form-group">
                         <label for="{{ field.id_for_label }}" class="form-label">
@@ -430,6 +430,48 @@
                           {% if field.field.required %}
                             <span class="text-danger">*</span>
                           {% endif %}
+                        </label>
+                        <div class="input-group">
+                          {{ field }}
+                          <span class="input-group-text" id="idadeDisplay" title="Idade calculada">—</span>
+                        </div>
+                        {% if field.errors %}
+                          <div class="text-danger small">{{ field.errors|striptags }}</div>
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% elif field.name == 'profissao' or field.name == 'quantidade_dependentes' or field.name == 'recebe_auxilio' %}
+                    <div class="col-md-4">
+                      <div class="form-group">
+                        <label for="{{ field.id_for_label }}" class="form-label">
+                          {{ field.label }}
+                          {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                        </label>
+                        {{ field }}
+                        {% if field.errors %}
+                          <div class="text-danger small">{{ field.errors|striptags }}</div>
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% elif field.name == 'total_renda' %}
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label for="{{ field.id_for_label }}" class="form-label">
+                          {{ field.label }}
+                          {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                        </label>
+                        {{ field }}
+                        {% if field.errors %}
+                          <div class="text-danger small">{{ field.errors|striptags }}</div>
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% elif field.name == 'observacao_cliente' %}
+                    <div class="col-md-12">
+                      <div class="form-group">
+                        <label for="{{ field.id_for_label }}" class="form-label">
+                          {{ field.label }}
+                          {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
                         </label>
                         {{ field }}
                         {% if field.errors %}
@@ -792,7 +834,12 @@
           '#id_telefone',
           '#id_email',
           '#id_rg',
-          '#id_cep'
+          '#id_cep',
+          '#id_profissao',
+          '#id_quantidade_dependentes',
+          '#id_recebe_auxilio',
+          '#id_total_renda',
+          '#id_observacao_cliente'
         ];
         
         console.log('=== DEBUG CHECK DADOS COMPLETE ===');
@@ -816,6 +863,15 @@
           }
           console.log('✅ Field OK:', field);
           
+          if (field === '#id_quantidade_dependentes') {
+            const num = parseInt(value, 10);
+            if (isNaN(num) || num < 0) {
+              console.log('❌ Dependentes inválido - Setting complete = false');
+              complete = false;
+              return false;
+            }
+          }
+
           if (field === '#id_email') {
             // Email validation for completion check
             console.log('Validating email:', value);
@@ -866,7 +922,7 @@
           }
           
           if (field === '#id_nascimento') {
-            // Age validation - check if person is at least 18 years old
+            // Validação de idade: mínimo 22 anos
             console.log('Validating birth date:', value);
             if (value) {
               const birthDate = new Date(value);
@@ -880,8 +936,8 @@
               }
               
               console.log('Calculated age:', age);
-              if (age < 18) {
-                console.log('❌ Age validation failed: must be at least 18 years old - Setting complete = false');
+              if (age < 22) {
+                console.log('❌ Age validation failed: must be at least 22 years old - Setting complete = false');
                 complete = false;
                 return false;
               }
@@ -994,21 +1050,24 @@
               message = 'RG deve ter entre 7 e 12 dígitos';
             }
           } else if (fieldId === 'id_nascimento') {
-            // Age validation - check if person is at least 18 years old
+            // Validação de idade: mínimo 22 anos
             if (value) {
               const birthDate = new Date(value);
               const today = new Date();
-              const age = today.getFullYear() - birthDate.getFullYear();
+              let age = today.getFullYear() - birthDate.getFullYear();
               const monthDiff = today.getMonth() - birthDate.getMonth();
               
               // Adjust age if birthday hasn't occurred this year
               if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
                 age--;
               }
-              
-              if (age < 18) {
+              // Atualiza badge de idade
+              const idadeBadge = document.getElementById('idadeDisplay');
+              if (idadeBadge) idadeBadge.textContent = age + ' anos';
+
+              if (age < 22) {
                 isValid = false;
-                message = 'Cliente deve ter pelo menos 18 anos';
+                message = 'Cliente deve ter pelo menos 22 anos';
               }
             }
           } else if (fieldId === 'id_cep') {
@@ -1086,6 +1145,25 @@
       $('.nav-link').on('click', function() {
         setTimeout(updateProgress, 100);
       });
+      
+      // Atualiza a idade ao alterar a data de nascimento
+      function updateIdade() {
+        const value = $('#id_nascimento').val();
+        const badge = $('#idadeDisplay');
+        if (!badge.length) return;
+        if (!value) { badge.text('—'); return; }
+        const birthDate = new Date(value);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        badge.text(age + ' anos');
+      }
+      $('#id_nascimento').on('change', function(){ updateIdade(); });
+      // Inicializa badge de idade no carregamento
+      updateIdade();
       
       // lista de produtos do contexto
       const produtos = JSON.parse('{{ produtos_json|escapejs }}');
