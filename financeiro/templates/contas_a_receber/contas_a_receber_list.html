@@ -26,6 +26,20 @@
       border-radius: .75rem;
       box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,0.05);
     }
+    /* Sem contato (indigo suave) */
+    .table-indigo,
+    .table-indigo th,
+    .table-indigo td {
+      background-color: #e0e7ff !important;
+      color: #111827 !important;
+    }
+    /* Mais prazo (teal suave) */
+    .table-teal,
+    .table-teal th,
+    .table-teal td {
+      background-color: #d2f4ea !important;
+      color: #0f5132 !important;
+    }
   </style>
 {% endblock %}
 
@@ -222,6 +236,8 @@
               <tr class="
           {% if conta.desativado %}table-secondary
           {% elif conta.bloqueado %}table-purple
+          {% elif conta.sem_contato %}table-indigo
+          {% elif conta.mais_prazo %}table-teal
           {% elif conta.com_parcela_atrasada %}table-danger
           {% elif conta.com_pagamento_pendente %}table-warning
           {% elif conta.pago_dentro_prazo %}table-success
