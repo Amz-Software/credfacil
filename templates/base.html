@@ -188,7 +188,7 @@
                 href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
               <li class="nav-item dropdown">
-                <a class="nav-link position-relative" href="#" id="notificacaoDropdown" role="button"
+                <a class="nav-link dropdown-toggle position-relative hide-arrow" href="javascript:void(0);" id="notificacaoDropdown" role="button"
                   data-bs-toggle="dropdown" aria-expanded="false">
                   <i class="bi bi-bell fs-5"></i>
                   {% if notificacoes_nao_lidas %}
@@ -368,6 +368,14 @@
 
   <!-- Main JS -->
   <script src="{% static 'sneat-template/assets/js/main.js' %}"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(function (el) {
+        try { new bootstrap.Dropdown(el); } catch (e) { console.error('Dropdown init error:', e); }
+      });
+    });
+  </script>
 
   <!-- Page JS -->
   <script src="{% static 'sneat-template/assets/js/dashboards-analytics.js' %}"></script>
