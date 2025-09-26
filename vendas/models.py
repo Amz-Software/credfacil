@@ -322,7 +322,7 @@ class Cliente(Base):
     profissao = models.CharField(max_length=100, default='')
     quantidade_dependentes = models.PositiveIntegerField(default=0)
     recebe_auxilio = models.BooleanField(default=False)
-    total_renda = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    total_renda = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0'))
     observacao_cliente = models.TextField(default='')
     comprovantes = models.OneToOneField('vendas.ComprovantesCliente', on_delete=models.CASCADE, related_name='cliente')
     contato_adicional = models.OneToOneField('vendas.ContatoAdicional', on_delete=models.CASCADE, related_name='cliente', null=True, blank=True)

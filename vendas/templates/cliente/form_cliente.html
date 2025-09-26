@@ -459,6 +459,7 @@
                         <label for="{{ field.id_for_label }}" class="form-label">
                           {{ field.label }}
                           {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                          <i class="bx bx-help-circle tooltip-icon" data-bs-toggle="tooltip" title="Digite apenas números inteiros (ex: 2500)"></i>
                         </label>
                         {{ field }}
                         {% if field.errors %}
@@ -768,6 +769,22 @@
     $('.cpf').mask('000.000.000-00');
     $('.rg').mask('00000000');
     $('.cep').mask('00000000');
+    
+    // Máscara para campo de renda - apenas números inteiros
+    $('#id_total_renda').on('input', function() {
+      // Remove qualquer caractere que não seja número
+      this.value = this.value.replace(/[^0-9]/g, '');
+    });
+    
+    // Previne entrada de caracteres não numéricos
+    $('#id_total_renda').on('keypress', function(e) {
+      // Permite apenas números (0-9), backspace, delete, tab, escape, enter
+      if (!/[0-9]/.test(String.fromCharCode(e.which)) && 
+          !(e.which === 8 || e.which === 9 || e.which === 27 || e.which === 13 || 
+            (e.which === 46 && e.shiftKey === false))) {
+        e.preventDefault();
+      }
+    });
   </script>
   <script>
     $(function(){
@@ -957,6 +974,23 @@
             }
             console.log('✅ CEP validation passed');
           }
+          
+          if (field === '#id_total_renda') {
+            // Renda validation - must be a positive integer with minimum value
+            console.log('Validating renda:', value);
+            const rendaValue = parseInt(value, 10);
+            console.log('Renda parsed value:', rendaValue);
+            if (isNaN(rendaValue) || rendaValue <= 0) {
+              console.log('❌ Renda validation failed: must be a positive integer - Setting complete = false');
+              complete = false;
+              return false;
+            } else if (rendaValue < 1000) {
+              console.log('❌ Renda validation failed: must be at least 1000 - Setting complete = false');
+              complete = false;
+              return false;
+            }
+            console.log('✅ Renda validation passed');
+          }
         });
         
         console.log('🎯 Final result - complete =', complete);
@@ -1076,6 +1110,16 @@
             if (digitsOnly.length !== 8) {
               isValid = false;
               message = 'CEP deve ter exatamente 8 dígitos';
+            }
+          } else if (fieldId === 'id_total_renda') {
+            // Renda validation - must be a positive integer
+            const rendaValue = parseInt(value, 10);
+            if (isNaN(rendaValue) || rendaValue <= 0) {
+              isValid = false;
+              message = 'Renda deve ser um número inteiro positivo';
+            } else if (rendaValue < 1000) {
+              isValid = false;
+              message = 'Renda deve ser pelo menos R$ 1.000,00';
             }
           }
         }
