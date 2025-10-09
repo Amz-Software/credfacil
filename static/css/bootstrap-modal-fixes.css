@@ -1,0 +1,15 @@
+/* Overrides mínimos para modais no modo dark (mantém Bootstrap básico) */
+
+.dark-style .modal.fade .modal-dialog,
+.dark-style .modal.show .modal-dialog {
+  transform: none !important;
+}
+
+.dark-style .modal .btn-close,
+.dark-style .modal .btn-close:hover,
+.dark-style .modal .btn-close:focus,
+.dark-style .modal .btn-close:active {
+  transform: none !important;
+}
+
+
