@@ -608,6 +608,9 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
                     elif status == 'sem_contato':
                         q = Q(sem_contato=True)
                         date_q = Q()  # Não filtra por data
+                    elif status == "quitado":
+                        q = Q(todas_parcelas_pagas=True)
+                        date_q = Q()  # Não filtra por data
                     elif status == 'mais_prazo':
                         q = Q(mais_prazo=True)
                         date_q = Q()  # Não filtra por data

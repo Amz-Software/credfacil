@@ -172,6 +172,7 @@ class RelatorioContasAReceberForm(forms.Form):
             ('bloqueado', 'Bloqueados'),
             ('sem_contato', 'Sem contato'),
             ('mais_prazo', 'Mais prazo'),
+            ('quitado', 'Quitado'),
             ('todos', 'Todos')
         ],
         label='Status',
