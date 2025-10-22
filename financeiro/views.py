@@ -550,6 +550,61 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
             data_final_dt = datetime.strptime(data_fim, "%Y-%m-%d").date()
             data_final_dt_plus = data_final_dt + timedelta(days=1)
 
+            # Caso especial: quando o usuário quer listar apenas os pagos, exiba uma linha por PARCELA paga no período
+            # em vez de uma linha por Pagamento. Isso evita ocultar múltiplos pagamentos no mesmo mês.
+            if status_list and 'todos' not in status_list and set(status_list) == {'pago'}:
+                parcelas_qs = Parcela.objects.filter(
+                    pago=True,
+                    data_pagamento__gte=data_inicio_dt,
+                    data_pagamento__lt=data_final_dt_plus,
+                )
+
+                if lojas_qs:
+                    parcelas_qs = parcelas_qs.filter(pagamento__loja__in=lojas_qs)
+
+                # Otimizações de consulta para o template
+                parcelas_qs = parcelas_qs.select_related(
+                    'pagamento',
+                    'pagamento__venda',
+                    'pagamento__venda__cliente',
+                    'pagamento__venda__loja',
+                ).order_by('data_pagamento', 'pagamento_id', 'numero_parcela')
+
+                parcelas_list = list(parcelas_qs)
+
+                def _valor_pago_parcela(parcela):
+                    desconto = parcela.desconto or 0
+                    # Usa valor_pago quando houver, senão valor - desconto
+                    return (parcela.valor_pago if parcela.valor_pago not in (None, 0) else (parcela.valor - desconto))
+
+                # Anexa valor pago calculado para uso direto no template
+                for p in parcelas_list:
+                    p.paid_amount = _valor_pago_parcela(p)
+
+                total_pago = sum(p.paid_amount for p in parcelas_list)
+
+                # Monta contexto específico para listagem por parcelas
+                context = super().get_context_data(**kwargs)
+                context['list_by_parcelas'] = True
+                context['parcelas'] = parcelas_list
+                context['lojas'] = lojas_qs.values_list('nome', flat=True) if lojas_qs else []
+                context['status_list'] = status_list
+                context['data_inicio'] = data_inicio_dt
+                context['data_fim'] = data_final_dt
+
+                # Totais relevantes para a visão por parcelas
+                context['total_pago'] = total_pago
+                context['quantidade_pagamentos'] = len(parcelas_list)
+
+                # Outros totais não se aplicam na visão por parcela; mantém 0 para não quebrar o rodapé existente
+                context['total_atrasado'] = 0
+                context['total_a_vencer'] = 0
+                context['total_proximo_vencimento'] = 0
+                context['total'] = 0
+                context['total_quitado'] = 0
+
+                return context
+
             # Subqueries para datas relevantes
             proximo_vencimento_subquery = Subquery(
                 Parcela.objects.filter(

@@ -107,6 +107,49 @@
             </tr>
             </thead>
             <tbody>
+            {% if list_by_parcelas %}
+            {% for parcela in parcelas %}
+            <tr class="table-success">
+            <td>{{ parcela.pagamento.venda.loja.nome|title }}</td>
+            <td>{{ parcela.pagamento.venda.data_venda|date:"d/m/Y" }}</td>
+            <td>{{ parcela.pagamento.venda.cliente.nome|title }}</td>
+            <td>{{ parcela.pagamento.venda.itens_venda.first.produto.nome|title }}</td>
+            <td class="center">
+            {% if parcela.pagamento.venda.itens_venda.first.imei %}
+                {{ parcela.pagamento.venda.itens_venda.first.imei }}
+            {% else %}
+                -
+            {% endif %}
+            </td>
+            <td class="center">
+                <span class="badge badge-success">PAGO</span>
+            </td>
+            <td class="center">
+            {% if parcela.pagamento.venda.cliente.telefone %}
+                {{ parcela.pagamento.venda.cliente.telefone }}
+            {% else %}
+                -
+            {% endif %}
+            </td>
+            <td class="end">-</td>
+            <td class="end">-</td>
+            <td class="end">{{ parcela.paid_amount|floatformat:2 }}</td>
+            <td class="end">{{ parcela.data_pagamento|date:"d/m/Y" }}</td>
+            <td class="end">-</td>
+            <td class="end">-</td>
+            <td class="end">-</td>
+            <td class="center">-</td>
+            <td class="center">-</td>
+            <td class="end">-</td>
+            </tr>
+            {% empty %}
+            <tr>
+            <td colspan="15" class="center" style="padding: 20px;">
+            Nenhum registro encontrado
+            </td>
+            </tr>
+            {% endfor %}
+            {% else %}
             {% for conta in contas_a_receber %}
             <tr class="
             {% if conta.desativado %}table-secondary
@@ -207,6 +250,7 @@
             </td>
             </tr>
             {% endfor %}
+            {% endif %}
             </tbody>
             <tfoot>
             <tr class="footer">
