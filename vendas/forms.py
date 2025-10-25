@@ -113,7 +113,7 @@ class ClienteForm(forms.ModelForm):
             can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
 
             def _disable_all():
-                for fname in ['nome','email','telefone','cpf','nascimento','rg','cep','bairro','endereco','cidade']:
+                for fname in ['nome','email','telefone','cpf','nascimento','rg','cep','bairro','endereco','cidade','recebe_auxilio','total_renda','observacao_cliente','quantidade_dependentes','profissao']:
                     if fname in self.fields:
                         self.fields[fname].disabled = True
 
