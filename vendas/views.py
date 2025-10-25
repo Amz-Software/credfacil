@@ -699,11 +699,6 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             messages.success(request, "✅ Soliticitação atualizada com sucesso")
             return redirect(self.success_url)
         else:
-            print("❌ Formulários inválidos")
-            print("form_cliente errors:", form_cliente.errors)
-            print("form_adicional errors:", form_adicional.errors)
-            print("form_comprovantes errors:", form_comprovantes.errors)
-            print("form_analise_credito errors:", form_analise_credito.errors)
             for form in [form_cliente, form_adicional, form_comprovantes, form_analise_credito]:
                 for field, errors in form.errors.items():
                     for error in errors:

@@ -105,30 +105,22 @@ class ClienteForm(forms.ModelForm):
         self.fields['recebe_auxilio'].choices = [('', '---------'), ('True', 'Sim'), ('False', 'Não')]
                 
         if self.instance and self.instance.pk:
-            if user and not user.has_perm('vendas.can_edit_finished_sale'):
-                if not self.instance.analise_credito.status == 'EA':
-                    self.fields['nome'].disabled = True
-                    self.fields['email'].disabled = True
-                    self.fields['telefone'].disabled = True
-                    self.fields['cpf'].disabled = True
-                    self.fields['nascimento'].disabled = True
-                    self.fields['rg'].disabled = True
-                    self.fields['cep'].disabled = True
-                    self.fields['bairro'].disabled = True
-                    self.fields['endereco'].disabled = True
-                    self.fields['cidade'].disabled = True
-            
-            if user and not user.has_perm('vendas.change_status_analise'):
-                self.fields['nome'].disabled = True
-                self.fields['email'].disabled = True
-                self.fields['telefone'].disabled = True
-                self.fields['cpf'].disabled = True
-                self.fields['nascimento'].disabled = True
-                self.fields['rg'].disabled = True
-                self.fields['cep'].disabled = True
-                self.fields['bairro'].disabled = True
-                self.fields['endereco'].disabled = True
-                self.fields['cidade'].disabled = True
+            is_analista = bool(user and user.groups.filter(name='ANALISTA').exists())
+            ac = getattr(self.instance, 'analise_credito', None)
+            venda_gerada = bool(ac and ac.venda)
+            status_em_analise = bool(ac and ac.status == 'EA')
+            can_edit_finished = bool(user and user.has_perm('vendas.can_edit_finished_sale'))
+            can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
+
+            def _disable_all():
+                for fname in ['nome','email','telefone','cpf','nascimento','rg','cep','bairro','endereco','cidade']:
+                    if fname in self.fields:
+                        self.fields[fname].disabled = True
+
+            if venda_gerada and not can_edit_finished:
+                _disable_all()
+            elif not status_em_analise and not (is_analista or can_change_status):
+                _disable_all()
 
     def clean_telefone(self):
         telefone = self.cleaned_data.get('telefone')
@@ -256,19 +248,22 @@ class ContatoAdicionalForm(forms.ModelForm):
             self.fields.pop('obteve_contato', None)
                 
         if self.instance and self.instance.pk:
-            if user and not user.has_perm('vendas.change_status_analise'):
-                self.fields['nome_adicional'].disabled = True
-                self.fields['contato'].disabled = True
-                self.fields['endereco_adicional'].disabled = True
-                self.fields['obteve_contato'].disabled = True
-                
-            if user and not user.has_perm('vendas.can_edit_finished_sale'):
-                if not self.instance.cliente.analise_credito.status == 'EA':
-                    self.fields['nome_adicional'].disabled = True
-                    self.fields['endereco_adicional'].disabled = True
-                    self.fields['obteve_contato'].disabled = True
-                    if self.instance.cliente.analise_credito.venda:
-                        self.fields['contato'].disabled = True
+            is_analista = bool(user and user.groups.filter(name='ANALISTA').exists())
+            ac = getattr(self.instance.cliente, 'analise_credito', None)
+            venda_gerada = bool(ac and ac.venda)
+            status_em_analise = bool(ac and ac.status == 'EA')
+            can_edit_finished = bool(user and user.has_perm('vendas.can_edit_finished_sale'))
+            can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
+
+            def _disable(*names):
+                for n in names:
+                    if n in self.fields:
+                        self.fields[n].disabled = True
+
+            if venda_gerada and not can_edit_finished:
+                _disable('nome_adicional','contato','endereco_adicional','obteve_contato')
+            elif not status_em_analise and not (is_analista or can_change_status):
+                _disable('nome_adicional','contato','endereco_adicional','obteve_contato')
 
     def clean_contato(self):
         contato = self.cleaned_data.get('contato')
@@ -346,20 +341,22 @@ class InformacaoPessoalForm(forms.ModelForm):
             self.fields.pop('obteve_contato_pessoal', None)
                 
         if self.instance and self.instance.pk:
-            if user and not user.has_perm('vendas.change_status_analise'):
-                self.fields['nome_pessoal'].disabled = True
-                self.fields['contato_pessoal'].disabled = True
-                self.fields['endereco_pessoal'].disabled = True
-                self.fields['obteve_contato_pessoal'].disabled = True
-                
-            if user and not user.has_perm('vendas.can_edit_finished_sale'):
-                if not self.instance.cliente.analise_credito.status == 'EA':
-                    self.fields['nome_pessoal'].disabled = True
-                    # self.fields['contato_pessoal'].disabled = True
-                    self.fields['endereco_pessoal'].disabled = True
-                    self.fields['obteve_contato_pessoal'].disabled = True
-                    if self.instance.cliente.analise_credito.venda:
-                        self.fields['contato_pessoal'].disabled = True
+            is_analista = bool(user and user.groups.filter(name='ANALISTA').exists())
+            ac = getattr(self.instance.cliente, 'analise_credito', None)
+            venda_gerada = bool(ac and ac.venda)
+            status_em_analise = bool(ac and ac.status == 'EA')
+            can_edit_finished = bool(user and user.has_perm('vendas.can_edit_finished_sale'))
+            can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
+
+            def _disable(*names):
+                for n in names:
+                    if n in self.fields:
+                        self.fields[n].disabled = True
+
+            if venda_gerada and not can_edit_finished:
+                _disable('nome_pessoal','contato_pessoal','endereco_pessoal','obteve_contato_pessoal')
+            elif not status_em_analise and not (is_analista or can_change_status):
+                _disable('nome_pessoal','contato_pessoal','endereco_pessoal','obteve_contato_pessoal')
 
     def clean_contato_pessoal(self):
         contato = self.cleaned_data.get('contato_pessoal')
@@ -583,19 +580,22 @@ class ComprovantesClienteForm(forms.ModelForm):
                 field.required = True
         
         if self.instance and self.instance.pk:
-            if user and not user.has_perm('vendas.change_status_analise'):
-                self.fields['documento_identificacao_frente'].disabled = True
-                self.fields['documento_identificacao_verso'].disabled = True
-                self.fields['comprovante_residencia'].disabled = True
-                self.fields['foto_cliente'].disabled = True
-            
-            if user and not user.has_perm('vendas.can_edit_finished_sale'):
-                if self.instance.cliente.analise_credito and  not self.instance.cliente.analise_credito.status == 'EA':
-                    self.fields['documento_identificacao_frente'].disabled = True
-                    self.fields['documento_identificacao_verso'].disabled = True
-                    self.fields['comprovante_residencia'].disabled = True
-                    self.fields['consulta_serasa'].disabled = True
-                    self.fields['foto_cliente'].disabled = True
+            is_analista = bool(user and user.groups.filter(name='ANALISTA').exists())
+            ac = getattr(self.instance.cliente, 'analise_credito', None)
+            venda_gerada = bool(ac and ac.venda)
+            status_em_analise = bool(ac and ac.status == 'EA')
+            can_edit_finished = bool(user and user.has_perm('vendas.can_edit_finished_sale'))
+            can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
+
+            def _disable(*names):
+                for n in names:
+                    if n in self.fields:
+                        self.fields[n].disabled = True
+
+            if venda_gerada and not can_edit_finished:
+                _disable('documento_identificacao_frente','documento_identificacao_verso','comprovante_residencia','consulta_serasa','foto_cliente')
+            elif not status_em_analise and not (is_analista or can_change_status):
+                _disable('documento_identificacao_frente','documento_identificacao_verso','comprovante_residencia','consulta_serasa','foto_cliente')
                     
                     
 class ComprovantesClienteEditForm(forms.ModelForm):
