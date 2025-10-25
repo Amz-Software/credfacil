@@ -1076,11 +1076,11 @@ def gerar_venda(request, cliente_id):
 @permission_required('vendas.change_status_analise', raise_exception=True)
 def aprovar_analise_credito(request, id):
     user = request.user
+    if not user.has_perm('vendas.change_status_analise'):
+        messages.error(request, 'Você não tem permissão para aprovar análises de crédito')
+        return redirect('vendas:cliente_list')
     try:
         analise = AnaliseCreditoCliente.objects.get(id=id)
-        if not analise.status == 'EA' and user.has_perm('vendas.can_edit_finished_sale'):
-            messages.error(request, 'Somente soliticitações em análise podem ser aprovadas')
-            return redirect('vendas:cliente_list')
         analise.aprovar(user=request.user)
         analise.modificado_por = request.user
         analise.modificado_em = timezone.now()
@@ -1095,11 +1095,11 @@ def aprovar_analise_credito(request, id):
 @permission_required('vendas.change_analisecreditocliente', raise_exception=True)
 def cancelar_analise_credito(request, id):
     user = request.user
+    if not user.has_perm('vendas.change_status_analise'):
+        messages.error(request, 'Você não tem permissão para cancelar análises de crédito')
+        return redirect('vendas:cliente_list')
     try:
         analise = AnaliseCreditoCliente.objects.get(id=id)
-        if (not analise.status == 'EA' or not user.has_perm('vendas.change_status_analise')) or not user.has_perm('vendas.can_edit_finished_sale'):
-            messages.error(request, 'Somente solicitações em análise podem ser canceladas')
-            return redirect('vendas:cliente_list')
         analise.cancelar()
         analise.modificado_por = request.user
         analise.modificado_em = timezone.now()
@@ -1113,11 +1113,11 @@ def cancelar_analise_credito(request, id):
 @permission_required('vendas.change_status_analise', raise_exception=True)
 def reprovar_analise_credito(request, id):
     user = request.user
+    if not user.has_perm('vendas.change_status_analise'):
+        messages.error(request, 'Você não tem permissão para reprovar análises de crédito')
+        return redirect('vendas:cliente_list')
     try:
         analise = AnaliseCreditoCliente.objects.get(id=id)
-        if not analise.status == 'EA' and user.has_perm('vendas.can_edit_finished_sale'):
-            messages.error(request, 'Somente solicitações em análise podem ser reprovadas')
-            return redirect('vendas:cliente_list')
         analise.reprovar()
         analise.modificado_por = request.user
         analise.modificado_em = timezone.now()
