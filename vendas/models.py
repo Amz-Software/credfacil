@@ -9,7 +9,7 @@ from django.db import models
 from django.utils import timezone
 from django.urls import reverse
 import re
-
+from django.utils.text import slugify
 
 class Base(models.Model):
     loja = models.ForeignKey('vendas.Loja', on_delete=models.CASCADE, related_name='%(class)s_loja', null=True, blank=True)
