@@ -705,6 +705,7 @@ class Pagamento(Base):
     parcelas = models.PositiveIntegerField(default=1, null=True, blank=True)
     bloqueado = models.BooleanField(default=False)
     desativado = models.BooleanField(default=False)
+    devolucao = models.BooleanField(default=False)
     quitado = models.BooleanField(default=False)
     sem_contato = models.BooleanField(default=False)
     mais_prazo = models.BooleanField(default=False)
@@ -717,6 +718,8 @@ class Pagamento(Base):
         return self.valor / self.parcelas
     
     def valor_atrasado(self):
+        if self.devolucao:
+            return 0
         return sum(parcela.valor_restante for parcela in self.parcelas_pagamento.filter(pago=False, data_vencimento__lt=timezone.now()))
     
     def ultimo_vencimento(self):
@@ -734,15 +737,21 @@ class Pagamento(Base):
         return ultimo.data_pagamento if ultimo else None
     
     def valor_a_vencer(self):
+        if self.devolucao:
+            return 0
         return sum(parcela.valor_restante for parcela in self.parcelas_pagamento.filter(pago=False, data_vencimento__gte=timezone.now()))
 
     def valor_atual_a_vencer(self):
+        if self.devolucao:
+            return 0
         proximo = self.parcelas_pagamento.filter(pago=False, data_vencimento__gte=timezone.now()).order_by('data_vencimento').first()
         if proximo:
             return proximo.valor_restante
         return 0
 
     def proximo_vencimento(self):
+        if self.devolucao:
+            return None
         proximo = self.parcelas_pagamento.filter(pago=False, data_vencimento__gte=timezone.now()).order_by('data_vencimento').first()
         return proximo.data_vencimento if proximo else None
     
@@ -762,12 +771,18 @@ class Pagamento(Base):
         return self.valor - sum(parcela.valor for parcela in self.parcelas_pagamento.filter(pago=True))
     
     def parcelas_pendentes(self):
+        if self.devolucao:
+            return 0
         return self.parcelas_pagamento.filter(pago=False).count()
 
     def total_a_vencer(self):
+        if self.devolucao:
+            return 0
         return sum(parcela.valor_restante for parcela in self.parcelas_pagamento.filter(pago=False))
     
     def total_atrasos(self):
+        if self.devolucao:
+            return 0
         return sum(parcela.valor_restante for parcela in self.parcelas_pagamento.filter(pago=False, data_vencimento__lt=timezone.now()))
     
     def total_pago(self):

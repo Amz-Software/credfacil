@@ -40,6 +40,14 @@
       background-color: #d2f4ea !important;
       color: #0f5132 !important;
     }
+    /* Devolução (âmbar suave) */
+    .table-amber,
+    .table-amber th,
+    .table-amber td {
+      background-color: #fff3cd !important; /* bootstrap warning bg */
+      color: #664d03 !important;            /* bootstrap warning text */
+      border-bottom: 2px dashed #ffcd39 !important;
+    }
   </style>
 {% endblock %}
 
@@ -66,6 +74,7 @@
                 <li><strong>Amarelo:</strong> A vencer</li>
                 <li><strong>Verde:</strong> Pago</li>
                 <li><strong>Azul:</strong> Quitado</li>
+                <li><strong>Âmbar tracejado:</strong> Devolução</li>
               </ul>
             "
           >
@@ -235,6 +244,7 @@
             {% for conta in contas_a_receber %}
               <tr class="
           {% if conta.desativado %}table-secondary
+          {% elif conta.devolucao %}table-amber
           {% elif conta.bloqueado %}table-purple
           {% elif conta.sem_contato %}table-indigo
           {% elif conta.mais_prazo %}table-teal
@@ -255,6 +265,11 @@
             <a href="{% url 'vendas:cliente_update' conta.venda.cliente.id %}">
               {{ conta.venda.cliente.nome|title }}
             </a>
+            {% if conta.devolucao %}
+              <span class="badge bg-warning text-dark ms-2" title="Devolução – ignora parcelas futuras">
+                Devolução
+              </span>
+            {% endif %}
           </td>
           <td>
             <a href="{% url 'produtos:produto_detail' conta.venda.itens_venda.first.produto.id %}">

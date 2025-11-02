@@ -14,8 +14,7 @@
 
         body {
             font-family: Arial, Helvetica, sans-serif;
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             font-size: 12px;
         }
 
@@ -42,31 +41,20 @@
             font-weight: bold;
         }
 
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #f1f1f1; }
 
-        tr:hover {
-            background-color: #f1f1f1;
-        }
-
-        .header {
-            background-color: #4CAF50;
-            color: white;
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
             font-weight: bold;
         }
-
-        .footer {
-            font-weight: bold;
-            background-color: #f4f4f4;
-        }
-
-        .center {
-            text-align: center;
-        }
-
-        .left {
-            text-align: left;
+        .badge-warning {
+            color: #664d03;
+            background-color: #fff3cd;
+            border: 1px dashed #ffcd39;
         }
     </style>
 </head>
@@ -75,108 +63,54 @@
         <h2>Relatório de Contas a Receber</h2>
         <h3>Período: {{ data_inicio }} a {{ data_fim }}</h3>
         <h3>Lojas: {{ lojas|join:", " }}</h3>
+
         <table>
             <thead>
                 <tr>
                     <th>Loja</th>
                     <th>Cliente</th>
                     <th>Produto</th>
-                    <th class="center">IMEI</th>
-                    <th class="center">Contato do Cliente</th>
-                    <th class="right">Valor Atrasado</th>
-                    <th class="right">Primeiro Vencimento</th>
-                    <th class="right">Valor Pago</th>
-                    <th class="right">Último Pagamento</th>
-                    <th class="right">Valor a Vencer</th>
-                    <th class="right">Próximo Vencimento</th>
-                    <th class="right">Valor Total</th>
-                    <th class="center">Parcelas Totais</th>
-                    <th class="center">Parcelas Pagas</th>
-                    <th class="right">Valor Quitado</th>
+                    <th>Valor Atrasado</th>
+                    <th>Primeiro Vencimento</th>
+                    <th>Valor Pago</th>
+                    <th>Último Pagamento</th>
+                    <th>Valor a Vencer</th>
+                    <th>Próximo Vencimento</th>
+                    <th>Valor Total</th>
+                    <th>Parcelas Totais</th>
+                    <th>Parcelas Pagas</th>
+                    <th>Valor Quitado</th>
                 </tr>
             </thead>
             <tbody>
                 {% for conta in contas_a_receber %}
                 <tr
                     {% if conta.bloqueado %}style="background-color:#e1bee7;"
-                    {% elif conta.com_parcela_atrasada %}style="background-color:#f8d7da;"
-                    {% elif conta.com_pagamento_pendente %}style="background-color:#fff3cd;"
-                    {% elif conta.pago_dentro_prazo %}style="background-color:#d4edda;"
-                    {% elif conta.todas_parcelas_pagas %}style="background-color:#d1ecf1;"
+                    {% elif conta.desativado %}style="background-color:#e9ecef;"
                     {% endif %}
                 >
-                    {% if user|has_perm:"vendas.can_view_all_stores" %}
-                        <td>{{ conta.venda.loja.nome|title }}</td>
-                    {% endif %}
-                    <td>{{ conta.venda.cliente.nome|title }}</td>
-                    <td>{{ conta.venda.itens_venda.first.produto.nome|title }}</td>
-                    <td class="center">
-                        {% if conta.venda.itens_venda.first.imei %}
-                            {{ conta.venda.itens_venda.first.imei }}
-                        {% else %}
-                            -
+                    <td>{{ conta.venda.loja.nome|default:"-" }}</td>
+                    <td>
+                        {{ conta.venda.cliente.nome|default:"-" }}
+                        {% if conta.devolucao %}
+                          <span class="badge badge-warning">Devolução</span>
                         {% endif %}
                     </td>
-                    <td class="center">
-                        {% if conta.venda.cliente.telefone %}
-                            {{ conta.venda.cliente.telefone }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td class="right">
-                        {{ conta.valor_atrasado|default:"0.00"|floatformat:2 }}
-                    </td>
-                    <td class="right">
-                        {{ conta.ultimo_vencimento|default:"-" }}
-                    </td>
-                    <td class="right">
-                        {{ conta.valor_pago_ultimo|default:"0.00"|floatformat:2 }}
-                    </td>
-                    <td class="right">
-                        {{ conta.ultimo_pagamento|default:"-" }}
-                    </td>
-                    <td class="right">
-                        {{ conta.valor_a_vencer|default:"0.00"|floatformat:2 }}
-                    </td>
-                    <td class="right">
-                        {{ conta.proximo_vencimento|default:"-" }}
-                    </td>
-                    <td class="right">
-                        {{ conta.valor_total_parcelas|floatformat:2 }}
-                    </td>
-                    <td class="center">
-                        {{ conta.parcelas_totais }}
-                    </td>
-                    <td class="center">
-                        {{ conta.parcelas_pagas }}
-                    </td>
-                    <td class="right">
-                        {{ conta.valor_quitado|default:"0.00"|floatformat:2 }}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="15" class="center" style="padding: 16px;">
-                        Nenhum registro encontrado
-                    </td>
+                    <td>{{ conta.venda.itens_venda.first.produto.nome|default:"-" }}</td>
+                    <td>R$ {{ conta.valor_atrasado|default:"0.00"|floatformat:2 }}</td>
+                    <td>{{ conta.ultimo_vencimento|default:"-" }}</td>
+                    <td>R$ {{ conta.valor_pago_ultimo|default:"0.00"|floatformat:2 }}</td>
+                    <td>{{ conta.ultimo_pagamento|default:"-" }}</td>
+                    <td>R$ {{ conta.valor_a_vencer|default:"0.00"|floatformat:2 }}</td>
+                    <td>{{ conta.proximo_vencimento|default:"-" }}</td>
+                    <td>R$ {{ conta.valor_total_parcelas|floatformat:2 }}</td>
+                    <td>{{ conta.parcelas_totais }}</td>
+                    <td>{{ conta.parcelas_pagas }}</td>
+                    <td>R$ {{ conta.valor_quitado|default:"0.00"|floatformat:2 }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
-    <script>
-        const element = document.body;
-        const opt = {
-            margin: [10, 10, 10, 10],
-            filename: `relatorio_saidas.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 3 },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        };
-        print();
-    </script>
 </body>
 </html>

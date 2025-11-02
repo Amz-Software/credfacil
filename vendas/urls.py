@@ -96,6 +96,11 @@ urlpatterns = [
         toggle_mais_prazo_pagamento,
         name='toggle_mais_prazo_pagamento'
     ),
+    path(
+        'pagamento/<int:pk>/toggle-devolucao/',
+        toggle_devolucao_pagamento,
+        name='toggle_devolucao_pagamento'
+    ),
     
     path(
         'consultar-pagamentos/',

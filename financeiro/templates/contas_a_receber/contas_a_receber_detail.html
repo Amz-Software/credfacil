@@ -10,6 +10,12 @@
       <strong>Cliente Desativado:</strong> Este cliente está desativado. As parcelas não aparecem nos gráficos e relatórios de contas a receber.
     </div>
   {% endif %}
+  {% if conta_a_receber.devolucao %}
+    <div class="alert alert-warning" role="alert">
+      <i class="bi bi-arrow-counterclockwise me-2"></i>
+      <strong>Devolução:</strong> Mantém parcelas já pagas; parcelas futuras não são consideradas nos gráficos/relatórios.
+    </div>
+  {% endif %}
   <div class="row gy-4">
 
 
@@ -81,7 +87,11 @@
     <div class="col-12">
       <div class="card shadow-sm">
         <div class="card-header text-white">
-          <h5 class="mb-0">Detalhes da Conta</h5>
+          <h5 class="mb-0">Detalhes da Conta
+            {% if conta_a_receber.devolucao %}
+              <span class="badge bg-warning text-dark ms-2">Devolução</span>
+            {% endif %}
+          </h5>
         </div>
         <div class="card-body">
           <div class="row gx-3 gy-2">
@@ -161,6 +171,35 @@
                           <span class="badge bg-secondary ms-2">Desativado</span>
                         {% else %}
                           <span class="badge bg-success ms-2">Ativo</span>
+                        {% endif %}
+                      </label>
+                    </div>
+                  </form>
+                </div>
+              {% endif %}
+            </div>
+            <div class="col-12">
+              {% if user|has_perm:"vendas.change_pagamento" %}
+                <div class="d-flex justify-content-start">
+                  <form
+                    action="{% url 'vendas:toggle_devolucao_pagamento' conta_a_receber.id %}"
+                    method="post"
+                  >
+                    {% csrf_token %}
+                    <div class="form-check form-switch">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="devolucaoSwitch"
+                        onchange="this.form.submit()"
+                        {% if conta_a_receber.devolucao %}checked{% endif %}
+                      >
+                      <label class="form-check-label" for="devolucaoSwitch">
+                        <strong>Devolução</strong>
+                        <br>
+                        <small class="text-muted">Mantém parcelas pagas, ignora parcelas futuras em gráficos/relatórios</small>
+                        {% if conta_a_receber.devolucao %}
+                          <span class="badge bg-warning text-dark ms-2">Marcado como devolução</span>
                         {% endif %}
                       </label>
                     </div>
