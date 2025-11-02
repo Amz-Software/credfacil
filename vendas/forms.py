@@ -1018,6 +1018,9 @@ class LojaForm(forms.ModelForm):
             
         if self.instance and self.instance.porcentagem_desconto_8 is not None:
             self.initial['porcentagem_desconto_8'] = str(self.instance.porcentagem_desconto_8).replace(',', '.')
+        
+        if self.instance and getattr(self.instance, 'porcentagem_desconto_10', None) is not None:
+            self.initial['porcentagem_desconto_10'] = str(self.instance.porcentagem_desconto_10).replace(',', '.')
 
 
     def save(self, commit=True):

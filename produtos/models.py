@@ -9,6 +9,7 @@ class Produto(Base):
     valor_8_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     valor_6_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     valor_4_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    valor_10_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tipo = models.ForeignKey('produtos.TipoProduto', on_delete=models.PROTECT, related_name='produtos_tipo', null=True, blank=True)
     fabricante = models.ForeignKey('produtos.Fabricante', on_delete=models.PROTECT, related_name='produtos_fabricante')
     

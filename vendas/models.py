@@ -168,6 +168,7 @@ class Loja(Base):
     porcentagem_desconto_4 = models.DecimalField(max_digits=5, decimal_places=2, default=25.00)
     porcentagem_desconto_6 = models.DecimalField(max_digits=5, decimal_places=2, default=25.00)
     porcentagem_desconto_8 = models.DecimalField(max_digits=5, decimal_places=2, default=25.00)
+    porcentagem_desconto_10 = models.DecimalField(max_digits=5, decimal_places=2, default=25.00)
     qr_code_aplicativo = models.ImageField(upload_to='qr_codes_aplicativo/', null=True, blank=True)
     codigo_aplicativo = models.CharField(max_length=100, null=True, blank=True)
     objects = LojaQuerySet.as_manager()
@@ -469,6 +470,7 @@ class AnaliseCreditoCliente(Base):
         ('4', '4x'),
         ('6', '6x'),
         ('8', '8x'),
+        ('10', '10x'),
     ))
     produto = models.ForeignKey('produtos.Produto', on_delete=models.CASCADE, related_name='analises_credito')
     imei = models.ForeignKey('estoque.EstoqueImei', on_delete=models.CASCADE, related_name='analises_credito_imei', null=True, blank=True)

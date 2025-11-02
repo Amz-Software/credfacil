@@ -509,7 +509,7 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
         # Adiciona informação sobre permissão de visualizar consulta Serasa
         context['can_view_consulta_serasa'] = self.request.user.has_perm('vendas.view_consulta_serasa')
         
-        produtos = Produto.objects.all().values('id', 'nome', 'valor_4_vezes', 'valor_6_vezes', 'valor_8_vezes', 'entrada_cliente')
+        produtos = Produto.objects.all().values('id', 'nome', 'valor_4_vezes', 'valor_6_vezes', 'valor_8_vezes', 'valor_10_vezes', 'entrada_cliente')
         produtos_list = [
             {
                 'id': p['id'],
@@ -517,6 +517,7 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
                 'valor4': float(p['valor_4_vezes']),
                 'valor6': float(p['valor_6_vezes']),
                 'valor8': float(p['valor_8_vezes']),
+                'valor10': float(p['valor_10_vezes']),
                 'entrada': float(p['entrada_cliente']),
             }
             for p in produtos
@@ -1028,6 +1029,10 @@ def gerar_venda(request, cliente_id):
         valor_credfacil = produto.valor_8_vezes
         parcelas = 8
         porcentagem_desconto = credfacil.porcentagem_desconto_8
+    elif analise.numero_parcelas == '10':
+        valor_credfacil = produto.valor_10_vezes
+        parcelas = 10
+        porcentagem_desconto = credfacil.porcentagem_desconto_10
 
     # Cria ProdutoVenda
     ProdutoVenda.objects.create(

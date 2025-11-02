@@ -411,10 +411,10 @@
         }
       });
 
-      // Desabilitar botões ao enviar o formulário
+      // Não desabilitar botões no envio do formulário
       document.querySelectorAll('form').forEach(function (form) {
         form.addEventListener('submit', function () {
-          disableButtons();
+          // intencionalmente vazio
         });
       });
 

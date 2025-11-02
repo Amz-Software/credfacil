@@ -328,6 +328,7 @@ Clientes
           <th scope="col">Nome</th>
           <th scope="col">Parcela</th>
           <th scope="col">Solicitado Em</th>
+          <th scope="col">Tempo</th>
           <th scope="col">Aprovador por</th>
           {% if user|has_perm:"vendas.change_status_analise" %}
           <th scope="col">Loja</th>
@@ -358,6 +359,39 @@ Clientes
             <td>{{ cliente.nome }}</td>
             <td>{{ cliente.analise_credito.numero_parcelas }}x</td>
             <td>{{ cliente.analise_credito.data_analise|date:"d/m/Y H:m" }}</td>
+            <td>
+              {# define fim conforme status #}
+              {% if cliente.analise_credito.status == 'A' %}
+                {% with fim=cliente.analise_credito.data_aprovacao %}
+                  <span class="cronometro"
+                        data-status="A"
+                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
+                        data-end="{{ fim|date:'c' }}">
+                  </span>
+                {% endwith %}
+              {% elif cliente.analise_credito.status == 'R' %}
+                {% with fim=cliente.analise_credito.data_reprovacao %}
+                  <span class="cronometro"
+                        data-status="R"
+                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
+                        data-end="{{ fim|date:'c' }}">
+                  </span>
+                {% endwith %}
+              {% elif cliente.analise_credito.status == 'C' %}
+                {% with fim=cliente.analise_credito.data_cancelamento %}
+                  <span class="cronometro"
+                        data-status="C"
+                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
+                        data-end="{{ fim|date:'c' }}">
+                  </span>
+                {% endwith %}
+              {% else %}
+                  <span class="cronometro"
+                        data-status="EA"
+                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}">
+                  </span>
+              {% endif %}
+            </td>
             <td>
                 {{ cliente.analise_credito.aprovado_por|default:"Não Aprovado" }}
             </td>
@@ -687,6 +721,42 @@ Clientes
     }
     document.addEventListener('DOMContentLoaded', refreshKpis);
     setInterval(refreshKpis, 15000);
+
+    // Cronômetro de solicitações
+    function formatDuration(ms) {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      const hh = String(hours).padStart(2, '0');
+      const mm = String(minutes).padStart(2, '0');
+      const ss = String(seconds).padStart(2, '0');
+      return (days > 0 ? days + 'd ' : '') + `${hh}:${mm}:${ss}`;
+    }
+
+    function updateCronometros() {
+      const elements = document.querySelectorAll('.cronometro');
+      const now = Date.now();
+      elements.forEach(el => {
+        const status = el.getAttribute('data-status');
+        const startStr = el.getAttribute('data-start');
+        const endStr = el.getAttribute('data-end');
+        if (!startStr) { el.textContent = '—'; return; }
+        const start = new Date(startStr).getTime();
+        if (['A','R','C'].includes(status) && endStr) {
+          const end = new Date(endStr).getTime();
+          el.textContent = formatDuration(end - start);
+        } else {
+          el.textContent = formatDuration(now - start);
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+      updateCronometros();
+      setInterval(updateCronometros, 1000);
+    });
 
     // Melhorias para o Modal de QR Code
     document.addEventListener('DOMContentLoaded', function() {

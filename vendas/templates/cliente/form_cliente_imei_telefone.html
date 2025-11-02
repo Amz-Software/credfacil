@@ -456,12 +456,18 @@
         const valor4  = p.valor4   || 0;
         const valor6  = p.valor6   || 0;
         const valor8  = p.valor8   || 0;
+        const valor10 = p.valor10  || 0;
 
         // escolhe total conforme parcelas
-        const total = { '4': valor4, '6': valor6, '8': valor8 }[np] || 0;
+        const total = { '4': valor4, '6': valor6, '8': valor8, '10': valor10 }[np] || 0;
         const parcela = (np && total)
           ? total / parseInt(np, 10)
           : 0;
+
+        // alerta se não houver valor cadastrado para o parcelamento escolhido
+        if (np && total === 0) {
+          alert(`Atenção: valor para ${np}x não está cadastrado para este produto.`);
+        }
 
         // preenche os cards
         $('#info-entrada').text(formatBRL(entrada));
