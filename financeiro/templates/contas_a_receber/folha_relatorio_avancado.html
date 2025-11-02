@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório Avançado - Contas a Receber</title>
+  <style>
+    @media print {
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; margin: 0; padding: 16px; }
+    h2, h3 { margin: 8px 0; text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; }
+    th { background: #f5f5f5; font-weight: bold; }
+    .center { text-align: center; }
+    .right { text-align: right; }
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #eee; margin-right: 4px; }
+  </style>
+</head>
+<body>
+  <h2>Relatório Avançado - Contas a Receber</h2>
+  {% if data_inicio and data_fim %}
+  <h3>Período: {{ data_inicio }} a {{ data_fim }}</h3>
+  {% endif %}
+  <table>
+    <thead>
+      <tr>
+        <th>Loja</th>
+        <th>Data da Venda</th>
+        <th>Cliente</th>
+        <th>Lembrete</th>
+        <th>Número de Telefone</th>
+        <th>IMEI</th>
+        <th>Data de Vencimento</th>
+        <th>Situações</th>
+        <th>Status Pagamentos</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in contas %}
+      <tr>
+        <td>{{ p.venda.loja.nome|default:"-" }}</td>
+        <td>{{ p.venda.criado_em|date:"d/m/Y" }}</td>
+        <td>{{ p.venda.cliente.nome|default:"-" }}</td>
+        <td class="center">{% if p.lembrete %}Sim{% else %}Não{% endif %}</td>
+        <td>{{ p.venda.cliente.telefone|default:"-" }}</td>
+        <td>{% if p.venda.itens_venda.first.imei %}{{ p.venda.itens_venda.first.imei }}{% else %}-{% endif %}</td>
+        <td>{{ p.proximo_vencimento|default:"-" }}</td>
+        <td>
+          {% if p.bo %}<span class="badge">BO</span>{% endif %}
+          {% if p.flag_atrasado %}<span class="badge">Atrasado</span>{% endif %}
+          {% if p.sem_conexao %}<span class="badge">Sem conexão</span>{% endif %}
+          {% if p.roubo %}<span class="badge">Roubo</span>{% endif %}
+          {% if p.bloqueado %}<span class="badge">Bloqueado</span>{% endif %}
+          {% if p.desativado %}<span class="badge">Desativado</span>{% endif %}
+          {% if p.devolucao %}<span class="badge">Devolução</span>{% endif %}
+          {% if p.sem_contato %}<span class="badge">Sem contato</span>{% endif %}
+          {% if p.mais_prazo %}<span class="badge">Mais prazo</span>{% endif %}
+        </td>
+        <td>
+          {% for s in p.statuses.all %}
+            <span class="badge">{{ s.nome }}</span>
+          {% empty %}-{% endfor %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="9" class="center">Sem registros no período/critério informado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+  <script>
+    window.onload = () => {
+      const opt = { margin: [10,10,10,10], filename: `relatorio_contas_receber_avancado.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 3 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+      html2pdf().set(opt).from(document.body).save();
+    };
+  </script>
+</body>
+</html>
+

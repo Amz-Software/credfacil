@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static crispy_forms_tags %}
+{% block title %}Relatório Avançado - Contas a Receber{% endblock %}
+
+{% block extra_head %}
+{{ form.media.css }}
+{% endblock extra_head %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow-sm">
+    <div class="card-header">
+      <h3 class="card-title mb-0 text-secondary">Relatório Avançado - Contas a Receber</h3>
+    </div>
+    <div class="card-body">
+      <form method="get" action="{% url 'financeiro:relatorio_folha_contas_a_receber_avancado' %}" target="_blank">
+        {{ form|crispy }}
+        <input type="submit" value="Gerar Relatório" class="btn btn-primary">
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ form.media.js }}
+{% endblock extra_scripts %}

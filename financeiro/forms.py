@@ -263,3 +263,45 @@ class PagamentoStatusForm(forms.ModelForm):
     class Meta:
         model = Pagamento
         fields = ['statuses']
+
+
+class RelatorioContasAReceberAvancadoForm(forms.Form):
+    data_inicial = forms.DateField(
+        label='Data Inicial',
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+    )
+    data_final = forms.DateField(
+        label='Data Final',
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+    )
+    lojas = forms.ModelMultipleChoiceField(
+        queryset=Loja.objects.all(),
+        label='Lojas',
+        required=False,
+        widget=Select2MultipleWidget(attrs={'class': 'form-control'})
+    )
+    status_pagamento = forms.ModelMultipleChoiceField(
+        queryset=StatusPagamento.objects.all(),
+        label='Status Pagamento',
+        required=False,
+        widget=Select2MultipleWidget(attrs={'class': 'form-control'})
+    )
+    situacoes = forms.MultipleChoiceField(
+        label='Situações',
+        required=False,
+        choices=[
+            ('lembrete','Lembrete'),
+            ('bo','BO'),
+            ('flag_atrasado','Atrasado'),
+            ('sem_conexao','Sem conexão'),
+            ('roubo','Roubo'),
+            ('bloqueado','Bloquear Aparelho'),
+            ('desativado','Desativar Cliente'),
+            ('devolucao','Devolução'),
+            ('sem_contato','Sem contato'),
+            ('mais_prazo','Mais prazo'),
+        ],
+        widget=Select2MultipleWidget(attrs={'class': 'form-control'})
+    )

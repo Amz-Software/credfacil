@@ -754,6 +754,69 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
 
         return context
 
+
+class RelatorioContasAReceberAvancadoView(BaseView, PermissionRequiredMixin, TemplateView):
+    template_name = 'contas_a_receber/relatorio_avancado.html'
+    permission_required = 'vendas.can_genarate_report_payments'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = RelatorioContasAReceberAvancadoForm()
+        return context
+
+
+class FolhaRelatorioContasAReceberAvancadoView(BaseView, PermissionRequiredMixin, TemplateView):
+    template_name = 'contas_a_receber/folha_relatorio_avancado.html'
+    permission_required = 'vendas.can_genarate_report_payments'
+
+    def get_context_data(self, **kwargs):
+        data_inicio = self.request.GET.get('data_inicial')
+        data_fim = self.request.GET.get('data_final')
+        lojas = self.request.GET.getlist('lojas')
+        situacoes = self.request.GET.getlist('situacoes')
+        status_pagamento_ids = self.request.GET.getlist('status_pagamento')
+
+        pagamentos_qs = Pagamento.objects.exclude(venda__is_deleted=True).with_status_flags().distinct()
+
+        if lojas:
+            pagamentos_qs = pagamentos_qs.filter(loja__in=lojas)
+
+        # Data da venda
+        if data_inicio and data_fim:
+            di = datetime.strptime(data_inicio, '%Y-%m-%d')
+            df = datetime.strptime(data_fim, '%Y-%m-%d') + timedelta(days=1)
+            pagamentos_qs = pagamentos_qs.filter(venda__criado_em__gte=di, venda__criado_em__lt=df)
+
+        # Filtros de situações (booleans)
+        for s in situacoes:
+            if s in ['lembrete','bo','flag_atrasado','sem_conexao','roubo','bloqueado','desativado','devolucao','sem_contato','mais_prazo']:
+                kwargs_filter = {s: True}
+                pagamentos_qs = pagamentos_qs.filter(**kwargs_filter)
+
+        # Filtro por StatusPagamento M2M
+        if status_pagamento_ids:
+            pagamentos_qs = pagamentos_qs.filter(statuses__in=status_pagamento_ids).distinct()
+
+        # Annotações para data de vencimento (próximo)
+        proximo_vencimento_subquery = Subquery(
+            Parcela.objects.filter(
+                pagamento=OuterRef('pk'),
+                pago=False,
+                data_vencimento__gte=timezone.now()
+            ).order_by('data_vencimento').values('data_vencimento')[:1],
+            output_field=DateField()
+        )
+        pagamentos_qs = pagamentos_qs.annotate(proximo_vencimento=proximo_vencimento_subquery)
+
+        # Carrega relacionamentos necessários
+        pagamentos_qs = pagamentos_qs.select_related('venda', 'venda__cliente', 'venda__loja')
+
+        context = super().get_context_data(**kwargs)
+        context['contas'] = list(pagamentos_qs)
+        context['data_inicio'] = data_inicio
+        context['data_fim'] = data_fim
+        return context
+
 class RelatorioSaidaView(BaseView, PermissionRequiredMixin, TemplateView):
     template_name = 'relatorio/relatorio_saida.html'
     permission_required = 'vendas.can_generate_report_sale'

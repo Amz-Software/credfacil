@@ -153,6 +153,11 @@ def menu_items(request):
                     "permission": "vendas.view_pagamento"
                 },
                 {
+                    "label": "Relatório Situações",
+                    "url_name": "financeiro:relatorio_contas_a_receber_avancado",
+                    "permission": "vendas.view_pagamento"
+                },
+                {
                     "label": "Fechamentos Mensais",
                     "url_name": "financeiro:caixa_mensal_list",
                     "permission": "financeiro.view_caixamensal"
