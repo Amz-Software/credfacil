@@ -326,19 +326,19 @@ Clientes
           <th scope="col">Status Solicitação</th>
           <th scope="col">Produto</th>
           <th scope="col">Nome</th>
-          <th scope="col">Parcela</th>
           <th scope="col">Solicitado Em</th>
           <th scope="col">Tempo</th>
           <th scope="col">Aprovador por</th>
           {% if user|has_perm:"vendas.change_status_analise" %}
           <th scope="col">Loja</th>
           {% endif %}
-          <th scope="col">Contato</th>
           <th scope="col">Status IMEI</th>
           <th scope="col">Status App</th>
           <th scope="col">Status do Fluxo</th>
           <th scope="col">Venda Realizada</th>
           <th scope="col">Ações</th>
+          <th scope="col">Parcela</th>
+          <th scope="col">Contato</th>
           </tr>
         </thead>
         <tbody>
@@ -357,7 +357,6 @@ Clientes
             </td>
             <td>{{ cliente.analise_credito.produto.nome|capfirst }}</td>
             <td>{{ cliente.nome }}</td>
-            <td>{{ cliente.analise_credito.numero_parcelas }}x</td>
             <td>{{ cliente.analise_credito.data_analise|date:"d/m/Y H:m" }}</td>
             <td>
               {# define fim conforme status #}
@@ -398,7 +397,6 @@ Clientes
             {% if user|has_perm:"vendas.change_status_analise" %}
             <td>{{ cliente.loja.nome }}</td>
             {% endif %}
-            <td>{{ cliente.telefone }}</td>
             <td>
               {% if cliente.analise_credito.imei %}
                 <span class="badge bg-label-success">
@@ -536,47 +534,8 @@ Clientes
                 </div>
               </div>
             </td>            
-          <!-- <td>
-            <div class="dropdown">
-              <button
-                type="button"
-                class="btn p-0 dropdown-toggle hide-arrow"
-                data-bs-toggle="dropdown"
-              >
-                <i class="bx bx-dots-vertical-rounded"></i>
-              </button>
-              <div class="dropdown-menu">
-                {% if user|has_perm:"vendas.change_cliente" %}
-                  <a
-                    class="dropdown-item d-flex align-items-center"
-                    href="{% url 'vendas:cliente_update' cliente.pk %}"
-                  >
-                    <i class="bx bx-edit-alt me-1"></i>
-                    Editar
-                  </a>
-                {% endif %}
-            
-                {% if user|has_perm:"vendas.add_venda" %}
-                  <form
-                    method="post"
-                    action="{% url 'vendas:gerar_venda' cliente.pk %}"
-                    onsubmit="return confirm('Tem certeza que deseja gerar a venda?');"
-                    class="m-0"
-                  >
-                    {% csrf_token %}
-                    <button
-                      type="submit"
-                      class="dropdown-item d-flex align-items-center"
-                    >
-                      <i class="bx bx-cart me-1"></i>
-                      Gerar Venda
-                    </button>
-                  </form>
-                {% endif %}
-              </div>
-            </div>
-            
-          </td> -->
+            <td>{{ cliente.analise_credito.numero_parcelas }}x</td>
+            <td>{{ cliente.telefone }}</td>
           <!-- Modal de Confirmação de Leitura do QR Code -->
           <div class="modal fade" id="installModal{{ cliente.pk }}" tabindex="-1"
           aria-labelledby="installModalLabel{{ cliente.pk }}" aria-hidden="true">
