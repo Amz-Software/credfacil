@@ -118,9 +118,22 @@ class IndexView(LoginRequiredMixin, TemplateView):
                     pagamento__desativado=False,
                 ).order_by('data_vencimento')[:3])
 
-                parcelas_vencidas = [p for p in parcelas if p.data_vencimento < timezone.now().date() and not p.pago and not p.pagamento_efetuado]
+                # Em devolução: manter pagas; ignorar futuras (vencidas/a vencer)
+                parcelas_vencidas = [
+                    p for p in parcelas
+                    if p.data_vencimento < timezone.now().date()
+                    and not p.pago
+                    and not p.pagamento_efetuado
+                    and not p.pagamento.devolucao
+                ]
                 parcelas_pagas = [p for p in parcelas if p.pago and not p.pagamento_efetuado]
-                parcelas_a_vencer = [p for p in parcelas if p.data_vencimento >= timezone.now().date() and not p.pago and not p.pagamento_efetuado]
+                parcelas_a_vencer = [
+                    p for p in parcelas
+                    if p.data_vencimento >= timezone.now().date()
+                    and not p.pago
+                    and not p.pagamento_efetuado
+                    and not p.pagamento.devolucao
+                ]
 
                 total_geral_parcelas += len(parcelas)
 
@@ -2709,9 +2722,22 @@ class GraficoTemplateView(TemplateView):
             loja_nome = venda.loja.nome if venda.loja else 'Desconhecida'
             parcelas = parcelas_por_venda.get(venda.id, [])
 
-            parcelas_vencidas = [p for p in parcelas if p.data_vencimento < timezone.now().date() and not p.pago and not p.pagamento_efetuado]
+            # Em devolução: manter pagas; ignorar futuras (vencidas/a vencer)
+            parcelas_vencidas = [
+                p for p in parcelas
+                if p.data_vencimento < timezone.now().date()
+                and not p.pago
+                and not p.pagamento_efetuado
+                and not p.pagamento.devolucao
+            ]
             parcelas_pagas = [p for p in parcelas if p.pago and not p.pagamento_efetuado]
-            parcelas_a_vencer = [p for p in parcelas if p.data_vencimento >= timezone.now().date() and not p.pago and not p.pagamento_efetuado]
+            parcelas_a_vencer = [
+                p for p in parcelas
+                if p.data_vencimento >= timezone.now().date()
+                and not p.pago
+                and not p.pagamento_efetuado
+                and not p.pagamento.devolucao
+            ]
 
             total_geral_parcelas += len(parcelas)
             qtd_vencidas, qtd_pagas, qtd_a_vencer = len(parcelas_vencidas), len(parcelas_pagas), len(parcelas_a_vencer)
@@ -2751,9 +2777,19 @@ class GraficoTemplateView(TemplateView):
                 mes_ano = p.data_vencimento.strftime('%Y-%m')
                 if p.pago and not p.pagamento_efetuado:
                     dash_mensal_lojas[loja_nome][mes_ano]['pago'] += float(p.valor)
-                elif p.data_vencimento < timezone.now().date() and not p.pago and not p.pagamento_efetuado:
+                elif (
+                    p.data_vencimento < timezone.now().date()
+                    and not p.pago
+                    and not p.pagamento_efetuado
+                    and not p.pagamento.devolucao
+                ):
                     dash_mensal_lojas[loja_nome][mes_ano]['vencido'] += float(p.valor)
-                elif p.data_vencimento >= timezone.now().date() and not p.pago and not p.pagamento_efetuado:
+                elif (
+                    p.data_vencimento >= timezone.now().date()
+                    and not p.pago
+                    and not p.pagamento_efetuado
+                    and not p.pagamento.devolucao
+                ):
                     dash_mensal_lojas[loja_nome][mes_ano]['a_vencer'] += float(p.valor)
 
         for loja_nome, valores in valores_por_loja.items():
