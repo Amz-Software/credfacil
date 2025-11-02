@@ -90,3 +90,10 @@ class AnaliseCreditoClienteAdmin(AdminBase):
     list_filter = ('status',)
     search_fields = ('cliente__nome',)
     list_editable = ('status',)
+
+
+@admin.register(StatusPagamento)
+class StatusPagamentoAdmin(AdminBase):
+    list_display = ('nome', 'slug', 'cor_hex')
+    search_fields = ('nome',)
+    list_editable = ('slug', 'cor_hex')

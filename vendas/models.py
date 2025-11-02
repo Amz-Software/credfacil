@@ -698,6 +698,18 @@ class PagamentoQuerySet(models.QuerySet):
         )
     
     
+class StatusPagamento(Base):
+    nome = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=120, unique=True)
+    cor_hex = models.CharField(max_length=7, default="#6c757d")  # ex: #FFAA00
+
+    def __str__(self):
+        return self.nome
+
+    class Meta:
+        verbose_name_plural = 'Status de Pagamento'
+
+
 class Pagamento(Base):
     venda = models.ForeignKey('vendas.Venda', on_delete=models.CASCADE, related_name='pagamentos')
     tipo_pagamento = models.ForeignKey('vendas.TipoPagamento', on_delete=models.CASCADE, related_name='pagamentos_tipo')
@@ -709,7 +721,13 @@ class Pagamento(Base):
     quitado = models.BooleanField(default=False)
     sem_contato = models.BooleanField(default=False)
     mais_prazo = models.BooleanField(default=False)
+    # Situações
+    bo = models.BooleanField(default=False)
+    flag_atrasado = models.BooleanField(default=False)
+    sem_conexao = models.BooleanField(default=False)
+    roubo = models.BooleanField(default=False)
     porcentagem_desconto = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    statuses = models.ManyToManyField('vendas.StatusPagamento', related_name='pagamentos', blank=True)
     objects = PagamentoQuerySet.as_manager()
     data_primeira_parcela = models.DateField()
     

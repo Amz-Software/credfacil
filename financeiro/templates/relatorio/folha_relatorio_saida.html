@@ -70,6 +70,7 @@
                     <th>Loja</th>
                     <th>Cliente</th>
                     <th>Produto</th>
+                    <th>Status</th>
                     <th>Valor Atrasado</th>
                     <th>Primeiro Vencimento</th>
                     <th>Valor Pago</th>
@@ -97,6 +98,13 @@
                         {% endif %}
                     </td>
                     <td>{{ conta.venda.itens_venda.first.produto.nome|default:"-" }}</td>
+                    <td>
+                        {% for s in conta.statuses.all %}
+                          <span class="badge badge-warning" style="background-color: {{ s.cor_hex }}; color: #111">{{ s.nome }}</span>
+                        {% empty %}
+                          —
+                        {% endfor %}
+                    </td>
                     <td>R$ {{ conta.valor_atrasado|default:"0.00"|floatformat:2 }}</td>
                     <td>{{ conta.ultimo_vencimento|default:"-" }}</td>
                     <td>R$ {{ conta.valor_pago_ultimo|default:"0.00"|floatformat:2 }}</td>

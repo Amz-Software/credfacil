@@ -138,6 +138,16 @@
             </div>
           </div>
         {% endif %}
+        <!-- Status Pagamento (multi) -->
+        <div class="col-md-4">
+          <label for="status_pagamento" class="form-label">Status do Pagamento</label>
+          <select id="status_pagamento" name="status_pagamento" class="form-select" multiple>
+            {% for s in status_pagamento_all %}
+              <option value="{{ s.id }}" {% if s.id|stringformat:'s' in request.GET.getlist('status_pagamento') %}selected{% endif %}>{{ s.nome }}</option>
+            {% endfor %}
+          </select>
+          <small class="text-muted">Seleção múltipla (Select2).</small>
+        </div>
         <!-- Bloqueados -->
         <div class="col-auto">
           <div class="form-check form-switch">
@@ -227,6 +237,11 @@
               <th>Produto</th>
               <th class="text-center">IMEI</th>
               <th class="text-center">Contato do Cliente</th>
+              <th class="text-center">BO</th>
+              <th class="text-center">Atrasado</th>
+              <th class="text-center">Sem conexão</th>
+              <th class="text-center">Roubo</th>
+              <th>Status</th>
               <th class="text-end">Valor Atrasado</th>
               <th class="text-end">Primeiro Vencimento</th>
               <th class="text-end">Valor Pago</th>
@@ -289,6 +304,25 @@
             {% else %}
               -
             {% endif %}
+          </td>
+          <td class="text-center">
+            {% if conta.bo %}<span class="badge" style="background-color:#dc3545">&nbsp;</span>{% else %}—{% endif %}
+          </td>
+          <td class="text-center">
+            {% if conta.flag_atrasado %}<span class="badge" style="background-color:#fd7e14">&nbsp;</span>{% else %}—{% endif %}
+          </td>
+          <td class="text-center">
+            {% if conta.sem_conexao %}<span class="badge" style="background-color:#6c757d">&nbsp;</span>{% else %}—{% endif %}
+          </td>
+          <td class="text-center">
+            {% if conta.roubo %}<span class="badge" style="background-color:#000">&nbsp;</span>{% else %}—{% endif %}
+          </td>
+          <td>
+            {% for s in conta.statuses.all %}
+              <span class="badge rounded-pill text-dark me-1" style="background-color: {{ s.cor_hex }}">{{ s.nome }}</span>
+            {% empty %}
+              <span class="text-muted">—</span>
+            {% endfor %}
           </td>
           <td class="text-end">
             {{ conta.valor_atrasado|default:"0.00"|floatformat:2 }}
@@ -353,6 +387,9 @@
       document
         .querySelectorAll('[data-bs-toggle="tooltip"]')
         .forEach(el => new bootstrap.Tooltip(el));
+      if (window.jQuery && jQuery.fn.select2 && document.getElementById('status_pagamento')) {
+        $('#status_pagamento').select2({width:'100%'});
+      }
     });
   </script>
 {% endblock %}

@@ -244,3 +244,22 @@ class RepasseForm(forms.ModelForm):
             'status': 'Status',
             'observacao': 'Observação',
         }
+
+
+class PagamentoStatusForm(forms.ModelForm):
+    class StatusPagamentoSelectWidget(ModelSelect2MultipleWidget):
+        search_fields = [
+            'nome__icontains',
+            'slug__icontains',
+        ]
+
+    statuses = forms.ModelMultipleChoiceField(
+        queryset=StatusPagamento.objects.all(),
+        widget=StatusPagamentoSelectWidget(attrs={'class': 'form-control', 'data-minimum-input-length': 0}),
+        required=False,
+        label='Status do Pagamento'
+    )
+
+    class Meta:
+        model = Pagamento
+        fields = ['statuses']

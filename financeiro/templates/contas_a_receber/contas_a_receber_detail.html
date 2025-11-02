@@ -2,6 +2,13 @@
 {% load static iam_tags l10n %}
 {% block title %}Contas a Receber{% endblock title %}
 
+{% block extra_head %}
+  {{ status_form.media.css }}
+  <style>
+    .status-color-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
+  </style>
+{% endblock %}
+
 {% block content %}
 <div class="container-xxl mt-4">
   {% if conta_a_receber.desativado %}
@@ -114,6 +121,116 @@
             <div class="col-12 col-md-4">
               <small class="text-muted">Parcelas</small>
               <div>{{ conta_a_receber.parcelas }}</div>
+            </div>
+            <div class="col-12">
+              <h6 class="text-muted mb-2">Situações</h6>
+              <div class="d-flex flex-column gap-2">
+                <form method="post" action="{% url 'vendas:toggle_bo_pagamento' conta_a_receber.id %}">
+                  {% csrf_token %}
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sitBo" onchange="this.form.submit()" {% if conta_a_receber.bo %}checked{% endif %}>
+                    <label class="form-check-label" for="sitBo">
+                      <span class="status-color-dot me-2" style="background-color:#dc3545;"></span>
+                      BO
+                    </label>
+                  </div>
+                </form>
+                <form method="post" action="{% url 'vendas:toggle_atrasado_pagamento' conta_a_receber.id %}">
+                  {% csrf_token %}
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sitAtrasado" onchange="this.form.submit()" {% if conta_a_receber.flag_atrasado %}checked{% endif %}>
+                    <label class="form-check-label" for="sitAtrasado">
+                      <span class="status-color-dot me-2" style="background-color:#fd7e14;"></span>
+                      Atrasado
+                    </label>
+                  </div>
+                </form>
+                <form method="post" action="{% url 'vendas:toggle_sem_conexao_pagamento' conta_a_receber.id %}">
+                  {% csrf_token %}
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sitSemConexao" onchange="this.form.submit()" {% if conta_a_receber.sem_conexao %}checked{% endif %}>
+                    <label class="form-check-label" for="sitSemConexao">
+                      <span class="status-color-dot me-2" style="background-color:#6c757d;"></span>
+                      Sem conexão
+                    </label>
+                  </div>
+                </form>
+                <form method="post" action="{% url 'vendas:toggle_roubo_pagamento' conta_a_receber.id %}">
+                  {% csrf_token %}
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sitRoubo" onchange="this.form.submit()" {% if conta_a_receber.roubo %}checked{% endif %}>
+                    <label class="form-check-label" for="sitRoubo">
+                      <span class="status-color-dot me-2" style="background-color:#000000;"></span>
+                      Roubo
+                    </label>
+                  </div>
+                </form>
+                <form method="post" action="{% url 'vendas:toggle_bloqueio_pagamento' conta_a_receber.id %}">
+                  {% csrf_token %}
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sitBloqueado" onchange="this.form.submit()" {% if conta_a_receber.bloqueado %}checked{% endif %}>
+                    <label class="form-check-label" for="sitBloqueado">
+                      <span class="status-color-dot me-2" style="background-color:#6f42c1;"></span>
+                      Bloqueado
+                    </label>
+                  </div>
+                </form>
+                <form method="post" action="{% url 'vendas:toggle_desativar_pagamento' conta_a_receber.id %}">
+                  {% csrf_token %}
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sitDesativado" onchange="this.form.submit()" {% if conta_a_receber.desativado %}checked{% endif %}>
+                    <label class="form-check-label" for="sitDesativado">
+                      <span class="status-color-dot me-2" style="background-color:#6c757d;"></span>
+                      Desativado
+                    </label>
+                  </div>
+                </form>
+                <form method="post" action="{% url 'vendas:toggle_devolucao_pagamento' conta_a_receber.id %}">
+                  {% csrf_token %}
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sitDevolucao" onchange="this.form.submit()" {% if conta_a_receber.devolucao %}checked{% endif %}>
+                    <label class="form-check-label" for="sitDevolucao">
+                      <span class="status-color-dot me-2" style="background-color:#ffcd39;"></span>
+                      Devolução
+                    </label>
+                  </div>
+                </form>
+                <form method="post" action="{% url 'vendas:toggle_sem_contato_pagamento' conta_a_receber.id %}">
+                  {% csrf_token %}
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sitSemContato" onchange="this.form.submit()" {% if conta_a_receber.sem_contato %}checked{% endif %}>
+                    <label class="form-check-label" for="sitSemContato">
+                      <span class="status-color-dot me-2" style="background-color:#4f46e5;"></span>
+                      Sem contato
+                    </label>
+                  </div>
+                </form>
+                <form method="post" action="{% url 'vendas:toggle_mais_prazo_pagamento' conta_a_receber.id %}">
+                  {% csrf_token %}
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sitMaisPrazo" onchange="this.form.submit()" {% if conta_a_receber.mais_prazo %}checked{% endif %}>
+                    <label class="form-check-label" for="sitMaisPrazo">
+                      <span class="status-color-dot me-2" style="background-color:#20c997;"></span>
+                      Mais prazo
+                    </label>
+                  </div>
+                </form>
+              </div>
+            </div>
+            <div class="col-12 mt-3">
+              <h6 class="text-muted mb-2">Status</h6>
+              {% for s in all_status_pagamento %}
+                <form method="post" action="{% url 'vendas:toggle_status_pagamento' conta_a_receber.id s.id %}" class="mb-2">
+                  {% csrf_token %}
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="statusSwitch-{{ s.id }}" onchange="this.form.submit()" {% if s in conta_a_receber.statuses.all %}checked{% endif %}>
+                    <label class="form-check-label" for="statusSwitch-{{ s.id }}">
+                      <span class="status-color-dot me-2" data-status-color="{{ s.cor_hex }}"></span>
+                      {{ s.nome }}
+                    </label>
+                  </div>
+                </form>
+              {% endfor %}
             </div>
             <div class="col-12 col-md-4">
               <small class="text-muted">Total Pago</small>
@@ -648,7 +765,17 @@
 
 {% block extra_scripts %}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+  {{ status_form.media.js }}
   <script>
+    $(function(){
+      // django-select2 já cuida do init via assets; deixamos sem init manual aqui
+    });
+    document.addEventListener('DOMContentLoaded', function(){
+      document.querySelectorAll('[data-status-color]').forEach(function(el){
+        var c = el.getAttribute('data-status-color');
+        if (c) el.style.backgroundColor = c;
+      });
+    });
     document.getElementById('download-pdf').addEventListener('click', function() {
       var el = document.getElementById('report-content');
       el.style.display = 'block';

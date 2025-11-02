@@ -43,7 +43,7 @@ from vendas.forms import (
 )
 from .models import (
     AnaliseCreditoCliente, Caixa, Cliente, Loja, Pagamento, Parcela, ProdutoVenda, TipoPagamento, Venda,
-    LancamentoCaixa, LancamentoCaixaTotal
+    LancamentoCaixa, LancamentoCaixaTotal, StatusPagamento
 )
 from pypix import Pix
 #import q
@@ -2471,6 +2471,54 @@ def toggle_devolucao_pagamento(request, pk):
     pagamento.save(update_fields=['devolucao'])
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
+
+@login_required
+@permission_required('vendas.change_pagamento', raise_exception=True)
+def toggle_bo_pagamento(request, pk):
+    pagamento = get_object_or_404(Pagamento, pk=pk)
+    pagamento.bo = not pagamento.bo
+    pagamento.save(update_fields=['bo'])
+    return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
+
+
+@login_required
+@permission_required('vendas.change_pagamento', raise_exception=True)
+def toggle_atrasado_pagamento(request, pk):
+    pagamento = get_object_or_404(Pagamento, pk=pk)
+    pagamento.flag_atrasado = not pagamento.flag_atrasado
+    pagamento.save(update_fields=['flag_atrasado'])
+    return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
+
+
+@login_required
+@permission_required('vendas.change_pagamento', raise_exception=True)
+def toggle_sem_conexao_pagamento(request, pk):
+    pagamento = get_object_or_404(Pagamento, pk=pk)
+    pagamento.sem_conexao = not pagamento.sem_conexao
+    pagamento.save(update_fields=['sem_conexao'])
+    return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
+
+
+@login_required
+@permission_required('vendas.change_pagamento', raise_exception=True)
+def toggle_roubo_pagamento(request, pk):
+    pagamento = get_object_or_404(Pagamento, pk=pk)
+    pagamento.roubo = not pagamento.roubo
+    pagamento.save(update_fields=['roubo'])
+    return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
+
+@login_required
+@permission_required('vendas.change_pagamento', raise_exception=True)
+def toggle_status_pagamento(request, pk, status_id):
+    pagamento = get_object_or_404(Pagamento, pk=pk)
+    status = get_object_or_404(StatusPagamento, pk=status_id)
+    if pagamento.statuses.filter(pk=status.pk).exists():
+        pagamento.statuses.remove(status)
+        messages.info(request, f"Status '{status.nome}' removido.")
+    else:
+        pagamento.statuses.add(status)
+        messages.success(request, f"Status '{status.nome}' adicionado.")
+    return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
 class ConsultaPagamentosView(FormView):
     template_name = "publico/consulta_pagamentos.html"

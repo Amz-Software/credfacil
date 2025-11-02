@@ -10,7 +10,7 @@ from vendas.forms import ContatoForm
 from vendas.views import BaseView
 from .models import CaixaMensal, CaixaMensalGastoFixo, CaixaMensalFuncionario, GastosAleatorios
 from financeiro.forms import RelatorioSaidaForm
-from vendas.models import Loja, Parcela
+from vendas.models import Loja, Parcela, StatusPagamento
 from .models import CaixaMensal, CaixaMensalFuncionario, CaixaMensalGastoFixo, GastoFixo, GastosAleatorios
 from datetime import datetime, timedelta
 from django.db import transaction
@@ -400,6 +400,11 @@ class ContasAReceberListView(BaseView, PermissionRequiredMixin, ListView):
         if self.request.GET.get('mais_prazo'):
             qs = qs.filter(mais_prazo=True)
 
+        # Filtro por StatusPagamento (M2M)
+        status_pagamento_ids = self.request.GET.getlist('status_pagamento')
+        if status_pagamento_ids:
+            qs = qs.filter(statuses__in=status_pagamento_ids).distinct()
+
         if not user.has_perm('vendas.can_view_all_payments'):
             qs = qs.filter(loja_id=loja_id)
 
@@ -436,6 +441,7 @@ class ContasAReceberListView(BaseView, PermissionRequiredMixin, ListView):
             pagamento.atrasado = status
         if self.request.user.has_perm('vendas.can_view_all_stores'):
             context['lojas'] = Loja.objects.all()
+        context['status_pagamento_all'] = StatusPagamento.objects.all()
         return context
 
     def verificar_atraso_parcela(self, pagamento):
@@ -462,12 +468,15 @@ class ContasAReceberDetailView(PermissionRequiredMixin, DetailView):
             instance=conta_a_receber,
             form_kwargs={'user': self.request.user}
         )
+        # Form Select2 para editar statuses
+        context['status_form'] = PagamentoStatusForm(instance=conta_a_receber)
         cliente = self.get_object().venda.cliente
         contatos = list(cliente.contatos.all())
         for c in contatos:
             c.form = ContatoForm(instance=c)
         context['contacts'] = contatos
         context['contato_form'] = ContatoForm()
+        context['all_status_pagamento'] = StatusPagamento.objects.all()
         return context
 
 
@@ -487,6 +496,19 @@ class ContasAReceberDetailView(PermissionRequiredMixin, DetailView):
                     messages.success(request, "% de desconto atualizado com sucesso!")
                 except Exception:
                     messages.error(request, "Valor de desconto inválido.")
+            return redirect(request.path)
+
+        # Atualização de statuses (select múltiplo)
+        if 'statuses' in request.POST:
+            if not user.has_perm('vendas.change_pagamento'):
+                messages.error(request, "Você não tem permissão para alterar status.")
+            else:
+                form = PagamentoStatusForm(request.POST, instance=self.object)
+                if form.is_valid():
+                    form.save()
+                    messages.success(request, "Status de pagamento atualizados!")
+                else:
+                    messages.error(request, "Não foi possível atualizar os status.")
             return redirect(request.path)
 
         # 2) Senão, processa o formset de parcelas
@@ -542,6 +564,7 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
         data_fim = self.request.GET.get('data_final')
         lojas = self.request.GET.getlist('lojas')
         status_list = self.request.GET.getlist('status')
+        status_pagamento_ids = self.request.GET.getlist('status_pagamento')
         contas_a_receber = []
 
         if data_inicio and data_fim:
@@ -639,6 +662,10 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
 
             if lojas_qs:
                 pagamentos_qs = pagamentos_qs.filter(loja__in=lojas_qs)
+
+            # Filtro por StatusPagamento (M2M)
+            if status_pagamento_ids:
+                pagamentos_qs = pagamentos_qs.filter(statuses__in=status_pagamento_ids).distinct()
 
             # Filtro de status e datas
             if status_list and 'todos' not in status_list:
