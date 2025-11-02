@@ -143,7 +143,7 @@
           <label for="status_pagamento" class="form-label">Status do Pagamento</label>
           <select id="status_pagamento" name="status_pagamento" class="form-select" multiple>
             {% for s in status_pagamento_all %}
-              <option value="{{ s.id }}" {% if s.id|stringformat:'s' in request.GET.getlist('status_pagamento') %}selected{% endif %}>{{ s.nome }}</option>
+              <option value="{{ s.id }}" {% if s.id|stringformat:'s' in selected_status_pagamento %}selected{% endif %}>{{ s.nome }}</option>
             {% endfor %}
           </select>
           <small class="text-muted">Seleção múltipla (Select2).</small>
@@ -230,6 +230,7 @@
         <table class="table table-striped table-hover align-middle mb-0">
           <thead class="table-light">
             <tr>
+              <th class="text-center">Lembrete</th>
               {% if user|has_perm:"vendas.can_view_all_stores" %}
           <th>Loja</th>
               {% endif %}
@@ -269,6 +270,13 @@
           {% elif conta.todas_parcelas_pagas %}table-info
           {% endif %}
               ">
+          <td class="text-center">
+            {% if conta.lembrete %}
+              <i class="bi bi-envelope-check text-success"></i>
+            {% else %}
+              <i class="bi bi-x-lg text-muted"></i>
+            {% endif %}
+          </td>
           {% if user|has_perm:"vendas.can_view_all_stores" %}
             <td>
               <a href="{% url 'vendas:loja_detail' conta.venda.loja.id %}">

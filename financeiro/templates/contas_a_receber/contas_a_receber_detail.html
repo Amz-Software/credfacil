@@ -125,6 +125,16 @@
             <div class="col-12">
               <h6 class="text-muted mb-2">Situações</h6>
               <div class="d-flex flex-column gap-2">
+                <form method="post" action="{% url 'vendas:toggle_lembrete_pagamento' conta_a_receber.id %}">
+                  {% csrf_token %}
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sitLembrete" onchange="this.form.submit()" {% if conta_a_receber.lembrete %}checked{% endif %}>
+                    <label class="form-check-label" for="sitLembrete">
+                      <span class="status-color-dot me-2" style="background-color:#0d6efd;"></span>
+                      Lembrete
+                    </label>
+                  </div>
+                </form>
                 <form method="post" action="{% url 'vendas:toggle_bo_pagamento' conta_a_receber.id %}">
                   {% csrf_token %}
                   <div class="form-check form-switch">
@@ -171,7 +181,7 @@
                     <input class="form-check-input" type="checkbox" id="sitBloqueado" onchange="this.form.submit()" {% if conta_a_receber.bloqueado %}checked{% endif %}>
                     <label class="form-check-label" for="sitBloqueado">
                       <span class="status-color-dot me-2" style="background-color:#6f42c1;"></span>
-                      Bloqueado
+                      Bloquear Aparelho
                     </label>
                   </div>
                 </form>
@@ -181,8 +191,15 @@
                     <input class="form-check-input" type="checkbox" id="sitDesativado" onchange="this.form.submit()" {% if conta_a_receber.desativado %}checked{% endif %}>
                     <label class="form-check-label" for="sitDesativado">
                       <span class="status-color-dot me-2" style="background-color:#6c757d;"></span>
-                      Desativado
+                      Desativar Cliente
                     </label>
+                    <br>
+                    <small class="text-muted">Quando desativado, as parcelas não aparecem nos gráficos e relatórios</small>
+                    {% if conta_a_receber.desativado %}
+                      <span class="badge bg-secondary ms-2 align-middle">Desativado</span>
+                    {% else %}
+                      <span class="badge bg-success ms-2 align-middle">Ativo</span>
+                    {% endif %}
                   </div>
                 </form>
                 <form method="post" action="{% url 'vendas:toggle_devolucao_pagamento' conta_a_receber.id %}">
@@ -193,6 +210,11 @@
                       <span class="status-color-dot me-2" style="background-color:#ffcd39;"></span>
                       Devolução
                     </label>
+                    <br>
+                    <small class="text-muted">Mantém parcelas pagas, ignora parcelas futuras em gráficos/relatórios</small>
+                    {% if conta_a_receber.devolucao %}
+                      <span class="badge bg-warning text-dark ms-2 align-middle">Marcado como devolução</span>
+                    {% endif %}
                   </div>
                 </form>
                 <form method="post" action="{% url 'vendas:toggle_sem_contato_pagamento' conta_a_receber.id %}">
@@ -239,138 +261,6 @@
             <div class="col-12 col-md-4">
               <small class="text-muted">1ª Parcela</small>
               <div>{{ conta_a_receber.data_primeira_parcela }}</div>
-            </div>
-            <div class="col-12">
-              {% if user|has_perm:"vendas.change_pagamento" %}
-                <div class="d-flex justify-content-start">
-                  <form
-                    action="{% url 'vendas:toggle_bloqueio_pagamento' conta_a_receber.id %}"
-                    method="post"
-                  >
-                    {% csrf_token %}
-                    <div class="form-check form-switch">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="bloqueioSwitch"
-                        onchange="this.form.submit()"
-                        {% if conta_a_receber.bloqueado %}checked{% endif %}
-                      >
-                      <label class="form-check-label" for="bloqueioSwitch">
-                        {% if conta_a_receber.bloqueado %}Desbloquear{% else %}Bloquear{% endif %} Aparelho
-                      </label>
-                    </div>
-                  </form>
-                </div>
-              {% endif %}
-            </div>
-            <div class="col-12">
-              {% if user|has_perm:"vendas.change_pagamento" %}
-                <div class="d-flex justify-content-start">
-                  <form
-                    action="{% url 'vendas:toggle_desativar_pagamento' conta_a_receber.id %}"
-                    method="post"
-                  >
-                    {% csrf_token %}
-                    <div class="form-check form-switch">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="bloqueioSwitch"
-                        onchange="this.form.submit()"
-                        {% if conta_a_receber.desativado %}checked{% endif %}
-                      >
-                      <label class="form-check-label" for="bloqueioSwitch">
-                        <strong>Desativar Cliente</strong>
-                        <br>
-                        <small class="text-muted">Quando desativado, as parcelas não aparecem nos gráficos e relatórios</small>
-                        {% if conta_a_receber.desativado %}
-                          <span class="badge bg-secondary ms-2">Desativado</span>
-                        {% else %}
-                          <span class="badge bg-success ms-2">Ativo</span>
-                        {% endif %}
-                      </label>
-                    </div>
-                  </form>
-                </div>
-              {% endif %}
-            </div>
-            <div class="col-12">
-              {% if user|has_perm:"vendas.change_pagamento" %}
-                <div class="d-flex justify-content-start">
-                  <form
-                    action="{% url 'vendas:toggle_devolucao_pagamento' conta_a_receber.id %}"
-                    method="post"
-                  >
-                    {% csrf_token %}
-                    <div class="form-check form-switch">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="devolucaoSwitch"
-                        onchange="this.form.submit()"
-                        {% if conta_a_receber.devolucao %}checked{% endif %}
-                      >
-                      <label class="form-check-label" for="devolucaoSwitch">
-                        <strong>Devolução</strong>
-                        <br>
-                        <small class="text-muted">Mantém parcelas pagas, ignora parcelas futuras em gráficos/relatórios</small>
-                        {% if conta_a_receber.devolucao %}
-                          <span class="badge bg-warning text-dark ms-2">Marcado como devolução</span>
-                        {% endif %}
-                      </label>
-                    </div>
-                  </form>
-                </div>
-              {% endif %}
-            </div>
-            <div class="col-12">
-              {% if user|has_perm:"vendas.change_pagamento" %}
-                <div class="d-flex justify-content-start">
-                  <form
-                    action="{% url 'vendas:toggle_sem_contato_pagamento' conta_a_receber.id %}"
-                    method="post"
-                  >
-                    {% csrf_token %}
-                    <div class="form-check form-switch">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="semContatoSwitch"
-                        onchange="this.form.submit()"
-                        {% if conta_a_receber.sem_contato %}checked{% endif %}
-                      >
-                      <label class="form-check-label" for="semContatoSwitch">
-                        Sem contato
-                      </label>
-                    </div>
-                  </form>
-                </div>
-              {% endif %}
-            </div>
-            <div class="col-12">
-              {% if user|has_perm:"vendas.change_pagamento" %}
-                <div class="d-flex justify-content-start">
-                  <form
-                    action="{% url 'vendas:toggle_mais_prazo_pagamento' conta_a_receber.id %}"
-                    method="post"
-                  >
-                    {% csrf_token %}
-                    <div class="form-check form-switch">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="maisPrazoSwitch"
-                        onchange="this.form.submit()"
-                        {% if conta_a_receber.mais_prazo %}checked{% endif %}
-                      >
-                      <label class="form-check-label" for="maisPrazoSwitch">
-                        Mais prazo
-                      </label>
-                    </div>
-                  </form>
-                </div>
-              {% endif %}
             </div>
               <small class="text-muted">% Desconto</small>
               <form id="descontoForm" method="post">

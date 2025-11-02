@@ -96,4 +96,4 @@ class AnaliseCreditoClienteAdmin(AdminBase):
 class StatusPagamentoAdmin(AdminBase):
     list_display = ('nome', 'slug', 'cor_hex')
     search_fields = ('nome',)
-    list_editable = ('slug', 'cor_hex')
+    list_editable = ('cor_hex',)

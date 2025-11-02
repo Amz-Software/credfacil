@@ -442,6 +442,7 @@ class ContasAReceberListView(BaseView, PermissionRequiredMixin, ListView):
         if self.request.user.has_perm('vendas.can_view_all_stores'):
             context['lojas'] = Loja.objects.all()
         context['status_pagamento_all'] = StatusPagamento.objects.all()
+        context['selected_status_pagamento'] = self.request.GET.getlist('status_pagamento')
         return context
 
     def verificar_atraso_parcela(self, pagamento):

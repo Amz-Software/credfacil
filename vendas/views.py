@@ -2507,6 +2507,15 @@ def toggle_roubo_pagamento(request, pk):
     pagamento.save(update_fields=['roubo'])
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
+
+@login_required
+@permission_required('vendas.change_pagamento', raise_exception=True)
+def toggle_lembrete_pagamento(request, pk):
+    pagamento = get_object_or_404(Pagamento, pk=pk)
+    pagamento.lembrete = not pagamento.lembrete
+    pagamento.save(update_fields=['lembrete'])
+    return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
+
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_status_pagamento(request, pk, status_id):
