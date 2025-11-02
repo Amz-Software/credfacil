@@ -47,9 +47,21 @@ Produtos
           <td>{{ produto.valor_repasse_logista|floatformat:2 }}</td>
           <td>{{ produto.entrada_cliente|floatformat:2 }}</td>
           <td>{{ produto.valor_10_vezes|floatformat:2 }}</td>
-          <td>{{ produto.valor_8_vezes|floatformat:2 }}</td>
-          <td>{{ produto.valor_6_vezes|floatformat:2 }}</td>
-          <td>{{ produto.valor_4_vezes|floatformat:2 }}</td>
+          <td>
+            {{ produto.valor_8_vezes|floatformat:2 }}
+            <br>
+            <small class="text-muted per-parcela" data-total="{{ produto.valor_8_vezes }}" data-n="8"></small>
+          </td>
+          <td>
+            {{ produto.valor_6_vezes|floatformat:2 }}
+            <br>
+            <small class="text-muted per-parcela" data-total="{{ produto.valor_6_vezes }}" data-n="6"></small>
+          </td>
+          <td>
+            {{ produto.valor_4_vezes|floatformat:2 }}
+            <br>
+            <small class="text-muted per-parcela" data-total="{{ produto.valor_4_vezes }}" data-n="4"></small>
+          </td>
           <td>
             <div class="dropdown">
             <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
@@ -83,4 +95,25 @@ Produtos
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.per-parcela').forEach(function(el){
+      var total = parseFloat(el.getAttribute('data-total')) || 0;
+      var n = parseInt(el.getAttribute('data-n')) || 0;
+      if (total > 0 && n > 0) {
+        var per = total / n;
+        try {
+          el.textContent = n + 'x de ' + per.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        } catch (e) {
+          el.textContent = n + 'x de R$ ' + per.toFixed(2);
+        }
+      } else {
+        el.textContent = '';
+      }
+    });
+  });
+  </script>
 {% endblock %}
