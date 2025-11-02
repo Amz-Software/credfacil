@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.urls import reverse
 import re
 from django.utils.text import slugify
+import calendar
 
 class Base(models.Model):
     loja = models.ForeignKey('vendas.Loja', on_delete=models.CASCADE, related_name='%(class)s_loja', null=True, blank=True)
@@ -174,7 +175,7 @@ class Loja(Base):
     objects = LojaQuerySet.as_manager()
 
 
-    REPASSES_DIAS = (1, 15)
+    REPASSES_DIAS = (1, 16)
 
     def get_repasses_status(self, meses_atras=0, limite_meses=6):
         hoje = date.today()
@@ -194,25 +195,25 @@ class Loja(Base):
                 ano -= 1
 
             for idx, dia in enumerate(self.REPASSES_DIAS):
-                # Data do repasse atual
+                # Data do repasse (data de pagamento)
                 try:
-                    dt_atual = date(ano, mes, dia)
+                    data_repasse = date(ano, mes, dia)
                 except ValueError:
                     continue
 
-                # Data do repasse anterior
-                if idx == 0:
-                    prev_mes, prev_ano = (mes-1, ano)
+                # Intervalos de competência por regra:
+                # - Repasse do dia 01: período 16 até último dia do mês anterior
+                # - Repasse do dia 16: período 01 até dia 15 do mês atual
+                if dia == 1:
+                    prev_mes, prev_ano = (mes - 1, ano)
                     if prev_mes == 0:
-                        prev_mes, prev_ano = 12, ano-1
-                    dia_prev = self.REPASSES_DIAS[-1]
-                    dt_prev = date(prev_ano, prev_mes, dia_prev)
-                else:
-                    dt_prev = date(ano, mes, self.REPASSES_DIAS[idx-1])
-
-                # Intervalo de vendas (exclusive dt_prev, inclusive dt_atual)
-                inicio = dt_prev + timedelta(days=1)
-                fim    = dt_atual
+                        prev_mes, prev_ano = 12, ano - 1
+                    ultimo_dia_prev_mes = calendar.monthrange(prev_ano, prev_mes)[1]
+                    inicio = date(prev_ano, prev_mes, 16)
+                    fim = date(prev_ano, prev_mes, ultimo_dia_prev_mes)
+                else:  # dia == 16
+                    inicio = date(ano, mes, 1)
+                    fim = date(ano, mes, 15)
 
                 vendas_periodo = vendas_qs.filter(
                     data_venda__date__gte=inicio,
@@ -230,7 +231,7 @@ class Loja(Base):
                     valor_repasse = venda.repasse_logista
                     valor += valor_repasse
 
-                feito = self.repasse.filter(data__date=dt_atual).exists()
+                feito = self.repasse.filter(data__date=data_repasse).exists()
 
                 # Verifica se o valor do repasse é menor que o calculado
                 if feito:
@@ -242,7 +243,7 @@ class Loja(Base):
                             repasse.save()
 
                 resultados.append({
-                    'data': dt_atual,
+                    'data': data_repasse,
                     'inicio_periodo': inicio,
                     'fim_periodo': fim,
                     'qtd_vendas': qtd,

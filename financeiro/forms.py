@@ -215,7 +215,7 @@ class RepasseForm(forms.ModelForm):
             attrs={
                 'class': 'form-control',
                 'type': 'date',
-                'placeholder': 'Selecione a data'
+                'placeholder': 'Selecione a data (01 ou 16)'
             },
             format='%Y-%m-%d'
             ),
@@ -241,8 +241,12 @@ class RepasseForm(forms.ModelForm):
         }
         labels = {
             'valor': 'Valor do Repasse',
+            'data': 'Data do Repasse (dia 01 ou 16)',
             'status': 'Status',
             'observacao': 'Observação',
+        }
+        help_texts = {
+            'data': 'Use dia 01 para o período 16–último do mês anterior e dia 16 para o período 01–15 do mês atual.'
         }
 
 

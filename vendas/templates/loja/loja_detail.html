@@ -433,7 +433,13 @@ Detalhes da Loja
 
         <!-- Aba “Repasses Agendados” -->
         <div class="tab-pane fade p-4" id="agendados" role="tabpanel">
-          <h5 class="mb-4">Repasses Agendados</h5>
+          <h5 class="mb-2">Repasses Agendados</h5>
+          <div class="alert alert-info py-2">
+            <div><strong>Regras:</strong> Pagamento dia <strong>01</strong> cobre <strong>16–último dia</strong> do mês anterior. Pagamento dia <strong>16</strong> cobre <strong>01–15</strong> do mês atual.</div>
+            {% if user|has_perm:"financeiro.add_repasse" %}
+            <div class="small mb-0">Ao lançar um repasse no financeiro, informe a <strong>Data do Repasse</strong> exatamente em <strong>01</strong> ou <strong>16</strong> conforme o período.</div>
+            {% endif %}
+          </div>
       
           {% if repasse_status_list %}
               <div class="row row-cols-1 row-cols-md-2 g-3 mb-3">
@@ -449,6 +455,13 @@ Detalhes da Loja
                                   <!-- Datas e período -->
                                   <div>
                                       <strong>{{ rep.data|date:"d/m/Y" }}</strong>
+                                      <div class="mb-1">
+                                        {% if rep.data|date:"d" == "01" %}
+                                          <span class="badge bg-secondary">Pagamento dia 01</span>
+                                        {% elif rep.data|date:"d" == "16" %}
+                                          <span class="badge bg-secondary">Pagamento dia 16</span>
+                                        {% endif %}
+                                      </div>
                                       <small class="d-block text-muted">
                                           Período: {{ rep.inicio_periodo|date:"d/m/Y" }} – {{ rep.fim_periodo|date:"d/m/Y" }}
                                       </small>
