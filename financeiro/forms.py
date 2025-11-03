@@ -173,6 +173,11 @@ class RelatorioContasAReceberForm(forms.Form):
             ('sem_contato', 'Sem contato'),
             ('mais_prazo', 'Mais prazo'),
             ('quitado', 'Quitado'),
+            ('lembrete', 'Lembrete'),
+            ('flag_atrasado', 'Flag Atrasado'),
+            ('sem_conexao', 'Sem conexão'),
+            ('roubo', 'Roubo'),
+            ('devolucao', 'Devolução'),
             ('todos', 'Todos')
         ],
         label='Status',
@@ -184,7 +189,13 @@ class RelatorioContasAReceberForm(forms.Form):
         label='Lojas',
         required=False,
         widget=Select2MultipleWidget(attrs={'class': 'form-control'})
-    )    
+    )
+    status_pagamento = forms.ModelMultipleChoiceField(
+        queryset=StatusPagamento.objects.all(),
+        label='Status Pagamento',
+        required=False,
+        widget=Select2MultipleWidget(attrs={'class': 'form-control'})
+    )
 
 class RelatorioSaidaForm(forms.Form):
     data_inicial = forms.DateField(

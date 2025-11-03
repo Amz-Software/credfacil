@@ -664,7 +664,6 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
             if lojas_qs:
                 pagamentos_qs = pagamentos_qs.filter(loja__in=lojas_qs)
 
-            # Filtro por StatusPagamento (M2M)
             if status_pagamento_ids:
                 pagamentos_qs = pagamentos_qs.filter(statuses__in=status_pagamento_ids).distinct()
 
@@ -697,6 +696,21 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
                     elif status == 'mais_prazo':
                         q = Q(mais_prazo=True)
                         date_q = Q()  # Não filtra por data
+                    elif status == 'lembrete':
+                        q = Q(lembrete=True)
+                        date_q = Q()  # Não filtra por data
+                    elif status == 'flag_atrasado':
+                        q = Q(flag_atrasado=True)
+                        date_q = Q()  # Não filtra por data
+                    elif status == 'sem_conexao':
+                        q = Q(sem_conexao=True)
+                        date_q = Q()  # Não filtra por data
+                    elif status == 'roubo':
+                        q = Q(roubo=True)
+                        date_q = Q()  # Não filtra por data
+                    elif status == 'devolucao':
+                        q = Q(devolucao=True)
+                        date_q = Q()  # Não filtra por data
                     else:
                         continue
                     q_status = q if q_status is None else q_status | q
@@ -706,12 +720,20 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
                 if date_filter:
                     pagamentos_qs = pagamentos_qs.filter(date_filter)
             else:
-                # Se não filtrar por status, usar proximo_vencimento por padrão
-                pagamentos_qs = pagamentos_qs.filter(
-                    proximo_vencimento__isnull=False,
-                    proximo_vencimento__gte=data_inicio_dt,
-                    proximo_vencimento__lt=data_final_dt_plus
-                )
+                # Caso 'todos' esteja selecionado, considerar qualquer data relevante no intervalo
+                if status_list and 'todos' in status_list:
+                    pagamentos_qs = pagamentos_qs.filter(
+                        Q(proximo_vencimento__isnull=False, proximo_vencimento__gte=data_inicio_dt, proximo_vencimento__lt=data_final_dt_plus) |
+                        Q(ultimo_vencimento__isnull=False, ultimo_vencimento__gte=data_inicio_dt, ultimo_vencimento__lt=data_final_dt_plus) |
+                        Q(ultimo_pagamento__isnull=False, ultimo_pagamento__gte=data_inicio_dt, ultimo_pagamento__lt=data_final_dt_plus)
+                    ).distinct()
+                else:
+                    # Se não filtrar por status, usar proximo_vencimento por padrão
+                    pagamentos_qs = pagamentos_qs.filter(
+                        proximo_vencimento__isnull=False,
+                        proximo_vencimento__gte=data_inicio_dt,
+                        proximo_vencimento__lt=data_final_dt_plus
+                    )
 
             contas_a_receber = list(pagamentos_qs)
 
