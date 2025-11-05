@@ -327,8 +327,6 @@ Clientes
           <th scope="col">Produto</th>
           <th scope="col">Nome</th>
           <th scope="col">Solicitado Em</th>
-          <th scope="col">Tempo</th>
-          <th scope="col">Aprovador por</th>
           {% if user|has_perm:"vendas.change_status_analise" %}
           <th scope="col">Loja</th>
           {% endif %}
@@ -337,8 +335,8 @@ Clientes
           <th scope="col">Status do Fluxo</th>
           <th scope="col">Venda Realizada</th>
           <th scope="col">Ações</th>
-          <th scope="col">Parcela</th>
-          <th scope="col">Contato</th>
+          <th scope="col">Tempo de Análise</th>
+          <th scope="col">Aprovador(a)</th>
           </tr>
         </thead>
         <tbody>
@@ -358,42 +356,6 @@ Clientes
             <td>{{ cliente.analise_credito.produto.nome|capfirst }}</td>
             <td>{{ cliente.nome }}</td>
             <td>{{ cliente.analise_credito.data_analise|date:"d/m/Y H:m" }}</td>
-            <td>
-              {# define fim conforme status #}
-              {% if cliente.analise_credito.status == 'A' %}
-                {% with fim=cliente.analise_credito.data_aprovacao %}
-                  <span class="cronometro"
-                        data-status="A"
-                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
-                        data-end="{{ fim|date:'c' }}">
-                  </span>
-                {% endwith %}
-              {% elif cliente.analise_credito.status == 'R' %}
-                {% with fim=cliente.analise_credito.data_reprovacao %}
-                  <span class="cronometro"
-                        data-status="R"
-                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
-                        data-end="{{ fim|date:'c' }}">
-                  </span>
-                {% endwith %}
-              {% elif cliente.analise_credito.status == 'C' %}
-                {% with fim=cliente.analise_credito.data_cancelamento %}
-                  <span class="cronometro"
-                        data-status="C"
-                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
-                        data-end="{{ fim|date:'c' }}">
-                  </span>
-                {% endwith %}
-              {% else %}
-                  <span class="cronometro"
-                        data-status="EA"
-                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}">
-                  </span>
-              {% endif %}
-            </td>
-            <td>
-                {{ cliente.analise_credito.aprovado_por|default:"Não Aprovado" }}
-            </td>
             {% if user|has_perm:"vendas.change_status_analise" %}
             <td>{{ cliente.loja.nome }}</td>
             {% endif %}
@@ -533,9 +495,43 @@ Clientes
             
                 </div>
               </div>
+            </td>
+            <td>
+              {# define fim conforme status #}
+              {% if cliente.analise_credito.status == 'A' %}
+                {% with fim=cliente.analise_credito.data_aprovacao %}
+                  <span class="cronometro"
+                        data-status="A"
+                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
+                        data-end="{{ fim|date:'c' }}">
+                  </span>
+                {% endwith %}
+              {% elif cliente.analise_credito.status == 'R' %}
+                {% with fim=cliente.analise_credito.data_reprovacao %}
+                  <span class="cronometro"
+                        data-status="R"
+                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
+                        data-end="{{ fim|date:'c' }}">
+                  </span>
+                {% endwith %}
+              {% elif cliente.analise_credito.status == 'C' %}
+                {% with fim=cliente.analise_credito.data_cancelamento %}
+                  <span class="cronometro"
+                        data-status="C"
+                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
+                        data-end="{{ fim|date:'c' }}">
+                  </span>
+                {% endwith %}
+              {% else %}
+                  <span class="cronometro"
+                        data-status="EA"
+                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}">
+                  </span>
+              {% endif %}
             </td>            
-            <td>{{ cliente.analise_credito.numero_parcelas }}x</td>
-            <td>{{ cliente.telefone }}</td>
+            <td>
+              {{ cliente.analise_credito.aprovado_por|default:"Não Aprovado" }}
+            </td>
           <!-- Modal de Confirmação de Leitura do QR Code -->
           <div class="modal fade" id="installModal{{ cliente.pk }}" tabindex="-1"
           aria-labelledby="installModalLabel{{ cliente.pk }}" aria-hidden="true">
