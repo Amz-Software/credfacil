@@ -4,7 +4,6 @@ from datetime import date, timedelta
 from decimal import Decimal
 from django.utils.functional import cached_property
 from django.db.models import Count, Q, Case, When, Value, IntegerField, BooleanField, F, Min
-from datetime import date, timedelta
 from django.db import models
 from django.utils import timezone
 from django.urls import reverse
@@ -235,7 +234,7 @@ class Loja(Base):
 
                 # Verifica se o valor do repasse é menor que o calculado
                 if feito:
-                    repasses = self.repasse.filter(data__date=dt_atual)
+                    repasses = self.repasse.filter(data__date=data_repasse)
                     for repasse in repasses:
                         if repasse.valor < valor:
                             # Se o valor do repasse for menor que o calculado, marca como parcial
