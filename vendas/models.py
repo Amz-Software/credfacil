@@ -174,7 +174,7 @@ class Loja(Base):
     objects = LojaQuerySet.as_manager()
 
 
-    REPASSES_DIAS = (1, 16)
+    REPASSES_DIAS = (6, 16, 26)
 
     def get_repasses_status(self, meses_atras=0, limite_meses=6):
         hoje = date.today()
