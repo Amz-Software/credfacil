@@ -17,7 +17,7 @@ Venda {{ venda.data_venda|date:"d/m/Y" }}
               <a href="{% url 'vendas:venda_list' %}" class="btn btn-primary me-2">
                 <i class="bx bx-arrow-back me-1"></i> Voltar
               </a>
-              {% if user|has_perm:"vendas.change_venda" %}
+              {% if user|has_perm:"vendas.delete_venda" %}
               <a href="{% url 'vendas:venda_cancel' venda.id %}" class="btn btn-danger">
                 <i class="bx bx-x me-1"></i> Cancelar
               </a>

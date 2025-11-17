@@ -17,25 +17,6 @@ def menu_items(request):
             "permission": "vendas.view_loja",
             "section": "Início",
         },
-        {
-            "label": "Produtos",
-            "icon": "bx bx-mobile",
-            "permission": "produtos.view_produto",
-            "section": "Produtos",
-            "sub_items": [
-                {
-                    "label": "Produtos",
-                    "url_name": "produtos:produtos",
-                    "permission": "produtos.view_produto",
-                },
-
-                {
-                    "label": "Tipo",
-                    "url_name": "produtos:tipos",
-                    "permission": "produtos.view_tipoproduto",
-                },
-            ]
-        },
         {          
             "label": "Caixa",
             "icon": "bx bx-cart",
@@ -50,45 +31,50 @@ def menu_items(request):
             "url_name": "vendas:grafico",
             "section": "Gráfico"
         },
-        {
-            "label": "Estoque",
-            "icon": "bx bx-box",
-            "permission": "estoque.view_estoque",
-            "sub_items": [
-                {
-                    "label": "Ver Estoque",
-                    "url_name": "estoque:estoque_list",
-                    "permission": "estoque.view_estoque"
-                },
-                {
-                    "label": "Estoque IMEI",
-                    "url_name": "estoque:estoque_imei_list",
-                    "permission": "estoque.view_estoqueimei"  
-                },
-                {
-                    "label": "Ver Entradas",
-                    "url_name": "estoque:entrada_list",
-                    "permission": "estoque.view_entradaestoque"
-                },
-                {
-                    "label": "Adicionar Entrada",
-                    "url_name": "estoque:estoque_entrada",
-                    "permission": "estoque.add_entradaestoque"
-                },
-                {
-                    "label": "Fornecedores",
-                    "url_name": "estoque:fornecedores",
-                    "permission": "estoque.view_fornecedor"
-                }
-            ],
-            "section": "Estoque"
-        },   
+        # {
+        #     "label": "Estoque",
+        #     "icon": "bx bx-box",
+        #     "permission": "estoque.view_estoque",
+        #     "sub_items": [
+        #         {
+        #             "label": "Ver Estoque",
+        #             "url_name": "estoque:estoque_list",
+        #             "permission": "estoque.view_estoque"
+        #         },
+        #         {
+        #             "label": "Estoque IMEI",
+        #             "url_name": "estoque:estoque_imei_list",
+        #             "permission": "estoque.view_estoqueimei"  
+        #         },
+        #         {
+        #             "label": "Ver Entradas",
+        #             "url_name": "estoque:entrada_list",
+        #             "permission": "estoque.view_entradaestoque"
+        #         },
+        #         {
+        #             "label": "Adicionar Entrada",
+        #             "url_name": "estoque:estoque_entrada",
+        #             "permission": "estoque.add_entradaestoque"
+        #         },
+        #         {
+        #             "label": "Fornecedores",
+        #             "url_name": "estoque:fornecedores",
+        #             "permission": "estoque.view_fornecedor"
+        #         }
+        #     ],
+        #     "section": "Estoque"
+        # },   
         {
             "label": "Vendas",
             "icon": "bx bx-box",
-            "permission": "vendas.view_vendas",
+            "permission": "vendas.view_venda",
             "section": "Vendas",
             "sub_items": [
+                {
+                    "label": "Solicitações de Venda",
+                    "url_name": "vendas:cliente_list",
+                    "permission": "vendas.view_cliente"
+                },
                 {
                     "label": "Vendas",
                     "url_name": "vendas:venda_list",
@@ -99,16 +85,11 @@ def menu_items(request):
                     "url_name": "vendas:produto_vendido_list",
                     "permission": "vendas.can_view_produtos_vendidos"
                 },
-                {
-                    "label": "Solicitações de Venda",
-                    "url_name": "vendas:cliente_list",
-                    "permission": "vendas.view_cliente"
-                },
-                {
-                    "label": "Tipo pagamento",
-                    "url_name": "vendas:tipos_pagamento",
-                    "permission": "vendas.view_tipopagamento"
-                },
+                # {
+                #     "label": "Tipo pagamento",
+                #     "url_name": "vendas:tipos_pagamento",
+                #     "permission": "vendas.view_tipopagamento"
+                # },
             ],
         },
         {
@@ -122,11 +103,11 @@ def menu_items(request):
                     "url_name": "vendas:caixa_list",
                     "permission": "auth.view_user"
                 },
-                {
-                    "label": "Caixa Total",
-                    "url_name": "vendas:caixa_total",
-                    "permission": "vendas.view_caixa"
-                },
+                # {
+                #     "label": "Caixa Total",
+                #     "url_name": "vendas:caixa_total",
+                #     "permission": "vendas.view_caixa"
+                # },
                 {
                     "label": "Relatório de Solicitações",
                     "url_name": "vendas:form_solicitacao_relatorio",
@@ -169,24 +150,24 @@ def menu_items(request):
                 }
             ]
         },
-        {
-            "label": "Assistência",
-            "icon": "bx bx-wrench",
-            "permission": "assistencia.view_assistencia",
-            "section": "Assistência",
-            "sub_items": [
-                {
-                    "label": "Caixa Assistência",
-                    "url_name": "assistencia:caixa_assistencia_list",
-                    "permission": "assistencia.view_assistencia"
-                },
-                {
-                    "label": "Ordens de Serviço",
-                    "url_name": "assistencia:ordem_servico_list",
-                    "permission": "assistencia.view_ordemservico"
-                }
-            ]
-        },
+        # {
+        #     "label": "Assistência",
+        #     "icon": "bx bx-wrench",
+        #     "permission": "assistencia.view_assistencia",
+        #     "section": "Assistência",
+        #     "sub_items": [
+        #         {
+        #             "label": "Caixa Assistência",
+        #             "url_name": "assistencia:caixa_assistencia_list",
+        #             "permission": "assistencia.view_assistencia"
+        #         },
+        #         {
+        #             "label": "Ordens de Serviço",
+        #             "url_name": "assistencia:ordem_servico_list",
+        #             "permission": "assistencia.view_ordemservico"
+        #         }
+        #     ]
+        # },
         {
             "label": "Usuários",
             "icon": "bx bx-user",
