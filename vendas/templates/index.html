@@ -7,12 +7,12 @@
   <div class="row">
     <!-- Welcome Card -->
     <div class="col-lg-12 mb-4 order-0">
-      <div class="card">
+      <div class="card border-0 shadow-lg" style="border-radius: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow: hidden;">
         <div class="d-flex align-items-end row">
           <div class="col-sm-7">
-            <div class="card-body">
-              <h5 class="card-title text-primary">Olá, {{ user|title }} 👋</h5>
-              <p class="mb-4">Seja Bem-vindo ao Sistema de Financiamento CredFácil da
+            <div class="card-body p-4">
+              <h5 class="card-title text-white mb-2" style="font-size: 1.75rem; font-weight: 700;">Olá, {{ user|title }} 👋</h5>
+              <p class="mb-0 text-white" style="font-size: 1.05rem; opacity: 0.95;">Seja Bem-vindo ao Sistema de Financiamento CredFácil da
                 <strong>{{loja.nome|title}}</strong>
               </p>
             </div>
@@ -20,7 +20,7 @@
           <div class="col-sm-5 text-center text-sm-left">
             <div class="card-body pb-0 px-0 px-md-4">
               <img src="{% static 'sneat-template/assets/img/illustrations/man-with-laptop-light.png' %}" height="140"
-                alt="Welcome User" />
+                alt="Welcome User" style="filter: brightness(1.1);" />
             </div>
           </div>
         </div>
@@ -30,17 +30,19 @@
     {% if user|has_perm:'vendas.view_venda' %}
     <!-- Usuário SEM permissão: exibe cards de Vendas e Clientes -->
     <div class="col-md-6 mb-4">
-      <div class="card border-start shadow-sm h-100">
-        <div class="card-body d-flex align-items-center">
+      <div class="card border-0 shadow-sm h-100 nav-card" style="border-radius: 12px; transition: all 0.3s ease; border-left: 4px solid #22c55e !important;">
+        <div class="card-body d-flex align-items-center p-4">
           <!-- Ícone -->
           <div class="me-3">
-            <i class="bx bx-cart-alt fs-1 text-success"></i>
+            <div class="bg-success bg-opacity-10 rounded-circle p-3" style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center;">
+              <i class="bx bx-cart-alt fs-2 text-success"></i>
+            </div>
           </div>
           <!-- Conteúdo -->
-          <div>
-            <h6 class="card-title mb-1">Vendas</h6>
-            <p class="mb-2 text-muted">Vizualize todas as Vendas dos seus Clientes.</p>
-            <a href="{% url 'vendas:venda_list' %}" class="btn btn-sm btn-outline-success">
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 fw-bold" style="font-size: 1.1rem;">Vendas</h6>
+            <p class="mb-2 text-muted small">Vizualize todas as Vendas dos seus Clientes.</p>
+            <a href="{% url 'vendas:venda_list' %}" class="btn btn-sm btn-outline-success mt-2">
               <i class="bx bx-right-arrow-alt me-1"></i>Ver Vendas
             </a>
           </div>
@@ -51,17 +53,19 @@
 
     {% if user|has_perm:'vendas.view_cliente' %}
     <div class="col-md-6 mb-4">
-      <div class="card border-start shadow-sm h-100">
-        <div class="card-body d-flex align-items-center">
+      <div class="card border-0 shadow-sm h-100 nav-card" style="border-radius: 12px; transition: all 0.3s ease; border-left: 4px solid #3b82f6 !important;">
+        <div class="card-body d-flex align-items-center p-4">
           <!-- Ícone -->
           <div class="me-3">
-            <i class="bx bx-dollar fs-1 text-success"></i>
+            <div class="bg-info bg-opacity-10 rounded-circle p-3" style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center;">
+              <i class="bx bx-dollar fs-2 text-info"></i>
+            </div>
           </div>
           <!-- Conteúdo -->
-          <div>
-            <h6 class="card-title mb-1">Solicitações</h6>
-            <p class="mb-2 text-muted">Visualize e edite os seus cliente e Solicite sua análise de crédito.</p>
-            <a href="{% url 'vendas:cliente_list' %}" class="btn btn-sm btn-outline-success">
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 fw-bold" style="font-size: 1.1rem;">Solicitações</h6>
+            <p class="mb-2 text-muted small">Visualize e edite os seus cliente e Solicite sua análise de crédito.</p>
+            <a href="{% url 'vendas:cliente_list' %}" class="btn btn-sm btn-outline-primary mt-2">
               <i class="bx bx-right-arrow-alt me-1"></i>Ver Solicitações
             </a>
           </div>
@@ -72,17 +76,19 @@
 
     {% if user|has_perm:'produtos.view_produto' %}
     <div class="col-md-6 mb-4">
-      <div class="card border-start shadow-sm h-100">
-        <div class="card-body d-flex align-items-center">
+      <div class="card border-0 shadow-sm h-100 nav-card" style="border-radius: 12px; transition: all 0.3s ease; border-left: 4px solid #f59e0b !important;">
+        <div class="card-body d-flex align-items-center p-4">
           <!-- Ícone -->
           <div class="me-3">
-            <i class="bx bx-package fs-1 text-success"></i>
+            <div class="bg-warning bg-opacity-10 rounded-circle p-3" style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center;">
+              <i class="bx bx-package fs-2 text-warning"></i>
+            </div>
           </div>
           <!-- Conteúdo -->
-          <div>
-            <h6 class="card-title mb-1">Produtos</h6>
-            <p class="mb-2 text-muted">Visualize e os Produtos disponíveis.</p>
-            <a href="{% url 'produtos:produtos' %}" class="btn btn-sm btn-outline-success">
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 fw-bold" style="font-size: 1.1rem;">Produtos</h6>
+            <p class="mb-2 text-muted small">Visualize e os Produtos disponíveis.</p>
+            <a href="{% url 'produtos:produtos' %}" class="btn btn-sm btn-outline-warning mt-2">
               <i class="bx bx-right-arrow-alt me-1"></i>Ver Produtos
             </a>
           </div>
@@ -93,264 +99,325 @@
 
 
     {% if user|has_perm:'vendas.can_view_your_dashboard' %}
-    <div class="row g-4 align-items-stretch mb-4">
-      <hr>
-      <h2 class="text-center mb-4">Loja {{ loja|title }}</h2>
-      <!-- KPIs: 3 por linha em desktop, 2 em tablet, 1 em mobile -->
-      <div class="col-12 col-md-6 col-lg-4">
-      <div class="card kpi-card shadow-sm h-100 border-0">
-        <div class="card-body d-flex align-items-center">
-        <div class="me-3">
-          <span class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
-          style="width:56px;height:56px;">
-          <i class="bx bx-bar-chart-alt-2 fs-2"></i>
-          </span>
+    <!-- Cabeçalho do Dashboard -->
+    <div class="row mb-4 mt-4">
+      <div class="col-12">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <h2 class="mb-1 fw-bold dashboard-title" style="font-size: 1.75rem;">Dashboard - Loja {{ loja|title }}</h2>
+            <p class="text-muted mb-0">Visão geral dos indicadores e métricas</p>
+          </div>
         </div>
-        <div>
-          <h6 class="card-title mb-1 text-muted">Total de Vendas</h6>
-          <h3 class="mb-0 fw-bold" id="kpi-total-vendas">{{ total_vendas_loja|default:"0" }}</h3>
-        </div>
-        </div>
-      </div>
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-      <div class="card kpi-card shadow-sm h-100 border-0">
-        <div class="card-body d-flex align-items-center">
-        <div class="me-3">
-          <span class="avatar bg-info text-white rounded-circle d-flex align-items-center justify-content-center"
-          style="width:56px;height:56px;">
-          <i class="bx bx-list-ol fs-2"></i>
-          </span>
-        </div>
-        <div>
-          <h6 class="card-title mb-1 text-muted">Total de Parcelas</h6>
-          <div class="small text-muted mb-1">Todas as 3 primeiras parcelas</div>
-          <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ total_de_parcelas_geral|default:"0" }}</h3>
-        </div>
-        </div>
-      </div>
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-      <div class="card kpi-card shadow-sm h-100 border-0">
-        <div class="card-body d-flex align-items-center">
-        <div class="me-3">
-          <span class="avatar bg-info text-white rounded-circle d-flex align-items-center justify-content-center"
-          style="width:56px;height:56px;">
-          <i class="bx bx-list-ol fs-2"></i>
-          </span>
-        </div>
-        <div>
-          <h6 class="card-title mb-1 text-muted">Valor Total</h6>
-          <div class="small text-muted mb-1">3 primeiras parcelas (pagas + vencidas + a vencer)</div>
-          <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{total_geral_parcelas|intcomma}}</h3>
-        </div>
-        </div>
-      </div>
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-      <div class="card kpi-card shadow-sm h-100 border-0">
-        <div class="card-body d-flex align-items-center">
-        <div class="me-3">
-          <span class="avatar bg-success text-white rounded-circle d-flex align-items-center justify-content-center"
-          style="width:56px;height:56px;">
-          <i class="bx bx-money fs-2"></i>
-          </span>
-        </div>
-        <div>
-          <h6 class="card-title mb-1 text-muted">Parcelas Pagas</h6>
-          <div class="small text-muted mb-1">3 primeiras Parcelas</div>
-          <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ parcelas_pagas|intcomma }}</h3>
-        </div>
-        </div>
-      </div>
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-      <div class="card kpi-card shadow-sm h-100 border-0">
-        <div class="card-body d-flex align-items-center">
-        <div class="me-3">
-          <span class="avatar bg-success text-white rounded-circle d-flex align-items-center justify-content-center"
-          style="width:56px;height:56px;">
-          <i class="bx bx-money fs-2"></i>
-          </span>
-        </div>
-        <div>
-          <h6 class="card-title mb-1 text-muted">Valor Pago</h6>
-          <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ total_pagas|intcomma }}</h3>
-          <div class="small text-muted mb-1">3 primeiras parcelas</div>
-        </div>
-        </div>
-      </div>
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-      <div class="card kpi-card shadow-sm h-100 border-0">
-        <div class="card-body d-flex align-items-center">
-        <div class="me-3">
-          <span class="avatar bg-danger text-white rounded-circle d-flex align-items-center justify-content-center"
-          style="width:56px;height:56px;">
-          <i class="bx bx-error-circle fs-2"></i>
-          </span>
-        </div>
-        <div>
-          <h6 class="card-title mb-1 text-muted">Parcelas Vencidas</h6>
-          <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ parcelas_vencidas|default:"0" }}</h3>
-          <div class="small text-muted mb-1">3 primeiras parcelas</div>
-        </div>
-        </div>
-      </div>
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-      <div class="card kpi-card shadow-sm h-100 border-0">
-        <div class="card-body d-flex align-items-center">
-        <div class="me-3">
-          <span class="avatar bg-danger text-white rounded-circle d-flex align-items-center justify-content-center"
-          style="width:56px;height:56px;">
-          <i class="bx bx-error-circle fs-2"></i>
-          </span>
-        </div>
-        <div>
-          <h6 class="card-title mb-1 text-muted">Valor Parcelas Vencidas</h6>
-          <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ total_vencidas|intcomma }}</h3>
-          <div class="small text-muted mb-1">3 primeiras parcelas</div>
-        </div>
-        </div>
-      </div>
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-      <div class="card kpi-card shadow-sm h-100 border-0">
-        <div class="card-body d-flex align-items-center">
-        <div class="me-3">
-          <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center"
-          style="width:56px;height:56px;">
-          <i class="bx bx-time-five fs-2"></i>
-          </span>
-        </div>
-        <div>
-          <h6 class="card-title mb-1 text-muted">Parcelas a Vencer</h6>
-          <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ parcelas_a_vencer|default:"0" }}</h3>
-          <div class="small text-muted mb-1">3 primeiras parcelas</div>
-        </div>
-        </div>
-      </div>
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-      <div class="card kpi-card shadow-sm h-100 border-0">
-        <div class="card-body d-flex align-items-center">
-        <div class="me-3">
-          <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center"
-          style="width:56px;height:56px;">
-          <i class="bx bx-time-five fs-2"></i>
-          </span>
-        </div>
-        <div>
-          <h6 class="card-title mb-1 text-muted">Valor Parcelas a Vencer</h6>
-          <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ total_a_vencer|intcomma }}</h3>
-          <div class="small text-muted mb-1">3 primeiras parcelas</div>
-        </div>
-        </div>
-      </div>
+        <hr class="my-4">
       </div>
     </div>
 
-    <!-- Seção de Clientes Desativados -->
-    <div class="row g-4 align-items-stretch mb-4">
+    <!-- Seção 1: Resumo Geral -->
+    <div class="row g-4 mb-4">
       <div class="col-12">
-        <h5 class="text-muted mb-3">
-          <i class="bx bx-error-circle me-2"></i>
-          Clientes Desativados (Parcelas não pagas)
+        <h5 class="section-title mb-3">
+          <i class="bx bx-stats me-2"></i>
+          Resumo Geral
         </h5>
       </div>
-      <!-- Total de Pagamentos Desativados -->
       <div class="col-12 col-md-6 col-lg-4">
-        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #6c757d !important;">
-          <div class="card-body d-flex align-items-center">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #696cff !important;">
+          <div class="card-body d-flex align-items-center p-4">
             <div class="me-3">
-              <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
-              style="width:56px;height:56px;">
-              <i class="bx bx-user-x fs-2"></i>
+              <span class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-cart-alt fs-2"></i>
               </span>
             </div>
-            <div>
-              <h6 class="card-title mb-1 text-muted">Total de Pagamentos Desativados</h6>
-              <h3 class="mb-0 fw-bold" id="kpi-total-pagamentos-desativados">{{ total_pagamentos_desativados|default:"0" }}</h3>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Parcelas Vencidas - Desativados -->
-      <div class="col-12 col-md-6 col-lg-4">
-        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #6c757d !important;">
-          <div class="card-body d-flex align-items-center">
-            <div class="me-3">
-              <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
-              style="width:56px;height:56px;">
-              <i class="bx bx-error-circle fs-2"></i>
-              </span>
-            </div>
-            <div>
-              <h6 class="card-title mb-1 text-muted">Parcelas Vencidas (Desativados)</h6>
-              <h3 class="mb-0 fw-bold" id="kpi-desativados-vencidas">{{ qtd_desativados_vencidas|default:"0" }}</h3>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Total de Vendas</h6>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ total_vendas_loja|default:"0" }}</h3>
             </div>
           </div>
         </div>
       </div>
       <div class="col-12 col-md-6 col-lg-4">
-        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #6c757d !important;">
-          <div class="card-body d-flex align-items-center">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #03c3ec !important;">
+          <div class="card-body d-flex align-items-center p-4">
             <div class="me-3">
-              <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
-              style="width:56px;height:56px;">
+              <span class="avatar bg-info text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-list-ol fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Total de Parcelas</h6>
+              <div class="small text-muted mb-1">3 primeiras parcelas</div>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ total_de_parcelas_geral|default:"0" }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #71dd37 !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-success text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-dollar-circle fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Valor Total</h6>
+              <div class="small text-muted mb-1">3 primeiras parcelas</div>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{total_geral_parcelas|intcomma}}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção 2: Gráfico de Balanço -->
+    {% if dash %}
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card shadow-lg border-0" style="border-radius: 16px; overflow: hidden;">
+          <div class="card-body p-4">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+              <div>
+                <h4 class="card-title mb-1 fw-bold chart-title" style="font-size: 1.5rem;">
+                  <i class="bx bx-pie-chart-alt-2 me-2"></i>
+                  Balanço de Parcelas
+                </h4>
+                <p class="text-muted mb-0 small">Distribuição percentual do status das parcelas</p>
+              </div>
+              <div class="d-none d-md-block">
+                <span class="badge chart-badge px-3 py-2" style="font-size: 0.875rem;">
+                  <i class="bx bx-bar-chart-alt-2 me-1"></i>Visualização
+                </span>
+              </div>
+            </div>
+            <div class="chart-container" style="position: relative; height: 400px; padding: 30px;">
+              <canvas id="parcelasChart" style="cursor: pointer;"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Seção 3: Parcelas Pagas -->
+    <div class="row g-4 mb-4">
+      <div class="col-12">
+        <h5 class="section-title mb-3">
+          <i class="bx bx-check-circle me-2 text-success"></i>
+          Parcelas Pagas
+        </h5>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #71dd37 !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-success text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-check-double fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Quantidade de Parcelas Pagas</h6>
+              <div class="small text-muted mb-1">3 primeiras parcelas</div>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ parcelas_pagas|intcomma }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #71dd37 !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-success text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-money fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Valor Total Pago</h6>
+              <div class="small text-muted mb-1">3 primeiras parcelas</div>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_pagas|intcomma }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção 4: Parcelas Vencidas -->
+    <div class="row g-4 mb-4">
+      <div class="col-12">
+        <h5 class="section-title mb-3">
+          <i class="bx bx-error-circle me-2 text-danger"></i>
+          Parcelas Vencidas
+        </h5>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ff3e1d !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-danger text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-error fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Quantidade de Parcelas Vencidas</h6>
+              <div class="small text-muted mb-1">3 primeiras parcelas</div>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ parcelas_vencidas|default:"0" }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ff3e1d !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-danger text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
               <i class="bx bx-money-withdraw fs-2"></i>
               </span>
             </div>
-            <div>
-              <h6 class="card-title mb-1 text-muted">Valor Vencidas (Desativados)</h6>
-              <h3 class="mb-0 fw-bold" id="kpi-valor-desativados-vencidas">{{ total_desativados_vencidas|intcomma }}</h3>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Parcelas a Vencer - Desativados -->
-      <div class="col-12 col-md-6 col-lg-4">
-        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #6c757d !important;">
-          <div class="card-body d-flex align-items-center">
-            <div class="me-3">
-              <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
-              style="width:56px;height:56px;">
-              <i class="bx bx-time-five fs-2"></i>
-              </span>
-            </div>
-            <div>
-              <h6 class="card-title mb-1 text-muted">Parcelas a Vencer (Desativados)</h6>
-              <h3 class="mb-0 fw-bold" id="kpi-desativados-a-vencer">{{ qtd_desativados_a_vencer|default:"0" }}</h3>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #6c757d !important;">
-          <div class="card-body d-flex align-items-center">
-            <div class="me-3">
-              <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
-              style="width:56px;height:56px;">
-              <i class="bx bx-wallet-alt fs-2"></i>
-              </span>
-            </div>
-            <div>
-              <h6 class="card-title mb-1 text-muted">Valor a Vencer (Desativados)</h6>
-              <h3 class="mb-0 fw-bold" id="kpi-valor-desativados-a-vencer">{{ total_desativados_a_vencer|intcomma }}</h3>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Valor Total Vencido</h6>
+              <div class="small text-muted mb-1">3 primeiras parcelas</div>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_vencidas|intcomma }}</h3>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="row mb-4">
+    <!-- Seção 5: Parcelas a Vencer -->
+    <div class="row g-4 mb-4">
       <div class="col-12">
-        <div class="card shadow-sm border-0">
-          <div class="card-body">
-            <h4 class="card-title text-center mb-4">Balanço de Parcelas</h4>
-            <div class="d-flex justify-content-center">
-              <canvas id="parcelasChart" style="max-width: 600px; width: 100%;" height="200"></canvas>
+        <h5 class="section-title mb-3">
+          <i class="bx bx-time-five me-2 text-warning"></i>
+          Parcelas a Vencer
+        </h5>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ffab00 !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-calendar fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Quantidade de Parcelas a Vencer</h6>
+              <div class="small text-muted mb-1">3 primeiras parcelas</div>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ parcelas_a_vencer|default:"0" }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ffab00 !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-wallet fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Valor Total a Vencer</h6>
+              <div class="small text-muted mb-1">3 primeiras parcelas</div>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_a_vencer|intcomma }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção 6: Clientes Desativados -->
+    <div class="row g-4 mb-4">
+      <div class="col-12">
+        <h5 class="section-title mb-3">
+          <i class="bx bx-user-x me-2 text-secondary"></i>
+          Clientes Desativados
+        </h5>
+        <p class="text-muted small mb-3">Parcelas não pagas de clientes desativados</p>
+      </div>
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #8592a3 !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-user-x fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Total de Pagamentos</h6>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ total_pagamentos_desativados|default:"0" }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #8592a3 !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-error-circle fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Parcelas Vencidas</h6>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ qtd_desativados_vencidas|default:"0" }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #8592a3 !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-money-withdraw fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Valor Vencido</h6>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_desativados_vencidas|intcomma }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #8592a3 !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-time-five fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Parcelas a Vencer</h6>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ qtd_desativados_a_vencer|default:"0" }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #8592a3 !important;">
+          <div class="card-body d-flex align-items-center p-4">
+            <div class="me-3">
+              <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
+              style="width:64px;height:64px;">
+              <i class="bx bx-wallet-alt fs-2"></i>
+              </span>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="card-title mb-1 text-muted small">Valor a Vencer</h6>
+              <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_desativados_a_vencer|intcomma }}</h3>
             </div>
           </div>
         </div>
@@ -361,72 +428,356 @@
   </div>
 </div>
 {% endblock %}
-{% block extra_scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.min.js"></script>
-<script data-dados="{{ dash }}" type="text/javascript">
-  const dados = JSON.parse(document.currentScript.getAttribute('data-dados'));
-  const ctx = document.getElementById('parcelasChart').getContext('2d');
 
-  const chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['Parcelas'],
-      datasets: [
-        {
-          label: 'Pagas',
-          data: [dados.data[0]],
-          backgroundColor: 'rgba(75, 192, 192, 0.6)'
+{% block extra_scripts %}
+{% if dash %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script type="text/javascript">
+  // Armazenar dados em variável global
+  window.dashData = JSON.parse('{{ dash|escapejs }}');
+</script>
+<script type="text/javascript">
+  // Aguardar o DOM e Chart.js estarem prontos
+  function initChart() {
+    if (typeof Chart === 'undefined') {
+      setTimeout(initChart, 100);
+      return;
+    }
+    
+    const canvas = document.getElementById('parcelasChart');
+    if (!canvas) {
+      return; // Canvas não existe, não fazer nada
+    }
+    
+    const dados = window.dashData || {data: [0, 0, 0]};
+    const ctx = canvas.getContext('2d');
+
+    // Detectar modo dark
+    const isDarkMode = document.documentElement.classList.contains('dark-style') || 
+                       document.body.classList.contains('dark-style');
+    
+    // Preparar dados
+    const pagas = dados.data[0] || 0;
+    const vencidas = dados.data[1] || 0;
+    const desativados = dados.data[2] || 0;
+    
+    // Criar gradientes para as barras horizontais
+    const gradientPagas = ctx.createLinearGradient(0, 0, 400, 0);
+    gradientPagas.addColorStop(0, 'rgba(34, 197, 94, 0.95)');
+    gradientPagas.addColorStop(1, 'rgba(22, 163, 74, 0.85)');
+
+    const gradientVencidas = ctx.createLinearGradient(0, 0, 400, 0);
+    gradientVencidas.addColorStop(0, 'rgba(239, 68, 68, 0.95)');
+    gradientVencidas.addColorStop(1, 'rgba(220, 38, 38, 0.85)');
+
+    const gradientDesativados = ctx.createLinearGradient(0, 0, 400, 0);
+    gradientDesativados.addColorStop(0, 'rgba(107, 114, 128, 0.95)');
+    gradientDesativados.addColorStop(1, 'rgba(75, 85, 99, 0.85)');
+    
+    // Cores adaptáveis ao tema
+    const labelTextColor = isDarkMode ? '#d1d5e6' : '#374151';
+    const axisTextColor = isDarkMode ? '#9ca3af' : '#6b7280';
+    const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)';
+    
+    const chartData = {
+      labels: ['Pagas', 'Vencidas', 'Desativados'],
+      datasets: [{
+        label: 'Percentual (%)',
+        data: [pagas, vencidas, desativados],
+        backgroundColor: [
+          gradientPagas,
+          gradientVencidas,
+          gradientDesativados
+        ],
+        borderColor: [
+          'rgba(34, 197, 94, 1)',
+          'rgba(239, 68, 68, 1)',
+          'rgba(107, 114, 128, 1)'
+        ],
+        borderWidth: 2,
+        borderRadius: 14,
+        borderSkipped: false,
+        barThickness: 65,
+        maxBarThickness: 85,
+        categoryPercentage: 0.7,
+        barPercentage: 0.9
+      }]
+    };
+
+    const chart = new Chart(ctx, {
+      type: 'bar',
+      data: chartData,
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: {
+          padding: {
+            left: 10,
+            right: 20,
+            top: 10,
+            bottom: 10
+          }
         },
-        {
-          label: 'Vencidas',
-          data: [dados.data[1]],
-          backgroundColor: 'rgba(255, 99, 132, 0.6)'
-        },
-        {
-          label: 'Desativados',
-          data: [dados.data[2] || 0],
-          backgroundColor: 'rgba(108, 117, 125, 0.6)'
-        },
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: {
-          position: 'top',
-          labels: {
-            font: {
-              size: 14
+        animation: {
+          duration: 1500,
+          easing: 'easeOutQuart',
+          onComplete: function() {
+            try {
+              const chartInstance = chart;
+              if (!chartInstance || !chartInstance.ctx) {
+                return;
+              }
+              const chartCtx = chartInstance.ctx;
+              chartCtx.save();
+              
+              chartInstance.data.datasets.forEach((dataset, i) => {
+                const meta = chartInstance.getDatasetMeta(i);
+                if (meta && meta.data) {
+                  meta.data.forEach((bar, index) => {
+                    const value = dataset.data[index];
+                    if (value > 0 && bar && bar.x !== undefined && bar.y !== undefined) {
+                      const xPos = bar.x + (value > 50 ? -15 : 15);
+                      const yPos = bar.y;
+                      
+                      chartCtx.font = 'bold 15px "Public Sans", sans-serif';
+                      chartCtx.textAlign = value > 50 ? 'right' : 'left';
+                      chartCtx.textBaseline = 'middle';
+                      chartCtx.fillStyle = '#ffffff';
+                      chartCtx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                      chartCtx.shadowBlur = 5;
+                      chartCtx.shadowOffsetX = 1;
+                      chartCtx.shadowOffsetY = 1;
+                      chartCtx.fillText(value + '%', xPos, yPos);
+                      chartCtx.shadowBlur = 0;
+                      chartCtx.shadowOffsetX = 0;
+                      chartCtx.shadowOffsetY = 0;
+                    }
+                  });
+                }
+              });
+              
+              chartCtx.restore();
+            } catch (e) {
+              console.error('Erro ao desenhar valores no gráfico:', e);
             }
           }
         },
-        tooltip: {
-          callbacks: {
-            label: function (context) {
-              return context.dataset.label + ': ' + context.parsed.y + '%';
+        interaction: {
+          intersect: false,
+          mode: 'index',
+          axis: 'y'
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            enabled: true,
+            backgroundColor: isDarkMode ? 'rgba(43, 44, 64, 0.95)' : 'rgba(0, 0, 0, 0.85)',
+            padding: 14,
+            titleFont: {
+              size: 15,
+              weight: '700',
+              family: "'Public Sans', sans-serif"
+            },
+            titleColor: isDarkMode ? '#e6e8f5' : '#ffffff',
+            bodyFont: {
+              size: 14,
+              weight: '600',
+              family: "'Public Sans', sans-serif"
+            },
+            bodyColor: isDarkMode ? '#d1d5e6' : '#ffffff',
+            borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.15)',
+            borderWidth: 2,
+            cornerRadius: 10,
+            displayColors: true,
+            animation: {
+              duration: 200
+            },
+            callbacks: {
+              label: function(context) {
+                const label = context.dataset.label || 'Percentual';
+                const value = context.parsed.x !== null && context.parsed.x !== undefined ? context.parsed.x : 0;
+                return `${label}: ${value}%`;
+              },
+              title: function(context) {
+                if (context && context.length > 0 && context[0] && context[0].label) {
+                  return context[0].label;
+                }
+                return '';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            max: 100,
+            grid: {
+              color: gridColor,
+              drawBorder: false,
+              lineWidth: 1,
+              drawTicks: false
+            },
+            ticks: {
+              font: {
+                size: 12,
+                weight: '500',
+                family: "'Public Sans', sans-serif"
+              },
+              color: axisTextColor,
+              padding: 10,
+              callback: function(value) {
+                return value + '%';
+              }
+            }
+          },
+          y: {
+            grid: {
+              display: false,
+              drawBorder: false
+            },
+            ticks: {
+              font: {
+                size: 14,
+                weight: '600',
+                family: "'Public Sans', sans-serif"
+              },
+              color: labelTextColor,
+              padding: 15
             }
           }
         }
-      },
-      scales: {
-        y: {
-          title: {
-            display: true,
-            text: '',
-            font: {
-              size: 16
-            }
-          },
-          ticks: {
-            beginAtZero: true,
-            callback: function (value) {
-              return value + '%';
-            }
-          },
-          max: 100
-        },
       }
-    }
-  });
+    });
+    
+    // Observar mudanças no tema para atualizar o gráfico
+    const observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.attributeName === 'class' || mutation.attributeName === 'data-theme') {
+          const isDarkNow = document.documentElement.classList.contains('dark-style') || 
+                           document.body.classList.contains('dark-style');
+          if (isDarkNow !== isDarkMode) {
+            // Recriar o gráfico com as novas cores
+            chart.destroy();
+            location.reload(); // Recarrega a página para aplicar as novas cores
+          }
+        }
+      });
+    });
+    
+    // Observar mudanças no html e body
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
+  
+  // Inicializar quando o DOM estiver pronto
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChart);
+  } else {
+    initChart();
+  }
 </script>
+<style>
+  /* Títulos que se adaptam ao modo dark */
+  .dashboard-title {
+    color: #2b2b2b;
+  }
+  
+  .chart-title {
+    color: #2b2b2b;
+  }
+  
+  .dark-style .dashboard-title,
+  .dark-style .chart-title {
+    color: #e6e8f5 !important;
+  }
+  
+  /* Badge do gráfico */
+  .chart-badge {
+    background-color: #f8f9fa;
+    color: #2b2b2b;
+  }
+  
+  .dark-style .chart-badge {
+    background-color: #3b3f52;
+    color: #d1d5e6;
+  }
+  
+  /* Container do gráfico */
+  .chart-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 12px;
+  }
+  
+  .dark-style .chart-container {
+    background: linear-gradient(135deg, #2b2c40 0%, #262a3a 100%);
+  }
+  
+  
+  /* Cards de navegação */
+  .nav-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .nav-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  .dark-style .nav-card:hover {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
+  }
+  
+  /* Cards KPI */
+  .kpi-card {
+    transition: all 0.3s ease;
+  }
+  
+  .kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  .dark-style .kpi-card:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+  }
+  
+  /* Títulos de seção */
+  .section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2b2b2b;
+    display: flex;
+    align-items: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1rem;
+  }
+  
+  .dark-style .section-title {
+    color: #e6e8f5;
+    border-bottom-color: #3b3f52;
+  }
+  
+  .section-title i {
+    font-size: 1.5rem;
+  }
+  
+  @media (max-width: 768px) {
+    .chart-container {
+      height: 350px !important;
+      padding: 20px !important;
+    }
+  }
+  
+  @media (max-width: 576px) {
+    .chart-container {
+      height: 320px !important;
+      padding: 15px !important;
+    }
+  }
+</style>
+{% endif %}
 {% endblock %}

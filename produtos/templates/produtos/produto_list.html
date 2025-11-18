@@ -41,9 +41,19 @@ Produtos
         </thead>
         <tbody>
           {% for produto in items %}
-          <tr>
-          <td>{{ produto.codigo }}</td>
-          <td>{{ produto.nome }}</td>
+          <tr {% if not produto.ativo %}class="table-secondary opacity-75"{% endif %}>
+          <td>
+            {{ produto.codigo }}
+            {% if not produto.ativo %}
+            <span class="badge bg-danger ms-2">Desativado</span>
+            {% endif %}
+          </td>
+          <td>
+            {{ produto.nome }}
+            {% if not produto.ativo %}
+            <i class="bx bx-x-circle text-danger ms-1" title="Produto desativado"></i>
+            {% endif %}
+          </td>
           <td>{{ produto.valor_repasse_logista|floatformat:2 }}</td>
           <td>{{ produto.entrada_cliente|floatformat:2 }}</td>
           <td>{{ produto.valor_10_vezes|floatformat:2 }}</td>
@@ -77,6 +87,23 @@ Produtos
               <a class="dropdown-item" href="{% url 'produtos:produto_update' produto.id %}">
               <i class="bx bx-edit-alt me-1"></i> Editar
               </a>
+              {% endif %}
+              {% if user|has_perm:"produtos.delete_produto" %}
+                {% if produto.ativo %}
+                <form method="post" action="{% url 'produtos:produto_delete' produto.id %}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja desativar este produto?');">
+                  {% csrf_token %}
+                  <button type="submit" class="dropdown-item text-danger" style="border: none; background: none; width: 100%; text-align: left;">
+                    <i class="bx bx-trash me-1"></i> Desativar
+                  </button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'produtos:produto_activate' produto.id %}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja ativar este produto?');">
+                  {% csrf_token %}
+                  <button type="submit" class="dropdown-item text-success" style="border: none; background: none; width: 100%; text-align: left;">
+                    <i class="bx bx-check-circle me-1"></i> Ativar
+                  </button>
+                </form>
+                {% endif %}
               {% endif %}
             </div>
             </div>

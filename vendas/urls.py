@@ -12,6 +12,7 @@ tipoPagamentoViews = generate_views(TipoPagamento, TipoPagamentoForm, 10, templa
 app_name = 'vendas'
 urlpatterns = [
     path('', IndexView.as_view(), name='index'),
+    path('guia/', GuiaView.as_view(), name='guia'),
 
     #caixa
     path('caixas/', CaixaListView.as_view(), name='caixa_list'),

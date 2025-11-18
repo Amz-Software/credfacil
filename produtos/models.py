@@ -12,6 +12,7 @@ class Produto(Base):
     valor_10_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tipo = models.ForeignKey('produtos.TipoProduto', on_delete=models.PROTECT, related_name='produtos_tipo', null=True, blank=True)
     fabricante = models.ForeignKey('produtos.Fabricante', on_delete=models.PROTECT, related_name='produtos_fabricante')
+    ativo = models.BooleanField(default=True)
     
     def gerar_codigo(self):
         last_product = Produto.objects.all().order_by('codigo').last()
@@ -25,6 +26,10 @@ class Produto(Base):
             self.gerar_codigo()
         super(Produto, self).save(*args, **kwargs)
         
+    def delete(self, *args, **kwargs):
+        # Soft delete: apenas marca como inativo, não remove do banco
+        self.ativo = False
+        self.save()
     
     def total_vendas(self, loja_id=None):
         if loja_id:
@@ -33,6 +38,14 @@ class Produto(Base):
     
     def __str__(self):
         return f"{self.nome} ({self.codigo})"
+    
+    class Meta:
+        ordering = ['codigo']
+        verbose_name = 'Produto'
+        verbose_name_plural = 'Produtos'
+        permissions = (
+            ('view_all_produtos', 'Can view all produtos'),
+        )
 
 
 class TipoProduto(Base):

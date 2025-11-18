@@ -419,7 +419,7 @@ class InformacaoPessoalEditForm(forms.ModelForm):
 
 class AnaliseCreditoClienteForm(forms.ModelForm):
     produto = ProdutoChoiceField(
-        queryset=Produto.objects.all(),
+        queryset=Produto.objects.filter(ativo=True),
         widget=Select2Widget(attrs={'class': 'form-control'}),
         label='Produto'
     )
@@ -469,7 +469,7 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                 self.fields['observacao'].disabled = False
 class AnaliseCreditoClienteImeiForm(forms.ModelForm):
     produto = ProdutoChoiceField(
-        queryset=Produto.objects.all(),
+        queryset=Produto.objects.filter(ativo=True),
         widget=Select2Widget(attrs={'class': 'form-control'}),
         label='Produto'
     )
@@ -799,7 +799,7 @@ class ProdutoVendaForm(forms.ModelForm):
         )
     )
     produto = forms.ModelChoiceField(
-        queryset=Produto.objects.all(),
+        queryset=Produto.objects.filter(ativo=True),
         label="Produto",
         widget=ProdutoSelectWidget(
             max_results=10,
@@ -1047,7 +1047,7 @@ class RelatorioVendasForm(forms.Form):
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
     )
     produtos = forms.ModelMultipleChoiceField(
-        queryset=Produto.objects.all(),
+        queryset=Produto.objects.filter(ativo=True),
         label='Produtos',
         required=False,
         widget=Select2MultipleWidget(attrs={'class': 'form-control'})
@@ -1090,7 +1090,7 @@ class RelatorioVendasForm(forms.Form):
         print(f'Loja no form: {loja}')
         super().__init__(*args, **kwargs)
         if loja:
-            self.fields['produtos'].queryset = Produto.objects.all()
+            self.fields['produtos'].queryset = Produto.objects.filter(ativo=True)
             self.fields['cliente'].queryset = Cliente.objects.filter(loja=loja)
             self.fields['vendedores'].queryset = User.objects.filter(loja=loja)
             if user and not user.has_perm('vendas.can_view_all_stores'):
@@ -1124,7 +1124,7 @@ class RelatorioSolicitacoesForm(forms.Form):
 
     produtos = forms.ModelMultipleChoiceField(
         label='Produtos',
-        queryset=Produto.objects.all(),
+        queryset=Produto.objects.filter(ativo=True),
         required=False,
         widget=Select2MultipleWidget(attrs={'class': 'form-control'})
     )

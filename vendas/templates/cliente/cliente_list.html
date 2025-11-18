@@ -167,6 +167,18 @@ Clientes
       border: 1px solid var(--alert-info-border) !important;
       color: var(--alert-info-color) !important;
     }
+
+    /* Badge pequeno para status secundários */
+    .badge-sm {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.4rem;
+    }
+
+    /* Tooltip customizado */
+    .tooltip-inner {
+      text-align: left;
+      max-width: 300px;
+    }
   </style>
 {% endblock extra_head %}
 
@@ -323,106 +335,222 @@ Clientes
         <table class="table table-hover">
         <thead>
           <tr>
-          <th scope="col">Status Solicitação</th>
-          <th scope="col">Produto</th>
-          <th scope="col">Nome</th>
-          <th scope="col">Solicitado Em</th>
+          <th scope="col" style="width: 120px;">Status</th>
+          <th scope="col" style="width: 180px;">Cliente</th>
+          <th scope="col" style="width: 150px;">Produto</th>
+          <th scope="col" style="width: 140px;">Data/Hora</th>
           {% if user|has_perm:"vendas.change_status_analise" %}
-          <th scope="col">Loja</th>
+          <th scope="col" style="width: 120px;">Loja</th>
           {% endif %}
-          <th scope="col">Status IMEI</th>
-          <th scope="col">Status App</th>
-          <th scope="col">Status do Fluxo</th>
-          <th scope="col">Venda Realizada</th>
-          <th scope="col">Ações</th>
-          <th scope="col">Tempo de Análise</th>
-          <th scope="col">Aprovador(a)</th>
+          <th scope="col" style="width: 200px;">Status do Fluxo</th>
+          <th scope="col" style="width: 100px;">Venda</th>
+          <th scope="col" style="width: 150px;">{% if user|has_perm:"vendas.change_status_analise" %}Aprovador{% else %}Tempo de Análise{% endif %}</th>
+          <th scope="col" style="width: 80px;">Ações</th>
           </tr>
         </thead>
         <tbody>
           {% for cliente in items %}
           <tr>
             <td>
-                {% if cliente.analise_credito.status == 'A' %}
-                <span class="badge bg-label-success">Aprovado</span>
+              {% if cliente.analise_credito.status == 'A' %}
+                <span class="badge bg-label-success" 
+                      data-bs-toggle="tooltip" 
+                      data-bs-html="true"
+                      data-bs-placement="top"
+                      title="<strong>Aprovado</strong><br>Aprovado por: {{ cliente.analise_credito.aprovado_por|default:'N/A' }}<br>Data: {% if cliente.analise_credito.data_aprovacao %}{{ cliente.analise_credito.data_aprovacao|date:'d/m/Y H:i' }}{% else %}N/A{% endif %}">
+                  Aprovado
+                </span>
               {% elif cliente.analise_credito.status == 'R' %}
-                <span class="badge bg-label-danger">Reprovado</span>
-                {% elif cliente.analise_credito.status == 'C' %}
-                <span class="badge bg-label-secondary">Cancelado</span>
+                <span class="badge bg-label-danger"
+                      data-bs-toggle="tooltip" 
+                      data-bs-html="true"
+                      data-bs-placement="top"
+                      title="<strong>Reprovado</strong><br>Data: {% if cliente.analise_credito.data_reprovacao %}{{ cliente.analise_credito.data_reprovacao|date:'d/m/Y H:i' }}{% else %}N/A{% endif %}">
+                  Reprovado
+                </span>
+              {% elif cliente.analise_credito.status == 'C' %}
+                <span class="badge bg-label-secondary"
+                      data-bs-toggle="tooltip" 
+                      data-bs-html="true"
+                      data-bs-placement="top"
+                      title="<strong>Cancelado</strong><br>Data: {% if cliente.analise_credito.data_cancelamento %}{{ cliente.analise_credito.data_cancelamento|date:'d/m/Y H:i' }}{% else %}N/A{% endif %}">
+                  Cancelado
+                </span>
               {% else %}
-                <span class="badge bg-label-warning">Em Análise</span>
+                <span class="badge bg-label-warning"
+                      data-bs-toggle="tooltip" 
+                      data-bs-html="true"
+                      data-bs-placement="top"
+                      title="<strong>Em Análise</strong><br>Aguardando análise do analista">
+                  Em Análise
+                </span>
               {% endif %}
             </td>
-            <td>{{ cliente.analise_credito.produto.nome|capfirst }}</td>
-            <td>{{ cliente.nome }}</td>
-            <td>{{ cliente.analise_credito.data_analise|date:"d/m/Y H:m" }}</td>
+            <td>
+              <strong>{{ cliente.nome }}</strong>
+              <i class="bx bx-info-circle text-muted ms-1" 
+                 data-bs-toggle="tooltip" 
+                 data-bs-html="true"
+                 data-bs-placement="top"
+                 title="<strong>Informações do Cliente</strong><br>{% if cliente.telefone %}Telefone: {{ cliente.telefone }}<br>{% endif %}{% if cliente.email %}Email: {{ cliente.email }}<br>{% endif %}ID: {{ cliente.id }}"></i>
+            </td>
+            <td>
+              <span data-bs-toggle="tooltip" 
+                    data-bs-html="true"
+                    data-bs-placement="top"
+                    title="<strong>Produto</strong><br>{{ cliente.analise_credito.produto.nome|capfirst }}{% if cliente.analise_credito.produto.codigo %}<br>Código: {{ cliente.analise_credito.produto.codigo }}{% endif %}">
+                {{ cliente.analise_credito.produto.nome|capfirst|truncatewords:3 }}
+              </span>
+            </td>
+            <td>
+              <span data-bs-toggle="tooltip" 
+                    data-bs-html="true"
+                    data-bs-placement="top"
+                    title="<strong>Data de Solicitação</strong><br>{{ cliente.analise_credito.data_analise|date:'d/m/Y H:i' }}">
+                {{ cliente.analise_credito.data_analise|date:"d/m/Y H:i" }}
+              </span>
+            </td>
             {% if user|has_perm:"vendas.change_status_analise" %}
-            <td>{{ cliente.loja.nome }}</td>
+            <td>
+              <span data-bs-toggle="tooltip" 
+                    data-bs-html="true"
+                    data-bs-placement="top"
+                    title="<strong>Loja</strong><br>{{ cliente.loja.nome }}">
+                {{ cliente.loja.nome|truncatewords:2 }}
+              </span>
+            </td>
             {% endif %}
             <td>
-              {% if cliente.analise_credito.imei %}
-                <span class="badge bg-label-success">
-                  <i class="bx bx-check me-1"></i>Informado
-                </span>
-                <br><small class="text-muted">{{ cliente.analise_credito.imei.imei }}</small>
-              {% else %}
-                <span class="badge bg-label-warning">
-                  <i class="bx bx-time me-1"></i>Pendente
-                </span>
-                <br><small class="text-muted">Aguardando analista</small>
-              {% endif %}
+              <div class="d-flex flex-column gap-1">
+                {% if cliente.analise_credito.venda_gerada %}
+                  <span class="badge bg-label-success">
+                    <i class="bx bx-check-double me-1"></i>Finalizado
+                  </span>
+                {% elif cliente.analise_credito.status_aplicativo == 'I' and cliente.analise_credito.imei %}
+                  <span class="badge bg-label-info">
+                    <i class="bx bx-cart me-1"></i>Pronto para Venda
+                  </span>
+                {% elif cliente.analise_credito.status_aplicativo == 'C' and not cliente.analise_credito.imei %}
+                  <span class="badge bg-label-warning">
+                    <i class="bx bx-mobile me-1"></i>Aguardando IMEI
+                  </span>
+                {% elif cliente.analise_credito.status_aplicativo == 'C' and cliente.analise_credito.imei %}
+                  <span class="badge bg-label-primary">
+                    <i class="bx bx-check me-1"></i>Aguardando Confirmação
+                  </span>
+                {% elif cliente.analise_credito.status_aplicativo == 'P' %}
+                  <span class="badge bg-label-secondary">
+                    <i class="bx bx-qr me-1"></i>Aguardando QR Code
+                  </span>
+                {% else %}
+                  <span class="badge bg-label-danger">
+                    <i class="bx bx-time me-1"></i>Pendente
+                  </span>
+                {% endif %}
+                
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                  {% if cliente.analise_credito.status_aplicativo == 'P' %}
+                    <span class="badge bg-label-secondary badge-sm">App: Pendente</span>
+                  {% elif cliente.analise_credito.status_aplicativo == 'C' %}
+                    <span class="badge bg-label-warning badge-sm">App: Aguardando</span>
+                  {% elif cliente.analise_credito.status_aplicativo == 'I' %}
+                    <span class="badge bg-label-success badge-sm">App: Instalado</span>
+                  {% endif %}
+                  
+                  {% if cliente.analise_credito.imei %}
+                    <span class="badge bg-label-success badge-sm">IMEI: {{ cliente.analise_credito.imei.imei|truncatechars:8 }}</span>
+                  {% else %}
+                    <span class="badge bg-label-warning badge-sm">IMEI: Pendente</span>
+                  {% endif %}
+                </div>
+              </div>
+              
+              <i class="bx bx-info-circle text-muted ms-1" 
+                 data-bs-toggle="tooltip" 
+                 data-bs-html="true"
+                 data-bs-placement="top"
+                 title="<strong>Detalhes do Fluxo</strong><br><strong>Status App:</strong> {% if cliente.analise_credito.status_aplicativo == 'P' %}Pendente{% elif cliente.analise_credito.status_aplicativo == 'C' %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'I' %}Instalado{% else %}N/A{% endif %}<br><strong>Status IMEI:</strong> {% if cliente.analise_credito.imei %}Informado ({{ cliente.analise_credito.imei.imei }}){% else %}Pendente{% endif %}<br><strong>Status Geral:</strong> {% if cliente.analise_credito.venda_gerada %}Finalizado{% elif cliente.analise_credito.status_aplicativo == 'I' and cliente.analise_credito.imei %}Pronto para Venda{% elif cliente.analise_credito.status_aplicativo == 'C' and not cliente.analise_credito.imei %}Aguardando IMEI{% elif cliente.analise_credito.status_aplicativo == 'C' and cliente.analise_credito.imei %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'P' %}Aguardando QR Code{% else %}Pendente{% endif %}"></i>
             </td>
+            
             <td>
-              {% if cliente.analise_credito.status_aplicativo == 'P' %}
-                <span class="badge bg-label-secondary">
-                  <i class="bx bx-time me-1"></i>Pendente
+              {% if cliente.analise_credito.venda_gerada %}
+                <span class="badge bg-label-success"
+                      data-bs-toggle="tooltip" 
+                      data-bs-html="true"
+                      data-bs-placement="top"
+                      title="<strong>Venda Realizada</strong><br>Venda já foi gerada para este cliente">
+                  Sim
                 </span>
-              {% elif cliente.analise_credito.status_aplicativo == 'C' %}
-                <span class="badge bg-label-warning">
-                  <i class="bx bx-qr me-1"></i>Aguardando Confirmação
-                </span>
-              {% elif cliente.analise_credito.status_aplicativo == 'I' %}
-                <span class="badge bg-label-success">
-                  <i class="bx bx-check-circle me-1"></i>Instalado
+              {% else %}
+                <span class="badge bg-label-danger"
+                      data-bs-toggle="tooltip" 
+                      data-bs-html="true"
+                      data-bs-placement="top"
+                      title="<strong>Venda Não Realizada</strong><br>Aguardando conclusão do fluxo">
+                  Não
                 </span>
               {% endif %}
             </td>
             
             <td>
-              {% if cliente.analise_credito.venda_gerada %}
-                <span class="badge bg-label-success">
-                  <i class="bx bx-check-double me-1"></i>Finalizado
-                </span>
-              {% elif cliente.analise_credito.status_aplicativo == 'I' and cliente.analise_credito.imei %}
-                <span class="badge bg-label-info">
-                  <i class="bx bx-cart me-1"></i>Pronto para Venda
-                </span>
-              {% elif cliente.analise_credito.status_aplicativo == 'C' and not cliente.analise_credito.imei %}
-                <span class="badge bg-label-warning">
-                  <i class="bx bx-mobile me-1"></i>Aguardando IMEI
-                </span>
-              {% elif cliente.analise_credito.status_aplicativo == 'C' and cliente.analise_credito.imei %}
-                <span class="badge bg-label-primary">
-                  <i class="bx bx-check me-1"></i>Aguardando Confirmação
-                </span>
-              {% elif cliente.analise_credito.status_aplicativo == 'P' %}
-                <span class="badge bg-label-secondary">
-                  <i class="bx bx-qr me-1"></i>Aguardando QR Code
+              {% if user|has_perm:"vendas.change_status_analise" %}
+                <span data-bs-toggle="tooltip" 
+                      data-bs-html="true"
+                      data-bs-placement="top"
+                      title="<strong>Aprovador</strong><br>{{ cliente.analise_credito.aprovado_por|default:'Não Aprovado' }}{% if cliente.analise_credito.data_aprovacao %}<br>Data: {{ cliente.analise_credito.data_aprovacao|date:'d/m/Y H:i' }}{% endif %}">
+                  {{ cliente.analise_credito.aprovado_por|default:"N/A"|truncatewords:2 }}
                 </span>
               {% else %}
-                <span class="badge bg-label-danger">
-                  <i class="bx bx-time me-1"></i>Pendente
-                </span>
+                {# define fim conforme status #}
+                {% if cliente.analise_credito.status == 'A' %}
+                  {% with fim=cliente.analise_credito.data_aprovacao %}
+                    <span class="cronometro"
+                          data-status="A"
+                          data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
+                          data-end="{{ fim|date:'c' }}"
+                          data-bs-toggle="tooltip" 
+                          data-bs-html="true"
+                          data-bs-placement="top"
+                          title="<strong>Tempo de Análise</strong><br>Desde: {{ cliente.analise_credito.data_analise|date:'d/m/Y H:i' }}<br>Até: {% if fim %}{{ fim|date:'d/m/Y H:i' }}{% else %}Agora{% endif %}">
+                    </span>
+                  {% endwith %}
+                {% elif cliente.analise_credito.status == 'R' %}
+                  {% with fim=cliente.analise_credito.data_reprovacao %}
+                    <span class="cronometro"
+                          data-status="R"
+                          data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
+                          data-end="{{ fim|date:'c' }}"
+                          data-bs-toggle="tooltip" 
+                          data-bs-html="true"
+                          data-bs-placement="top"
+                          title="<strong>Tempo até Reprovação</strong><br>Desde: {{ cliente.analise_credito.data_analise|date:'d/m/Y H:i' }}<br>Até: {% if fim %}{{ fim|date:'d/m/Y H:i' }}{% else %}Agora{% endif %}">
+                    </span>
+                  {% endwith %}
+                {% elif cliente.analise_credito.status == 'C' %}
+                  {% with fim=cliente.analise_credito.data_cancelamento %}
+                    <span class="cronometro"
+                          data-status="C"
+                          data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
+                          data-end="{{ fim|date:'c' }}"
+                          data-bs-toggle="tooltip" 
+                          data-bs-html="true"
+                          data-bs-placement="top"
+                          title="<strong>Tempo até Cancelamento</strong><br>Desde: {{ cliente.analise_credito.data_analise|date:'d/m/Y H:i' }}<br>Até: {% if fim %}{{ fim|date:'d/m/Y H:i' }}{% else %}Agora{% endif %}">
+                    </span>
+                  {% endwith %}
+                {% else %}
+                    <span class="cronometro"
+                          data-status="EA"
+                          data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
+                          data-bs-toggle="tooltip" 
+                          data-bs-html="true"
+                          data-bs-placement="top"
+                          title="<strong>Tempo em Análise</strong><br>Desde: {{ cliente.analise_credito.data_analise|date:'d/m/Y H:i' }}<br>Status: Em Análise">
+                    </span>
+                {% endif %}
               {% endif %}
             </td>
-            
-            <td>
-              {% if cliente.analise_credito.venda_gerada %}
-                <span class="badge bg-label-success">Sim</span>
-              {% else %}
-                <span class="badge bg-label-danger">Não</span>
-              {% endif %}
-            </td>
+
             <td>
               <div class="dropdown">
                 <button class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
@@ -495,42 +623,6 @@ Clientes
             
                 </div>
               </div>
-            </td>
-            <td>
-              {# define fim conforme status #}
-              {% if cliente.analise_credito.status == 'A' %}
-                {% with fim=cliente.analise_credito.data_aprovacao %}
-                  <span class="cronometro"
-                        data-status="A"
-                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
-                        data-end="{{ fim|date:'c' }}">
-                  </span>
-                {% endwith %}
-              {% elif cliente.analise_credito.status == 'R' %}
-                {% with fim=cliente.analise_credito.data_reprovacao %}
-                  <span class="cronometro"
-                        data-status="R"
-                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
-                        data-end="{{ fim|date:'c' }}">
-                  </span>
-                {% endwith %}
-              {% elif cliente.analise_credito.status == 'C' %}
-                {% with fim=cliente.analise_credito.data_cancelamento %}
-                  <span class="cronometro"
-                        data-status="C"
-                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}"
-                        data-end="{{ fim|date:'c' }}">
-                  </span>
-                {% endwith %}
-              {% else %}
-                  <span class="cronometro"
-                        data-status="EA"
-                        data-start="{{ cliente.analise_credito.data_analise|date:'c' }}">
-                  </span>
-              {% endif %}
-            </td>            
-            <td>
-              {{ cliente.analise_credito.aprovado_por|default:"Não Aprovado" }}
             </td>
           <!-- Modal de Confirmação de Leitura do QR Code -->
           <div class="modal fade" id="installModal{{ cliente.pk }}" tabindex="-1"
@@ -612,7 +704,7 @@ Clientes
      
           
           {% empty %}
-          <td colspan="13">Nenhum registro encontrado</td>
+          <td colspan="{% if user|has_perm:'vendas.change_status_analise' %}9{% else %}8{% endif %}">Nenhum registro encontrado</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -711,6 +803,15 @@ Clientes
     document.addEventListener('DOMContentLoaded', function(){
       updateCronometros();
       setInterval(updateCronometros, 1000);
+      
+      // Inicializar tooltips do Bootstrap
+      const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl, {
+          html: true,
+          sanitize: false
+        });
+      });
     });
 
     // Melhorias para o Modal de QR Code

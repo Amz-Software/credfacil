@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static iam_tags l10n %}
+{% load static iam_tags l10n file_utils %}
 
 {% block extra_head %}
   {{ form_analise_credito.media.css }}
@@ -586,10 +586,16 @@
                       
                       {% if field.value and field.value.url %}
                         <div class="mb-2">
-                          <a href="{{ field.value.url }}" target="_blank" class="d-block mb-2">
-                            <img src="{{ field.value.url }}" class="img-thumbnail" style="max-height:100px;">
-                          </a>
-                          <small class="text-muted">Escolha um novo arquivo se quiser substituir.</small>
+                          {% if field.value|is_image_file %}
+                            <a href="{{ field.value.url }}" target="_blank" class="d-block mb-2">
+                              <img src="{{ field.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                            </a>
+                            {% else %}
+                              <a href="{{ field.value.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="bx bx-show me-1"></i> Ver documento
+                              </a>
+                            {% endif %}
+                          <small class="text-muted d-block mt-2">Escolha um novo arquivo se quiser substituir.</small>
                         </div>
                       {% endif %}
                       

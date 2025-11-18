@@ -1,0 +1,555 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Guia do Sistema - CredFácil{% endblock %}
+
+{% block content %}
+<div class="container-xxl flex-grow-1 container-p-y">
+  <div class="row">
+    <div class="col-12">
+      <!-- Cabeçalho -->
+      <div class="card shadow-sm border-0 mb-4" style="border-radius: 16px;">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center mb-3">
+            <div class="avatar bg-opacity-10 rounded-circle p-3 me-3" style="width: 64px; height: 64px;">
+              <i class="bx bx-book-open fs-1 text-primary"></i>
+            </div>
+            <div>
+              <h2 class="mb-1 fw-bold dashboard-title">Guia do Sistema CredFácil</h2>
+              <p class="text-muted mb-0">Aprenda a usar todas as funcionalidades do sistema</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Índice -->
+      <div class="card shadow-sm border-0 mb-4" style="border-radius: 16px;">
+        <div class="card-body p-4">
+          <h4 class="fw-bold mb-3">
+            <i class="bx bx-list-ul me-2"></i>
+            Índice
+          </h4>
+          <ul class="list-unstyled">
+            <li class="mb-2">
+              <a href="#fluxo-sistema" class="text-decoration-none">
+                <i class="bx bx-right-arrow-alt me-2"></i>1. Fluxo do Sistema
+              </a>
+            </li>
+            <li class="mb-2">
+              <a href="#dashboard" class="text-decoration-none">
+                <i class="bx bx-right-arrow-alt me-2"></i>2. Dashboard e Gráficos
+              </a>
+            </li>
+            <li class="mb-2">
+              <a href="#solicitacoes" class="text-decoration-none">
+                <i class="bx bx-right-arrow-alt me-2"></i>3. Solicitações e Análise de Crédito
+              </a>
+            </li>
+            <li class="mb-2">
+              <a href="#vendas" class="text-decoration-none">
+                <i class="bx bx-right-arrow-alt me-2"></i>4. Vendas e Pagamentos
+              </a>
+            </li>
+            <li class="mb-2">
+              <a href="#caixa" class="text-decoration-none">
+                <i class="bx bx-right-arrow-alt me-2"></i>5. Caixa e Financeiro
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Seção 1: Fluxo do Sistema -->
+      <div id="fluxo-sistema" class="card shadow-sm border-0 mb-4" style="border-radius: 16px;">
+        <div class="card-body p-4">
+          <h3 class="fw-bold mb-4 section-title">
+            <i class="bx bx-network-chart me-2 text-primary"></i>
+            1. Fluxo do Sistema
+          </h3>
+          
+          <div class="alert alert-info border-0 shadow-sm mb-4">
+            <div class="d-flex align-items-start">
+              <i class="bx bx-info-circle fs-4 me-3 mt-1"></i>
+              <div>
+                <h6 class="fw-bold mb-2">Responsabilidades</h6>
+                <p class="mb-0 small">
+                  O fluxo envolve duas funções principais: <strong>Vendedor</strong> e <strong>Analista</strong>. 
+                  Cada etapa é executada por um responsável específico conforme indicado abaixo.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-4">
+            <div class="col-md-6 col-lg-4">
+              <div class="card border-0 bg-light h-100 position-relative">
+                <span class="badge bg-primary position-absolute top-0 start-0 m-2">Vendedor</span>
+                <div class="card-body text-center p-4">
+                  <div class="avatar bg-info bg-opacity-10 rounded-circle p-3 mx-auto mb-3" style="width: 80px; height: 80px;">
+                    <i class="bx bx-dollar fs-1 text-info"></i>
+                  </div>
+                  <h5 class="fw-bold mb-2">1. Solicitação do Crédito</h5>
+                  <p class="text-muted small mb-0">O vendedor cadastra o cliente e cria a solicitação de análise de crédito no sistema.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+              <div class="card border-0 bg-light h-100 position-relative">
+                <span class="badge bg-warning position-absolute top-0 start-0 m-2">Analista</span>
+                <div class="card-body text-center p-4">
+                  <div class="avatar bg-warning bg-opacity-10 rounded-circle p-3 mx-auto mb-3" style="width: 80px; height: 80px;">
+                    <i class="bx bx-time-five fs-1 text-warning"></i>
+                  </div>
+                  <h5 class="fw-bold mb-2">2. Tempo de Análise</h5>
+                  <p class="text-muted small mb-0">O analista avalia a proposta de crédito, analisando os dados do cliente para dar uma resposta.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+              <div class="card border-0 bg-light h-100 position-relative">
+                <span class="badge bg-primary position-absolute top-0 start-0 m-2">Vendedor</span>
+                <div class="card-body text-center p-4">
+                  <div class="avatar bg-info bg-opacity-10 rounded-circle p-3 mx-auto mb-3" style="width: 80px; height: 80px;">
+                    <i class="bx bx-qr-scan fs-1 text-info"></i>
+                  </div>
+                  <h5 class="fw-bold mb-2">3. Ler QR Code para Instalar Aplicativo</h5>
+                  <p class="text-muted small mb-0">O vendedor apresenta o QR code para o cliente instalar o aplicativo no celular.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+              <div class="card border-0 bg-light h-100 position-relative">
+                <span class="badge bg-warning position-absolute top-0 start-0 m-2">Analista</span>
+                <div class="card-body text-center p-4">
+                  <div class="avatar bg-success bg-opacity-10 rounded-circle p-3 mx-auto mb-3" style="width: 80px; height: 80px;">
+                    <i class="bx bx-check-circle fs-1 text-success"></i>
+                  </div>
+                  <h5 class="fw-bold mb-2">4. Confirmação da Instalação</h5>
+                  <p class="text-muted small mb-0">O analista confirma que o aplicativo foi instalado corretamente no dispositivo do cliente.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+              <div class="card border-0 bg-light h-100 position-relative">
+                <span class="badge bg-primary position-absolute top-0 start-0 m-2">Vendedor</span>
+                <div class="card-body text-center p-4">
+                  <div class="avatar bg-danger bg-opacity-10 rounded-circle p-3 mx-auto mb-3" style="width: 80px; height: 80px;">
+                    <i class="bx bx-cart fs-1 text-danger"></i>
+                  </div>
+                  <h5 class="fw-bold mb-2">5. Gerar a Venda</h5>
+                  <p class="text-muted small mb-0">Após a confirmação da instalação, o vendedor gera a venda no sistema.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 p-3 bg-light rounded">
+            <h6 class="fw-bold mb-2">
+              <i class="bx bx-info-circle me-2"></i>
+              Fluxo Completo
+            </h6>
+            <p class="mb-0 small text-muted">
+              Após a geração da venda, o sistema cria automaticamente as parcelas conforme o tipo de pagamento configurado. 
+              As parcelas podem ser acompanhadas no dashboard e seus pagamentos informados conforme recebidos.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 2: Dashboard e Gráficos -->
+      <div id="dashboard" class="card shadow-sm border-0 mb-4" style="border-radius: 16px;">
+        <div class="card-body p-4">
+          <h3 class="fw-bold mb-4 section-title">
+            <i class="bx bx-bar-chart-alt-2 me-2 text-primary"></i>
+            2. Dashboard e Gráficos
+          </h3>
+          
+          <div class="mb-4">
+            <h5 class="fw-bold mb-3">
+              <i class="bx bx-home-circle me-2 text-info"></i>
+              Página Inicial (Dashboard)
+            </h5>
+            <p class="text-muted mb-3">
+              A página inicial do sistema exibe um resumo completo dos indicadores e métricas da loja. 
+              Ela está organizada em seções para facilitar a visualização:
+            </p>
+            
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <div class="card border-start border-primary border-4">
+                  <div class="card-body">
+                    <h6 class="fw-bold text-primary mb-2">
+                      <i class="bx bx-stats me-2"></i>
+                      Resumo Geral
+                    </h6>
+                    <ul class="mb-0 small">
+                      <li>Total de Vendas</li>
+                      <li>Total de Parcelas</li>
+                      <li>Valor Total</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="card border-start border-success border-4">
+                  <div class="card-body">
+                    <h6 class="fw-bold text-success mb-2">
+                      <i class="bx bx-pie-chart-alt-2 me-2"></i>
+                      Gráfico de Balanço
+                    </h6>
+                    <p class="mb-0 small">Visualização gráfica da distribuição percentual das parcelas por status (Pagas, Vencidas, Desativados).</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <h5 class="fw-bold mb-3">
+              <i class="bx bx-bar-chart me-2 text-warning"></i>
+              Como Interpretar o Gráfico de Barras Horizontais
+            </h5>
+            <div class="alert alert-info border-0 shadow-sm">
+              <div class="d-flex align-items-start">
+                <i class="bx bx-info-circle fs-4 me-3 mt-1"></i>
+                <div>
+                  <h6 class="fw-bold mb-2">Entendendo o Gráfico</h6>
+                  <ul class="mb-0 small">
+                    <li><strong>Barras Verdes:</strong> Representam as parcelas pagas (status positivo)</li>
+                    <li><strong>Barras Vermelhas:</strong> Representam as parcelas vencidas (requer atenção)</li>
+                    <li><strong>Barras Cinzas:</strong> Representam parcelas de clientes desativados</li>
+                    <li><strong>Valores nas Barras:</strong> Mostram o percentual de cada categoria</li>
+                    <li><strong>Eixo X:</strong> Vai de 0% a 100%, mostrando a proporção</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div class="row g-3 mt-3">
+              <div class="col-md-4">
+                <div class="card border-0 bg-light">
+                  <div class="card-body text-center p-3">
+                    <i class="bx bx-mouse fs-1 text-primary mb-2"></i>
+                    <h6 class="fw-bold mb-2">Interatividade</h6>
+                    <p class="small mb-0">Passe o mouse sobre as barras para ver detalhes no tooltip.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="card border-0 bg-light">
+                  <div class="card-body text-center p-3">
+                    <i class="bx bx-mobile-alt fs-1 text-info mb-2"></i>
+                    <h6 class="fw-bold mb-2">Responsivo</h6>
+                    <p class="small mb-0">O gráfico se adapta automaticamente a diferentes tamanhos de tela.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="card border-0 bg-light">
+                  <div class="card-body text-center p-3">
+                    <i class="bx bx-moon fs-1 text-secondary mb-2"></i>
+                    <h6 class="fw-bold mb-2">Modo Dark</h6>
+                    <p class="small mb-0">As cores se adaptam automaticamente ao tema claro ou escuro.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <h5 class="fw-bold mb-3">
+              <i class="bx bx-list-check me-2 text-success"></i>
+              KPIs (Indicadores)
+            </h5>
+            <p class="text-muted mb-3">
+              Os KPIs são organizados por categorias para facilitar a análise:
+            </p>
+            
+            <div class="table-responsive">
+              <table class="table table-bordered">
+                <thead class="table-light">
+                  <tr>
+                    <th>Categoria</th>
+                    <th>Indicadores</th>
+                    <th>Descrição</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="badge bg-success">Parcelas Pagas</span></td>
+                    <td>Quantidade e Valor</td>
+                    <td>Parcelas que foram pagas com sucesso</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge bg-danger">Parcelas Vencidas</span></td>
+                    <td>Quantidade e Valor</td>
+                    <td>Parcelas que passaram da data de vencimento</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge bg-warning">Parcelas a Vencer</span></td>
+                    <td>Quantidade e Valor</td>
+                    <td>Parcelas que ainda não venceram</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge bg-secondary">Clientes Desativados</span></td>
+                    <td>Vários indicadores</td>
+                    <td>Parcelas de clientes que foram desativados</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 3: Solicitações -->
+      <div id="solicitacoes" class="card shadow-sm border-0 mb-4" style="border-radius: 16px;">
+        <div class="card-body p-4">
+          <h3 class="fw-bold mb-4 section-title">
+            <i class="bx bx-file-blank me-2 text-primary"></i>
+            3. Solicitações e Análise de Crédito
+          </h3>
+          
+          <div class="mb-4">
+            <h5 class="fw-bold mb-3">Criando uma Solicitação</h5>
+            <ol class="mb-0">
+              <li class="mb-2">Acesse o menu <strong>"Solicitações"</strong> na página inicial</li>
+              <li class="mb-2">Cadastre um novo cliente ou selecione um existente</li>
+              <li class="mb-2">Preencha os dados do cliente (nome, CPF, telefone, IMEI)</li>
+              <li class="mb-2">Crie a solicitação de análise de crédito</li>
+              <li class="mb-2">Aguarde a análise do analista</li>
+            </ol>
+          </div>
+
+          <div class="mb-4">
+            <h5 class="fw-bold mb-3">Status da Análise</h5>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="card border-start border-success border-4">
+                  <div class="card-body">
+                    <h6 class="fw-bold text-success mb-2">
+                      <i class="bx bx-check-circle me-2"></i>
+                      Aprovada
+                    </h6>
+                    <p class="small mb-0">A solicitação foi aprovada e uma venda será gerada automaticamente.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="card border-start border-danger border-4">
+                  <div class="card-body">
+                    <h6 class="fw-bold text-danger mb-2">
+                      <i class="bx bx-x-circle me-2"></i>
+                      Reprovada
+                    </h6>
+                    <p class="small mb-0">A solicitação foi reprovada e não será gerada uma venda.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="card border-start border-warning border-4">
+                  <div class="card-body">
+                    <h6 class="fw-bold text-warning mb-2">
+                      <i class="bx bx-time me-2"></i>
+                      Pendente
+                    </h6>
+                    <p class="small mb-0">A solicitação está aguardando análise do analista.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="card border-start border-secondary border-4">
+                  <div class="card-body">
+                    <h6 class="fw-bold text-secondary mb-2">
+                      <i class="bx bx-block me-2"></i>
+                      Cancelada
+                    </h6>
+                    <p class="small mb-0">A solicitação foi cancelada e não será processada.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 4: Vendas -->
+      <div id="vendas" class="card shadow-sm border-0 mb-4" style="border-radius: 16px;">
+        <div class="card-body p-4">
+          <h3 class="fw-bold mb-4 section-title">
+            <i class="bx bx-cart me-2 text-primary"></i>
+            4. Vendas e Pagamentos
+          </h3>
+          
+          <div class="mb-4">
+            <h5 class="fw-bold mb-3">Gerenciando Vendas</h5>
+            <p class="text-muted mb-3">
+              Após a aprovação de uma solicitação, uma venda é gerada automaticamente. 
+              Você pode visualizar todas as vendas no menu <strong>"Vendas"</strong>.
+            </p>
+            
+            <div class="alert alert-success border-0 shadow-sm">
+              <h6 class="fw-bold mb-2">
+                <i class="bx bx-info-circle me-2"></i>
+                Informação Importante
+              </h6>
+              <p class="mb-0 small">
+                Cada venda gera automaticamente as parcelas conforme o tipo de pagamento configurado. 
+                As parcelas podem ser acompanhadas individualmente e seus status atualizados.
+              </p>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <h5 class="fw-bold mb-3">Gerenciando Pagamentos</h5>
+            <ul class="mb-0">
+              <li class="mb-2"><strong>Informar Pagamento:</strong> Quando um cliente paga uma parcela, você pode informar o pagamento no sistema</li>
+              <li class="mb-2"><strong>Status das Parcelas:</strong> As parcelas podem estar: Pagas, Vencidas, ou A Vencer</li>
+              <li class="mb-2"><strong>Clientes Desativados:</strong> Clientes podem ser desativados, e suas parcelas aparecem em uma seção separada</li>
+              <li class="mb-2"><strong>Acompanhamento:</strong> Todos os pagamentos podem ser consultados e filtrados</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 5: Caixa -->
+      <div id="caixa" class="card shadow-sm border-0 mb-4" style="border-radius: 16px;">
+        <div class="card-body p-4">
+          <h3 class="fw-bold mb-4 section-title">
+            <i class="bx bx-wallet me-2 text-primary"></i>
+            5. Caixa e Financeiro
+          </h3>
+          
+          <div class="mb-4">
+            <h5 class="fw-bold mb-3">Gerenciando o Caixa</h5>
+            <p class="text-muted mb-3">
+              O módulo de caixa permite controlar as entradas e saídas financeiras da loja.
+            </p>
+            
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                  <div class="card-body">
+                    <h6 class="fw-bold mb-2">
+                      <i class="bx bx-plus-circle text-success me-2"></i>
+                      Entradas
+                    </h6>
+                    <p class="small mb-0">Registre todas as entradas de dinheiro no caixa, como pagamentos de parcelas.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                  <div class="card-body">
+                    <h6 class="fw-bold mb-2">
+                      <i class="bx bx-minus-circle text-danger me-2"></i>
+                      Saídas
+                    </h6>
+                    <p class="small mb-0">Registre todas as saídas de dinheiro, como despesas e repasses.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <h5 class="fw-bold mb-3">Relatórios Financeiros</h5>
+            <p class="text-muted mb-0">
+              O sistema oferece diversos relatórios para acompanhamento financeiro, incluindo relatórios de vendas, 
+              solicitações e extratos de caixa. Acesse através do menu de relatórios.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dicas Finais -->
+      <div class="card shadow-sm border-0 mb-4" style="border-radius: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body p-4 text-white">
+          <h4 class="fw-bold mb-3">
+            <i class="bx bx-bulb me-2"></i>
+            Dicas Importantes
+          </h4>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="d-flex align-items-start">
+                <i class="bx bx-check-circle fs-4 me-2 mt-1"></i>
+                <div>
+                  <h6 class="fw-bold mb-1">Mantenha os Dados Atualizados</h6>
+                  <p class="small mb-0 opacity-90">Sempre informe os pagamentos assim que recebidos para manter o dashboard atualizado.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="d-flex align-items-start">
+                <i class="bx bx-check-circle fs-4 me-2 mt-1"></i>
+                <div>
+                  <h6 class="fw-bold mb-1">Acompanhe o Dashboard</h6>
+                  <p class="small mb-0 opacity-90">Use o dashboard para identificar rapidamente parcelas vencidas que precisam de atenção.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="d-flex align-items-start">
+                <i class="bx bx-check-circle fs-4 me-2 mt-1"></i>
+                <div>
+                  <h6 class="fw-bold mb-1">Use os Filtros</h6>
+                  <p class="small mb-0 opacity-90">Aproveite os filtros nas listagens para encontrar rapidamente o que precisa.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="d-flex align-items-start">
+                <i class="bx bx-check-circle fs-4 me-2 mt-1"></i>
+                <div>
+                  <h6 class="fw-bold mb-1">Relatórios Periódicos</h6>
+                  <p class="small mb-0 opacity-90">Gere relatórios regularmente para análise financeira e tomada de decisões.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .section-title {
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1.5rem;
+  }
+  
+  .dark-style .section-title {
+    border-bottom-color: #3b3f52;
+  }
+  
+  a[href^="#"] {
+    scroll-behavior: smooth;
+  }
+  
+  .card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  }
+</style>
+{% endblock %}
+

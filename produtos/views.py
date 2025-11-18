@@ -1,7 +1,9 @@
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.contrib import messages
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
+from django.views import View
 from vendas.models import Loja
 from vendas.views import BaseView
 from .models import Produto
@@ -14,11 +16,41 @@ class ProdutoListView(PermissionRequiredMixin, ListView):
     permission_required = 'produtos.view_produto'
 
     def get_queryset(self):
-        queryset = Produto.objects.all()
+        # Se o usuário tem permissão view_all_produtos, mostra todos (ativos e desativados)
+        # Caso contrário, mostra apenas produtos ativos
+        if self.request.user.has_perm('produtos.view_all_produtos'):
+            queryset = Produto.objects.all()
+        else:
+            queryset = Produto.objects.filter(ativo=True)
+        
         search = self.request.GET.get('search')
         if search:
-            return queryset.filter(nome__icontains=search)
+            queryset = queryset.filter(nome__icontains=search)
+        
         return queryset.order_by('nome')
+
+
+class ProdutoDeleteView(PermissionRequiredMixin, View):
+    permission_required = 'produtos.delete_produto'
+    
+    def post(self, request, pk):
+        produto = get_object_or_404(Produto, pk=pk)
+        produto.ativo = False
+        produto.save()
+        messages.success(request, f'Produto "{produto.nome}" foi desativado com sucesso.')
+        return redirect('produtos:produtos')
+
+
+class ProdutoActivateView(PermissionRequiredMixin, View):
+    permission_required = 'produtos.delete_produto'
+    
+    def post(self, request, pk):
+        produto = get_object_or_404(Produto, pk=pk)
+        produto.ativo = True
+        produto.save()
+        messages.success(request, f'Produto "{produto.nome}" foi ativado com sucesso.')
+        return redirect('produtos:produtos')
+
 
 def generate_views(modelo, form=None, paginacao=10, template_dir=''):
     """

@@ -17,6 +17,13 @@ def menu_items(request):
             "permission": "vendas.view_loja",
             "section": "Início",
         },
+        {
+            "label": "Guia do Sistema",
+            "url_name": "vendas:guia",
+            "icon": "bx bx-book-open",
+            "permission": "vendas.view_loja",
+            "section": "Início",
+        },
         {          
             "label": "Caixa",
             "icon": "bx bx-cart",
@@ -71,7 +78,7 @@ def menu_items(request):
             "section": "Vendas",
             "sub_items": [
                 {
-                    "label": "Solicitações de Venda",
+                    "label": "Solicitações de Crédito",
                     "url_name": "vendas:cliente_list",
                     "permission": "vendas.view_cliente"
                 },
@@ -149,6 +156,13 @@ def menu_items(request):
                     "permission": "financeiro.view_gastofixo"
                 }
             ]
+        },
+        {          
+            "label": "Produtos",
+            "icon": "bx bx-box",
+            "permission": "produtos.view_produto",
+            "url_name": "produtos:produtos",
+            "section": "Produtos"
         },
         # {
         #     "label": "Assistência",

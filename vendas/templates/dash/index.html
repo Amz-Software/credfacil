@@ -2,322 +2,533 @@
 {% load static iam_tags %}
 {% load humanize %}
 
+{% block extra_head %}
+<style>
+  /* Modo Dark Support */
+  :root {
+    --kpi-card-bg-success: #e6f4ea;
+    --kpi-card-bg-danger: #fdecea;
+    --kpi-card-bg-warning: #fff8e1;
+    --kpi-card-bg-info: #e0f2fe;
+    --kpi-card-bg-secondary: #f0f0f0;
+    --chart-container-bg: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  }
+
+  .dark-style {
+    --kpi-card-bg-success: rgba(113, 221, 55, 0.15);
+    --kpi-card-bg-danger: rgba(255, 99, 132, 0.15);
+    --kpi-card-bg-warning: rgba(255, 171, 0, 0.15);
+    --kpi-card-bg-info: rgba(3, 195, 236, 0.15);
+    --kpi-card-bg-secondary: rgba(161, 172, 184, 0.15);
+    --chart-container-bg: linear-gradient(135deg, #2b2c40 0%, #262a3a 100%);
+  }
+
+  /* Títulos que se adaptam ao modo dark */
+  .dashboard-title {
+    color: #2b2b2b;
+  }
+
+  .chart-title {
+    color: #2b2b2b;
+  }
+
+  .section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2b2b2b;
+    display: flex;
+    align-items: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1rem;
+  }
+
+  .dark-style .dashboard-title,
+  .dark-style .chart-title,
+  .dark-style .section-title {
+    color: #e6e8f5 !important;
+  }
+
+  .dark-style .section-title {
+    border-bottom-color: #3b3f52;
+  }
+
+  /* Container do gráfico */
+  .chart-container {
+    background: var(--chart-container-bg);
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 2rem;
+  }
+
+  /* Cards KPI */
+  .kpi-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+  }
+
+  .kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .dark-style .kpi-card:hover {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  /* Avatar melhorado */
+  .avatar {
+    transition: transform 0.3s ease;
+  }
+
+  .kpi-card:hover .avatar {
+    transform: scale(1.1);
+  }
+</style>
+{% endblock extra_head %}
+
 {% block content %}
-<div class="container py-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <form method="get" class="d-flex align-items-center gap-2">
-                    <label for="loja-select" class="form-label mb-0">Filtrar por loja:</label>
-                    <select id="loja-select" name="loja" class="form-select w-auto">
-                        <option value="">Todas</option>
-                        {% for loja in lojas %}
-                            <option value="{{ loja.id }}"{% if loja.id == loja_get %} selected{% endif %}>{{ loja.nome|title }}</option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="btn btn-primary">Filtrar</button>
-                </form>
-                
-                {% if user|has_perm:"vendas.can_generate_dashboard_report" %}
-                <div>
-                    <a href="{% url 'vendas:dashboard_report_pdf' %}" class="btn btn-success">
-                        <i class="bx bx-file-pdf me-1"></i>
-                        Gerar Relatório PDF
-                    </a>
-                </div>
-                {% endif %}
+<div class="container-xxl mt-4">
+  <!-- Welcome Card -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-lg" style="border-radius: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow: hidden;">
+        <div class="d-flex align-items-end row">
+          <div class="col-sm-8">
+            <div class="card-body p-4">
+              <h5 class="card-title text-white mb-2" style="font-size: 1.75rem; font-weight: 700;">
+                <i class="bx bx-chart me-2"></i>Dashboard de Gráficos
+              </h5>
+              <p class="mb-0 text-white" style="font-size: 1.05rem; opacity: 0.95;">
+                Visualize análises detalhadas e métricas de desempenho das lojas
+              </p>
             </div>
+          </div>
+          <div class="col-sm-4 text-center text-sm-end">
+            <div class="card-body pb-0 px-0 px-md-4">
+              <i class="bx bx-bar-chart-alt-2 text-white" style="font-size: 120px; opacity: 0.3;"></i>
+            </div>
+          </div>
         </div>
+      </div>
     </div>
-    <!-- KPIs Grid -->
-    <div class="row g-4 mb-5">
-        {% comment %} KPIs agrupados por categoria {% endcomment %}
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-bar-chart-alt-2 fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Total de Vendas</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-total-vendas">{{ total_vendas_loja|default:"0" }}</h3>
-                    </div>
-                </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <form method="get" class="d-flex align-items-center gap-2 flex-grow-1">
+              <label for="loja-select" class="form-label mb-0 fw-semibold">Filtrar por loja:</label>
+              <select id="loja-select" name="loja" class="form-select" style="max-width: 300px;">
+                <option value="">Todas as lojas</option>
+                {% for loja in lojas %}
+                  <option value="{{ loja.id }}"{% if loja.id == loja_get %} selected{% endif %}>{{ loja.nome|title }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-primary">
+                <i class="bx bx-filter me-1"></i>Filtrar
+              </button>
+            </form>
+            
+            {% if user|has_perm:"vendas.can_generate_dashboard_report" %}
+            <div>
+              <a href="{% url 'vendas:dashboard_report_pdf' %}" class="btn btn-success">
+                <i class="bx bx-file-pdf me-1"></i>
+                Gerar Relatório PDF
+              </a>
             </div>
+            {% endif %}
+          </div>
         </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-list-ol fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Total de Parcelas</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ total_de_parcelas_geral|default:"0" }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-wallet fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Valor Total</h6>
-                        <div class="small text-muted mb-1">pagas + vencidas + a vencer</div>
-                        <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{valor_total_parcelas|intcomma}}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Pagas -->
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-money fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Parcelas Pagas</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ parcelas_pagas|intcomma }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-credit-card fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Valor Pago</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ total_pagas|intcomma }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Vencidas -->
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-danger text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-error-circle fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Parcelas Vencidas</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ parcelas_vencidas|default:"0" }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-danger text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-money-withdraw fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Valor Parcelas Vencidas</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ total_vencidas|intcomma }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- A vencer -->
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-time-five fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Parcelas a Vencer</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ parcelas_a_vencer|default:"0" }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-wallet-alt fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Valor Parcelas a Vencer</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-total-parcelas">{{ total_a_vencer|intcomma }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Valor Total de Repasses -->
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-transfer-alt fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Valor Total de Repasses</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-total-repasses">R$ {{ total_repasses|floatformat:2|intcomma }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
-    
-    <!-- Seção de Clientes Desativados -->
-    <div class="row g-4 mb-5">
-        <div class="col-12">
-            <h5 class="text-muted mb-3">
-                <i class="bx bx-error-circle me-2"></i>
-                Clientes Desativados (Parcelas não pagas)
-            </h5>
-        </div>
-        <!-- Total de Pagamentos Desativados -->
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #6c757d !important;">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-user-x fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Total de Pagamentos Desativados</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-total-pagamentos-desativados">{{ total_pagamentos_desativados|default:"0" }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Parcelas Vencidas - Desativados -->
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #6c757d !important;">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-error-circle fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Parcelas Vencidas (Desativados)</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-desativados-vencidas">{{ qtd_desativados_vencidas|default:"0" }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #6c757d !important;">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-money-withdraw fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Valor Vencidas (Desativados)</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-valor-desativados-vencidas">{{ total_desativados_vencidas|intcomma }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Parcelas a Vencer - Desativados -->
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #6c757d !important;">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-time-five fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Parcelas a Vencer (Desativados)</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-desativados-a-vencer">{{ qtd_desativados_a_vencer|default:"0" }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #6c757d !important;">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-wallet-alt fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">Valor a Vencer (Desativados)</h6>
-                        <h3 class="mb-0 fw-bold" id="kpi-valor-desativados-a-vencer">{{ total_desativados_a_vencer|intcomma }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
+  </div>
+
+  <!-- Seção 1: Resumo Geral -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <h5 class="section-title">
+        <i class="bx bx-stats me-2"></i>
+        Resumo Geral
+      </h5>
     </div>
-    
-    <!-- Seção de Repasses por Loja -->
-    <div class="row g-4 mb-5">
-        <div class="col-12">
-            <h5 class="text-muted mb-3">
-                <i class="bx bx-transfer-alt me-2"></i>
-                Repasses por Loja
-            </h5>
+  </div>
+
+  <div class="row g-4 mb-5">
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #696cff !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-bar-chart-alt-2 fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Total de Vendas</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ total_vendas_loja|default:"0" }}</h3>
+          </div>
         </div>
-        {% for loja_nome, valor_repasse in repasses_por_loja.items %}
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #17a2b8 !important;">
-                <div class="card-body d-flex align-items-center">
-                    <span class="avatar bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:56px;height:56px;">
-                        <i class="bx bx-store fs-2"></i>
-                    </span>
-                    <div>
-                        <h6 class="card-title mb-1 text-muted">{{ loja_nome }}</h6>
-                        <h3 class="mb-0 fw-bold">R$ {{ valor_repasse|floatformat:2|intcomma }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% empty %}
-        <div class="col-12">
-            <div class="alert alert-info text-center">
-                <i class="bx bx-info-circle me-2"></i>
-                Nenhum repasse encontrado para as lojas selecionadas.
-            </div>
-        </div>
-        {% endfor %}
+      </div>
     </div>
-    
-    <!-- Dados Gerais -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <h4 class="card-title text-center mb-4">Balanço por Loja</h4>
-                    <div class="d-flex justify-content-center">
-                        <canvas id="graficoLojas" width="200"></canvas>
-                    </div>
-                </div>
-            </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #03c3ec !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-list-ol fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Total de Parcelas</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ total_de_parcelas_geral|default:"0" }}</h3>
+          </div>
         </div>
+      </div>
     </div>
-    {% if loja_get %}
-    <!-- Dados Gerais Mes-->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <h4 class="card-title text-center mb-4">Balanço por Loja - Mês</h4>
-                    <div class="d-flex justify-content-center">
-                        <canvas id="graficoLojasMes" width="200"></canvas>
-                    </div>
-                </div>
-            </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #8592a3 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-wallet fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Valor Total</h6>
+            <div class="small text-muted mb-1">pagas + vencidas + a vencer</div>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{valor_total_parcelas|intcomma}}</h3>
+          </div>
         </div>
+      </div>
     </div>
-    {% else %}
-    <div class="alert alert-info text-center">
+
+    <!-- Pagas -->
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #71dd37 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-money fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Parcelas Pagas</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ parcelas_pagas|intcomma }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #71dd37 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-credit-card fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Valor Pago</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_pagas|intcomma }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vencidas -->
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ff3e1d !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-error-circle fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Parcelas Vencidas</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ parcelas_vencidas|default:"0" }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ff3e1d !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-money-withdraw fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Valor Vencidas</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_vencidas|intcomma }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A vencer -->
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ffab00 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-time-five fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Parcelas a Vencer</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ parcelas_a_vencer|default:"0" }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ffab00 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-wallet-alt fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Valor a Vencer</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_a_vencer|intcomma }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Valor Total de Repasses -->
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #03c3ec !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-transfer-alt fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Total de Repasses</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_repasses|floatformat:2|intcomma }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seção 2: Clientes Desativados -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <h5 class="section-title">
+        <i class="bx bx-error-circle me-2"></i>
+        Clientes Desativados (Parcelas não pagas)
+      </h5>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-5">
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #8592a3 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-user-x fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Pagamentos Desativados</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ total_pagamentos_desativados|default:"0" }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #8592a3 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-error-circle fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Parcelas Vencidas</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ qtd_desativados_vencidas|default:"0" }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #8592a3 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-money-withdraw fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Valor Vencidas</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_desativados_vencidas|intcomma }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #8592a3 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-time-five fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Parcelas a Vencer</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ qtd_desativados_a_vencer|default:"0" }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #8592a3 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-wallet-alt fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Valor a Vencer</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_desativados_a_vencer|intcomma }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seção 3: Repasses por Loja -->
+  {% if repasses_por_loja %}
+  <div class="row mb-4">
+    <div class="col-12">
+      <h5 class="section-title">
+        <i class="bx bx-transfer-alt me-2"></i>
+        Repasses por Loja
+      </h5>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-5">
+    {% for loja_nome, valor_repasse in repasses_por_loja.items %}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #03c3ec !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-store fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">{{ loja_nome }}</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ valor_repasse|floatformat:2|intcomma }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="alert alert-info text-center">
+        <i class="bx bx-info-circle me-2"></i>
+        Nenhum repasse encontrado para as lojas selecionadas.
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Seção 4: Gráficos -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <h5 class="section-title chart-title">
+        <i class="bx bx-bar-chart-alt-2 me-2"></i>
+        Balanço por Loja
+      </h5>
+    </div>
+  </div>
+
+  <div class="row mb-5">
+    <div class="col-12">
+      <div class="card border-0 shadow-lg chart-container">
+        <div class="card-body">
+          <canvas id="graficoLojas" style="max-height: 500px;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if loja_get %}
+  <div class="row mb-4">
+    <div class="col-12">
+      <h5 class="section-title chart-title">
+        <i class="bx bx-calendar me-2"></i>
+        Balanço Mensal por Loja
+      </h5>
+    </div>
+  </div>
+
+  <div class="row mb-5">
+    <div class="col-12">
+      <div class="card border-0 shadow-lg chart-container">
+        <div class="card-body">
+          <canvas id="graficoLojasMes" style="max-height: 500px;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="row mb-5">
+    <div class="col-12">
+      <div class="alert alert-info text-center">
+        <i class="bx bx-info-circle me-2"></i>
         <strong>Selecione uma loja para visualizar o balanço mensal.</strong>
+      </div>
     </div>
-    {% endif %}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.min.js"></script>
-<script data-lojas="{{ dados_lojas }}" type="text/javascript">
-    const dadosLojas = JSON.parse(document.currentScript.getAttribute('data-lojas'));
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script type="text/javascript">
+  // Armazenar dados em variável global
+  window.dadosLojasData = JSON.parse('{{ dados_lojas|escapejs }}');
+</script>
+<script type="text/javascript">
+  function initCharts() {
+    if (typeof Chart === 'undefined') {
+      setTimeout(initCharts, 100);
+      return;
+    }
+
+    const isDarkMode = document.documentElement.classList.contains('dark-style') || 
+                       document.body.classList.contains('dark-style');
+    
+    const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    const axisTextColor = isDarkMode ? '#d1d5e6' : '#2b2b2b';
+    const labelTextColor = isDarkMode ? '#e6e8f5' : '#2b2b2b';
+
+    // Gráfico 1: Balanço por Loja
+    const dadosLojas = window.dadosLojasData || {};
     const labels = Object.keys(dadosLojas);
     const pctPagas = labels.map(loja => dadosLojas[loja].pct_pagas);
     const pctVencidas = labels.map(loja => dadosLojas[loja].pct_vencidas);
@@ -325,188 +536,336 @@
     const totalPagas = labels.map(loja => dadosLojas[loja].total_pagas);
     const totalVencidas = labels.map(loja => dadosLojas[loja].total_vencidas);
     const totalDesativados = labels.map(loja => 
-        Number(dadosLojas[loja].total_desativados_vencidas || 0) + Number(dadosLojas[loja].total_desativados_a_vencer || 0)
+      Number(dadosLojas[loja].total_desativados_vencidas || 0) + Number(dadosLojas[loja].total_desativados_a_vencer || 0)
     );
     const totais = labels.map(loja =>
-        Number(dadosLojas[loja].total_pagas) + Number(dadosLojas[loja].total_vencidas) + Number(dadosLojas[loja].total_a_vencer) + Number(dadosLojas[loja].total_desativados_vencidas || 0) + Number(dadosLojas[loja].total_desativados_a_vencer || 0)
+      Number(dadosLojas[loja].total_pagas) + Number(dadosLojas[loja].total_vencidas) + Number(dadosLojas[loja].total_a_vencer) + Number(dadosLojas[loja].total_desativados_vencidas || 0) + Number(dadosLojas[loja].total_desativados_a_vencer || 0)
     );
-    const ctxLojas = document.getElementById('graficoLojas').getContext('2d');
 
-    const grafico = new Chart(ctxLojas, {
+    const ctxLojas = document.getElementById('graficoLojas');
+    if (ctxLojas) {
+      const ctx = ctxLojas.getContext('2d');
+      
+      // Criar gradientes
+      const gradientPagas = ctx.createLinearGradient(0, 0, 0, 400);
+      gradientPagas.addColorStop(0, 'rgba(113, 221, 55, 0.8)');
+      gradientPagas.addColorStop(1, 'rgba(113, 221, 55, 0.2)');
+
+      const gradientVencidas = ctx.createLinearGradient(0, 0, 0, 400);
+      gradientVencidas.addColorStop(0, 'rgba(255, 99, 132, 0.8)');
+      gradientVencidas.addColorStop(1, 'rgba(255, 99, 132, 0.2)');
+
+      const gradientDesativados = ctx.createLinearGradient(0, 0, 0, 400);
+      gradientDesativados.addColorStop(0, 'rgba(108, 117, 125, 0.8)');
+      gradientDesativados.addColorStop(1, 'rgba(108, 117, 125, 0.2)');
+
+      new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: '% Pagas',
-                    data: pctPagas,
-                    totalValores: totalPagas,
-                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                    stack: 'percentual'
-                },
-                {
-                    label: '% Vencidas',
-                    data: pctVencidas,
-                    totalValores: totalVencidas,
-                    backgroundColor: 'rgba(255, 99, 132, 0.6)',
-                    stack: 'percentual'
-                },
-                {
-                    label: '% Desativados',
-                    data: pctDesativados,
-                    totalValores: totalDesativados,
-                    backgroundColor: 'rgba(108, 117, 125, 0.6)',
-                    stack: 'percentual'
-                }
-            ]
+          labels: labels,
+          datasets: [
+            {
+              label: '% Pagas',
+              data: pctPagas,
+              totalValores: totalPagas,
+              backgroundColor: gradientPagas,
+              borderColor: 'rgba(113, 221, 55, 1)',
+              borderWidth: 2,
+              stack: 'percentual'
+            },
+            {
+              label: '% Vencidas',
+              data: pctVencidas,
+              totalValores: totalVencidas,
+              backgroundColor: gradientVencidas,
+              borderColor: 'rgba(255, 99, 132, 1)',
+              borderWidth: 2,
+              stack: 'percentual'
+            },
+            {
+              label: '% Desativados',
+              data: pctDesativados,
+              totalValores: totalDesativados,
+              backgroundColor: gradientDesativados,
+              borderColor: 'rgba(108, 117, 125, 1)',
+              borderWidth: 2,
+              stack: 'percentual'
+            }
+          ]
         },
         options: {
-            responsive: true,
-            scales: {
-                x: {
-                    stacked: true
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: {
+            duration: 1500,
+            easing: 'easeOutQuart'
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                color: labelTextColor,
+                font: {
+                  size: 14,
+                  weight: '600',
+                  family: "'Public Sans', sans-serif"
                 },
-                y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: value => value + '%'
-                    }
-                }
+                padding: 15
+              }
             },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function (context) {
-                            const loja = context.label;
-                            const percentual = context.parsed.y;
-                            const valor = context.dataset.totalValores[context.dataIndex];
-                            const total = totais[context.dataIndex];
-
-                            return `${context.dataset.label}: ${percentual}% (R$ ${valor.toLocaleString('pt-BR')})\nTotal Loja: R$ ${total.toLocaleString('pt-BR')}`;
-                        }
-                    }
+            tooltip: {
+              enabled: true,
+              backgroundColor: isDarkMode ? 'rgba(43, 44, 64, 0.95)' : 'rgba(0, 0, 0, 0.85)',
+              padding: 14,
+              titleFont: {
+                size: 15,
+                weight: '700',
+                family: "'Public Sans', sans-serif"
+              },
+              titleColor: isDarkMode ? '#e6e8f5' : '#ffffff',
+              bodyFont: {
+                size: 14,
+                weight: '600',
+                family: "'Public Sans', sans-serif"
+              },
+              bodyColor: isDarkMode ? '#d1d5e6' : '#ffffff',
+              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.15)',
+              borderWidth: 2,
+              cornerRadius: 10,
+              callbacks: {
+                label: function (context) {
+                  const percentual = context.parsed.y;
+                  const valor = context.dataset.totalValores[context.dataIndex];
+                  const total = totais[context.dataIndex];
+                  return `${context.dataset.label}: ${percentual}% (R$ ${valor.toLocaleString('pt-BR')})\nTotal Loja: R$ ${total.toLocaleString('pt-BR')}`;
                 }
+              }
             }
+          },
+          scales: {
+            x: {
+              stacked: true,
+              grid: {
+                color: gridColor,
+                drawBorder: false
+              },
+              ticks: {
+                color: axisTextColor,
+                font: {
+                  size: 12,
+                  weight: '500',
+                  family: "'Public Sans', sans-serif"
+                }
+              }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              max: 100,
+              grid: {
+                color: gridColor,
+                drawBorder: false
+              },
+              ticks: {
+                color: axisTextColor,
+                font: {
+                  size: 12,
+                  weight: '500',
+                  family: "'Public Sans', sans-serif"
+                },
+                callback: value => value + '%'
+              }
+            }
+          }
         }
-    });
-</script>
-<script data-lojas-mes="{{ dash_mensal_lojas }}" type="text/javascript">
-    const dadosLojasMes = JSON.parse(document.currentScript.getAttribute('data-lojas-mes'));
-    // Obter todos os meses únicos ordenados
-    const mesesSet = new Set();
-    Object.values(dadosLojasMes).forEach(arr => arr.forEach(obj => mesesSet.add(obj.mes)));
-    const meses = Array.from(mesesSet).sort();
+      });
+    }
 
-    // Montar datasets por loja em percentual
-    const lojas = Object.keys(dadosLojasMes);
-    const cores = [
-        'rgba(75, 192, 192, 0.7)',
+    // Gráfico 2: Balanço Mensal (se existir)
+    const ctxLojasMes = document.getElementById('graficoLojasMes');
+    if (ctxLojasMes) {
+      const dadosLojasMes = JSON.parse('{{ dash_mensal_lojas|escapejs }}');
+      const mesesSet = new Set();
+      Object.values(dadosLojasMes).forEach(arr => arr.forEach(obj => mesesSet.add(obj.mes)));
+      const meses = Array.from(mesesSet).sort();
+
+      const lojas = Object.keys(dadosLojasMes);
+      const cores = [
+        'rgba(113, 221, 55, 0.7)',
         'rgba(255, 99, 132, 0.7)',
-        'rgba(255, 205, 86, 0.7)',
-        'rgba(54, 162, 235, 0.7)',
+        'rgba(255, 171, 0, 0.7)',
+        'rgba(3, 195, 236, 0.7)',
         'rgba(153, 102, 255, 0.7)',
         'rgba(201, 203, 207, 0.7)'
-    ];
+      ];
 
-    // Para cada loja, para cada mês, calcula os percentuais
-    function getPercentuais(loja, campo) {
-        // Para cada mês, retorna o percentual do campo ou 0 se não houver
+      function getPercentuais(loja, campo) {
         const dados = {};
         dadosLojasMes[loja].forEach(obj => { dados[obj.mes] = obj; });
         return meses.map(mes => {
-            const obj = dados[mes];
-            if (!obj) return 0;
-            const total = (obj.pago || 0) + (obj.vencido || 0) + (obj.a_vencer || 0);
-            if (total === 0) return 0;
-            return Math.round(((obj[campo] || 0) / total) * 100);
+          const obj = dados[mes];
+          if (!obj) return 0;
+          const total = (obj.pago || 0) + (obj.vencido || 0) + (obj.a_vencer || 0);
+          if (total === 0) return 0;
+          return Math.round(((obj[campo] || 0) / total) * 100);
         });
-    }
+      }
 
-    // Para tooltip: valores absolutos por mês
-    function getValores(loja, campo) {
+      function getValores(loja, campo) {
         const dados = {};
         dadosLojasMes[loja].forEach(obj => { dados[obj.mes] = obj; });
         return meses.map(mes => {
-            const obj = dados[mes];
-            return obj ? (obj[campo] || 0) : 0;
+          const obj = dados[mes];
+          return obj ? (obj[campo] || 0) : 0;
         });
-    }
+      }
 
-    // Para tooltip: total por mês
-    function getTotais(loja) {
+      function getTotais(loja) {
         const dados = {};
         dadosLojasMes[loja].forEach(obj => { dados[obj.mes] = obj; });
         return meses.map(mes => {
-            const obj = dados[mes];
-            return obj ? ((obj.pago || 0) + (obj.vencido || 0) + (obj.a_vencer || 0)) : 0;
+          const obj = dados[mes];
+          return obj ? ((obj.pago || 0) + (obj.vencido || 0) + (obj.a_vencer || 0)) : 0;
         });
-    }
+      }
 
-    const datasets = [];
-    lojas.forEach((loja, idx) => {
+      const datasets = [];
+      lojas.forEach((loja, idx) => {
         datasets.push({
-            label: loja + ' - Pago',
-            data: getPercentuais(loja, 'pago'),
-            valores: getValores(loja, 'pago'),
-            totais: getTotais(loja),
-            backgroundColor: cores[idx % cores.length],
-            stack: loja
+          label: loja + ' - Pago',
+          data: getPercentuais(loja, 'pago'),
+          valores: getValores(loja, 'pago'),
+          totais: getTotais(loja),
+          backgroundColor: cores[idx % cores.length],
+          borderColor: cores[idx % cores.length].replace('0.7', '1'),
+          borderWidth: 2,
+          stack: loja
         });
         datasets.push({
-            label: loja + ' - Vencido',
-            data: getPercentuais(loja, 'vencido'),
-            valores: getValores(loja, 'vencido'),
-            totais: getTotais(loja),
-            backgroundColor: 'rgba(255, 99, 132, 0.3)',
-            stack: loja
+          label: loja + ' - Vencido',
+          data: getPercentuais(loja, 'vencido'),
+          valores: getValores(loja, 'vencido'),
+          totais: getTotais(loja),
+          backgroundColor: 'rgba(255, 99, 132, 0.5)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 2,
+          stack: loja
         });
         datasets.push({
-            label: loja + ' - A Vencer',
-            data: getPercentuais(loja, 'a_vencer'),
-            valores: getValores(loja, 'a_vencer'),
-            totais: getTotais(loja),
-            backgroundColor: 'rgba(255, 205, 86, 0.3)',
-            stack: loja
+          label: loja + ' - A Vencer',
+          data: getPercentuais(loja, 'a_vencer'),
+          valores: getValores(loja, 'a_vencer'),
+          totais: getTotais(loja),
+          backgroundColor: 'rgba(255, 171, 0, 0.5)',
+          borderColor: 'rgba(255, 171, 0, 1)',
+          borderWidth: 2,
+          stack: loja
         });
-    });
+      });
 
-    const ctxLojasMes = document.getElementById('graficoLojasMes').getContext('2d');
-    new Chart(ctxLojasMes, {
+      const ctx = ctxLojasMes.getContext('2d');
+      new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: meses,
-            datasets: datasets
+          labels: meses,
+          datasets: datasets
         },
         options: {
-            responsive: true,
-            plugins: {
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    callbacks: {
-                        label: function(context) {
-                            const percentual = context.parsed.y;
-                            const valor = context.dataset.valores[context.dataIndex];
-                            const total = context.dataset.totais[context.dataIndex];
-                            return `${context.dataset.label}: ${percentual}% (R$ ${valor.toLocaleString('pt-BR')})\nTotal Loja: R$ ${total.toLocaleString('pt-BR')}`;
-                        }
-                    }
-                }
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: {
+            duration: 1500,
+            easing: 'easeOutQuart'
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                color: labelTextColor,
+                font: {
+                  size: 12,
+                  weight: '600',
+                  family: "'Public Sans', sans-serif"
+                },
+                padding: 10
+              }
             },
-            scales: {
-                x: { stacked: true },
-                y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: value => value + '%'
-                    }
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              backgroundColor: isDarkMode ? 'rgba(43, 44, 64, 0.95)' : 'rgba(0, 0, 0, 0.85)',
+              padding: 14,
+              titleFont: {
+                size: 15,
+                weight: '700',
+                family: "'Public Sans', sans-serif"
+              },
+              titleColor: isDarkMode ? '#e6e8f5' : '#ffffff',
+              bodyFont: {
+                size: 14,
+                weight: '600',
+                family: "'Public Sans', sans-serif"
+              },
+              bodyColor: isDarkMode ? '#d1d5e6' : '#ffffff',
+              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.15)',
+              borderWidth: 2,
+              cornerRadius: 10,
+              callbacks: {
+                label: function(context) {
+                  const percentual = context.parsed.y;
+                  const valor = context.dataset.valores[context.dataIndex];
+                  const total = context.dataset.totais[context.dataIndex];
+                  return `${context.dataset.label}: ${percentual}% (R$ ${valor.toLocaleString('pt-BR')})\nTotal Loja: R$ ${total.toLocaleString('pt-BR')}`;
                 }
+              }
             }
+          },
+          scales: {
+            x: { 
+              stacked: true,
+              grid: {
+                color: gridColor,
+                drawBorder: false
+              },
+              ticks: {
+                color: axisTextColor,
+                font: {
+                  size: 12,
+                  weight: '500',
+                  family: "'Public Sans', sans-serif"
+                }
+              }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              max: 100,
+              grid: {
+                color: gridColor,
+                drawBorder: false
+              },
+              ticks: {
+                color: axisTextColor,
+                font: {
+                  size: 12,
+                  weight: '500',
+                  family: "'Public Sans', sans-serif"
+                },
+                callback: value => value + '%'
+              }
+            }
+          }
         }
-    });
+      });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCharts);
+  } else {
+    initCharts();
+  }
 </script>
 {% endblock %}

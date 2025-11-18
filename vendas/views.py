@@ -2743,6 +2743,10 @@ class ConfirmarQuitacaoView(PermissionRequiredMixin, View):
         return redirect('financeiro:contas_a_receber_update', pk=pagamento.pk)    
     
     
+class GuiaView(LoginRequiredMixin, TemplateView):
+    template_name = 'guia.html'
+
+
 class GraficoTemplateView(TemplateView):
     template_name = 'dash/index.html'
 

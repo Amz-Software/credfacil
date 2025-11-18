@@ -4,144 +4,290 @@
 Vendas
 {% endblock title %}
 
+
+
 {% block content %}
 
 <div class="container-xxl mt-4">
-  <div class="row">
+  <!-- Welcome Card -->
+  <div class="row mb-4">
     <div class="col-12">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-      <h4 class="card-title">Vendas</h4>
-      <div>
-        <form action="" method="get" class="d-inline-block me-2" id="searchForm">
-          <div class="row g-2">
-            <div class="col-auto">
-              <input type="date" name="search" class="form-control" value="{{ request.GET.search }}" placeholder="Data">
-            </div>
-            <div class="col-auto">
-              <input type="text" name="cliente_nome" class="form-control" value="{{ request.GET.cliente_nome }}" placeholder="Nome do Cliente">
-            </div>
-            {% if user|has_perm:"vendas.can_view_all_sales" %}
-            <div class="col-auto">
-              <select name="loja_id" class="form-select">
-                <option value="">Todas as lojas</option>
-                {% for loja in lojas %}
-                  <option value="{{ loja.pk }}" {% if request.GET.loja_id == loja.pk %}selected{% endif %}>{{ loja.nome }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            {% endif %}
-            <div class="col-auto">
-              <div class="form-check">
-                <input type="checkbox" name="vendas_canceladas" class="form-check-input" id="vendas_canceladas" {% if request.GET.vendas_canceladas %}checked{% endif %}>
-                <label class="form-check-label" for="vendas_canceladas">Vendas Canceladas</label>
-              </div>
-            </div>
-            <div class="col-auto">
-              <div class="form-check">
-                <input type="checkbox" name="vendas_trocadas" class="form-check-input" id="vendas_trocadas" {% if request.GET.vendas_trocadas %}checked{% endif %}>
-                <label class="form-check-label" for="vendas_trocadas">Vendas Trocadas</label>
-              </div>
-            </div>
-            <div class="col-auto">
-              <button type="submit" class="btn btn-primary">Filtrar</button>
-              <a href="{% url 'vendas:venda_list' %}" class="btn btn-outline-secondary">
-                  <i class="bx bx-x"></i>
-              </a>
+      <div class="card border-0 shadow-lg" style="border-radius: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow: hidden;">
+        <div class="d-flex align-items-end row">
+          <div class="col-sm-8">
+            <div class="card-body p-4">
+              <h5 class="card-title text-white mb-2" style="font-size: 1.75rem; font-weight: 700;">
+                <i class="bx bx-cart-alt me-2"></i>Vendas
+              </h5>
+              <p class="mb-0 text-white" style="font-size: 1.05rem; opacity: 0.95;">
+                Visualize e gerencie todas as vendas realizadas
+              </p>
             </div>
           </div>
-        </form>
-      </div>
-      </div>
-      <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-hover">
-        <thead>
-          <tr>
-          <th scope="col">ID</th>
-          {% if user|has_perm:"vendas.can_view_all_sales" %}
-          <th scope="col">Loja</th>
-          {% endif %}
-          <th scope="col">Vendedor</th>
-          <th scope="col">Cliente</th>
-          <th scope="col">Data</th>
-          <th scope="col">Cancelada</th>
-          <th scope="col">Trocado</th>
-          <!-- <th scope="col">Criada por</th> -->
-          <th scope="col">Última Modificação</th>
-          <th scope="col">Data Última Modificação</th>
-          <th scope="col">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in vendas %}
-          <tr>
-          <td>{{ item.pk }}</td>
-          {% if user|has_perm:"vendas.can_view_all_sales" %}
-          <td>{{ item.loja.nome|title }}</td>
-          {% endif %}
-          <td>{{ item.vendedor|title }}</td>
-          <td>{{ item.cliente|title }}</td>
-          <td>{{ item.data_venda|date:"d/m/Y H:i" }}</td>
-            <td>
-            {% if item.is_deleted %}
-              <i class="bx bx-check text-success"></i>
-            {% else %}
-              <i class="bx bx-x text-danger"></i>
-            {% endif %}
-          </td>
-          <td>
-            {% if item.is_trocado %}
-              <i class="bx bx-check text-success"></i>
-            {% else %}
-              <i class="bx bx-x text-danger"></i>
-            {% endif %}
-          </td>
-          <!-- <td>{{ item.criado_por|title }}</td> -->
-          <td>{{ item.modificado_por|title }}</td>
-          <td>{{ item.modificado_em|date:"d/m/Y H:i" }}</td>
-          <td>
-            <div class="dropdown">
-              <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                <i class="bx bx-dots-vertical-rounded"></i>
-              </button>
-              <div class="dropdown-menu">
-                {% if user|has_perm:"vendas.view_venda" %}
-                  <a class="dropdown-item" href="{% url 'vendas:venda_detail' item.pk %}">
-                  <i class="bx bx-show me-1"></i> Detalhes
-                  </a>
-                {% endif %}
-                {% if not item.is_deleted %}
-                  {% if user|has_perm:"vendas.change_venda" %}
-                  <a class="dropdown-item" href="{% url 'vendas:venda_trocar' item.pk %}">
-                    <i class="bx bx-refresh me-1"></i> Trocar Produto
-                  </a>
-                  {% endif %}
-                  <a class="dropdown-item" href="{% url 'vendas:venda_pdf' item.pk %}" target="_blank">
-                  <i class="bx bx-file me-1"></i> Gerar PDF
-                  </a>
-                  <a class="dropdown-item" href="{% url 'vendas:gerar_carne' tipo='carne' pk=item.pk %}" target="_blank">
-                  <i class="bx bx-file me-1"></i> Gerar Carnê
-                  </a>
-                  <a class="dropdown-item" href="{% url 'vendas:gerar_contrato' pk=item.pk %}" target="_blank">
-                  <i class="bx bx-file me-1"></i> Gerar Contrato
-                  </a>
-                {% endif %}
-              </div>
+          <div class="col-sm-4 text-center text-sm-end">
+            <div class="card-body pb-0 px-0 px-md-4">
+              <i class="bx bx-shopping-bag text-white" style="font-size: 120px; opacity: 0.3;"></i>
             </div>
-          </td>
-          {% empty %}
-          <td colspan="8">Nenhum registro encontrado</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-        </table>
-        {% include "snippets/pagination.html" %}
-      </div>
+          </div>
+        </div>
       </div>
     </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm filter-card">
+        <div class="card-header card-header-modern">
+          <h5 class="section-title mb-0">
+            <i class="bx bx-filter me-2"></i>
+            Filtros de Busca
+          </h5>
+        </div>
+        <div class="card-body">
+          <form action="" method="get" id="searchForm">
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label for="search" class="form-label fw-semibold">
+                  <i class="bx bx-calendar me-1"></i>Data da Venda
+                </label>
+                <input type="date" name="search" id="search" class="form-control" value="{{ request.GET.search }}">
+              </div>
+              <div class="col-md-3">
+                <label for="cliente_nome" class="form-label fw-semibold">
+                  <i class="bx bx-user me-1"></i>Nome do Cliente
+                </label>
+                <input type="text" name="cliente_nome" id="cliente_nome" class="form-control" value="{{ request.GET.cliente_nome }}" placeholder="Digite o nome do cliente">
+              </div>
+              {% if user|has_perm:"vendas.can_view_all_sales" %}
+              <div class="col-md-3">
+                <label for="loja_id" class="form-label fw-semibold">
+                  <i class="bx bx-store me-1"></i>Loja
+                </label>
+                <select name="loja_id" id="loja_id" class="form-select">
+                  <option value="">Todas as lojas</option>
+                  {% for loja in lojas %}
+                    <option value="{{ loja.pk }}" {% if request.GET.loja_id == loja.pk|stringformat:"s" %}selected{% endif %}>{{ loja.nome }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% endif %}
+              <div class="col-md-3">
+                <label class="form-label fw-semibold d-block">
+                  <i class="bx bx-checkbox me-1"></i>Opções
+                </label>
+                <div class="d-flex flex-column gap-2">
+                  <div class="form-check">
+                    <input type="checkbox" name="vendas_canceladas" class="form-check-input" id="vendas_canceladas" {% if request.GET.vendas_canceladas %}checked{% endif %}>
+                    <label class="form-check-label" for="vendas_canceladas">
+                      <i class="bx bx-x-circle me-1 text-danger"></i>Vendas Canceladas
+                    </label>
+                  </div>
+                  <div class="form-check">
+                    <input type="checkbox" name="vendas_trocadas" class="form-check-input" id="vendas_trocadas" {% if request.GET.vendas_trocadas %}checked{% endif %}>
+                    <label class="form-check-label" for="vendas_trocadas">
+                      <i class="bx bx-refresh me-1 text-warning"></i>Vendas Trocadas
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="d-flex gap-2">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="bx bx-search me-1"></i>Filtrar
+                  </button>
+                  <a href="{% url 'vendas:venda_list' %}" class="btn btn-outline-secondary">
+                    <i class="bx bx-x me-1"></i>Limpar Filtros
+                  </a>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela de Vendas -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header card-header-modern">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="section-title mb-0">
+              <i class="bx bx-list-ul me-2"></i>
+              Lista de Vendas
+            </h5>
+            <span class="badge bg-primary">
+              Total: {{ vendas|length }} venda{{ vendas|length|pluralize }}
+            </span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th scope="col" style="width: 80px;">ID</th>
+                  {% if user|has_perm:"vendas.can_view_all_sales" %}
+                  <th scope="col" style="width: 150px;">Loja</th>
+                  {% endif %}
+                  <th scope="col" style="width: 150px;">Vendedor</th>
+                  <th scope="col" style="width: 200px;">Cliente</th>
+                  <th scope="col" style="width: 150px;">Data da Venda</th>
+                  <th scope="col" style="width: 100px;" class="text-center">Cancelada</th>
+                  <th scope="col" style="width: 100px;" class="text-center">Trocado</th>
+                  <th scope="col" style="width: 150px;">Modificado por</th>
+                  <th scope="col" style="width: 150px;">Última Modificação</th>
+                  <th scope="col" style="width: 100px;" class="text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in vendas %}
+                <tr>
+                  <td>
+                    <span class="badge bg-label-primary">#{{ item.pk }}</span>
+                  </td>
+                  {% if user|has_perm:"vendas.can_view_all_sales" %}
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <i class="bx bx-store me-2 text-muted"></i>
+                      <span>{{ item.loja.nome|title }}</span>
+                    </div>
+                  </td>
+                  {% endif %}
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <i class="bx bx-user me-2 text-muted"></i>
+                      <span>{{ item.vendedor|title }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <i class="bx bx-user-circle me-2 text-muted"></i>
+                      <strong>{{ item.cliente|title }}</strong>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <i class="bx bx-calendar me-2 text-muted"></i>
+                      <span>{{ item.data_venda|date:"d/m/Y H:i" }}</span>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    {% if item.is_deleted %}
+                      <span class="status-badge success" data-bs-toggle="tooltip" data-bs-placement="top" title="Venda Cancelada">
+                        <i class="bx bx-check"></i>
+                      </span>
+                    {% else %}
+                      <span class="status-badge danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Venda Ativa">
+                        <i class="bx bx-x"></i>
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    {% if item.is_trocado %}
+                      <span class="status-badge success" data-bs-toggle="tooltip" data-bs-placement="top" title="Produto Trocado">
+                        <i class="bx bx-check"></i>
+                      </span>
+                    {% else %}
+                      <span class="status-badge danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Produto Original">
+                        <i class="bx bx-x"></i>
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <i class="bx bx-edit me-2 text-muted"></i>
+                      <span>{{ item.modificado_por|title|default:"N/A" }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <i class="bx bx-time me-2 text-muted"></i>
+                      <span>{{ item.modificado_em|date:"d/m/Y H:i" }}</span>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <div class="dropdown">
+                      <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
+                        <i class="bx bx-dots-vertical-rounded"></i>
+                      </button>
+                      <ul class="dropdown-menu">
+                        {% if user|has_perm:"vendas.view_venda" %}
+                        <li>
+                          <a class="dropdown-item" href="{% url 'vendas:venda_detail' item.pk %}">
+                            <i class="bx bx-show me-2"></i> Ver Detalhes
+                          </a>
+                        </li>
+                        {% endif %}
+                        {% if not item.is_deleted %}
+                          {% if user|has_perm:"vendas.change_venda" %}
+                          <li>
+                            <a class="dropdown-item" href="{% url 'vendas:venda_trocar' item.pk %}">
+                              <i class="bx bx-refresh me-2"></i> Trocar Produto
+                            </a>
+                          </li>
+                          <li><hr class="dropdown-divider"></li>
+                          {% endif %}
+                          <li><h6 class="dropdown-header">Documentos</h6></li>
+                          <li>
+                            <a class="dropdown-item" href="{% url 'vendas:venda_pdf' item.pk %}" target="_blank">
+                              <i class="bx bx-file-pdf me-2"></i> Gerar PDF
+                            </a>
+                          </li>
+                          <li>
+                            <a class="dropdown-item" href="{% url 'vendas:gerar_carne' tipo='carne' pk=item.pk %}" target="_blank">
+                              <i class="bx bx-receipt me-2"></i> Gerar Carnê
+                            </a>
+                          </li>
+                          <li>
+                            <a class="dropdown-item" href="{% url 'vendas:gerar_contrato' pk=item.pk %}" target="_blank">
+                              <i class="bx bx-file-blank me-2"></i> Gerar Contrato
+                            </a>
+                          </li>
+                        {% else %}
+                          <li>
+                            <span class="dropdown-item-text text-muted">
+                              <i class="bx bx-info-circle me-2"></i> Venda cancelada
+                            </span>
+                          </li>
+                        {% endif %}
+                      </ul>
+                    </div>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="{% if user|has_perm:'vendas.can_view_all_sales' %}10{% else %}9{% endif %}" class="text-center py-5">
+                    <div class="d-flex flex-column align-items-center">
+                      <i class="bx bx-inbox text-muted" style="font-size: 64px; opacity: 0.5;"></i>
+                      <p class="text-muted mt-3 mb-0">Nenhuma venda encontrada</p>
+                      <small class="text-muted">Tente ajustar os filtros de busca</small>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% include "snippets/pagination.html" %}
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  });
+</script>
 {% endblock %}
