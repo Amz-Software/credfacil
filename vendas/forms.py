@@ -778,6 +778,20 @@ class VendaForm(forms.ModelForm):
         #     self.fields['vendedor'].initial = user
 
 
+class VendaDocumentosForm(forms.ModelForm):
+    class Meta:
+        model = Venda
+        fields = ['documento_assinado', 'foto_cliente']
+        widgets = {
+            'documento_assinado': forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf,.doc,.docx,.jpg,.jpeg,.png'}),
+            'foto_cliente': forms.FileInput(attrs={'class': 'form-control', 'accept': '.jpg,.jpeg,.png'}),
+        }
+        labels = {
+            'documento_assinado': 'Documento Assinado',
+            'foto_cliente': 'Foto do Cliente',
+        }
+
+
 class ProdutoSelectWidget(HeavySelect2Widget):
     data_view = 'vendas:produtos_ajax'
 

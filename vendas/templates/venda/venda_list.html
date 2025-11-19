@@ -137,6 +137,7 @@ Vendas
                   <th scope="col" style="width: 150px;">Data da Venda</th>
                   <th scope="col" style="width: 100px;" class="text-center">Cancelada</th>
                   <th scope="col" style="width: 100px;" class="text-center">Trocado</th>
+                  <th scope="col" style="width: 120px;" class="text-center">Documentos</th>
                   <th scope="col" style="width: 150px;">Modificado por</th>
                   <th scope="col" style="width: 150px;">Última Modificação</th>
                   <th scope="col" style="width: 100px;" class="text-center">Ações</th>
@@ -196,6 +197,21 @@ Vendas
                       </span>
                     {% endif %}
                   </td>
+                  <td class="text-center">
+                    {% if item.documento_assinado and item.foto_cliente %}
+                      <span class="badge bg-success" data-bs-toggle="tooltip" data-bs-placement="top" title="Documento assinado e foto do cliente inseridos">
+                        <i class="bx bx-check-circle me-1"></i> Completo
+                      </span>
+                    {% elif item.documento_assinado or item.foto_cliente %}
+                      <span class="badge bg-warning text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{% if item.documento_assinado %}Falta foto do cliente{% else %}Falta documento assinado{% endif %}">
+                        <i class="bx bx-error-circle me-1"></i> Incompleto
+                      </span>
+                    {% else %}
+                      <span class="badge bg-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Faltam documento assinado e foto do cliente">
+                        <i class="bx bx-x-circle me-1"></i> Pendente
+                      </span>
+                    {% endif %}
+                  </td>
                   <td>
                     <div class="d-flex align-items-center">
                       <i class="bx bx-edit me-2 text-muted"></i>
@@ -232,6 +248,11 @@ Vendas
                           {% endif %}
                           <li><h6 class="dropdown-header">Documentos</h6></li>
                           <li>
+                            <a class="dropdown-item" href="{% url 'vendas:venda_documentos' item.pk %}">
+                              <i class="bx bx-upload me-2"></i> Inserir Documentos
+                            </a>
+                          </li>
+                          <li>
                             <a class="dropdown-item" href="{% url 'vendas:venda_pdf' item.pk %}" target="_blank">
                               <i class="bx bx-file-pdf me-2"></i> Gerar PDF
                             </a>
@@ -259,7 +280,7 @@ Vendas
                 </tr>
                 {% empty %}
                 <tr>
-                  <td colspan="{% if user|has_perm:'vendas.can_view_all_sales' %}10{% else %}9{% endif %}" class="text-center py-5">
+                  <td colspan="{% if user|has_perm:'vendas.can_view_all_sales' %}11{% else %}10{% endif %}" class="text-center py-5">
                     <div class="d-flex flex-column align-items-center">
                       <i class="bx bx-inbox text-muted" style="font-size: 64px; opacity: 0.5;"></i>
                       <p class="text-muted mt-3 mb-0">Nenhuma venda encontrada</p>

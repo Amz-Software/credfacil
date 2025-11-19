@@ -38,7 +38,7 @@ from vendas.forms import (
     AnaliseCreditoClienteForm, ClienteConsultaForm, ClienteForm, ComprovantesClienteEditForm,
     ComprovantesClienteForm, ContatoAdicionalEditForm, ContatoAdicionalForm, FormaPagamentoEditFormSet,
     InformacaoPessoalEditForm, InformacaoPessoalForm, LojaForm, ProdutoVendaEditFormSet, RelatorioSolicitacoesForm,
-    RelatorioVendasForm, VendaForm, ProdutoVendaFormSet, FormaPagamentoFormSet, LancamentoForm,
+    RelatorioVendasForm, VendaForm, VendaDocumentosForm, ProdutoVendaFormSet, FormaPagamentoFormSet, LancamentoForm,
     LancamentoCaixaTotalForm, ClienteTelefoneForm, AnaliseCreditoClienteImeiForm
 )
 from .models import (
@@ -1418,36 +1418,19 @@ class VendaUpdateView(PermissionRequiredMixin, UpdateView):
         formset.save_m2m()
 
     # Métodos auxiliares de estoque e IMEI
-    def _validar_estoque(self, produto, quantidade, loja):
-        estoque = Estoque.objects.filter(produto=produto, loja=loja).first()
-        if not estoque or quantidade > estoque.quantidade_disponivel:
-            error_message = f"Quantidade indisponível para o produto {produto}"
-            logger.error(
-                "Estoque insuficiente para o produto %s: solicitado %s, disponível %s",
-                produto, quantidade, estoque.quantidade_disponivel if estoque else 0
-            )
-            raise ValueError(error_message)
-        
-    def _validar_imei(self, produto, imei):
-        try:
-            produto_imei = EstoqueImei.objects.get(imei=imei)
-            novo_imei = EstoqueImei.objects.filter(imei=imei, produto=produto).first()
-            imei_antigo = ProdutoVenda.objects.filter(imei=imei).first()
-            if novo_imei and novo_imei != imei_antigo:
-                if produto_imei.vendido:
-                    error_message = f"IMEI {imei} já vendido"
-                    logger.error("IMEI já vendido para o produto %s: %s", produto, imei)
-                    raise ValueError(error_message)
-                produto_imei.vendido = True
-                produto_imei.save()
-        except EstoqueImei.DoesNotExist:
-            error_message = f"IMEI {imei} não encontrado"
-            logger.error("IMEI não encontrado para o produto %s: %s", produto, imei)
-            raise ValueError(error_message)
 
-    # Métodos de restauração de estoque e IMEI removidos - não são mais necessários
-            
-            
+
+class VendaDocumentosUpdateView(PermissionRequiredMixin, UpdateView):
+    model = Venda
+    form_class = VendaDocumentosForm
+    template_name = 'venda/venda_documentos.html'
+    permission_required = 'vendas.change_venda'
+    
+    def get_success_url(self):
+        messages.success(self.request, 'Documentos atualizados com sucesso!')
+        return reverse_lazy('vendas:venda_documentos', kwargs={'pk': self.object.pk})
+
+
 class VendaDetailView(PermissionRequiredMixin, DetailView):
     model = Venda
     template_name = 'venda/venda_detail.html'

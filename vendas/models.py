@@ -10,6 +10,13 @@ from django.urls import reverse
 import re
 from django.utils.text import slugify
 import calendar
+import os
+from django.core.files.storage import default_storage
+
+def upload_to_venda(instance, filename):
+    if instance.pk:
+        return f'vendas/{instance.pk}/{filename}'
+    return f'vendas/temp/{filename}'
 
 class Base(models.Model):
     loja = models.ForeignKey('vendas.Loja', on_delete=models.CASCADE, related_name='%(class)s_loja', null=True, blank=True)
@@ -352,8 +359,42 @@ class Venda(Base):
     caixa = models.ForeignKey('vendas.Caixa', on_delete=models.CASCADE, related_name='vendas')
     observacao = models.TextField(null=True, blank=True)
     repasse_logista = models.DecimalField(max_digits=10, decimal_places=2)
+    documento_assinado = models.FileField(upload_to=upload_to_venda, null=True, blank=True)
+    foto_cliente = models.ImageField(upload_to=upload_to_venda, null=True, blank=True)
     is_deleted = models.BooleanField(default=False)
     is_trocado = models.BooleanField(default=False)
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        
+        super().save(*args, **kwargs)
+        
+        if is_new and self.pk:
+            moved_documento = False
+            moved_foto = False
+            
+            if self.documento_assinado and 'vendas/temp/' in str(self.documento_assinado):
+                old_path = str(self.documento_assinado)
+                new_path = f'vendas/{self.pk}/{os.path.basename(old_path)}'
+                if default_storage.exists(old_path):
+                    with default_storage.open(old_path, 'rb') as old_file:
+                        default_storage.save(new_path, old_file)
+                    default_storage.delete(old_path)
+                    self.documento_assinado = new_path
+                    moved_documento = True
+            
+            if self.foto_cliente and 'vendas/temp/' in str(self.foto_cliente):
+                old_path = str(self.foto_cliente)
+                new_path = f'vendas/{self.pk}/{os.path.basename(old_path)}'
+                if default_storage.exists(old_path):
+                    with default_storage.open(old_path, 'rb') as old_file:
+                        default_storage.save(new_path, old_file)
+                    default_storage.delete(old_path)
+                    self.foto_cliente = new_path
+                    moved_foto = True
+            
+            if moved_documento or moved_foto:
+                super().save(update_fields=['documento_assinado', 'foto_cliente'])
     
     def qtd_total_parcelas(self):
         return sum(pagamento.parcelas for pagamento in self.pagamentos.filter(tipo_pagamento__parcelas=True))

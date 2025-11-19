@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static iam_tags l10n file_utils %}
+
+{% block title %}
+Documentos da Venda #{{ object.pk }}
+{% endblock title %}
+
+{% block content %}
+<div class="container-xxl mt-4">
+  <!-- Welcome Card -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-lg" style="border-radius: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow: hidden;">
+        <div class="d-flex align-items-end row">
+          <div class="col-sm-8">
+            <div class="card-body p-4">
+              <h5 class="card-title text-white mb-2" style="font-size: 1.75rem; font-weight: 700;">
+                <i class="bx bx-file me-2"></i>Documentos da Venda #{{ object.pk }}
+              </h5>
+              <p class="mb-0 text-white" style="font-size: 1.05rem; opacity: 0.95;">
+                Cliente: {{ object.cliente.nome|title }}
+              </p>
+            </div>
+          </div>
+          <div class="col-sm-4 text-center text-sm-end">
+            <div class="card-body pb-0 px-0 px-md-4">
+              <i class="bx bx-folder text-white" style="font-size: 120px; opacity: 0.3;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form Card -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header card-header-modern">
+          <h5 class="section-title mb-0">
+            <i class="bx bx-upload me-2"></i>
+            Upload de Documentos
+          </h5>
+        </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="row g-4">
+              <!-- Documento Assinado -->
+              <div class="col-md-6">
+                <div class="card border h-100">
+                  <div class="card-body">
+                    <label for="{{ form.documento_assinado.id_for_label }}" class="form-label fw-semibold">
+                      <i class="bx bx-file-blank me-2"></i>
+                      {{ form.documento_assinado.label }}
+                    </label>
+                    
+                    {% if form.documento_assinado.value and form.documento_assinado.value.url %}
+                      <div class="mb-3">
+                        {% if form.documento_assinado.value|is_image_file %}
+                          <a href="{{ form.documento_assinado.value.url }}" target="_blank" class="d-block mb-2">
+                            <img src="{{ form.documento_assinado.value.url }}" class="img-thumbnail" style="max-height:200px; width: auto;">
+                          </a>
+                        {% else %}
+                          <a href="{{ form.documento_assinado.value.url }}" target="_blank" class="btn btn-outline-primary btn-sm mb-2">
+                            <i class="bx bx-show me-1"></i> Ver documento
+                          </a>
+                        {% endif %}
+                        <small class="text-muted d-block">Escolha um novo arquivo se quiser substituir.</small>
+                      </div>
+                    {% endif %}
+                    
+                    {{ form.documento_assinado }}
+                    {% if form.documento_assinado.errors %}
+                      <div class="text-danger small mt-1">{{ form.documento_assinado.errors|striptags }}</div>
+                    {% endif %}
+                    <small class="form-text text-muted">Formatos aceitos: PDF, DOC, DOCX, JPG, JPEG, PNG</small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Foto do Cliente -->
+              <div class="col-md-6">
+                <div class="card border h-100">
+                  <div class="card-body">
+                    <label for="{{ form.foto_cliente.id_for_label }}" class="form-label fw-semibold">
+                      <i class="bx bx-image me-2"></i>
+                      {{ form.foto_cliente.label }}
+                    </label>
+                    
+                    {% if form.foto_cliente.value and form.foto_cliente.value.url %}
+                      <div class="mb-3">
+                        <a href="{{ form.foto_cliente.value.url }}" target="_blank" class="d-block mb-2">
+                          <img src="{{ form.foto_cliente.value.url }}" class="img-thumbnail" style="max-height:200px; width: auto;">
+                        </a>
+                        <small class="text-muted d-block">Escolha um novo arquivo se quiser substituir.</small>
+                      </div>
+                    {% endif %}
+                    
+                    {{ form.foto_cliente }}
+                    {% if form.foto_cliente.errors %}
+                      <div class="text-danger small mt-1">{{ form.foto_cliente.errors|striptags }}</div>
+                    {% endif %}
+                    <small class="form-text text-muted">Formatos aceitos: JPG, JPEG, PNG</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row mt-4">
+              <div class="col-12">
+                <div class="d-flex justify-content-between gap-2">
+                  <a href="{% url 'vendas:venda_list' %}" class="btn btn-outline-secondary">
+                    <i class="bx bx-arrow-back me-1"></i> Voltar para Lista
+                  </a>
+                  <div class="d-flex gap-2">
+                    <a href="{% url 'vendas:venda_detail' object.pk %}" class="btn btn-outline-info">
+                      <i class="bx bx-show me-1"></i> Ver Detalhes
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                      <i class="bx bx-save me-1"></i> Salvar Documentos
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Preview de imagens ao selecionar
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => {
+      input.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const preview = document.createElement('img');
+            preview.src = e.target.result;
+            preview.className = 'img-thumbnail mt-2';
+            preview.style.maxHeight = '200px';
+            preview.style.width = 'auto';
+            
+            // Remove preview anterior se existir
+            const existingPreview = input.parentElement.querySelector('.preview-image');
+            if (existingPreview) {
+              existingPreview.remove();
+            }
+            
+            preview.className += ' preview-image';
+            input.parentElement.appendChild(preview);
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}
+
