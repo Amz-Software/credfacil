@@ -56,7 +56,11 @@ Produtos
           </td>
           <td>{{ produto.valor_repasse_logista|floatformat:2 }}</td>
           <td>{{ produto.entrada_cliente|floatformat:2 }}</td>
-          <td>{{ produto.valor_10_vezes|floatformat:2 }}</td>
+          <td>
+            {{ produto.valor_10_vezes|floatformat:2 }}
+            <br>
+            <small class="text-muted per-parcela" data-total="{{ produto.valor_10_vezes }}" data-n="10"></small>
+          </td>
           <td>
             {{ produto.valor_8_vezes|floatformat:2 }}
             <br>
@@ -109,7 +113,7 @@ Produtos
             </div>
           </td>
           {% empty %}
-          <td colspan="4">Nenhum registro encontrado</td>
+          <td colspan="9">Nenhum registro encontrado</td>
           </tr>
           {% endfor %}
         </tbody>
