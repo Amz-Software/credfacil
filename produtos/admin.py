@@ -29,7 +29,7 @@ class MemoriaProdutoAdmin(AdminBase):
 
 @admin.register(Produto)
 class ProdutoAdmin(AdminBase):
-    list_display = ('nome', 'loja',)
+    list_display = ('nome', 'loja', 'ativo')
     search_fields = ('nome',)
 
 @admin.register(TipoProduto)

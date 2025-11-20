@@ -36,23 +36,18 @@ Produtos
           <th scope="col">Valor 8 Vezes</th>
           <th scope="col">Valor 6 Vezes</th>
           <th scope="col">Valor 4 Vezes</th>
+          <th scope="col">Status</th>
           <th scope="col">Ações</th>
           </tr>
         </thead>
         <tbody>
           {% for produto in items %}
-          <tr {% if not produto.ativo %}class="table-secondary opacity-75"{% endif %}>
+          <tr>
           <td>
             {{ produto.codigo }}
-            {% if not produto.ativo %}
-            <span class="badge bg-danger ms-2">Desativado</span>
-            {% endif %}
           </td>
           <td>
             {{ produto.nome }}
-            {% if not produto.ativo %}
-            <i class="bx bx-x-circle text-danger ms-1" title="Produto desativado"></i>
-            {% endif %}
           </td>
           <td>{{ produto.valor_repasse_logista|floatformat:2 }}</td>
           <td>{{ produto.entrada_cliente|floatformat:2 }}</td>
@@ -75,6 +70,13 @@ Produtos
             {{ produto.valor_4_vezes|floatformat:2 }}
             <br>
             <small class="text-muted per-parcela" data-total="{{ produto.valor_4_vezes }}" data-n="4"></small>
+          </td>
+          <td>
+            {% if produto.ativo %}
+              <span class="text-success">Ativo</span>
+            {% else %}
+              <span class="badge bg-danger">Desativado</span>
+            {% endif %}
           </td>
           <td>
             <div class="dropdown">
@@ -113,7 +115,7 @@ Produtos
             </div>
           </td>
           {% empty %}
-          <td colspan="9">Nenhum registro encontrado</td>
+          <td colspan="10">Nenhum registro encontrado</td>
           </tr>
           {% endfor %}
         </tbody>
