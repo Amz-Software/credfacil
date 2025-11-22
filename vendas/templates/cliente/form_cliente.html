@@ -574,37 +574,79 @@
               
               <div class="row">
                 {% for field in form_comprovantes %}
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label for="{{ field.id_for_label }}" class="form-label">
-                        {{ field.label }}
-                        {% if field.field.required %}
-                          <span class="text-danger">*</span>
-                        {% endif %}
-                        <i class="bx bx-help-circle tooltip-icon" data-bs-toggle="tooltip" title="Clique para selecionar um arquivo"></i>
-                      </label>
-                      
-                      {% if field.value and field.value.url %}
-                        <div class="mb-2">
-                          {% if field.value|is_image_file %}
-                            <a href="{{ field.value.url }}" target="_blank" class="d-block mb-2">
-                              <img src="{{ field.value.url }}" class="img-thumbnail" style="max-height:100px;">
-                            </a>
-                            {% else %}
-                              <a href="{{ field.value.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                                <i class="bx bx-show me-1"></i> Ver documento
-                              </a>
+                  {# Tratamento especial para consulta_serasa e restricao: no create não exibir; após criação permitir somente visualização para vendedores; somente analistas/quem tem perm pode editar #}
+                  {% if field.name == 'consulta_serasa' or field.name == 'restricao' or field.name == 'consulta_serasa_analise' %}
+                    {% comment %}Se estamos criando (cliente sem pk) pulamos esses campos completamente{% endcomment %}
+                    {% if cliente.pk %}
+                      <div class="col-md-6">
+                        <div class="form-group">
+                          <label for="{{ field.id_for_label }}" class="form-label">
+                            {{ field.label }}
+                            {% if field.field.required %}
+                              <span class="text-danger">*</span>
                             {% endif %}
-                          <small class="text-muted d-block mt-2">Escolha um novo arquivo se quiser substituir.</small>
+                          </label>
+
+                          {# Se houver arquivo, permitimos visualizar/baixar para qualquer usuário (somente visualização) #}
+                          {% if field.value and field.value.url %}
+                            <div class="mb-2">
+                              {% if field.value|is_image_file %}
+                                <a href="{{ field.value.url }}" target="_blank" class="d-block mb-2">
+                                  <img src="{{ field.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                                </a>
+                              {% else %}
+                                <a href="{{ field.value.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                  <i class="bx bx-show me-1"></i> Ver documento
+                                </a>
+                              {% endif %}
+                              <small class="text-muted d-block mt-2">Somente visualização para vendedores. Analistas podem editar.</small>
+                            </div>
+                          {% endif %}
+
+                          {# Se for analista ou tiver permissão para alterar status/visualizar serasa, mostramos o campo para edição #}
+                          {% if user|has_group:"ANALISTA" or user|has_perm:"vendas.change_status_analise" or user|has_perm:"vendas.view_consulta_serasa" %}
+                            {{ field }}
+                          {% endif %}
+
+                          {% if field.errors %}
+                            <div class="text-danger small">{{ field.errors|striptags }}</div>
+                          {% endif %}
                         </div>
-                      {% endif %}
-                      
-                      {{ field }}
-                      {% if field.errors %}
-                        <div class="text-danger small">{{ field.errors|striptags }}</div>
-                      {% endif %}
+                      </div>
+                    {% endif %}
+                  {% else %}
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label for="{{ field.id_for_label }}" class="form-label">
+                          {{ field.label }}
+                          {% if field.field.required %}
+                            <span class="text-danger">*</span>
+                          {% endif %}
+                          <i class="bx bx-help-circle tooltip-icon" data-bs-toggle="tooltip" title="Clique para selecionar um arquivo"></i>
+                        </label>
+
+                        {% if field.value and field.value.url %}
+                          <div class="mb-2">
+                            {% if field.value|is_image_file %}
+                              <a href="{{ field.value.url }}" target="_blank" class="d-block mb-2">
+                                <img src="{{ field.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                              </a>
+                              {% else %}
+                                <a href="{{ field.value.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                  <i class="bx bx-show me-1"></i> Ver documento
+                                </a>
+                              {% endif %}
+                            <small class="text-muted d-block mt-2">Escolha um novo arquivo se quiser substituir.</small>
+                          </div>
+                        {% endif %}
+
+                        {{ field }}
+                        {% if field.errors %}
+                          <div class="text-danger small">{{ field.errors|striptags }}</div>
+                        {% endif %}
+                      </div>
                     </div>
-                  </div>
+                  {% endif %}
                 {% endfor %}
               </div>
             </div>

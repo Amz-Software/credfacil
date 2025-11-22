@@ -571,6 +571,7 @@ class ComprovantesClienteForm(forms.ModelForm):
             'documento_identificacao_frente_analise',
             'documento_identificacao_verso_analise',
             'comprovante_residencia_analise',
+            'restricao',
         }
         for name, field in self.fields.items():
             if name not in exceptions:
@@ -663,6 +664,7 @@ class ComprovantesClienteEditForm(forms.ModelForm):
             'documento_identificacao_frente_analise',
             'documento_identificacao_verso_analise',
             'comprovante_residencia_analise',
+            'restricao',
         }
         for name, field in self.fields.items():
             if name not in exceptions:
