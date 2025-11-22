@@ -32,7 +32,7 @@ class EstoqueAdmin(AdminBase):
       for entrada in queryset:
           nome = entrada.produto.nome
           try:
-              novo = Produto.objects.get(nome__icontains=nome, loja__nome__icontains='CredFácil')
+              novo = Produto.objects.get(nome__icontains=nome, loja__credfacil=True)
           except Produto.DoesNotExist:
               self.message_user(
                   request,
@@ -63,7 +63,7 @@ class ProdutoEntradaAdmin(AdminBase):
       for entrada in queryset:
           nome = entrada.produto.nome
           try:
-              novo = Produto.objects.get(nome__icontains=nome, loja__nome__icontains='CredFácil')
+              novo = Produto.objects.get(nome__icontains=nome, loja__credfacil=True)
           except Produto.DoesNotExist:
               self.message_user(
                   request,
@@ -88,7 +88,7 @@ class EstoqueImeiAdmin(AdminBase):
       for entrada in queryset:
           nome = entrada.produto.nome
           try:
-              novo = Produto.objects.get(nome__icontains=nome, loja__nome__icontains='CredFácil')
+              novo = Produto.objects.get(nome__icontains=nome, loja__credfacil=True)
           except Produto.DoesNotExist:
               self.message_user(
                   request,

@@ -935,7 +935,7 @@ def gerar_venda(request, cliente_id):
 
     cliente = get_object_or_404(Cliente, id=cliente_id)
     loja = get_object_or_404(Loja, id=request.session.get('loja_id'))
-    credfacil = get_object_or_404(Loja, nome__icontains='CREDFÁCIL')
+    credfacil = get_object_or_404(Loja, credfacil=True)
     
     if not credfacil or not loja or not cliente:
         messages.error(request, "❌ Loja ou cliente não encontrado.")
@@ -2004,7 +2004,7 @@ def folha_carne_view(request, pk, tipo):
 
     parcelas = pagamento_carne.parcelas_pagamento.all()
     cliente = venda.cliente
-    loja = get_object_or_404(Loja, nome__icontains="CREDFÁCIL")
+    loja = get_object_or_404(Loja, credfacil=True)
 
     parcelas_info = []
     for i, parcela in enumerate(parcelas):
@@ -2555,7 +2555,7 @@ class PagamentoDetailView(DetailView):
         ).count()
 
         # dados da loja
-        loja   = get_object_or_404(Loja, nome__iexact='CREDFÁCIL')
+        loja   = get_object_or_404(Loja, credfacil=True)
         chave  = loja.chave_pix
         cidade = "Belem"
 
