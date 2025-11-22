@@ -59,10 +59,9 @@ class ClienteForm(forms.ModelForm):
     class Meta:
         model = Cliente
         fields = '__all__'
-        exclude = ['comprovantes', 'contato_adicional', 'informacao_pessoal','loja']
+        exclude = ['comprovantes', 'contato_adicional', 'informacao_pessoal','loja', 'email', 'observacao_cliente']
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
             'telefone': forms.TextInput(attrs={'class': 'form-control tel'}),
             'cpf': forms.TextInput(attrs={'class': 'form-control cpf'}),
             'nascimento': forms.DateInput(
@@ -77,7 +76,6 @@ class ClienteForm(forms.ModelForm):
             'profissao': forms.TextInput(attrs={'class': 'form-control'}),
             'quantidade_dependentes': forms.NumberInput(attrs={'class': 'form-control'}),
             'total_renda': forms.TextInput(attrs={'class': 'form-control money'}),
-            'observacao_cliente': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
         labels = {
             'nome': 'Nome*',
@@ -92,7 +90,6 @@ class ClienteForm(forms.ModelForm):
             'profissao': 'Profissão*',
             'quantidade_dependentes': 'Quantidade de Dependentes*',
             'total_renda': 'Total de Renda*',
-            'observacao_cliente': 'Observação*',
         }
 
     def __init__(self, *args, **kwargs):
@@ -113,7 +110,7 @@ class ClienteForm(forms.ModelForm):
             can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
 
             def _disable_all():
-                for fname in ['nome','email','telefone','cpf','nascimento','rg','cep','bairro','endereco','cidade','recebe_auxilio','total_renda','observacao_cliente','quantidade_dependentes','profissao']:
+                for fname in ['nome','telefone','cpf','nascimento','rg','cep','bairro','endereco','cidade','recebe_auxilio','total_renda','observacao_cliente','quantidade_dependentes','profissao']:
                     if fname in self.fields:
                         self.fields[fname].disabled = True
 
