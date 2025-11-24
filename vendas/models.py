@@ -208,18 +208,22 @@ class Loja(Base):
                     continue
 
                 # Intervalos de competência por regra:
-                # - Repasse do dia 01: período 16 até último dia do mês anterior
+                # - Repasse do dia 06: período 26 até último dia do mês anterior
                 # - Repasse do dia 16: período 01 até dia 15 do mês atual
-                if dia == 1:
+                # - Repasse do dia 26: período 16 até dia 25 do mês atual
+                if dia == 6:
                     prev_mes, prev_ano = (mes - 1, ano)
                     if prev_mes == 0:
                         prev_mes, prev_ano = 12, ano - 1
                     ultimo_dia_prev_mes = calendar.monthrange(prev_ano, prev_mes)[1]
-                    inicio = date(prev_ano, prev_mes, 16)
+                    inicio = date(prev_ano, prev_mes, 26)
                     fim = date(prev_ano, prev_mes, ultimo_dia_prev_mes)
-                else:  # dia == 16
+                elif dia == 16:
                     inicio = date(ano, mes, 1)
                     fim = date(ano, mes, 15)
+                else:  # dia == 26
+                    inicio = date(ano, mes, 16)
+                    fim = date(ano, mes, 25)
 
                 vendas_periodo = vendas_qs.filter(
                     data_venda__date__gte=inicio,

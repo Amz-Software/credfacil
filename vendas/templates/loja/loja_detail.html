@@ -431,13 +431,19 @@ Detalhes da Loja
             <hr>
         </div>
 
-        <!-- Aba “Repasses Agendados” -->
-        <div class="tab-pane fade p-4" id="agendados" role="tabpanel">
+        <!-- Aba "Repasses Agendados" -->
+          <div class="tab-pane fade p-4" id="agendados" role="tabpanel">
           <h5 class="mb-2">Repasses Agendados</h5>
           <div class="alert alert-info py-2">
-            <div><strong>Regras:</strong> Pagamento dia <strong>01</strong> cobre <strong>16–último dia</strong> do mês anterior. Pagamento dia <strong>16</strong> cobre <strong>01–15</strong> do mês atual.</div>
+            <div><strong>Regras:</strong> 
+              <ul class="mb-2">
+                <li>Pagamento dia <strong>06</strong> cobre <strong>26–último dia</strong> do mês anterior.</li>
+                <li>Pagamento dia <strong>16</strong> cobre <strong>01–15</strong> do mês atual.</li>
+                <li>Pagamento dia <strong>26</strong> cobre <strong>16–25</strong> do mês atual.</li>
+              </ul>
+            </div>
             {% if user|has_perm:"financeiro.add_repasse" %}
-            <div class="small mb-0">Ao lançar um repasse no financeiro, informe a <strong>Data do Repasse</strong> exatamente em <strong>01</strong> ou <strong>16</strong> conforme o período.</div>
+            <div class="small mb-0">Ao lançar um repasse no financeiro, informe a <strong>Data do Repasse</strong> exatamente em <strong>06</strong>, <strong>16</strong> ou <strong>26</strong> conforme o período.</div>
             {% endif %}
           </div>
       
@@ -456,10 +462,12 @@ Detalhes da Loja
                                   <div>
                                       <strong>{{ rep.data|date:"d/m/Y" }}</strong>
                                       <div class="mb-1">
-                                        {% if rep.data|date:"d" == "01" %}
-                                          <span class="badge bg-secondary">Pagamento dia 01</span>
+                                        {% if rep.data|date:"d" == "06" %}
+                                          <span class="badge bg-secondary">Pagamento dia 06</span>
                                         {% elif rep.data|date:"d" == "16" %}
                                           <span class="badge bg-secondary">Pagamento dia 16</span>
+                                        {% elif rep.data|date:"d" == "26" %}
+                                          <span class="badge bg-secondary">Pagamento dia 26</span>
                                         {% endif %}
                                       </div>
                                       <small class="d-block text-muted">
