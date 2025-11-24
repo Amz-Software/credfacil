@@ -262,6 +262,21 @@
       border: 1px solid #ffeaa7;
       color: #856404;
     }
+
+    /* Aumenta visibilidade da previsão de vencimento */
+    #vencimento-previsao-analise {
+      font-size: 1.15rem;
+      padding: 18px;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--form-section-bg);
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: var(--text-color);
+    }
     
     .dark-style .imei-status.warning {
       background: rgba(255, 171, 0, 0.2);
@@ -1079,10 +1094,14 @@
         let requiredFields = [
           '#id_produto',
           '#id_numero_parcelas',
-          '#id_data_pagamento',
-          '#id_observacao'
+          '#id_data_pagamento'
         ];
-        
+
+        // Se o campo observacao existir no DOM (aparece apenas em edição), adiciona à validação
+        if ($('#id_observacao').length) {
+          requiredFields.push('#id_observacao');
+        }
+
         let complete = true;
         requiredFields.forEach(field => {
           let value = $(field).val();
@@ -1091,7 +1110,7 @@
             return false;
           }
         });
-        
+
         return complete;
       }
       

@@ -422,20 +422,19 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
     )
     class Meta:
         model = AnaliseCreditoCliente
-        fields = ['produto','data_pagamento','numero_parcelas', 'observacao']
+        # removido 'observacao' do formulário para não ser preenchido pelo vendedor
+        fields = ['produto', 'data_pagamento', 'numero_parcelas']
         widgets = {
             'data_pagamento': forms.Select(attrs={'class': 'form-control'}),
             'numero_parcelas': forms.Select(attrs={'class': 'form-control'}),
-            'observacao': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
-        # Tornar o campo observacao obrigatório
-        self.fields['observacao'].required = True
-        self.fields['observacao'].widget.attrs['required'] = 'required'
+        # O campo 'observacao' foi removido do formulário de vendedor; analistas
+        # que precisarem registrar observação devem utilizar a interface de aprovação.
         
         if self.instance and self.instance.pk:
             # Verifica se o usuário é analista
@@ -456,14 +455,12 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                     self.fields['produto'].disabled = True
                     self.fields['numero_parcelas'].disabled = True
                     self.fields['data_pagamento'].disabled = True
-                    self.fields['observacao'].disabled = True
             # Se a venda não foi gerada, analistas podem editar tudo
             elif not venda_gerada and is_analista:
                 # Analistas podem editar tudo antes da venda ser gerada
                 self.fields['produto'].disabled = False
                 self.fields['numero_parcelas'].disabled = False
                 self.fields['data_pagamento'].disabled = False
-                self.fields['observacao'].disabled = False
 class AnaliseCreditoClienteImeiForm(forms.ModelForm):
     produto = ProdutoChoiceField(
         queryset=Produto.objects.filter(ativo=True),
@@ -472,7 +469,8 @@ class AnaliseCreditoClienteImeiForm(forms.ModelForm):
     )
     class Meta:
         model = AnaliseCreditoCliente
-        fields = ['produto','data_pagamento','numero_parcelas', 'imei', 'observacao']
+        # removido 'observacao' também do formulário de IMEI informado
+        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'imei']
         widgets = {
             'data_pagamento': forms.Select(attrs={'class': 'form-control'}),
             'numero_parcelas': forms.Select(attrs={'class': 'form-control'}),
@@ -485,19 +483,14 @@ class AnaliseCreditoClienteImeiForm(forms.ModelForm):
                     'data-allow-clear': 'true',
                 }
             ),
-            'observacao': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
-        # Tornar o campo observacao obrigatório
-        self.fields['observacao'].required = True
-        self.fields['observacao'].widget.attrs['required'] = 'required'
-
         # Desabilita todos os campos, exceto 'imei'
-        for field_name in ['produto', 'data_pagamento', 'numero_parcelas', 'observacao']:
+        for field_name in ['produto', 'data_pagamento', 'numero_parcelas']:
             self.fields[field_name].disabled = True
         # 'imei' permanece habilitado
 
