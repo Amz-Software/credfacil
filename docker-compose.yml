@@ -26,8 +26,8 @@ services:
       - "6385:6379"
     networks:
       - mynetwork
-    sysctls:
-      - vm.overcommit_memory=1
+    # sysctls:
+    #   - vm.overcommit_memory=1   # removido
 
 networks:
   mynetwork:
