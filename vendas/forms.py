@@ -216,21 +216,14 @@ class ClienteTelefoneForm(forms.ModelForm):
 
 
 class ContatoAdicionalForm(forms.ModelForm):
-    obteve_contato = forms.ChoiceField(
-        label='Obteve Contato',
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        choices=[(True, 'Sim'), (False, 'Não')]
-    )
     class Meta:
         model = ContatoAdicional
         fields = '__all__'
-        exclude = ['cliente', 'loja']
+        exclude = ['cliente', 'loja', 'obteve_contato']
         widgets = {
             'nome_adicional': forms.TextInput(attrs={'class': 'form-control'}),
             'contato': forms.TextInput(attrs={'class': 'form-control tel'}),
             'endereco_adicional': forms.TextInput(attrs={'class': 'form-control'}),
-            'obteve_contato': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         
     
@@ -241,9 +234,6 @@ class ContatoAdicionalForm(forms.ModelForm):
             if name not in ['email']:
                 field.required = True
         
-        if not self.instance and user and not user.has_perm('vendas.change_status_analise'):
-            self.fields.pop('obteve_contato', None)
-                
         if self.instance and self.instance.pk:
             is_analista = bool(user and user.groups.filter(name='ANALISTA').exists())
             ac = getattr(self.instance.cliente, 'analise_credito', None)
@@ -258,9 +248,9 @@ class ContatoAdicionalForm(forms.ModelForm):
                         self.fields[n].disabled = True
 
             if venda_gerada and not can_edit_finished:
-                _disable('nome_adicional','contato','endereco_adicional','obteve_contato')
+                _disable('nome_adicional','contato','endereco_adicional')
             elif not status_em_analise and not (is_analista or can_change_status):
-                _disable('nome_adicional','contato','endereco_adicional','obteve_contato')
+                _disable('nome_adicional','contato','endereco_adicional')
 
     def clean_contato(self):
         contato = self.cleaned_data.get('contato')
@@ -274,21 +264,14 @@ class ContatoAdicionalForm(forms.ModelForm):
     
     
 class ContatoAdicionalEditForm(forms.ModelForm):
-    obteve_contato = forms.ChoiceField(
-        label='Obteve Contato',
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        choices=[(True, 'Sim'), (False, 'Não')]
-    )
     class Meta:
         model = ContatoAdicional
         fields = '__all__'
-        exclude = ['cliente', 'loja']
+        exclude = ['cliente', 'loja', 'obteve_contato']
         widgets = {
             'nome_adicional': forms.TextInput(attrs={'class': 'form-control'}),
             'contato': forms.TextInput(attrs={'class': 'form-control tel'}),
             'endereco_adicional': forms.TextInput(attrs={'class': 'form-control'}),
-            'obteve_contato': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         
     
@@ -312,12 +295,6 @@ class InformacaoPessoalForm(forms.ModelForm):
     nome_pessoal = forms.CharField(label='Nome', widget=forms.TextInput(attrs={'class': 'form-control'}))
     contato_pessoal = forms.CharField(label='Contato', widget=forms.TextInput(attrs={'class': 'form-control tel'}))
     endereco_pessoal = forms.CharField(label='Endereço', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    obteve_contato_pessoal = forms.ChoiceField(
-        label='Obteve Contato',
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        choices=[(True, 'Sim'), (False, 'Não')]
-    )
 
     class Meta:
         model = InformacaoPessoal
@@ -332,10 +309,6 @@ class InformacaoPessoalForm(forms.ModelForm):
         self.fields['nome_pessoal'].initial = self.instance.nome
         self.fields['contato_pessoal'].initial = self.instance.contato
         self.fields['endereco_pessoal'].initial = self.instance.endereco
-        self.fields['obteve_contato_pessoal'].initial = self.instance.obteve_contato
-        
-        if not self.instance and user and not user.has_perm('vendas.change_status_analise'):
-            self.fields.pop('obteve_contato_pessoal', None)
                 
         if self.instance and self.instance.pk:
             is_analista = bool(user and user.groups.filter(name='ANALISTA').exists())
@@ -351,9 +324,9 @@ class InformacaoPessoalForm(forms.ModelForm):
                         self.fields[n].disabled = True
 
             if venda_gerada and not can_edit_finished:
-                _disable('nome_pessoal','contato_pessoal','endereco_pessoal','obteve_contato_pessoal')
+                _disable('nome_pessoal','contato_pessoal','endereco_pessoal')
             elif not status_em_analise and not (is_analista or can_change_status):
-                _disable('nome_pessoal','contato_pessoal','endereco_pessoal','obteve_contato_pessoal')
+                _disable('nome_pessoal','contato_pessoal','endereco_pessoal')
 
     def clean_contato_pessoal(self):
         contato = self.cleaned_data.get('contato_pessoal')
@@ -369,19 +342,12 @@ class InformacaoPessoalForm(forms.ModelForm):
         self.instance.nome = self.cleaned_data.get('nome_pessoal')
         self.instance.contato = self.cleaned_data.get('contato_pessoal')
         self.instance.endereco = self.cleaned_data.get('endereco_pessoal')
-        self.instance.obteve_contato = self.cleaned_data.get('obteve_contato_pessoal')
         return super().save(commit=commit)
-    
+
 class InformacaoPessoalEditForm(forms.ModelForm):
     nome_pessoal = forms.CharField(label='Nome', widget=forms.TextInput(attrs={'class': 'form-control'}))
     contato_pessoal = forms.CharField(label='Contato', widget=forms.TextInput(attrs={'class': 'form-control tel'}))
     endereco_pessoal = forms.CharField(label='Endereço', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    obteve_contato_pessoal = forms.ChoiceField(
-        label='Obteve Contato',
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        choices=[(True, 'Sim'), (False, 'Não')]
-    )
 
     class Meta:
         model = InformacaoPessoal
@@ -399,7 +365,6 @@ class InformacaoPessoalEditForm(forms.ModelForm):
         self.instance.nome = self.cleaned_data.get('nome_pessoal')
         self.instance.contato = self.cleaned_data.get('contato_pessoal')
         self.instance.endereco = self.cleaned_data.get('endereco_pessoal')
-        self.instance.obteve_contato = self.cleaned_data.get('obteve_contato_pessoal')
         return super().save(commit=commit)
 
     def clean_contato_pessoal(self):
