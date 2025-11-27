@@ -1431,6 +1431,11 @@
         }
       }
       if (melhorData) {
+        if (maiorDiferenca > 30) {
+          previsaoDiv.textContent = 'Primeiro vencimento acima de 30 dias. Selecione outra data.';
+          dataInput.value = '';
+          return;
+        }
         const diaStr = melhorData.getDate().toString().padStart(2, '0');
         const mesStr = (melhorData.getMonth() + 1).toString().padStart(2, '0');
         const anoStr = melhorData.getFullYear();
