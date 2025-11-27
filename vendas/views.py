@@ -76,7 +76,7 @@ class IndexView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        loja = Loja.objects.get(id=self.request.session.get('loja_id'))
+        loja = self._get_active_loja()
         caixa_diario_loja = Caixa.objects.filter(loja=loja).order_by('-data_abertura').first()
         caixa_total = Caixa.objects.all().filter(loja=loja)
 
@@ -217,6 +217,23 @@ class IndexView(LoginRequiredMixin, TemplateView):
         context['caixa_total'] = valor_caixa_total
 
         return context
+
+    def _get_active_loja(self):
+        loja_id = self.request.session.get('loja_id')
+        loja = Loja.objects.filter(id=loja_id).first() if loja_id else None
+
+        if not loja and self.request.user.is_authenticated:
+            loja = self.request.user.lojas.first()
+            if not loja and getattr(self.request.user, 'loja_id', None):
+                loja = self.request.user.loja
+
+            if loja:
+                self.request.session['loja_id'] = loja.id
+
+        if not loja:
+            raise Http404("Nenhuma loja vinculada ao usuário.")
+
+        return loja
     
 
 from django.http import JsonResponse, HttpResponse
