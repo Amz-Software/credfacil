@@ -397,7 +397,12 @@
         <!-- Nav tabs -->
         <ul class="nav nav-tabs mb-3" id="clienteTabs" role="tablist">
           <li class="nav-item" role="presentation">
-            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-dados" type="button">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-analise" type="button">
+              <i class="bx bx-package me-1"></i>Produto
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dados" type="button">
               <i class="bx bx-user me-1"></i>Dados
             </button>
           </li>
@@ -406,16 +411,11 @@
               <i class="bx bx-file me-1"></i>Comprovantes
             </button>
           </li>
-          <li class="nav-item" role="presentation">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-analise" type="button">
-              <i class="bx bx-package me-1"></i>Produto
-            </button>
-          </li>
         </ul>
 
         <div class="tab-content">
           <!-- ABA DADOS CLIENTE -->
-          <div class="tab-pane fade show active" id="tab-dados" role="tabpanel">
+          <div class="tab-pane fade" id="tab-dados" role="tabpanel">
             <div class="form-section">
               <h5><i class="bx bx-user me-2"></i>Dados do Cliente</h5>
               
@@ -687,7 +687,7 @@
           </div>
 
           <!-- ABA ANÁLISE DE CRÉDITO -->
-          <div class="tab-pane fade" id="tab-analise" role="tabpanel">
+          <div class="tab-pane fade show active" id="tab-analise" role="tabpanel">
             <div class="form-section">
               <h5>
                 <i class="bx bx-package me-2"></i>Produto e Condições
