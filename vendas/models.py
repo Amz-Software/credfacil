@@ -688,24 +688,27 @@ class PagamentoQuerySet(models.QuerySet):
     def with_parcelas_info(self):
         # Ignora pagamentos do tipo "entrada"
         return self.exclude(tipo_pagamento__nome__iexact='ENTRADA').annotate(
-            total_parcelas=Count('parcelas_pagamento'),
+            total_parcelas=Count('parcelas_pagamento', distinct=True),
             parcelas_pagas=Count(
                 'parcelas_pagamento',
-                filter=Q(parcelas_pagamento__pago=True)
+                filter=Q(parcelas_pagamento__pago=True),
+                distinct=True
             ),
             parcelas_pagas_no_prazo=Count(
                 'parcelas_pagamento',
                 filter=Q(
                     parcelas_pagamento__pago=True,
                     parcelas_pagamento__data_pagamento__lte=F('parcelas_pagamento__data_vencimento')
-                )
+                ),
+                distinct=True
             ),
             parcelas_atrasadas=Count(
                 'parcelas_pagamento',
                 filter=Q(
                     parcelas_pagamento__pago=False,
                     parcelas_pagamento__data_vencimento__lt=timezone.now()
-                )
+                ),
+                distinct=True
             ),
             next_vencimento=Min(
                 'parcelas_pagamento__data_vencimento',
