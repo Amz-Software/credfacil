@@ -149,6 +149,8 @@ Caixa Mensal - {{ caixa_mensal.loja }} - {{ caixa_mensal.mes|date:"F Y" }}
                                 <th>Funcionário</th>
                                 <th>Salário*</th>
                                 <th>Comissão</th>
+                                <th>Alterado Por</th>
+                                <th>Ultima alteração</th>
                                 <th>Apagar</th>
                             </tr>
                         </thead>
@@ -161,6 +163,8 @@ Caixa Mensal - {{ caixa_mensal.loja }} - {{ caixa_mensal.mes|date:"F Y" }}
                                 <td>{{ form.salario }}</td>
                                 <td>{{ form.comissao }}</td>
                                 <td>{{ form.DELETE }}</td>
+                                <td>{{ form.instance.modificado_por|default:"-" }}</td>
+                                <td>{{ form.instance.modificado_em|date:"d/m/Y H:i" }}</td>
                             </tr>
                             {% empty %}
                             <tr>

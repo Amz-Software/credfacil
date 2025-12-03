@@ -345,7 +345,7 @@ class CaixaMensalDetailView(PermissionRequiredMixin, DetailView):
             
             for instance in instances_funcionarios:
                 instance.caixa_mensal = caixa_mensal
-                instance.save()
+                instance.save(user=request.user)
             formset_funcionarios.save_m2m()
 
             # Salvar formset de Gastos Aleatórios
