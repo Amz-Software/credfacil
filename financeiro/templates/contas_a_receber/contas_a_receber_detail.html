@@ -6,11 +6,47 @@
   {{ status_form.media.css }}
   <style>
     .status-color-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
+    .brand-highlight {
+      background: linear-gradient(135deg, rgba(253, 198, 0, 0.15), rgba(13, 110, 253, 0.1));
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    .brand-highlight img {
+      height: 38px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+    }
+    .brand-card {
+      position: relative;
+      overflow: hidden;
+    }
+    .brand-floating-stamp {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      opacity: 0.1;
+      pointer-events: none;
+    }
+    .brand-floating-stamp img {
+      max-height: 90px;
+      width: auto;
+    }
   </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-xxl mt-4">
+  <div class="card brand-highlight border-0 shadow-sm mb-4">
+    <div class="card-body d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between">
+      <div class="text-muted small text-uppercase fw-semibold">
+        Gestão confiável powered by IPIX
+      </div>
+      <div class="d-flex align-items-center gap-2 mt-3 mt-md-0">
+        <img src="{% static 'images/IPIX.png' %}" alt="Marca IPIX" loading="lazy">
+        <img src="{% static 'images/logo.png' %}" alt="Logo CredFacil" loading="lazy">
+      </div>
+    </div>
+  </div>
   {% if conta_a_receber.desativado %}
     <div class="alert alert-secondary" role="alert">
       <i class="bi bi-exclamation-triangle me-2"></i>
@@ -28,7 +64,10 @@
 
     {# -- CARD: Informações do Cliente -- #}
     <div class="col-12">
-      <div class="card shadow-sm">
+      <div class="card shadow-sm brand-card">
+        <div class="brand-floating-stamp d-none d-md-block" aria-hidden="true">
+          <img src="{% static 'images/IPIX.png' %}" alt="">
+        </div>
         <div class="card-header d-flex justify-content-beetween align-items-center text-white">
           <a href="{% url 'vendas:cliente_update' conta_a_receber.venda.cliente.id %}"
              class="btn btn-light btn-md d-flex align-items-center"
@@ -92,7 +131,10 @@
 
     {# -- CARD: Detalhes da Conta a Receber -- #}
     <div class="col-12">
-      <div class="card shadow-sm">
+      <div class="card shadow-sm brand-card">
+        <div class="brand-floating-stamp d-none d-md-block" aria-hidden="true">
+          <img src="{% static 'images/logo.png' %}" alt="">
+        </div>
         <div class="card-header text-white">
           <h5 class="mb-0">Detalhes da Conta
             {% if conta_a_receber.devolucao %}
