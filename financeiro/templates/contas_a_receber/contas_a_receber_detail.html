@@ -415,35 +415,49 @@
             <form action="" method="post">
               {{ parcela_form.management_form }}
               {% csrf_token %}
+              {% if parcela_form.forms %}
+          <div class="alert alert-info mb-3" role="alert">
+            <div class="row">
+              <div class="col-md-6">
+                <small class="text-muted">Última alteração por:</small>
+                <div><strong>{{ parcela_form.forms.0.instance.modificado_por.get_full_name|default:parcela_form.forms.0.instance.modificado_por }}</strong></div>
+              </div>
+              <div class="col-md-6">
+                <small class="text-muted">Data/Hora da última alteração:</small>
+                <div><strong>{{ parcela_form.forms.0.instance.modificado_em|date:"d/m/Y H:i" }}</strong></div>
+              </div>
+            </div>
+          </div>
+              {% endif %}
               <table class="table table-hover mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th scope="col">Número da Parcela</th>
-                    <th scope="col">Data do Pagamento</th>
-                    <th scope="col">Valor</th>
-                    <th scope="col">
-                      Data de Vencimento
-                      {% if user|has_perm:"vendas.change_vencimento_parcela" %}
-                        <i class="bi bi-pencil-square text-primary" title="Você pode editar a data de vencimento"></i>
-                      {% endif %}
-                    </th>
-                    <th scope="col">Pago?</th>
-                    <th scope="col">Cliente Informou?</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for parcela in parcela_form %}
-                    <tr class="{% if parcela.instance.pago %}table-success{% endif %}">
-                      {{ parcela.id }}
-                      <td>{{ parcela.numero_parcela }}</td>
-                      <td>{{ parcela.data_pagamento }}</td>
-                      <td>{{ parcela.valor }}</td>
-                      <td>{{ parcela.data_vencimento }}</td>
-                      <td>{{ parcela.pago }}</td>
-                      <td>{{ parcela.pagamento_efetuado }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
+          <thead class="table-light">
+            <tr>
+              <th scope="col">Número da Parcela</th>
+              <th scope="col">Data do Pagamento</th>
+              <th scope="col">Valor</th>
+              <th scope="col">
+                Data de Vencimento
+                {% if user|has_perm:"vendas.change_vencimento_parcela" %}
+            <i class="bi bi-pencil-square text-primary" title="Você pode editar a data de vencimento"></i>
+                {% endif %}
+              </th>
+              <th scope="col">Pago?</th>
+              <th scope="col">Cliente Informou?</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for parcela in parcela_form %}
+              <tr class="{% if parcela.instance.pago %}table-success{% endif %}">
+                {{ parcela.id }}
+                <td>{{ parcela.numero_parcela }}</td>
+                <td>{{ parcela.data_pagamento }}</td>
+                <td>{{ parcela.valor }}</td>
+                <td>{{ parcela.data_vencimento }}</td>
+                <td>{{ parcela.pago }}</td>
+                <td>{{ parcela.pagamento_efetuado }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
               </table>
               <div class="d-flex justify-content-center py-3">
                 <a href="{% url 'financeiro:contas_a_receber_list' %}" class="btn btn-secondary me-3">

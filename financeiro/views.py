@@ -534,7 +534,7 @@ class ContasAReceberDetailView(PermissionRequiredMixin, DetailView):
                             if not user.has_perm('vendas.change_vencimento_parcela'):
                                 messages.error(request, "Você não tem permissão para alterar a data de vencimento das parcelas.")
                                 return redirect(request.path)
-            
+                form.instance.save(user=user)
             parcela_form.save()
             messages.success(request, "Parcelas atualizadas com sucesso!")
             return redirect(request.path)
