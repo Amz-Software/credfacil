@@ -6,11 +6,13 @@
     <title>Relatório Dashboard - Todas as Lojas</title>
     <style>
         @page {
-            size: A4;
-            margin: 1cm;
+            size: A4 landscape;
+            margin: 0.8cm;
         }
         
-        body {
+        html, body {
+            margin: 0;
+            padding: 0;
             font-family: Arial, sans-serif;
             font-size: 12px;
             line-height: 1.4;
@@ -93,6 +95,7 @@
             width: 100%;
             border-collapse: collapse;
             margin: 15px 0;
+            page-break-inside: avoid;
         }
         
         .summary-table th,
@@ -110,6 +113,10 @@
         .summary-table .loja-name {
             text-align: left;
             font-weight: bold;
+        }
+        
+        .summary-table .loja-name.highlight {
+            color: #1d7c32;
         }
         
         .summary-table small {
@@ -163,7 +170,7 @@
                 <tbody>
                     {% for loja_nome, dados in dados_por_loja.items %}
                     <tr>
-                        <td class="loja-name">{{ loja_nome|title }}</td>
+                        <td class="loja-name{% if dados.total_pagas > dados.total_repasses %} highlight{% endif %}">{{ loja_nome|title }}</td>
                         <td>{{ dados.total_vendas }}</td>
                         <td>{{ dados.total_parcelas }}</td>
                         <td>{{ dados.parcelas_pagas }}<br><small class="currency">R$ {{ dados.total_pagas|floatformat:2 }}</small></td>
