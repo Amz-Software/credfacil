@@ -114,7 +114,7 @@ class IndexView(LoginRequiredMixin, TemplateView):
             for venda in vendas: 
                 parcelas = list(Parcela.objects.filter(
                     pagamento__venda=venda,
-                    pagamento__tipo_pagamento__nome='CREDFACIL',
+                    pagamento__tipo_pagamento__nome='IPX',
                     pagamento__desativado=False,
                 ).order_by('data_vencimento')[:3])
 
@@ -174,7 +174,7 @@ class IndexView(LoginRequiredMixin, TemplateView):
             # Busca parcelas de clientes desativados (apenas não pagas)
             parcelas_desativadas = Parcela.objects.filter(
                 pagamento__venda__loja=loja,
-                pagamento__tipo_pagamento__nome='CREDFACIL',
+                pagamento__tipo_pagamento__nome='IPX',
                 pagamento__desativado=True,
                 pago=False  # Apenas parcelas não pagas
             )
@@ -190,7 +190,7 @@ class IndexView(LoginRequiredMixin, TemplateView):
             # Total de pagamentos desativados
             total_pagamentos_desativados = Pagamento.objects.filter(
                 venda__loja=loja,
-                tipo_pagamento__nome='CREDFACIL',
+                tipo_pagamento__nome='IPX',
                 desativado=True
             ).count()
 
@@ -968,7 +968,7 @@ def gerar_venda(request, cliente_id):
             parcelas_pagas=Count(
                 'pagamentos__parcelas_pagamento',
                 filter=Q(
-                    pagamentos__tipo_pagamento__nome__iexact='CREDFACIL',
+                    pagamentos__tipo_pagamento__nome__iexact='IPX',
                     pagamentos__parcelas_pagamento__pago=True
                 ),
                 distinct=True
@@ -1079,7 +1079,7 @@ def gerar_venda(request, cliente_id):
 
     # Pagamentos
     tipo_entrada = TipoPagamento.objects.get(nome__iexact='ENTRADA')
-    tipo_credfacil = TipoPagamento.objects.get(nome__iexact='CREDFACIL')
+    tipo_credfacil = TipoPagamento.objects.get(nome__iexact='IPX')
 
     pagamento_entrada = Pagamento.objects.create(
         loja=analise.loja,  # Usa a loja da análise de crédito
@@ -2758,7 +2758,7 @@ class GraficoTemplateView(TemplateView):
         vendas = Venda.objects.filter(is_deleted=False, loja__in=loja)
         parcelas_qs = Parcela.objects.filter(
             pagamento__venda__in=vendas,
-            pagamento__tipo_pagamento__nome='CREDFACIL'
+            pagamento__tipo_pagamento__nome='IPX'
         ).select_related('pagamento', 'pagamento__venda')
 
         parcelas_por_venda = defaultdict(list)
@@ -2822,7 +2822,7 @@ class GraficoTemplateView(TemplateView):
             # Calcular desativados por loja
             parcelas_desativadas_loja = Parcela.objects.filter(
                 pagamento__venda=venda,
-                pagamento__tipo_pagamento__nome='CREDFACIL',
+                pagamento__tipo_pagamento__nome='IPX',
                 pagamento__desativado=True,
                 pago=False
             )
@@ -2880,7 +2880,7 @@ class GraficoTemplateView(TemplateView):
         # Busca parcelas de clientes desativados (apenas não pagas)
         parcelas_desativadas = Parcela.objects.filter(
             pagamento__venda__in=vendas,
-            pagamento__tipo_pagamento__nome='CREDFACIL',
+            pagamento__tipo_pagamento__nome='IPX',
             pagamento__desativado=True,
             pago=False  # Apenas parcelas não pagas
         )
@@ -2896,7 +2896,7 @@ class GraficoTemplateView(TemplateView):
         # Total de pagamentos desativados
         total_pagamentos_desativados = Pagamento.objects.filter(
             venda__in=vendas,
-            tipo_pagamento__nome='CREDFACIL',
+            tipo_pagamento__nome='IPX',
             desativado=True
         ).count()
 
@@ -3150,7 +3150,7 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
         vendas = Venda.objects.filter(is_deleted=False)
         parcelas_qs = Parcela.objects.filter(
             pagamento__venda__in=vendas,
-            pagamento__tipo_pagamento__nome='CREDFACIL'
+            pagamento__tipo_pagamento__nome='IPX'
         ).select_related('pagamento', 'pagamento__venda')
 
         parcelas_por_venda = defaultdict(list)
@@ -3164,7 +3164,7 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
             vendas_loja = vendas.filter(loja=loja)
             parcelas_loja = Parcela.objects.filter(
                 pagamento__venda__in=vendas_loja,
-                pagamento__tipo_pagamento__nome='CREDFACIL'
+                pagamento__tipo_pagamento__nome='IPX'
             ).select_related('pagamento', 'pagamento__venda')
 
             # Calcular KPIs para esta loja
@@ -3190,7 +3190,7 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
             # Calcular desativados para esta loja
             parcelas_desativadas = Parcela.objects.filter(
                 pagamento__venda__in=vendas_loja,
-                pagamento__tipo_pagamento__nome='CREDFACIL',
+                pagamento__tipo_pagamento__nome='IPX',
                 pagamento__desativado=True,
                 pago=False
             )
