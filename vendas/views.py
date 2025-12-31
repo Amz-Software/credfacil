@@ -39,7 +39,8 @@ from vendas.forms import (
     ComprovantesClienteForm, ContatoAdicionalEditForm, ContatoAdicionalForm, FormaPagamentoEditFormSet,
     InformacaoPessoalEditForm, InformacaoPessoalForm, LojaForm, ProdutoVendaEditFormSet, RelatorioSolicitacoesForm,
     RelatorioVendasForm, VendaForm, VendaDocumentosForm, ProdutoVendaFormSet, FormaPagamentoFormSet, LancamentoForm,
-    LancamentoCaixaTotalForm, ClienteTelefoneForm, AnaliseCreditoClienteImeiForm
+    LancamentoCaixaTotalForm, ClienteTelefoneForm, AnaliseCreditoClienteImeiForm, VendaEdicaoEspecialForm,
+    ProdutoVendaEdicaoEspecialFormSet, FormaPagamentoEdicaoEspecialFormSet
 )
 from .models import (
     AnaliseCreditoCliente, Caixa, Cliente, Loja, Pagamento, Parcela, ProdutoVenda, TipoPagamento, Venda,
@@ -1339,6 +1340,7 @@ class VendaUpdateView(PermissionRequiredMixin, UpdateView):
                 instance=self.object,
                 form_kwargs={'loja': loja_id}
             )
+
         return context
 
     def form_valid(self, form):
@@ -1435,6 +1437,123 @@ class VendaUpdateView(PermissionRequiredMixin, UpdateView):
         formset.save_m2m()
 
     # Métodos auxiliares de estoque e IMEI
+
+
+class VendaEdicaoEspecialView(PermissionRequiredMixin, UpdateView):
+    model = Venda
+    form_class = VendaEdicaoEspecialForm
+    template_name = 'venda/venda_edit_especial.html'
+    permission_required = 'vendas.change_venda'
+
+    def get_success_url(self):
+        return reverse_lazy('vendas:venda_edicao_especial', kwargs={'pk': self.object.id})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        loja_id = self.request.session.get('loja_id')
+        self.request.session['venda_id'] = self.object.id
+
+        if self.request.POST:
+            context['produto_venda_formset'] = ProdutoVendaEdicaoEspecialFormSet(
+                self.request.POST,
+                instance=self.object,
+                form_kwargs={'loja': loja_id}
+            )
+            context['pagamento_formset'] = FormaPagamentoEdicaoEspecialFormSet(
+                self.request.POST,
+                instance=self.object
+            )
+        else:
+            context['produto_venda_formset'] = ProdutoVendaEdicaoEspecialFormSet(
+                instance=self.object,
+                form_kwargs={'loja': loja_id}
+            )
+            context['pagamento_formset'] = FormaPagamentoEdicaoEspecialFormSet(
+                instance=self.object
+            )
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        produto_venda_formset = context['produto_venda_formset']
+        pagamento_formset = context['pagamento_formset']
+        loja_id = self.request.session.get('loja_id')
+
+        try:
+            loja = Loja.objects.get(id=loja_id)
+        except Loja.DoesNotExist:
+            messages.error(self.request, "Loja não encontrada")
+            logger.error("Loja com id %s não encontrada", loja_id)
+            return self.form_invalid(form)
+
+        if not Caixa.caixa_aberto(localtime(now()).date(), loja):
+            messages.warning(self.request, 'Não é possível editar vendas com a loja bloqueada!')
+            logger.warning("Tentativa de editar venda com caixa fechado para a loja %s", loja)
+            return self.form_invalid(form)
+
+        if not (form.is_valid() and produto_venda_formset.is_valid() and pagamento_formset.is_valid()):
+            return self.form_invalid(form)
+
+        try:
+            with transaction.atomic():
+                self._atualizar_venda(form, loja)
+                self._processar_produtos(produto_venda_formset, loja)
+                self._processar_pagamentos(pagamento_formset, loja)
+                messages.success(self.request, 'Venda atualizada com sucesso')
+            return super().form_valid(form)
+        except Exception as e:
+            messages.error(self.request, f"Erro ao processar a venda: {str(e)}")
+            logger.exception("Erro ao processar a venda: %s", e)
+            return self.form_invalid(form)
+
+    def _atualizar_venda(self, form, loja):
+        form.instance.loja = loja
+        form.instance.modificado_por = self.request.user
+        self.object = form.save()
+
+    def _processar_produtos(self, formset, loja):
+        produtos_modificados = formset.save(commit=False)
+        for produto_venda in produtos_modificados:
+            produto_venda.venda = self.object
+            produto_venda.loja = loja
+            produto_venda.save()
+        formset.save_m2m()
+
+    def _processar_pagamentos(self, formset, loja):
+        pagamentos_modificados = formset.save(commit=False)
+
+        produto_venda = self.object.itens_venda.first()
+        produto_base = produto_venda.produto if produto_venda else None
+        quantidade_base = produto_venda.quantidade if produto_venda else 0
+
+        entrada_base = None
+        totais_parcelamento = {}
+        if produto_base:
+            entrada_base = produto_base.entrada_cliente * quantidade_base
+            totais_parcelamento = {
+                4: produto_base.valor_4_vezes * quantidade_base,
+                6: produto_base.valor_6_vezes * quantidade_base,
+                8: produto_base.valor_8_vezes * quantidade_base,
+                10: produto_base.valor_10_vezes * quantidade_base,
+            }
+
+        for pagamento in pagamentos_modificados:
+            pagamento.venda = self.object
+            pagamento.loja = loja
+            if pagamento.tipo_pagamento and pagamento.tipo_pagamento.nome.upper() == 'ENTRADA':
+                if entrada_base is not None:
+                    pagamento.valor = entrada_base
+            else:
+                try:
+                    parcelas = int(pagamento.parcelas) if pagamento.parcelas else None
+                except (TypeError, ValueError):
+                    parcelas = None
+                total = totais_parcelamento.get(parcelas)
+                if total is not None:
+                    pagamento.valor = total
+            pagamento.save()
+
+        formset.save_m2m()
 
 
 class VendaDocumentosUpdateView(PermissionRequiredMixin, UpdateView):

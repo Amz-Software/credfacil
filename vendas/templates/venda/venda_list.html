@@ -240,6 +240,14 @@ Vendas
                         {% if not item.is_deleted %}
                           {% if user|has_perm:"vendas.change_venda" %}
                           <li>
+                            <a class="dropdown-item" href="{% url 'vendas:venda_edicao_especial' item.pk %}">
+                              <i class="bx bx-edit me-2"></i> Editar IMEI/Parcelamento/Entrada
+                            </a>
+                          </li>
+                          <li><hr class="dropdown-divider"></li>
+                          {% endif %}
+                          {% if user|has_perm:"vendas.change_venda" %}
+                          <li>
                             <a class="dropdown-item" href="{% url 'vendas:venda_trocar' item.pk %}">
                               <i class="bx bx-refresh me-2"></i> Trocar Produto
                             </a>

@@ -926,6 +926,62 @@ class ProdutoVendaEditForm(forms.ModelForm):
         self.fields['produto'].queryset = Produto.objects.filter(loja=loja).filter(id=self.instance.produto.id)
 
 
+class VendaEdicaoEspecialForm(forms.ModelForm):
+    class Meta:
+        model = Venda
+        fields = []
+
+
+class ProdutoVendaEdicaoEspecialForm(forms.ModelForm):
+    produto = ProdutoChoiceField(
+        queryset=Produto.objects.filter(ativo=True),
+        widget=Select2Widget(attrs={'class': 'form-control'}),
+        label="Produto",
+    )
+    imei = forms.CharField(
+        required=False,
+        label='imei',
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+
+    class Meta:
+        model = ProdutoVenda
+        fields = ['produto', 'imei']
+
+    def __init__(self, *args, **kwargs):
+        loja = kwargs.pop('loja', None)
+        super().__init__(*args, **kwargs)
+        if loja:
+            self.fields['produto'].queryset = Produto.objects.filter(ativo=True, loja=loja)
+
+
+class PagamentoEdicaoEspecialForm(forms.ModelForm):
+    PARCELAS_CHOICES = (
+        (4, '4x'),
+        (6, '6x'),
+        (8, '8x'),
+        (10, '10x'),
+    )
+
+    parcelas = forms.ChoiceField(
+        choices=PARCELAS_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+    class Meta:
+        model = Pagamento
+        fields = ['parcelas']
+
+    def clean_parcelas(self):
+        parcelas = self.cleaned_data.get('parcelas')
+        if parcelas in (None, ''):
+            return self.instance.parcelas
+        try:
+            return int(parcelas)
+        except (TypeError, ValueError):
+            return self.instance.parcelas
+
 
 class PagamentoForm(forms.ModelForm):
     valor_parcela = forms.DecimalField(label='Valor Parcela', disabled=True, required=False, widget=forms.NumberInput(attrs={'class': 'form-control', 'readonly': 'readonly'}))
@@ -1008,6 +1064,12 @@ ProdutoVendaFormSet = forms.inlineformset_factory(Venda, ProdutoVenda, form=Prod
 
 FormaPagamentoEditFormSet = forms.inlineformset_factory(Venda, Pagamento, form=PagamentoForm, extra=0, can_delete=True)
 ProdutoVendaEditFormSet = forms.inlineformset_factory(Venda, ProdutoVenda, form=ProdutoVendaEditForm, extra=0, can_delete=True)
+FormaPagamentoEdicaoEspecialFormSet = forms.inlineformset_factory(
+    Venda, Pagamento, form=PagamentoEdicaoEspecialForm, extra=0, can_delete=False
+)
+ProdutoVendaEdicaoEspecialFormSet = forms.inlineformset_factory(
+    Venda, ProdutoVenda, form=ProdutoVendaEdicaoEspecialForm, extra=0, can_delete=False
+)
 
 
 class UsuarioSelectWidget(ModelSelect2MultipleWidget):

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static iam_tags %}
+{% block title %}Editar Venda{% endblock title %}
+
+{% block extra_head %}
+  {{ produto_venda_formset.media.css }}
+{% endblock %}
+
+{% block content %}
+<div class="container-xxl mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="container-xxl flex-grow-1 container-p-y">
+          <h4 class="py-3 mb-4"><span class="text-muted fw-light">Venda/</span> Editar</h4>
+          <div class="row">
+            <div class="col-xl">
+              <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">Editar IMEI/Parcelamento/Entrada</h5>
+                </div>
+                <div class="card-body">
+                  <form method="post">
+                    {% csrf_token %}
+                    {{ form }}
+
+                    <div class="form-section">
+                      <h5><i class="bx bx-mobile me-2"></i>Produto e IMEI</h5>
+                      {{ produto_venda_formset.management_form }}
+                      <div class="row g-3">
+                        {% for item in produto_venda_formset %}
+                          {% for hidden in item.hidden_fields %}
+                            {{ hidden }}
+                          {% endfor %}
+                          <div class="col-md-6">
+                            <label class="form-label">
+                              Produto
+                              <i class="bx bx-help-circle tooltip-icon" data-bs-toggle="tooltip" title="Selecione o produto desejado para ver os valores automaticamente"></i>
+                            </label>
+                            {{ item.produto }}
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label">IMEI</label>
+                            {{ item.imei }}
+                          </div>
+                        {% empty %}
+                          <div class="col-12">
+                            <div class="alert alert-warning mb-0">Nenhum produto encontrado para esta venda.</div>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+
+                    <div class="form-section">
+                      <h5><i class="bx bx-credit-card me-2"></i>Parcelamento</h5>
+                      {{ pagamento_formset.management_form }}
+                      <div class="row g-3">
+                        {% for pagamento in pagamento_formset %}
+                          {% for hidden in pagamento.hidden_fields %}
+                            {{ hidden }}
+                          {% endfor %}
+                          {{ pagamento.tipo_pagamento.as_hidden }}
+                          {% if pagamento.instance.tipo_pagamento and pagamento.instance.tipo_pagamento.nome|upper == 'ENTRADA' %}
+                            <div class="col-md-6">
+                              <label class="form-label">Produto (Entrada)</label>
+                              <div class="text-muted small">Entrada definida no produto selecionado acima.</div>
+                            </div>
+                          {% else %}
+                            <div class="col-md-6">
+                              <label class="form-label">Parcelamento ({{ pagamento.instance.tipo_pagamento.nome|default:"Pagamento" }})</label>
+                              {{ pagamento.parcelas }}
+                            </div>
+                          {% endif %}
+                        {% empty %}
+                          <div class="col-12">
+                            <div class="alert alert-warning mb-0">Nenhum pagamento encontrado para esta venda.</div>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+
+                    <div class="card-footer d-flex gap-2">
+                      {% if user|has_perm:"vendas.can_edit_venda_edicao" %}
+                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                      {% endif %}
+                      <a href="{% url 'vendas:venda_list' %}" class="btn btn-secondary">Voltar</a>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ produto_venda_formset.media.js }}
+{% endblock %}

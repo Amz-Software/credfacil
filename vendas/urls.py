@@ -42,6 +42,7 @@ urlpatterns = [
     #venda
     path('vendas/', VendaListView.as_view(), name='venda_list'),
     path('vendas/editar/<int:pk>/', VendaUpdateView.as_view(), name='venda_update'),
+    path('vendas/editar-especial/<int:pk>/', VendaEdicaoEspecialView.as_view(), name='venda_edicao_especial'),
     path('vendas/nova/', VendaCreateView.as_view(), name='venda_create'),
     path('vendas/detail/<int:pk>/', VendaDetailView.as_view(), name='venda_detail'),
     path('vendas/cancelar/<int:id>/', cancelar_venda , name='venda_cancel'),
