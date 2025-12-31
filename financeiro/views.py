@@ -831,7 +831,7 @@ class FolhaRelatorioContasAReceberAvancadoView(BaseView, PermissionRequiredMixin
         pagamentos_qs = pagamentos_qs.annotate(proximo_vencimento=proximo_vencimento_subquery)
 
         # Carrega relacionamentos necessários
-        pagamentos_qs = pagamentos_qs.select_related('venda', 'venda__cliente', 'venda__loja')
+        pagamentos_qs = pagamentos_qs.select_related('venda', 'venda__cliente', 'venda__loja').prefetch_related('venda__cliente__contatos')
 
         context = super().get_context_data(**kwargs)
         context['contas'] = list(pagamentos_qs)
