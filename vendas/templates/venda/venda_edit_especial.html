@@ -80,7 +80,7 @@
                     </div>
 
                     <div class="card-footer d-flex gap-2">
-                      {% if user|has_perm:"vendas.can_edit_venda_edicao" %}
+                      {% if user|has_perm:"vendas.can_edit_imei_valores_venda" %}
                         <button type="submit" class="btn btn-primary">Salvar Alterações</button>
                       {% endif %}
                       <a href="{% url 'vendas:venda_list' %}" class="btn btn-secondary">Voltar</a>

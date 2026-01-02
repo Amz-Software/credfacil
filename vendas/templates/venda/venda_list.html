@@ -238,7 +238,7 @@ Vendas
                         </li>
                         {% endif %}
                         {% if not item.is_deleted %}
-                          {% if user|has_perm:"vendas.change_venda" %}
+                          {% if user|has_perm:"vendas.can_edit_imei_valores_venda" %}
                           <li>
                             <a class="dropdown-item" href="{% url 'vendas:venda_edicao_especial' item.pk %}">
                               <i class="bx bx-edit me-2"></i> Editar IMEI/Parcelamento/Entrada

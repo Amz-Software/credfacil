@@ -482,6 +482,7 @@ class Venda(Base):
             ('can_view_all_dashboard', 'Pode ver todos os dashboards'),
             ('can_generate_dashboard_report', 'Pode gerar relatório de dashboard de todas as lojas'),
             ('view_consulta_serasa', 'Pode visualizar consulta Serasa'),
+            ('can_edit_imei_valores_venda', 'Pode editar IMEI e valores da venda'),
         )
 
 
