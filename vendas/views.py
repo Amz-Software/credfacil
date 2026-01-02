@@ -1477,13 +1477,10 @@ class VendaEdicaoEspecialView(PermissionRequiredMixin, UpdateView):
         context = self.get_context_data()
         produto_venda_formset = context['produto_venda_formset']
         pagamento_formset = context['pagamento_formset']
-        loja_id = self.request.session.get('loja_id')
 
-        try:
-            loja = Loja.objects.get(id=loja_id)
-        except Loja.DoesNotExist:
-            messages.error(self.request, "Loja não encontrada")
-            logger.error("Loja com id %s não encontrada", loja_id)
+        loja = self.object.loja
+        if not loja:
+            messages.error(self.request, "Loja não encontrada na venda.")
             return self.form_invalid(form)
 
         if not Caixa.caixa_aberto(localtime(now()).date(), loja):
