@@ -952,7 +952,7 @@ class ProdutoVendaEdicaoEspecialForm(forms.ModelForm):
         loja = kwargs.pop('loja', None)
         super().__init__(*args, **kwargs)
         if loja:
-            self.fields['produto'].queryset = Produto.objects.filter(ativo=True, loja=loja)
+            self.fields['produto'].queryset = Produto.objects.filter(ativo=True)
 
 
 class PagamentoEdicaoEspecialForm(forms.ModelForm):
