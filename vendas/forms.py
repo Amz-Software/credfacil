@@ -1124,6 +1124,11 @@ class LojaForm(forms.ModelForm):
         if self.instance and getattr(self.instance, 'porcentagem_desconto_10', None) is not None:
             self.initial['porcentagem_desconto_10'] = str(self.instance.porcentagem_desconto_10).replace(',', '.')
 
+    def clean_credfacil(self):
+        if self.instance.pk and 'credfacil' not in self.data:
+            return self.instance.credfacil
+        return self.cleaned_data.get('credfacil', False)
+
 
     def save(self, commit=True):
         instance = super().save(commit=False)

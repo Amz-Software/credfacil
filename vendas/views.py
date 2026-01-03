@@ -1819,6 +1819,8 @@ class LojaUpdateView(PermissionRequiredMixin, UpdateView):
         return kwargs
 
     def form_valid(self, form):
+        if 'credfacil' not in self.request.POST:
+            form.instance.credfacil = self.get_object().credfacil
         messages.success(self.request, 'Loja atualizada com sucesso')
         return super().form_valid(form)
     
