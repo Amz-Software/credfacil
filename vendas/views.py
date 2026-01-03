@@ -1443,7 +1443,7 @@ class VendaEdicaoEspecialView(PermissionRequiredMixin, UpdateView):
     model = Venda
     form_class = VendaEdicaoEspecialForm
     template_name = 'venda/venda_edit_especial.html'
-    permission_required = 'vendas.change_venda'
+    permission_required = 'vendas.can_edit_imei_valores_venda'
 
     def get_success_url(self):
         return reverse_lazy('vendas:venda_edicao_especial', kwargs={'pk': self.object.id})
