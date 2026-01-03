@@ -1450,7 +1450,7 @@ class VendaEdicaoEspecialView(PermissionRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        loja_id = self.request.session.get('loja_id')
+        loja_id = self.object.loja.id
         self.request.session['venda_id'] = self.object.id
 
         if self.request.POST:
