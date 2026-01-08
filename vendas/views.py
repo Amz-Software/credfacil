@@ -401,6 +401,7 @@ class ClienteListView(BaseView, PermissionRequiredMixin, ListView):
     def get_queryset(self):
         qs = Cliente.objects.all()
         search = self.request.GET.get('search')
+        analise_online = self.request.GET.get('analise_online')
         status_app = self.request.GET.get('status_app')
         loja_filter = self.request.GET.get('loja')
         data_inicio = self.request.GET.get('data_inicio')
@@ -412,6 +413,11 @@ class ClienteListView(BaseView, PermissionRequiredMixin, ListView):
             
         if search:
             qs = qs.filter(nome__icontains=search)
+            
+        if analise_online == '1':
+            qs = qs.filter(analise_credito__analise_online=True).distinct()
+        elif analise_online == '0':
+            qs = qs.filter(analise_credito__analise_online=False).distinct()
             
         status = self.request.GET.get('status')
         if status:
