@@ -506,6 +506,7 @@ class AnaliseCreditoCliente(Base):
     aprovado_por = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='analises_credito_aprovadas', null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='EA')
     status_aplicativo = models.CharField(max_length=20, choices=STATUS_APP_CHOICES, default='P', verbose_name='Status do aplicativo')
+    analise_online = models.BooleanField(default=False, verbose_name='Análise Online')
     data_pagamento = models.CharField(max_length=20, null=True, blank=True, choices=(
         ('1', 'Dia 1'),
         ('10', 'Dia 10'),

@@ -454,10 +454,17 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         widget=Select2Widget(attrs={'class': 'form-control'}),
         label='Produto'
     )
+    
+    analise_online = forms.BooleanField(
+        required=False,
+        label='Análise Online',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+    
     class Meta:
         model = AnaliseCreditoCliente
         # removido 'observacao' do formulário para não ser preenchido pelo vendedor
-        fields = ['produto', 'data_pagamento', 'numero_parcelas']
+        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'analise_online']
         widgets = {
             'data_pagamento': forms.Select(attrs={'class': 'form-control'}),
             'numero_parcelas': forms.Select(attrs={'class': 'form-control'}),
@@ -482,6 +489,7 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                 self.fields['produto'].disabled = True
                 self.fields['numero_parcelas'].disabled = True
                 self.fields['data_pagamento'].disabled = True
+                self.fields['analise_online'].disabled = True
             
             # Se a venda foi gerada, apenas usuários com permissão específica podem editar
             if venda_gerada:
@@ -489,12 +497,14 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                     self.fields['produto'].disabled = True
                     self.fields['numero_parcelas'].disabled = True
                     self.fields['data_pagamento'].disabled = True
+                    self.fields['analise_online'].disabled = True
             # Se a venda não foi gerada, analistas podem editar tudo
             elif not venda_gerada and is_analista:
                 # Analistas podem editar tudo antes da venda ser gerada
                 self.fields['produto'].disabled = False
                 self.fields['numero_parcelas'].disabled = False
                 self.fields['data_pagamento'].disabled = False
+                self.fields['analise_online'].disabled = False
 class AnaliseCreditoClienteImeiForm(forms.ModelForm):
     produto = ProdutoChoiceField(
         queryset=Produto.objects.filter(ativo=True),
