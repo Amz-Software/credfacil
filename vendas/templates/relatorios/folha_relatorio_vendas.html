@@ -90,6 +90,7 @@
                     <th>Produtos</th>
                     <th>Status Solicitação</th>
                     <th>Consulta Serasa</th>
+                    <th>Tipo</th>
                     <th>Valor de Entrada</th>
                     <th>Valor de Repasse</th>
                     <th>Valor Total</th>
@@ -128,6 +129,7 @@
                     <td>
                         {{ venda.cliente.comprovantes.restricao|yesno:"Positiva,Negativa"}}
                     </td>
+                    <td>{{ venda.analises_credito_venda.first.analise_online|yesno:"Online,Presencial" }}</td>
                     <td>R$ {{ venda.valor_entrada_cliente|floatformat:2 }}</td>
                     <td>R$ {{ venda.repasse_logista|floatformat:2 }}</td>
                     <td>R$ {{ venda.pagamentos_valor_total|floatformat:2 }}</td>
