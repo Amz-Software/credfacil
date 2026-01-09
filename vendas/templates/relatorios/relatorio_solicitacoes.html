@@ -66,6 +66,7 @@
                     <th>Parcelas</th>
                     <th>Produtos</th>
                     <th>Consulta Serasa</th>
+                    <th>Tipo</th>
                     <th>Venda Gerada?</th>
                     <th>Valor Entrada</th>
                     <th>Valor Repasse</th>
@@ -114,6 +115,10 @@
                     <!-- Consulta Serasa realizada? -->
                     <td class="center">
                         {{ cliente.comprovantes.restricao|yesno:"Positiva,Negativa" }}
+                    </td>
+
+                    <td class="center">
+                        {{ cliente.analise_credito.analise_online|yesno:"Online,Presencial" }}
                     </td>
 
                     <!-- Verifica se há venda vinculada -->

@@ -197,6 +197,7 @@ Clientes
               <!-- preserva os outros filtros -->
               <input type="hidden" name="search" value="{{ request.GET.search }}">
               <input type="hidden" name="status" value="{{ request.GET.status }}">
+              <input type="hidden" name="analise_online" value="{{ request.GET.analise_online }}">
       
               <select name="status_app"
                       class="form-select form-select-sm w-100"
@@ -290,6 +291,14 @@ Clientes
               <div class="card-body">
                 <div class="row g-3">
                   <div class="col-md-3">
+                    <label for="analise_online" class="form-label">Tipo de Análise</label>
+                    <select name="analise_online" id="analise_online" class="form-select">
+                      <option value="">Todas</option>
+                      <option value="1" {% if request.GET.analise_online == '1' %}selected{% endif %}>Online</option>
+                      <option value="0" {% if request.GET.analise_online == '0' %}selected{% endif %}>Presencial</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
                     <label for="search" class="form-label">Nome do Cliente</label>
                     <input type="text" name="search" id="search" class="form-control" value="{{ request.GET.search }}" placeholder="Nome do cliente">
                   </div>
@@ -343,6 +352,7 @@ Clientes
           <th scope="col" style="width: 120px;">Loja</th>
           {% endif %}
           <th scope="col" style="width: 200px;">Status do Fluxo</th>
+          <th scope="col" style="width: 100px;">Tipo</th>
           <th scope="col" style="width: 100px;">Venda</th>
           <th scope="col" style="width: 150px;">{% if user|has_perm:"vendas.change_status_analise" %}Aprovador{% else %}Tempo de Análise{% endif %}</th>
           <th scope="col" style="width: 80px;">Ações</th>
@@ -470,6 +480,26 @@ Clientes
                  data-bs-html="true"
                  data-bs-placement="top"
                  title="<strong>Detalhes do Fluxo</strong><br><strong>Status App:</strong> {% if cliente.analise_credito.status_aplicativo == 'P' %}Pendente{% elif cliente.analise_credito.status_aplicativo == 'C' %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'I' %}Instalado{% else %}N/A{% endif %}<br><strong>Status IMEI:</strong> {% if cliente.analise_credito.imei %}Informado ({{ cliente.analise_credito.imei.imei }}){% else %}Pendente{% endif %}<br><strong>Status Geral:</strong> {% if cliente.analise_credito.venda_gerada %}Finalizado{% elif cliente.analise_credito.status_aplicativo == 'I' and cliente.analise_credito.imei %}Pronto para Venda{% elif cliente.analise_credito.status_aplicativo == 'C' and not cliente.analise_credito.imei %}Aguardando IMEI{% elif cliente.analise_credito.status_aplicativo == 'C' and cliente.analise_credito.imei %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'P' %}Aguardando QR Code{% else %}Pendente{% endif %}"></i>
+            </td>
+
+            <td>
+              {% if cliente.analise_credito.analise_online %}
+                <span class="badge bg-label-info"
+                      data-bs-toggle="tooltip" 
+                      data-bs-html="true"
+                      data-bs-placement="top"
+                      title="<strong>Análise Online</strong><br>O cliente realizou a análise de crédito de forma online pelo aplicativo">
+                  Online
+                </span>
+              {% else %}
+                <span class="badge bg-label-secondary"
+                      data-bs-toggle="tooltip" 
+                      data-bs-html="true"
+                      data-bs-placement="top"
+                      title="<strong>Análise Presencial</strong><br>O cliente realizou a análise de crédito de forma presencial na loja">
+                  Presencial
+                </span>
+              {% endif %}
             </td>
             
             <td>
