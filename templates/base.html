@@ -636,6 +636,134 @@
 
   {% block extra_scripts %}{% endblock %}
 
+  <!-- Botão Flutuante de WhatsApp Suporte -->
+  <a href="https://w.app/suporte-ipx" target="_blank" class="whatsapp-float" id="whatsapp-button" title="Suporte via WhatsApp">
+    <div class="whatsapp-icon-wrapper">
+      <i class="bi bi-whatsapp"></i>
+    </div>
+    <div class="whatsapp-text">
+      <span class="support-label">Suporte</span>
+      <span class="support-subtitle">Tire suas dúvidas</span>
+    </div>
+  </a>
+
+  <style>
+    .whatsapp-float {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+      color: white;
+      border-radius: 50px;
+      padding: 12px 20px 12px 12px;
+      text-decoration: none;
+      box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4);
+      transition: all 0.3s ease;
+      font-family: 'Public Sans', sans-serif;
+      max-width: 200px;
+      overflow: hidden;
+    }
+
+    .whatsapp-float:hover {
+      transform: translateY(-5px) scale(1.05);
+      box-shadow: 0 6px 30px rgba(37, 211, 102, 0.6);
+      text-decoration: none;
+      color: white;
+    }
+
+    .whatsapp-icon-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 45px;
+      height: 45px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    .whatsapp-icon-wrapper i {
+      font-size: 28px;
+      animation: pulse 2s infinite;
+    }
+
+    .whatsapp-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+
+    .support-label {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .support-subtitle {
+      font-size: 11px;
+      opacity: 0.9;
+      font-weight: 400;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    /* Responsivo para mobile */
+    @media (max-width: 768px) {
+      .whatsapp-float {
+        bottom: 20px;
+        right: 20px;
+        padding: 10px 15px 10px 10px;
+        max-width: 170px;
+      }
+
+      .whatsapp-icon-wrapper {
+        width: 40px;
+        height: 40px;
+        margin-right: 10px;
+      }
+
+      .whatsapp-icon-wrapper i {
+        font-size: 24px;
+      }
+
+      .support-label {
+        font-size: 14px;
+      }
+
+      .support-subtitle {
+        font-size: 10px;
+      }
+    }
+
+    /* Para telas muito pequenas, mostrar apenas o ícone */
+    @media (max-width: 480px) {
+      .whatsapp-float {
+        padding: 12px;
+        border-radius: 50%;
+        max-width: unset;
+      }
+
+      .whatsapp-text {
+        display: none;
+      }
+
+      .whatsapp-icon-wrapper {
+        margin-right: 0;
+      }
+    }
+  </style>
+
 </body>
 
 </html>
