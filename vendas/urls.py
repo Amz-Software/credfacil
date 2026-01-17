@@ -145,6 +145,18 @@ urlpatterns = [
     ),
     
     path(
+        'cliente/<int:pk>/configurar-icloud/',
+        ClienteConfigurarIcloudView.as_view(),
+        name='cliente_configurar_icloud'
+    ),
+    
+    path(
+        'cliente/<int:pk>/analista-confirm-icloud/',
+        AnalistaConfirmIcloudView.as_view(),
+        name='analista_confirm_icloud'
+    ),
+    
+    path(
         'cliente/<int:pk>/status-app/',
         ClienteStatusAppUpdateView.as_view(),
         name='cliente_status_app_update'

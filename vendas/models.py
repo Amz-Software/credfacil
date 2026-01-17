@@ -178,6 +178,7 @@ class Loja(Base):
     porcentagem_desconto_10 = models.DecimalField(max_digits=5, decimal_places=2, default=25.00)
     qr_code_aplicativo = models.ImageField(upload_to='qr_codes_aplicativo/', null=True, blank=True)
     codigo_aplicativo = models.CharField(max_length=100, null=True, blank=True)
+    pode_vender_iphone = models.BooleanField(default=False)
     objects = LojaQuerySet.as_manager()
 
 
@@ -523,6 +524,12 @@ class AnaliseCreditoCliente(Base):
     imei_informado = models.CharField(max_length=20, null=True, blank=True, verbose_name='IMEI Informado')
     venda = models.ForeignKey('vendas.Venda', on_delete=models.CASCADE, related_name='analises_credito_venda', null=True, blank=True)
     observacao = models.TextField(null=True, blank=True)
+    
+    # Campos para fluxo iPhone
+    email_icloud = models.EmailField(max_length=200, null=True, blank=True, verbose_name='Email iCloud')
+    senha_icloud = models.CharField(max_length=100, null=True, blank=True, verbose_name='Senha iCloud')
+    icloud_configurado_vendedor = models.BooleanField(default=False, verbose_name='iCloud configurado pelo vendedor')
+    icloud_confirmado_analista = models.BooleanField(default=False, verbose_name='iCloud confirmado pelo analista')
     
     def venda_gerada(self):
         if self.venda:

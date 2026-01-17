@@ -33,6 +33,18 @@ Informar IMEI - Análise de Crédito
                     </span>
                 </div>
                 <div class="col-md-6">
+                    <strong>Tipo:</strong> 
+                    {% if analise.produto.is_iphone %}
+                        <span class="badge bg-label-primary"><i class="bx bxl-apple"></i> iPhone</span>
+                    {% else %}
+                        <span class="badge bg-label-success"><i class="bx bxl-android"></i> Android</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if not analise.produto.is_iphone %}
+            <div class="row mb-3">
+                <div class="col-md-12">
                     <strong>Status App:</strong> 
                     <span class="badge 
                         {% if analise.status_aplicativo == 'I' %}bg-success
@@ -42,6 +54,26 @@ Informar IMEI - Análise de Crédito
                     </span>
                 </div>
             </div>
+            {% else %}
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <strong>Vendedor configurou iCloud:</strong>
+                    {% if analise.icloud_configurado_vendedor %}
+                        <span class="badge bg-success">✅ Sim</span>
+                    {% else %}
+                        <span class="badge bg-warning">⏳ Não</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <strong>Analista confirmou iCloud:</strong>
+                    {% if analise.icloud_confirmado_analista %}
+                        <span class="badge bg-success">✅ Sim</span>
+                    {% else %}
+                        <span class="badge bg-warning">⏳ Não</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
 
             {% if analise.imei %}
             <div class="alert alert-info">
@@ -63,9 +95,15 @@ Informar IMEI - Análise de Crédito
                            placeholder="Digite o IMEI do produto"
                            required>
                     <div class="form-text">
-                        <strong>Analista:</strong> O vendedor já confirmou a leitura do QR Code. Agora informe o IMEI do produto. 
-                        Se o IMEI não existir no estoque, ele será criado automaticamente. 
-                        Após informar o IMEI, a venda será liberada para geração pelo vendedor.
+                        {% if analise.produto.is_iphone %}
+                            <i class="bx bxl-apple"></i> <strong>Fluxo iPhone:</strong> O vendedor já configurou o iCloud e você confirmou. Agora informe o IMEI do iPhone. 
+                            Se o IMEI não existir no estoque, ele será criado automaticamente. 
+                            Após informar o IMEI, a venda será liberada para geração pelo vendedor.
+                        {% else %}
+                            <i class="bx bxl-android"></i> <strong>Fluxo Android:</strong> O vendedor já confirmou a leitura do QR Code. Agora informe o IMEI do produto. 
+                            Se o IMEI não existir no estoque, ele será criado automaticamente. 
+                            Após informar o IMEI, o aplicativo será marcado como instalado e a venda será liberada para geração pelo vendedor.
+                        {% endif %}
                     </div>
                 </div>
                 

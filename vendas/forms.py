@@ -248,6 +248,8 @@ class ContatoAdicionalForm(forms.ModelForm):
             self.fields.pop('obteve_contato', None)
         else:
             self.fields['obteve_contato'].required = False
+            self.fields['obteve_contato'].initial = False
+            self.fields['obteve_contato'].initial = False
         
         if self.instance and self.instance.pk:
             is_analista = bool(user and user.groups.filter(name='ANALISTA').exists())
@@ -305,6 +307,7 @@ class ContatoAdicionalEditForm(forms.ModelForm):
             self.fields.pop('obteve_contato', None)
         else:
             self.fields['obteve_contato'].required = False
+            self.fields['obteve_contato'].initial = False
 
     def clean_contato(self):
         contato = self.cleaned_data.get('contato')
@@ -349,6 +352,10 @@ class InformacaoPessoalForm(forms.ModelForm):
                     self.fields['obteve_contato_pessoal'].initial = 'True'
                 elif current is False:
                     self.fields['obteve_contato_pessoal'].initial = 'False'
+                else:
+                    self.fields['obteve_contato_pessoal'].initial = 'False'
+            else:
+                self.fields['obteve_contato_pessoal'].initial = 'False'
         else:
             self.fields.pop('obteve_contato_pessoal', None)
                 
@@ -423,6 +430,8 @@ class InformacaoPessoalEditForm(forms.ModelForm):
                 self.fields['obteve_contato_pessoal'].initial = 'True'
             elif current is False:
                 self.fields['obteve_contato_pessoal'].initial = 'False'
+            else:
+                self.fields['obteve_contato_pessoal'].initial = 'False'
         else:
             self.fields.pop('obteve_contato_pessoal', None)
         
@@ -461,10 +470,24 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
     )
     
+    email_icloud = forms.EmailField(
+        required=False,
+        label='Email iCloud',
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'exemplo@icloud.com'}),
+        help_text='Obrigatório apenas para produtos iPhone'
+    )
+    
+    senha_icloud = forms.CharField(
+        required=False,
+        label='Senha iCloud',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Digite a senha iCloud'}),
+        help_text='Obrigatório apenas para produtos iPhone'
+    )
+    
     class Meta:
         model = AnaliseCreditoCliente
         # removido 'observacao' do formulário para não ser preenchido pelo vendedor
-        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'analise_online']
+        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'analise_online', 'email_icloud', 'senha_icloud']
         widgets = {
             'data_pagamento': forms.Select(attrs={'class': 'form-control'}),
             'numero_parcelas': forms.Select(attrs={'class': 'form-control'}),
@@ -472,7 +495,36 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
+        loja = kwargs.pop('loja', None)
         super().__init__(*args, **kwargs)
+        
+        # Determinar a loja: pode vir como parâmetro ou do user.loja
+        if not loja and user and hasattr(user, 'loja'):
+            loja = user.loja
+        
+        # Filtrar produtos baseado na loja
+        if loja:
+            from produtos.models import Produto
+            # Se a loja não pode vender iPhone, excluir produtos iPhone da lista
+            if not loja.pode_vender_iphone:
+                self.fields['produto'].queryset = Produto.objects.filter(loja=loja, is_iphone=False, ativo=True)
+            else:
+                self.fields['produto'].queryset = Produto.objects.filter(loja=loja, ativo=True)
+        
+        # Verificar se o usuário pode ver campos iCloud
+        can_manage_icloud = False
+        if user:
+            if user.is_superuser:
+                can_manage_icloud = True
+            elif user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR']).exists():
+                can_manage_icloud = True
+        
+        # Remover campos iCloud se o usuário não tiver permissão
+        if not can_manage_icloud:
+            if 'email_icloud' in self.fields:
+                del self.fields['email_icloud']
+            if 'senha_icloud' in self.fields:
+                del self.fields['senha_icloud']
         
         # O campo 'observacao' foi removido do formulário de vendedor; analistas
         # que precisarem registrar observação devem utilizar a interface de aprovação.
@@ -505,6 +557,22 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                 self.fields['numero_parcelas'].disabled = False
                 self.fields['data_pagamento'].disabled = False
                 self.fields['analise_online'].disabled = False
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        produto = cleaned_data.get('produto')
+        email_icloud = cleaned_data.get('email_icloud')
+        senha_icloud = cleaned_data.get('senha_icloud')
+        status = cleaned_data.get('status')
+        
+        # Validação condicional: se for iPhone E status aprovado, email e senha são obrigatórios
+        if produto and produto.is_iphone and status == 'AP':
+            if not email_icloud:
+                self.add_error('email_icloud', 'Email iCloud é obrigatório para produtos iPhone.')
+            if not senha_icloud:
+                self.add_error('senha_icloud', 'Senha iCloud é obrigatória para produtos iPhone.')
+        
+        return cleaned_data
 class AnaliseCreditoClienteImeiForm(forms.ModelForm):
     produto = ProdutoChoiceField(
         queryset=Produto.objects.filter(ativo=True),
@@ -881,7 +949,9 @@ class ProdutoVendaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         loja = kwargs.pop('loja', None)
         super().__init__(*args, **kwargs)
-        self.fields['produto'].queryset = Produto.objects.filter(
+        
+        # Filtrar produtos baseado se a loja pode vender iPhone
+        produtos_query = Produto.objects.filter(
             Exists(
                 Estoque.objects.filter(
                     produto=OuterRef('pk'),
@@ -889,6 +959,12 @@ class ProdutoVendaForm(forms.ModelForm):
                 )
             )
         ).filter(loja=loja)
+        
+        # Se a loja não pode vender iPhone, excluir produtos iPhone
+        if loja and not loja.pode_vender_iphone:
+            produtos_query = produtos_query.filter(is_iphone=False)
+        
+        self.fields['produto'].queryset = produtos_query
         self.fields['imei'].queryset = EstoqueImei.objects.filter(vendido=False, cancelado=False)
         
         
@@ -962,7 +1038,11 @@ class ProdutoVendaEdicaoEspecialForm(forms.ModelForm):
         loja = kwargs.pop('loja', None)
         super().__init__(*args, **kwargs)
         if loja:
-            self.fields['produto'].queryset = Produto.objects.filter(ativo=True)
+            # Filtrar produtos baseado se a loja pode vender iPhone
+            produtos_query = Produto.objects.filter(ativo=True)
+            if not loja.pode_vender_iphone:
+                produtos_query = produtos_query.filter(is_iphone=False)
+            self.fields['produto'].queryset = produtos_query
 
 
 class PagamentoEdicaoEspecialForm(forms.ModelForm):
@@ -1117,10 +1197,18 @@ class LojaForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         user_loja_id = kwargs.pop('user_loja', None)
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
         if user_loja_id:
             self.fields['loja'].initial = Loja.objects.get(id=user_loja_id)
+
+        # Apenas ADMINISTRADOR pode editar pode_vender_iphone
+        if user and 'pode_vender_iphone' in self.fields:
+            if not user.is_superuser and not user.groups.filter(name='ADMINISTRADOR').exists():
+                self.fields['pode_vender_iphone'].disabled = True
+                self.fields['pode_vender_iphone'].widget.attrs['readonly'] = True
+                self.fields['pode_vender_iphone'].help_text = 'Apenas administradores podem alterar esta configuração.'
 
         if self.instance and self.instance.porcentagem_desconto_4 is not None:
             self.initial['porcentagem_desconto_4'] = str(self.instance.porcentagem_desconto_4).replace(',', '.')

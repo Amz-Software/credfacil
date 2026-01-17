@@ -30,6 +30,7 @@ Produtos
           <tr>
           <th scope="col">Código</th>
           <th scope="col">Nome</th>
+          <th scope="col">Tipo</th>
           <th scope="col">Valor Repasse Logista</th>
           <th scope="col">Entrada Cliente</th>
           <th scope="col">Valor 10 Vezes</th>
@@ -48,6 +49,13 @@ Produtos
           </td>
           <td>
             {{ produto.nome }}
+          </td>
+          <td>
+            {% if produto.is_iphone %}
+              <span class="badge bg-label-primary"><i class="bx bxl-apple"></i> iPhone</span>
+            {% else %}
+              <span class="badge bg-label-success"><i class="bx bxl-android"></i> Android</span>
+            {% endif %}
           </td>
           <td>{{ produto.valor_repasse_logista|floatformat:2 }}</td>
           <td>{{ produto.entrada_cliente|floatformat:2 }}</td>

@@ -179,6 +179,46 @@ Clientes
       text-align: left;
       max-width: 300px;
     }
+
+    /* Estilos para etapas do fluxo */
+    .etapa-concluida {
+      background-color: rgba(40, 167, 69, 0.1) !important;
+      border-left: 3px solid #28a745 !important;
+      position: relative;
+    }
+
+    .dark-style .etapa-concluida {
+      background-color: rgba(113, 221, 55, 0.15) !important;
+      border-left: 3px solid #71dd37 !important;
+    }
+
+    .etapa-pendente {
+      border-left: 3px solid transparent !important;
+      position: relative;
+    }
+
+    .etapa-concluida::before {
+      content: '✓';
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #28a745;
+      font-weight: bold;
+      font-size: 1.2em;
+    }
+
+    .dark-style .etapa-concluida::before {
+      color: #71dd37;
+    }
+
+    .etapa-concluida:hover {
+      background-color: rgba(40, 167, 69, 0.2) !important;
+    }
+
+    .dark-style .etapa-concluida:hover {
+      background-color: rgba(113, 221, 55, 0.25) !important;
+    }
   </style>
 {% endblock extra_head %}
 
@@ -436,41 +476,85 @@ Clientes
                   <span class="badge bg-label-success">
                     <i class="bx bx-check-double me-1"></i>Finalizado
                   </span>
-                {% elif cliente.analise_credito.status_aplicativo == 'I' and cliente.analise_credito.imei %}
-                  <span class="badge bg-label-info">
-                    <i class="bx bx-cart me-1"></i>Pronto para Venda
-                  </span>
-                {% elif cliente.analise_credito.status_aplicativo == 'C' and not cliente.analise_credito.imei %}
-                  <span class="badge bg-label-warning">
-                    <i class="bx bx-mobile me-1"></i>Aguardando IMEI
-                  </span>
-                {% elif cliente.analise_credito.status_aplicativo == 'C' and cliente.analise_credito.imei %}
-                  <span class="badge bg-label-primary">
-                    <i class="bx bx-check me-1"></i>Aguardando Confirmação
-                  </span>
-                {% elif cliente.analise_credito.status_aplicativo == 'P' %}
-                  <span class="badge bg-label-secondary">
-                    <i class="bx bx-qr me-1"></i>Aguardando QR Code
-                  </span>
+                {% elif cliente.analise_credito.produto.is_iphone %}
+                  {# Fluxo iPhone #}
+                  {% if cliente.analise_credito.icloud_confirmado_analista %}
+                    <span class="badge bg-label-info">
+                      <i class="bx bx-cart me-1"></i>Pronto para Venda
+                    </span>
+                  {% elif cliente.analise_credito.icloud_configurado_vendedor %}
+                    <span class="badge bg-label-primary">
+                      <i class="bx bxl-apple me-1"></i>Aguardando Confirmação Analista
+                    </span>
+                  {% elif cliente.analise_credito.email_icloud %}
+                    <span class="badge bg-label-warning">
+                      <i class="bx bxl-apple me-1"></i>Aguardando Configuração
+                    </span>
+                  {% else %}
+                    <span class="badge bg-label-secondary">
+                      <i class="bx bxl-apple me-1"></i>Aguardando iCloud
+                    </span>
+                  {% endif %}
                 {% else %}
-                  <span class="badge bg-label-danger">
-                    <i class="bx bx-time me-1"></i>Pendente
-                  </span>
+                  {# Fluxo Android #}
+                  {% if cliente.analise_credito.status_aplicativo == 'I' and cliente.analise_credito.imei %}
+                    <span class="badge bg-label-info">
+                      <i class="bx bx-cart me-1"></i>Pronto para Venda
+                    </span>
+                  {% elif cliente.analise_credito.status_aplicativo == 'C' and not cliente.analise_credito.imei %}
+                    <span class="badge bg-label-warning">
+                      <i class="bx bx-mobile me-1"></i>Aguardando IMEI
+                    </span>
+                  {% elif cliente.analise_credito.status_aplicativo == 'C' and cliente.analise_credito.imei %}
+                    <span class="badge bg-label-primary">
+                      <i class="bx bx-check me-1"></i>Aguardando Confirmação
+                    </span>
+                  {% elif cliente.analise_credito.status_aplicativo == 'P' %}
+                    <span class="badge bg-label-secondary">
+                      <i class="bx bx-qr me-1"></i>Aguardando QR Code
+                    </span>
+                  {% else %}
+                    <span class="badge bg-label-danger">
+                      <i class="bx bx-time me-1"></i>Pendente
+                    </span>
+                  {% endif %}
                 {% endif %}
                 
                 <div class="d-flex flex-wrap gap-1 mt-1">
-                  {% if cliente.analise_credito.status_aplicativo == 'P' %}
-                    <span class="badge bg-label-secondary badge-sm">App: Pendente</span>
-                  {% elif cliente.analise_credito.status_aplicativo == 'C' %}
-                    <span class="badge bg-label-warning badge-sm">App: Aguardando</span>
-                  {% elif cliente.analise_credito.status_aplicativo == 'I' %}
-                    <span class="badge bg-label-success badge-sm">App: Instalado</span>
-                  {% endif %}
-                  
-                  {% if cliente.analise_credito.imei %}
-                    <span class="badge bg-label-success badge-sm">IMEI: {{ cliente.analise_credito.imei.imei|truncatechars:8 }}</span>
+                  {% if cliente.analise_credito.produto.is_iphone %}
+                    {# Badges iPhone #}
+                    {% if cliente.analise_credito.email_icloud %}
+                      <span class="badge bg-label-success badge-sm"><i class="bx bxl-apple"></i> iCloud</span>
+                    {% else %}
+                      <span class="badge bg-label-warning badge-sm"><i class="bx bxl-apple"></i> Pendente</span>
+                    {% endif %}
+                    
+                    {% if cliente.analise_credito.icloud_configurado_vendedor %}
+                      <span class="badge bg-label-success badge-sm">Vendedor: OK</span>
+                    {% else %}
+                      <span class="badge bg-label-warning badge-sm">Vendedor: Pendente</span>
+                    {% endif %}
+                    
+                    {% if cliente.analise_credito.icloud_confirmado_analista %}
+                      <span class="badge bg-label-success badge-sm">Analista: OK</span>
+                    {% else %}
+                      <span class="badge bg-label-warning badge-sm">Analista: Pendente</span>
+                    {% endif %}
                   {% else %}
-                    <span class="badge bg-label-warning badge-sm">IMEI: Pendente</span>
+                    {# Badges Android #}
+                    {% if cliente.analise_credito.status_aplicativo == 'P' %}
+                      <span class="badge bg-label-secondary badge-sm">App: Pendente</span>
+                    {% elif cliente.analise_credito.status_aplicativo == 'C' %}
+                      <span class="badge bg-label-warning badge-sm">App: Aguardando</span>
+                    {% elif cliente.analise_credito.status_aplicativo == 'I' %}
+                      <span class="badge bg-label-success badge-sm">App: Instalado</span>
+                    {% endif %}
+                    
+                    {% if cliente.analise_credito.imei %}
+                      <span class="badge bg-label-success badge-sm">IMEI: {{ cliente.analise_credito.imei.imei|truncatechars:8 }}</span>
+                    {% else %}
+                      <span class="badge bg-label-warning badge-sm">IMEI: Pendente</span>
+                    {% endif %}
                   {% endif %}
                 </div>
               </div>
@@ -479,7 +563,7 @@ Clientes
                  data-bs-toggle="tooltip" 
                  data-bs-html="true"
                  data-bs-placement="top"
-                 title="<strong>Detalhes do Fluxo</strong><br><strong>Status App:</strong> {% if cliente.analise_credito.status_aplicativo == 'P' %}Pendente{% elif cliente.analise_credito.status_aplicativo == 'C' %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'I' %}Instalado{% else %}N/A{% endif %}<br><strong>Status IMEI:</strong> {% if cliente.analise_credito.imei %}Informado ({{ cliente.analise_credito.imei.imei }}){% else %}Pendente{% endif %}<br><strong>Status Geral:</strong> {% if cliente.analise_credito.venda_gerada %}Finalizado{% elif cliente.analise_credito.status_aplicativo == 'I' and cliente.analise_credito.imei %}Pronto para Venda{% elif cliente.analise_credito.status_aplicativo == 'C' and not cliente.analise_credito.imei %}Aguardando IMEI{% elif cliente.analise_credito.status_aplicativo == 'C' and cliente.analise_credito.imei %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'P' %}Aguardando QR Code{% else %}Pendente{% endif %}"></i>
+                 title="<strong>Detalhes do Fluxo</strong><br>{% if cliente.analise_credito.produto.is_iphone %}<strong>Tipo:</strong> iPhone<br><strong>iCloud:</strong> {% if cliente.analise_credito.email_icloud %}{{ cliente.analise_credito.email_icloud }}{% else %}Pendente{% endif %}<br><strong>Configurado Vendedor:</strong> {% if cliente.analise_credito.icloud_configurado_vendedor %}Sim{% else %}Não{% endif %}<br><strong>Confirmado Analista:</strong> {% if cliente.analise_credito.icloud_confirmado_analista %}Sim{% else %}Não{% endif %}{% else %}<strong>Tipo:</strong> Android<br><strong>Status App:</strong> {% if cliente.analise_credito.status_aplicativo == 'P' %}Pendente{% elif cliente.analise_credito.status_aplicativo == 'C' %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'I' %}Instalado{% else %}N/A{% endif %}<br><strong>Status IMEI:</strong> {% if cliente.analise_credito.imei %}Informado ({{ cliente.analise_credito.imei.imei }}){% else %}Pendente{% endif %}{% endif %}<br><strong>Status Geral:</strong> {% if cliente.analise_credito.venda_gerada %}Finalizado{% elif cliente.analise_credito.produto.is_iphone %}{% if cliente.analise_credito.icloud_confirmado_analista %}Pronto para Venda{% elif cliente.analise_credito.icloud_configurado_vendedor %}Aguardando Confirmação Analista{% elif cliente.analise_credito.email_icloud %}Aguardando Configuração{% else %}Aguardando iCloud{% endif %}{% else %}{% if cliente.analise_credito.status_aplicativo == 'I' and cliente.analise_credito.imei %}Pronto para Venda{% elif cliente.analise_credito.status_aplicativo == 'C' and not cliente.analise_credito.imei %}Aguardando IMEI{% elif cliente.analise_credito.status_aplicativo == 'C' and cliente.analise_credito.imei %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'P' %}Aguardando QR Code{% else %}Pendente{% endif %}{% endif %}"></i>
             </td>
 
             <td>
@@ -597,51 +681,125 @@ Clientes
                   {# Separador visual #}
                   <div class="dropdown-divider"></div>
                   
-                  {# FLUXO DE TRABALHO - Etapa 1: Ler QR Code #}
-                  {% if cliente.analise_credito.status == 'A' and cliente.analise_credito.status_aplicativo == 'P' %}
-                  <button type="button" 
-                          class="dropdown-item" 
-                          data-bs-toggle="modal" 
-                          data-bs-target="#installModal{{ cliente.pk }}">
-                    <i class="bx bx-qr me-1"></i>📱 1. Ler QR Code (Vendedor)
-                  </button>
-                  {% endif %}
-                  
-                  {# FLUXO DE TRABALHO - Etapa 2: Confirmar Leitura #}
-                  {% if cliente.analise_credito.status == 'A' and cliente.analise_credito.status_aplicativo == 'C' and not cliente.analise_credito.imei %}
-                  <form method="post" action="{% url 'vendas:cliente_confirm_installed' cliente.pk %}" class="d-inline">
-                    {% csrf_token %}
-                    <button type="submit" class="dropdown-item">
-                      <i class="bx bx-check-circle me-1"></i>✅ 2. Confirmar Leitura QR (Vendedor)
+                  {# Verificar se é fluxo iPhone ou Android #}
+                  {% if cliente.analise_credito.produto.is_iphone %}
+                    {# ===== FLUXO IPHONE ===== #}
+                    
+                    {# Etapa 1: Configurar iCloud (Vendedor) #}
+                    {% if cliente.analise_credito.status == 'A' or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    <button type="button" 
+                            class="dropdown-item {% if cliente.analise_credito.icloud_configurado_vendedor %}etapa-concluida{% else %}etapa-pendente{% endif %}" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#icloudModal{{ cliente.pk }}">
+                      <i class="bx bxl-apple me-1"></i>🍎 1. Configurar iCloud (Vendedor)
+                      {% if cliente.analise_credito.icloud_configurado_vendedor %}
+                        <small class="text-muted ms-1">(Concluído)</small>
+                      {% endif %}
                     </button>
-                  </form>
-                  {% endif %}
-                  
-                  {# FLUXO DE TRABALHO - Etapa 3: Informar IMEI #}
-                  {% if cliente.analise_credito.status == 'A' and not cliente.analise_credito.imei and cliente.analise_credito.status_aplicativo == 'C' and user|has_group:"ANALISTA" %}
-                  <a href="{% url 'vendas:informar_imei_analise' cliente.analise_credito.pk %}" class="dropdown-item">
-                    <i class="bx bx-mobile me-1"></i>📱 3. Informar IMEI (Analista)
-                  </a>
-                  {% endif %}
-                  
-                  {# FLUXO DE TRABALHO - Etapa 2.5: Analista Confirmar Instalação #}
-                  {% if cliente.analise_credito.status == 'A' and cliente.analise_credito.status_aplicativo == 'C' and cliente.analise_credito.imei and user|has_group:"ANALISTA" %}
-                  <form method="post" action="{% url 'vendas:analista_confirm_installed' cliente.pk %}" class="d-inline">
-                    {% csrf_token %}
-                    <button type="submit" class="dropdown-item">
-                      <i class="bx bx-check-circle me-1"></i>✅ 2.5. Confirmar Instalação (Analista)
+                    {% endif %}
+                    
+                    {# Etapa 2: Confirmar iCloud (Analista) #}
+                    {% if cliente.analise_credito.status == 'A' and user|has_group:"ANALISTA" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    <form method="post" action="{% url 'vendas:analista_confirm_icloud' cliente.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item {% if cliente.analise_credito.icloud_confirmado_analista %}etapa-concluida{% else %}etapa-pendente{% endif %}">
+                        <i class="bx bx-check-circle me-1"></i>✅ 2. Confirmar iCloud (Analista)
+                        {% if cliente.analise_credito.icloud_confirmado_analista %}
+                          <small class="text-muted ms-1">(Concluído)</small>
+                        {% endif %}
+                      </button>
+                    </form>
+                    {% endif %}
+                    
+                    {# Etapa 3: Informar IMEI (Analista) #}
+                    {% if cliente.analise_credito.status == 'A' and user|has_group:"ANALISTA" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    <a href="{% url 'vendas:informar_imei_analise' cliente.analise_credito.pk %}" 
+                       class="dropdown-item {% if cliente.analise_credito.imei %}etapa-concluida{% else %}etapa-pendente{% endif %}">
+                      <i class="bx bx-mobile me-1"></i>📱 3. Informar IMEI (Analista)
+                      {% if cliente.analise_credito.imei %}
+                        <small class="text-muted ms-1">(Concluído)</small>
+                      {% endif %}
+                    </a>
+                    {% endif %}
+                    
+                    {# Etapa 4: Gerar Venda (Vendedor) - Para iPhone #}
+                    {% if cliente.analise_credito.status == 'A' and user|has_perm:"vendas.add_venda" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}" 
+                          onsubmit="return confirm('Gerar venda para {{ cliente.nome }}?');" class="m-0">
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item {% if cliente.analise_credito.venda_gerada %}etapa-concluida{% else %}etapa-pendente{% endif %}">
+                        <i class="bx bx-cart me-1"></i>🛒 4. Gerar Venda (Vendedor)
+                        {% if cliente.analise_credito.venda_gerada %}
+                          <small class="text-muted ms-1">(Concluído)</small>
+                        {% endif %}
+                      </button>
+                    </form>
+                    {% endif %}
+                    
+                  {% else %}
+                    {# ===== FLUXO ANDROID ===== #}
+                    
+                    {# FLUXO DE TRABALHO - Etapa 1: Ler QR Code #}
+                    {% if cliente.analise_credito.status == 'A' and cliente.analise_credito.status_aplicativo == 'P' or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    <button type="button" 
+                            class="dropdown-item {% if cliente.analise_credito.status_aplicativo != 'P' %}etapa-concluida{% else %}etapa-pendente{% endif %}" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#installModal{{ cliente.pk }}">
+                      <i class="bx bx-qr me-1"></i>📱 1. Ler QR Code (Vendedor)
+                      {% if cliente.analise_credito.status_aplicativo != 'P' %}
+                        <small class="text-muted ms-1">(Concluído)</small>
+                      {% endif %}
                     </button>
-                  </form>
-                  {% endif %}
-                  
-                  {# FLUXO DE TRABALHO - Etapa 4: Gerar Venda #}
-                  {% if cliente.analise_credito.status_aplicativo == 'I' and cliente.analise_credito.imei and user|has_perm:"vendas.add_venda" and not cliente.analise_credito.venda_gerada %}
-                  <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}" onsubmit="return confirm('Gerar venda para {{ cliente.nome }}?');" class="m-0">
-                    {% csrf_token %}
-                    <button type="submit" class="dropdown-item">
-                      <i class="bx bx-cart me-1"></i>🛒 4. Gerar Venda (Vendedor)
-                    </button>
-                  </form>
+                    {% endif %}
+                    
+                    {# FLUXO DE TRABALHO - Etapa 2: Confirmar Leitura #}
+                    {% if cliente.analise_credito.status == 'A' or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    <form method="post" action="{% url 'vendas:cliente_confirm_installed' cliente.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item {% if cliente.analise_credito.status_aplicativo == 'I' %}etapa-concluida{% else %}etapa-pendente{% endif %}">
+                        <i class="bx bx-check-circle me-1"></i>✅ 2. Confirmar Leitura QR (Vendedor)
+                        {% if cliente.analise_credito.status_aplicativo == 'I' %}
+                          <small class="text-muted ms-1">(Concluído)</small>
+                        {% endif %}
+                      </button>
+                    </form>
+                    {% endif %}
+                    
+                    {# FLUXO DE TRABALHO - Etapa 3: Informar IMEI #}
+                    {% if cliente.analise_credito.status == 'A' and user|has_group:"ANALISTA" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    <a href="{% url 'vendas:informar_imei_analise' cliente.analise_credito.pk %}" class="dropdown-item {% if cliente.analise_credito.imei %}etapa-concluida{% else %}etapa-pendente{% endif %}">
+                      <i class="bx bx-mobile me-1"></i>📱 3. Informar IMEI (Analista)
+                      {% if cliente.analise_credito.imei %}
+                        <small class="text-muted ms-1">(Concluído)</small>
+                      {% endif %}
+                    </a>
+                    {% endif %}
+                    
+                    {# FLUXO DE TRABALHO - Etapa 2.5: Analista Confirmar Instalação #}
+                    {% if cliente.analise_credito.status == 'A' and user|has_group:"ANALISTA" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    <form method="post" action="{% url 'vendas:analista_confirm_installed' cliente.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item {% if cliente.analise_credito.status_aplicativo == 'I' %}etapa-concluida{% else %}etapa-pendente{% endif %}">
+                        <i class="bx bx-check-circle me-1"></i>✅ 2.5. Confirmar Instalação (Analista)
+                        {% if cliente.analise_credito.status_aplicativo == 'I' %}
+                          <small class="text-muted ms-1">(Concluído)</small>
+                        {% endif %}
+                      </button>
+                    </form>
+                    {% endif %}
+                    
+                    {# FLUXO DE TRABALHO - Etapa 4: Gerar Venda #}
+                    {% if cliente.analise_credito.status == 'A' and user|has_perm:"vendas.add_venda" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}" onsubmit="return confirm('Gerar venda para {{ cliente.nome }}?');" class="m-0">
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item {% if cliente.analise_credito.venda_gerada %}etapa-concluida{% else %}etapa-pendente{% endif %}">
+                        <i class="bx bx-cart me-1"></i>🛒 4. Gerar Venda (Vendedor)
+                        {% if cliente.analise_credito.venda_gerada %}
+                          <small class="text-muted ms-1">(Concluído)</small>
+                        {% endif %}
+                      </button>
+                    </form>
+                    {% endif %}
                   {% endif %}
                   
                   {# Venda já gerada #}
@@ -724,6 +882,83 @@ Clientes
                             class="btn btn-success btn-lg w-100 py-3 fw-bold shadow-sm">
                       <i class="bx bx-check-circle me-2"></i>
                       ✅ Confirmar Instalação
+                    </button>
+                  </form>
+                  
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Modal de Configuração iCloud (iPhone) -->
+          <div class="modal fade" id="icloudModal{{ cliente.pk }}" tabindex="-1"
+               aria-labelledby="icloudModalLabel{{ cliente.pk }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+              <div class="modal-content border-0 shadow-lg">
+                
+                <!-- Header -->
+                <div class="modal-header bg-gradient-primary text-white border-0 text-center position-relative">
+                  <div class="w-100 text-center">
+                    <div class="qr-icon-wrapper mb-2">
+                      <i class="bx bxl-apple fs-1 text-white"></i>
+                    </div>
+                    <h4 class="modal-title fw-bold mb-0" id="icloudModalLabel{{ cliente.pk }}">
+                      🍎 Configurar iCloud
+                    </h4>
+                    <p class="text-white-50 mb-0 mt-2">Configure o iPhone com as credenciais iCloud</p>
+                  </div>
+                  <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3"
+                          data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <!-- Body -->
+                <div class="modal-body p-4">
+                  
+                  <!-- Email iCloud -->
+                  <div class="mb-4">
+                    <label class="form-label text-muted mb-2">
+                      <i class="bx bx-envelope me-1"></i>Email iCloud
+                    </label>
+                    <div class="code-display p-3 bg-light rounded-3 border">
+                      <span class="fs-5 fw-bold text-primary">
+                        {{ cliente.analise_credito.email_icloud|default:"Email não disponível" }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Senha iCloud -->
+                  <div class="mb-4">
+                    <label class="form-label text-muted mb-2">
+                      <i class="bx bx-lock me-1"></i>Senha iCloud
+                    </label>
+                    <div class="code-display p-3 bg-light rounded-3 border d-flex justify-content-between align-items-center">
+                      <span class="fs-5 fw-bold text-primary password-field" data-password="{{ cliente.analise_credito.senha_icloud }}">
+                        ••••••••
+                      </span>
+                      <button type="button" class="btn btn-sm btn-outline-primary toggle-password">
+                        <i class="bx bx-show"></i> Mostrar
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Instruções -->
+                  <div class="alert alert-info">
+                    <i class="bx bx-info-circle me-2"></i>
+                    <strong>Instruções:</strong>
+                    <ol class="mb-0 mt-2">
+                      <li>Acesse as Configurações do iPhone</li>
+                      <li>Toque em "Entrar no iPhone"</li>
+                      <li>Digite o Email e Senha acima</li>
+                      <li>Complete a configuração do iCloud</li>
+                    </ol>
+                  </div>
+
+                  <!-- Botão de Confirmação -->
+                  <form method="post" action="{% url 'vendas:cliente_configurar_icloud' cliente.pk %}" class="w-100">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fw-bold shadow-sm">
+                      <i class="bx bx-check-circle me-2"></i>
+                      ✅ Confirmar Configuração iCloud
                     </button>
                   </form>
                   
@@ -884,6 +1119,11 @@ Clientes
       // Adiciona funcionalidade de copiar código (se suportado)
       const codeDisplays = document.querySelectorAll('.code-display');
       codeDisplays.forEach(display => {
+        // Não adiciona funcionalidade de copiar se tiver botão de toggle senha
+        if (display.querySelector('.toggle-password')) {
+          return;
+        }
+        
         display.style.cursor = 'pointer';
         display.title = 'Clique para copiar o código';
         
@@ -903,6 +1143,25 @@ Clientes
                 this.style.borderColor = '#dee2e6 !important';
               }, 2000);
             });
+          }
+        });
+      });
+      
+      // Toggle de senha iCloud
+      document.querySelectorAll('.toggle-password').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const passwordField = this.parentElement.querySelector('.password-field');
+          const password = passwordField.dataset.password;
+          const icon = this.querySelector('i');
+          
+          if (passwordField.textContent === '••••••••') {
+            passwordField.textContent = password;
+            icon.className = 'bx bx-hide';
+            this.innerHTML = '<i class="bx bx-hide"></i> Ocultar';
+          } else {
+            passwordField.textContent = '••••••••';
+            icon.className = 'bx bx-show';
+            this.innerHTML = '<i class="bx bx-show"></i> Mostrar';
           }
         });
       });

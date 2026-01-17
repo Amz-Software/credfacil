@@ -450,6 +450,10 @@
         });
       }
 
+      // Sempre habilitar os botões quando a página carregar completamente
+      // Isso garante que os botões funcionem após retorno com erros de validação
+      enableButtons();
+
       // Limpar o estado de desabilitação ao recarregar ou voltar na navegação
       window.addEventListener('pageshow', function (event) {
         // Verifica se a navegação foi feita via cache (navegação 'voltar')

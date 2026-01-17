@@ -71,7 +71,14 @@ class ComprovantesClienteAdmin(AdminBase):
 
 @admin.register(Loja)
 class LojaAdmin(AdminBase):
-    list_display = ('nome', 'cnpj', 'telefone')
+    list_display = ('nome', 'cnpj', 'telefone', 'pode_vender_iphone')
+    
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = super().get_readonly_fields(request, obj)
+        # Apenas ADMINISTRADOR pode editar pode_vender_iphone
+        if not request.user.is_superuser and not request.user.groups.filter(name='ADMINISTRADOR').exists():
+            readonly_fields = list(readonly_fields) + ['pode_vender_iphone']
+        return readonly_fields
     
     
 @admin.register(Parcela)

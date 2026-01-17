@@ -537,11 +537,20 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        # Buscar loja da sessão
+        loja_id = self.request.session.get('loja_id')
+        loja = None
+        if loja_id:
+            try:
+                loja = Loja.objects.get(id=loja_id)
+            except Loja.DoesNotExist:
+                loja = None
+        
         context['form_cliente'] = kwargs.get('form_cliente', ClienteForm(user=self.request.user))
         context['form_adicional'] = kwargs.get('form_adicional', ContatoAdicionalForm(user=self.request.user))
         context['form_informacao'] = kwargs.get('form_informacao', InformacaoPessoalForm(user=self.request.user))
         context['form_comprovantes'] = kwargs.get('form_comprovantes', ComprovantesClienteForm(user=self.request.user))
-        context['form_analise_credito'] = kwargs.get('form_analise_credito', AnaliseCreditoClienteForm(user=self.request.user))
+        context['form_analise_credito'] = kwargs.get('form_analise_credito', AnaliseCreditoClienteForm(user=self.request.user, loja=loja))
         
         # Adiciona informação sobre permissão de visualizar consulta Serasa
         context['can_view_consulta_serasa'] = self.request.user.has_perm('vendas.view_consulta_serasa')
@@ -566,12 +575,21 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
     def post(self, request, *args, **kwargs):
         self.object = None
 
+        # Buscar loja da sessão
+        loja_id = request.session.get('loja_id')
+        loja = None
+        if loja_id:
+            try:
+                loja = Loja.objects.get(id=loja_id)
+            except Loja.DoesNotExist:
+                loja = None
+        
         # Passando o user para os formulários
         form_cliente = ClienteForm(request.POST, user=request.user)
         form_adicional = ContatoAdicionalForm(request.POST, user=request.user)
         form_informacao = InformacaoPessoalForm(request.POST, user=request.user)
         form_comprovantes = ComprovantesClienteForm(request.POST, request.FILES, user=request.user)
-        form_analise_credito = AnaliseCreditoClienteForm(request.POST, user=request.user)
+        form_analise_credito = AnaliseCreditoClienteForm(request.POST, user=request.user, loja=loja)
 
         if all([
             form_cliente.is_valid(),
@@ -660,12 +678,21 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         cliente = self.get_object()
+        
+        # Buscar loja da sessão
+        loja_id = self.request.session.get('loja_id')
+        loja = None
+        if loja_id:
+            try:
+                loja = Loja.objects.get(id=loja_id)
+            except Loja.DoesNotExist:
+                loja = None
 
         context['form_cliente'] = kwargs.get('form_cliente', ClienteForm(instance=cliente, user=self.request.user))  # Alteração aqui
         context['form_adicional'] = kwargs.get('form_adicional', ContatoAdicionalForm(instance=cliente.contato_adicional, user=self.request.user))
         context['form_informacao'] = kwargs.get('form_informacao', InformacaoPessoalForm(instance=cliente.informacao_pessoal, user=self.request.user))
         context['form_comprovantes'] = kwargs.get('form_comprovantes', ComprovantesClienteForm(instance=cliente.comprovantes, user=self.request.user))
-        context['form_analise_credito'] = kwargs.get('form_analise_credito', AnaliseCreditoClienteForm(instance=cliente.analise_credito, user=self.request.user))
+        context['form_analise_credito'] = kwargs.get('form_analise_credito', AnaliseCreditoClienteForm(instance=cliente.analise_credito, user=self.request.user, loja=loja))
         context['cliente_id'] = cliente.id
         
         # Adiciona informação sobre permissão de visualizar consulta Serasa
@@ -676,6 +703,29 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
         context['analise_credito'] = analise
         
         context['status_app_choices'] = AnaliseCreditoCliente.STATUS_APP_CHOICES
+
+        produtos = Produto.objects.all().values(
+            'id',
+            'nome',
+            'valor_4_vezes',
+            'valor_6_vezes',
+            'valor_8_vezes',
+            'valor_10_vezes',
+            'entrada_cliente'
+        )
+        produtos_list = [
+            {
+                'id': p['id'],
+                'nome': p['nome'],
+                'valor4': float(p['valor_4_vezes']),
+                'valor6': float(p['valor_6_vezes']),
+                'valor8': float(p['valor_8_vezes']),
+                'valor10': float(p['valor_10_vezes']),
+                'entrada': float(p['entrada_cliente']),
+            }
+            for p in produtos
+        ]
+        context['produtos_json'] = json.dumps(produtos_list)
 
         return context
 
@@ -700,11 +750,20 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
                 messages.warning(request, "❌ Somente usuários com permissão específica podem editar solicitações após a venda ser gerada.")
                 return redirect(self.success_url)
 
+        # Buscar loja da sessão
+        loja_id = request.session.get('loja_id')
+        loja = None
+        if loja_id:
+            try:
+                loja = Loja.objects.get(id=loja_id)
+            except Loja.DoesNotExist:
+                loja = None
+        
         form_cliente = ClienteForm(request.POST, instance=self.object, user=user)
         form_adicional = ContatoAdicionalForm(request.POST, instance=self.object.contato_adicional, user=user)
         form_informacao = InformacaoPessoalForm(request.POST, instance=self.object.informacao_pessoal, user=user)
         form_comprovantes = ComprovantesClienteForm(request.POST, request.FILES, instance=self.object.comprovantes, user=user)
-        form_analise_credito = AnaliseCreditoClienteForm(request.POST, instance=self.object.analise_credito, user=request.user)
+        form_analise_credito = AnaliseCreditoClienteForm(request.POST, instance=self.object.analise_credito, user=request.user, loja=loja)
 
         if all([
             form_cliente.is_valid(),
@@ -735,6 +794,12 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             cliente.comprovantes = comprovantes
             cliente.save(user=user)
             messages.success(request, "✅ Soliticitação atualizada com sucesso")
+            
+            # Verifica se deve redirecionar para aprovação
+            aprovar_url = request.POST.get('aprovar_apos_salvar')
+            if aprovar_url:
+                return redirect(aprovar_url)
+            
             return redirect(self.success_url)
         else:
             for form in [form_cliente, form_adicional, form_comprovantes, form_analise_credito]:
@@ -1123,11 +1188,18 @@ def aprovar_analise_credito(request, id):
         return redirect('vendas:cliente_list')
     try:
         analise = AnaliseCreditoCliente.objects.get(id=id)
+        
+        # Verificar se é iPhone e se tem email/senha iCloud
+        if analise.produto.is_iphone:
+            if not analise.email_icloud or not analise.senha_icloud:
+                messages.error(request, '❌ Para aprovar iPhone, é necessário informar Email e Senha iCloud na solicitação.')
+                return redirect('vendas:cliente_update', pk=analise.cliente.pk)
+        
         analise.aprovar(user=request.user)
         analise.modificado_por = request.user
         analise.modificado_em = timezone.now()
         analise.save()
-        messages.success(request, 'Análise de crédito aprovada com sucesso')
+        messages.success(request, '✅ Análise de crédito aprovada com sucesso')
     except AnaliseCreditoCliente.DoesNotExist:
         messages.error(request, 'Análise de crédito não encontrada')
 
@@ -1801,6 +1873,11 @@ class LojaCreateView(PermissionRequiredMixin, CreateView):
     template_name = 'loja/loja_form.html'
     permission_required = 'vendas.add_loja'
     
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+    
     def form_valid(self, form):
         messages.success(self.request, 'Loja cadastrada com sucesso')
         return super().form_valid(form)
@@ -1822,6 +1899,7 @@ class LojaUpdateView(PermissionRequiredMixin, UpdateView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user_loja'] = self.request.session.get('loja_id')
+        kwargs['user'] = self.request.user
         return kwargs
 
     def form_valid(self, form):
@@ -3083,9 +3161,16 @@ def informar_imei_analise(request, pk):
     analise = get_object_or_404(AnaliseCreditoCliente, pk=pk)
     
     # Verificar se o status está correto para informar IMEI
-    if analise.status_aplicativo != 'C':
-        messages.error(request, 'Só é possível informar IMEI após o vendedor confirmar a instalação do aplicativo.')
-        return redirect('vendas:cliente_list')
+    # Para iPhone: verificar se o iCloud foi confirmado pelo analista
+    # Para Android: verificar se o aplicativo foi confirmado pelo vendedor
+    if analise.produto.is_iphone:
+        if not analise.icloud_confirmado_analista:
+            messages.error(request, 'Só é possível informar IMEI após confirmar a configuração do iCloud.')
+            return redirect('vendas:cliente_list')
+    else:
+        if analise.status_aplicativo != 'C':
+            messages.error(request, 'Só é possível informar IMEI após o vendedor confirmar a instalação do aplicativo.')
+            return redirect('vendas:cliente_list')
     
     if request.method == 'POST':
         imei_informado = request.POST.get('imei_informado')
@@ -3135,9 +3220,10 @@ def informar_imei_analise(request, pk):
                 messages.error(request, f'Erro ao criar IMEI: {str(e)}')
                 return redirect('vendas:cliente_update', pk=analise.cliente.pk)
         
-        # Marcar aplicativo como instalado quando o analista informar o IMEI
-        analise.status_aplicativo = 'I'
-        analise.save()
+        # Marcar aplicativo como instalado quando o analista informar o IMEI (apenas para Android)
+        if not analise.produto.is_iphone:
+            analise.status_aplicativo = 'I'
+            analise.save()
         messages.success(request, 'IMEI informado com sucesso! Venda liberada para geração pelo vendedor.')
         
         # Enviar notificação para analistas e administradores
@@ -3250,6 +3336,123 @@ class AnalistaConfirmInstalledView(PermissionRequiredMixin, View):
                 )
         
         messages.success(request, "✅ Instalação confirmada pelo analista! Venda liberada para geração.")
+        return redirect('vendas:cliente_list')
+
+
+class ClienteConfigurarIcloudView(PermissionRequiredMixin, View):
+    """Vendedor confirma que configurou o iCloud no iPhone"""
+    permission_required = 'vendas.change_cliente'
+
+    def post(self, request, pk):
+        cliente = get_object_or_404(Cliente, pk=pk)
+        analise = cliente.analise_credito
+        
+        if not analise.email_icloud or not analise.senha_icloud:
+            messages.error(request, '❌ Email e senha iCloud não configurados pela análise.')
+            return redirect('vendas:cliente_list')
+        
+        analise.icloud_configurado_vendedor = True
+        analise.save()
+        
+        # Enviar notificação para analistas
+        from notifications.signals import notify
+        from notificacao.utils import enviar_ws_para_usuario
+        
+        cliente_nome = cliente.nome if cliente else "Cliente"
+        loja = cliente.loja
+        
+        verb = f'Vendedor configurou iCloud para cliente {cliente_nome.capitalize()}'
+        description = f'iPhone da loja {loja.nome.capitalize()}. Aguardando confirmação do analista.'
+        
+        # Notificar analistas
+        usuarios_para_notificar = list(
+            User.objects.filter(groups__name__in=['ANALISTA', 'ADMINISTRADOR']).exclude(id=request.user.id)
+        )
+        
+        for user in usuarios_para_notificar:
+            notify.send(
+                analise,
+                recipient=user,
+                verb=verb,
+                description=description,
+                target=cliente,
+            )
+
+            # WebSocket
+            ultima_notificacao = user.notifications.unread().order_by('-timestamp').first()
+            if ultima_notificacao:
+                enviar_ws_para_usuario(
+                    usuario=user,
+                    instance=analise,
+                    notification_id=ultima_notificacao.id,
+                    verb=verb,
+                    description=description,
+                    target_url=cliente.get_absolute_url(),
+                    type_notification='analise_credito_cliente',
+                )
+        
+        messages.success(request, f'✅ Configuração iCloud confirmada para {cliente.nome}')
+        return redirect('vendas:cliente_list')
+
+
+class AnalistaConfirmIcloudView(PermissionRequiredMixin, View):
+    """Analista confirma que o iCloud foi configurado corretamente"""
+    permission_required = 'vendas.change_status_analise'
+
+    def post(self, request, pk):
+        cliente = get_object_or_404(Cliente, pk=pk)
+        analise = cliente.analise_credito
+        
+        # Verificar se o usuário é analista
+        if not request.user.groups.filter(name='ANALISTA').exists():
+            messages.error(request, 'Apenas analistas podem confirmar a configuração do iCloud.')
+            return redirect('vendas:cliente_list')
+        
+        if not analise.icloud_configurado_vendedor:
+            messages.error(request, '❌ Vendedor ainda não confirmou a configuração do iCloud.')
+            return redirect('vendas:cliente_list')
+        
+        analise.icloud_confirmado_analista = True
+        analise.save()
+        
+        # Enviar notificação para vendedores
+        from notifications.signals import notify
+        from notificacao.utils import enviar_ws_para_usuario
+        
+        cliente_nome = cliente.nome if cliente else "Cliente"
+        loja = cliente.loja
+        
+        verb = f'Analista confirmou configuração iCloud para cliente {cliente_nome.capitalize()}'
+        description = f'iPhone da loja {loja.nome.capitalize()}. Aguardando IMEI para gerar venda.'
+        
+        # Notificar vendedores e outros analistas
+        usuarios_para_notificar = list(
+            User.objects.filter(groups__name__in=['VENDEDOR', 'ADMINISTRADOR', 'ANALISTA']).exclude(id=request.user.id)
+        )
+        
+        for user in usuarios_para_notificar:
+            notify.send(
+                analise,
+                recipient=user,
+                verb=verb,
+                description=description,
+                target=cliente,
+            )
+
+            # WebSocket
+            ultima_notificacao = user.notifications.unread().order_by('-timestamp').first()
+            if ultima_notificacao:
+                enviar_ws_para_usuario(
+                    usuario=user,
+                    instance=analise,
+                    notification_id=ultima_notificacao.id,
+                    verb=verb,
+                    description=description,
+                    target_url=cliente.get_absolute_url(),
+                    type_notification='analise_credito_cliente',
+                )
+        
+        messages.success(request, f'✅ Configuração iCloud confirmada pelo analista para {cliente.nome}')
         return redirect('vendas:cliente_list')
 
 

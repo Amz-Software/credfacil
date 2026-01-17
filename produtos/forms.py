@@ -23,6 +23,7 @@ class ProdutoForms(forms.ModelForm):
             'cor': 'Cor',
             'memoria': 'Memória',
             'estado': 'Estado',
+            'is_iphone': 'iPhone',
         }
         widgets = {
             'codigo': forms.TextInput(attrs={'class': 'form-control', 'disabled': 'disabled'}),
@@ -38,6 +39,7 @@ class ProdutoForms(forms.ModelForm):
             'cor': forms.Select(attrs={'class': 'form-control'}),
             'memoria': forms.Select(attrs={'class': 'form-control'}),
             'estado': forms.Select(attrs={'class': 'form-control'}),
+            'is_iphone': forms.RadioSelect(attrs={'class': 'form-check-input'}, choices=[(True, 'Sim'), (False, 'Não')]),
         }
 
     def __init__(self, *args, disabled=False, **kwargs):

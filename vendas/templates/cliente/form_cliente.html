@@ -80,6 +80,12 @@
       color: white;
     }
     
+    .step-number.success {
+      background: #28a745;
+      color: white;
+      box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
+    }
+    
     .step-text {
       flex: 1;
       font-weight: 500;
@@ -87,6 +93,7 @@
     
     .step-text.completed {
       color: #28a745;
+      font-weight: 600;
     }
     
     /* Form Improvements */
@@ -380,17 +387,17 @@
         <!-- Progress Bar -->
         <div class="progress-container">
           <h6 class="mb-3"><i class="bx bx-list-check me-2"></i>Progresso do Preenchimento</h6>
+          <div class="progress-step" id="step-produto">
+            <div class="step-number" id="step-produto-number">1</div>
+            <div class="step-text" id="step-produto-text">Produto e Condições</div>
+          </div>
           <div class="progress-step" id="step-dados">
-            <div class="step-number" id="step-dados-number">1</div>
+            <div class="step-number" id="step-dados-number">2</div>
             <div class="step-text" id="step-dados-text">Dados do Cliente</div>
           </div>
           <div class="progress-step" id="step-comprovantes">
-            <div class="step-number" id="step-comprovantes-number">2</div>
+            <div class="step-number" id="step-comprovantes-number">3</div>
             <div class="step-text" id="step-comprovantes-text">Comprovantes</div>
-          </div>
-          <div class="progress-step" id="step-produto">
-            <div class="step-number" id="step-produto-number">3</div>
-            <div class="step-text" id="step-produto-text">Produto e Condições</div>
           </div>
         </div>
 
@@ -749,6 +756,14 @@
               </div>
               {% endif %}
               
+              {# Aviso sobre campos iCloud #}
+              {% if 'email_icloud' in form_analise_credito.fields or 'senha_icloud' in form_analise_credito.fields %}
+                <div class="alert alert-info mb-3">
+                  <i class="bx bx-info-circle me-2"></i>
+                  <strong>Atenção:</strong> Os campos de Email e Senha iCloud devem ser preenchidos <strong>somente quando o produto for iPhone</strong>. Para outros produtos, deixe esses campos em branco.
+                </div>
+              {% endif %}
+              
               <div class="row">
                 {% for field in form_analise_credito %}
                   <div class="col-md-6">
@@ -809,10 +824,9 @@
         <div>
           {% if cliente.pk and cliente.analise_credito %}
             <div class="btn-group" role="group" aria-label="Análise de Crédito">
-              <a href="{% url 'vendas:aprovar_analise' cliente.analise_credito.id %}"
-                 class="btn btn-success">
+              <button type="button" class="btn btn-success" id="aprovarBtn" data-url="{% url 'vendas:aprovar_analise' cliente.analise_credito.id %}">
                 <i class="bx bx-check me-1"></i> Aprovar
-              </a>
+              </button>
               <a href="{% url 'vendas:reprovar_analise' cliente.analise_credito.id %}"
                  class="btn btn-danger">
                 <i class="bx bx-x me-1"></i> Reprovar
@@ -871,7 +885,6 @@
   </script>
   <script>
     $(function(){
-      // Inicializar tooltips
       var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
       var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl)
@@ -882,38 +895,37 @@
         let completedSteps = 0;
         let totalSteps = 3;
         
-        // Check dados step
-        let dadosComplete = checkDadosComplete();
-        console.log('Dados complete:', dadosComplete);
-        if (dadosComplete) {
-          $('#step-dados-number').removeClass('active').addClass('completed');
-          $('#step-dados-text').addClass('completed');
-          completedSteps++;
-        } else {
-          $('#step-dados-number').removeClass('completed').addClass('active');
-          $('#step-dados-text').removeClass('completed');
-        }
-        
-        // Check comprovantes step
-        let comprovantesComplete = checkComprovantesComplete();
-        if (comprovantesComplete) {
-          $('#step-comprovantes-number').removeClass('active').addClass('completed');
-          $('#step-comprovantes-text').addClass('completed');
-          completedSteps++;
-        } else {
-          $('#step-comprovantes-number').removeClass('completed').addClass('active');
-          $('#step-comprovantes-text').removeClass('completed');
-        }
-        
-        // Check produto step
+        // Check produto step (agora é o primeiro)
         let produtoComplete = checkProdutoComplete();
         if (produtoComplete) {
-          $('#step-produto-number').removeClass('active').addClass('completed');
+          $('#step-produto-number').removeClass('active').addClass('completed success');
           $('#step-produto-text').addClass('completed');
           completedSteps++;
         } else {
-          $('#step-produto-number').removeClass('completed').addClass('active');
+          $('#step-produto-number').removeClass('completed success').addClass('active');
           $('#step-produto-text').removeClass('completed');
+        }
+        
+        // Check dados step (agora é o segundo)
+        let dadosComplete = checkDadosComplete();
+        if (dadosComplete) {
+          $('#step-dados-number').removeClass('active').addClass('completed success');
+          $('#step-dados-text').addClass('completed');
+          completedSteps++;
+        } else {
+          $('#step-dados-number').removeClass('completed success').addClass('active');
+          $('#step-dados-text').removeClass('completed');
+        }
+        
+        // Check comprovantes step (agora é o terceiro)
+        let comprovantesComplete = checkComprovantesComplete();
+        if (comprovantesComplete) {
+          $('#step-comprovantes-number').removeClass('active').addClass('completed success');
+          $('#step-comprovantes-text').addClass('completed');
+          completedSteps++;
+        } else {
+          $('#step-comprovantes-number').removeClass('completed success').addClass('active');
+          $('#step-comprovantes-text').removeClass('completed');
         }
         
         // Update submit button
@@ -940,31 +952,17 @@
           '#id_total_renda',
         ];
         
-        console.log('=== DEBUG CHECK DADOS COMPLETE ===');
-        requiredFields.forEach(field => {
-          console.log('Field exists:', field, $(field).length > 0);
-          if ($(field).length > 0) {
-            console.log('Field value:', field, $(field).val());
-            console.log('Field type:', field, $(field).attr('type'));
-          }
-        });
-        
         let complete = true;
-        console.log('Starting validation with complete = true');
         requiredFields.forEach(field => {
           let value = $(field).val();
-          console.log('Checking field:', field, 'Value:', value, 'Length:', value ? value.length : 0);
           if (!value || value.trim() === '') {
-            console.log('❌ Field empty:', field, '- Setting complete = false');
             complete = false;
             return false;
           }
-          console.log('✅ Field OK:', field);
           
           if (field === '#id_quantidade_dependentes') {
             const num = parseInt(value, 10);
             if (isNaN(num) || num < 0) {
-              console.log('❌ Dependentes inválido - Setting complete = false');
               complete = false;
               return false;
             }
@@ -972,60 +970,45 @@
 
           if (field === '#id_email') {
             // Email validation for completion check
-            console.log('Validating email:', value);
             if (!value.includes('@')) {
-              console.log('❌ Email validation failed: no @ - Setting complete = false');
               complete = false;
               return false;
             } else {
               const parts = value.split('@');
-              console.log('Email parts:', parts);
               if (parts.length !== 2 || parts[0].length === 0 || parts[1].length === 0) {
-                console.log('❌ Email validation failed: invalid parts - Setting complete = false');
                 complete = false;
                 return false;
               } else if (!/[a-zA-Z]/.test(parts[0]) || !/[a-zA-Z]/.test(parts[1])) {
-                console.log('❌ Email validation failed: no letters - Setting complete = false');
                 complete = false;
                 return false;
               }
             }
-            console.log('✅ Email validation passed');
           }
           
           if (field === '#id_telefone') {
             // Phone validation - check if it has between 10 and 11 digits
-            console.log('Validating phone:', value);
             const digitsOnly = value.replace(/\D/g, '');
-            console.log('Phone digits only:', digitsOnly, 'Length:', digitsOnly.length);
             if (digitsOnly.length < 10 || digitsOnly.length > 11) {
-              console.log('❌ Phone validation failed: must have between 10 and 11 digits - Setting complete = false');
               complete = false;
               return false;
             }
-            console.log('✅ Phone validation passed');
           }
           
           if (field === '#id_rg') {
             // RG validation - check if it has between 7 and 12 digits
-            console.log('Validating RG:', value);
             const digitsOnly = value.replace(/\D/g, '');
-            console.log('RG digits only:', digitsOnly, 'Length:', digitsOnly.length);
             if (digitsOnly.length < 7 || digitsOnly.length > 12) {
-              console.log('❌ RG validation failed: must have between 7 and 12 digits - Setting complete = false');
               complete = false;
               return false;
             }
-            console.log('✅ RG validation passed');
           }
           
           if (field === '#id_nascimento') {
             // Validação de idade: mínimo 22 anos
-            console.log('Validating birth date:', value);
             if (value) {
               const birthDate = new Date(value);
               const today = new Date();
-              const age = today.getFullYear() - birthDate.getFullYear();
+              let age = today.getFullYear() - birthDate.getFullYear();
               const monthDiff = today.getMonth() - birthDate.getMonth();
               
               // Adjust age if birthday hasn't occurred this year
@@ -1033,48 +1016,35 @@
                 age--;
               }
               
-              console.log('Calculated age:', age);
               if (age < 22) {
-                console.log('❌ Age validation failed: must be at least 22 years old - Setting complete = false');
                 complete = false;
                 return false;
               }
-              console.log('✅ Age validation passed');
             }
           }
           
           if (field === '#id_cep') {
             // CEP validation - check if it has exactly 8 digits
-            console.log('Validating CEP:', value);
             const digitsOnly = value.replace(/\D/g, '');
-            console.log('CEP digits only:', digitsOnly, 'Length:', digitsOnly.length);
             if (digitsOnly.length !== 8) {
-              console.log('❌ CEP validation failed: must have exactly 8 digits - Setting complete = false');
               complete = false;
               return false;
             }
-            console.log('✅ CEP validation passed');
           }
           
           if (field === '#id_total_renda') {
             // Renda validation - must be a positive integer with minimum value
-            console.log('Validating renda:', value);
             const rendaValue = parseInt(value, 10);
-            console.log('Renda parsed value:', rendaValue);
             if (isNaN(rendaValue) || rendaValue <= 0) {
-              console.log('❌ Renda validation failed: must be a positive integer - Setting complete = false');
               complete = false;
               return false;
             } else if (rendaValue < 1000) {
-              console.log('❌ Renda validation failed: must be at least 1000 - Setting complete = false');
               complete = false;
               return false;
             }
-            console.log('✅ Renda validation passed');
           }
         });
         
-        console.log('🎯 Final result - complete =', complete);
         
         // Additional validation for duplicate phones
         if (complete) {
@@ -1082,7 +1052,6 @@
           const telefone_adicional = $('#id_telefone_adicional').val();
           
           if (telefone && telefone_adicional && telefone === telefone_adicional) {
-            console.log('❌ Duplicate phone validation failed - Setting complete = false');
             complete = false;
           }
         }
@@ -1228,9 +1197,6 @@
       });
       
       // Debug: Check if email field exists
-      console.log('Email field found:', $('#id_email').length);
-      console.log('Email field ID:', $('#id_email').attr('id'));
-      console.log('Email field required:', $('#id_email').prop('required'));
       
       // Add validation feedback for email field specifically
       if ($('#id_email').length && !$('#id_email').siblings('.validation-feedback').length) {
@@ -1294,8 +1260,13 @@
       // Inicializa badge de idade no carregamento
       updateIdade();
       
-      // lista de produtos do contexto
-      const produtos = JSON.parse('{{ produtos_json|escapejs }}');
+      // ==================== CARDS DE PRODUTO ====================
+      let produtos = [];
+      try {
+        produtos = JSON.parse('{{ produtos_json|escapejs }}');
+      } catch (e) {
+        console.error('Erro ao parsear produtos:', e);
+      }
 
       function formatBRL(v) {
         return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -1303,55 +1274,67 @@
 
       function atualizaInfo() {
         const prodId = $('#id_produto').val();
-        const np     = $('#id_numero_parcelas').val();
+        const numParcelas = $('#id_numero_parcelas').val();
 
-        // se não houver produto selecionado, limpa tudo
+        console.log('🔄 atualizaInfo chamado');
+        console.log('prodId:', prodId);
+        console.log('numParcelas:', numParcelas);
+        console.log('produtos array:', produtos);
+
+        // Se não tem produto, zera tudo
         if (!prodId) {
-          $('#info-entrada, #info-total, #info-parcela').text('—');
+          console.log('❌ Sem produto, zerando cards');
+          $('#info-entrada').text(formatBRL(0));
+          $('#info-total').text(formatBRL(0));
+          $('#info-parcela').text(formatBRL(0));
           return;
         }
 
-        // busca dados do produto
-        const p = produtos.find(x => x.id == prodId) || {};
-        const entrada = p.entrada  || 0;
-        const valor4  = p.valor4   || 0;
-        const valor6  = p.valor6   || 0;
-        const valor8  = p.valor8   || 0;
-        const valor10 = p.valor10  || 0;
+        // Encontra o produto
+        const produto = produtos.find(p => p.id == prodId) || {};
+        console.log('✓ Produto encontrado:', produto);
+        const entrada = produto.entrada || 0;
 
-        // escolhe total conforme parcelas
-        const total = { '4': valor4, '6': valor6, '8': valor8, '10': valor10 }[np] || 0;
-        const parcela = (np && total)
-          ? total / parseInt(np, 10)
-          : 0;
-
-        // alerta se não houver valor cadastrado para o parcelamento escolhido
-        if (np && total === 0) {
-          alert(`Atenção: valor para ${np}x não está cadastrado para este produto.`);
+        // Se não tem parcelas, mostra entrada e zera total/parcela
+        if (!numParcelas) {
+          console.log('❌ Sem parcelas, mostrando entrada:', entrada);
+          $('#info-entrada').text(formatBRL(entrada));
+          $('#info-total').text(formatBRL(0));
+          $('#info-parcela').text(formatBRL(0));
+          return;
         }
 
-        // preenche os cards
-        $('#info-entrada').text(formatBRL(entrada));
-        $('#info-total')  .text(formatBRL(total));
+        // Ambos preenchidos: calcula os valores
+        const valoresParcelamento = {
+          '4': produto.valor4 || 0,
+          '6': produto.valor6 || 0,
+          '8': produto.valor8 || 0,
+          '10': produto.valor10 || 0
+        };
+        const total = valoresParcelamento[numParcelas] || 0;
+        const parcela = total > 0 ? total / parseInt(numParcelas, 10) : 0;
 
-        const textoParcela = np
-          ? `${np}× de ${formatBRL(parcela)}`
-          : '—';
-        $('#info-parcela').text(textoParcela);
-        
-        // Update progress after product selection
+        console.log('✓ Valores calculados - entrada:', entrada, 'total:', total, 'parcela:', parcela);
+
+        $('#info-entrada').text(formatBRL(entrada));
+        $('#info-total').text(formatBRL(total));
+        $('#info-parcela').text(formatBRL(parcela));
+
         updateProgress();
       }
 
-      // dispara ao mudar produto (Select2) ou número de parcelas
-      $('#id_produto')
-        .on('change select2:select', atualizaInfo);
-      $('#id_numero_parcelas')
-        .on('change', atualizaInfo);
+      // Registra listeners para atualizar cards
+      $('#id_produto').on('select2:select', function() {
+        console.log('📍 Evento select2:select disparado no produto');
+        atualizaInfo();
+      });
+      $('#id_numero_parcelas').on('change', function() {
+        console.log('📍 Evento change disparado no número de parcelas');
+        atualizaInfo();
+      });
 
-      // inicializa ao carregar a página
-      atualizaInfo();
-      updateProgress();
+      // Inicializa cards ao carregar a página
+      setTimeout(atualizaInfo, 100);
       
       // Form submission enhancement - simplified
       $('#clienteForm').on('submit', function(e) {
@@ -1452,6 +1435,26 @@
         dataInput.addEventListener('change', calcularPrevisaoVencimentoAnalise);
         parcelasInput.addEventListener('change', calcularPrevisaoVencimentoAnalise);
         calcularPrevisaoVencimentoAnalise();
+      }
+      
+      // Botão Aprovar - salvar formulário antes de redirecionar
+      const aprovarBtn = document.getElementById('aprovarBtn');
+      if (aprovarBtn) {
+        aprovarBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          const form = document.getElementById('clienteForm');
+          const aprovarUrl = this.getAttribute('data-url');
+          
+          // Cria um campo hidden para identificar que é uma aprovação
+          const hiddenField = document.createElement('input');
+          hiddenField.type = 'hidden';
+          hiddenField.name = 'aprovar_apos_salvar';
+          hiddenField.value = aprovarUrl;
+          form.appendChild(hiddenField);
+          
+          // Submete o formulário
+          form.submit();
+        });
       }
     });
   </script>

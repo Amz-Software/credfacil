@@ -13,6 +13,7 @@ class Produto(Base):
     tipo = models.ForeignKey('produtos.TipoProduto', on_delete=models.PROTECT, related_name='produtos_tipo', null=True, blank=True)
     fabricante = models.ForeignKey('produtos.Fabricante', on_delete=models.PROTECT, related_name='produtos_fabricante')
     ativo = models.BooleanField(default=True)
+    is_iphone = models.BooleanField(default=False, verbose_name='É iPhone?')
     
     def gerar_codigo(self):
         last_product = Produto.objects.all().order_by('codigo').last()

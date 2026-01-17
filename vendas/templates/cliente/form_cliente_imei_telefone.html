@@ -97,7 +97,7 @@
       {% endif %}
     </div>
 
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data" id="clienteForm">
       {% csrf_token %}
       <div class="card-body">
         <!-- Nav tabs -->
@@ -395,10 +395,9 @@
         <div>
           {% if cliente.pk and cliente.analise_credito %}
             <div class="btn-group" role="group" aria-label="Análise de Crédito">
-              <a href="{% url 'vendas:aprovar_analise' cliente.analise_credito.id %}"
-                 class="btn btn-success">
+              <button type="button" class="btn btn-success" id="aprovarBtn" data-url="{% url 'vendas:aprovar_analise' cliente.analise_credito.id %}">
                 <i class="bx bx-check me-1"></i> Aprovar
-              </a>
+              </button>
               <a href="{% url 'vendas:reprovar_analise' cliente.analise_credito.id %}"
                  class="btn btn-danger">
                 <i class="bx bx-x me-1"></i> Reprovar
@@ -487,6 +486,26 @@
 
       // inicializa ao carregar a página
       atualizaInfo();
+      
+      // Botão Aprovar - salvar formulário antes de redirecionar
+      const aprovarBtn = document.getElementById('aprovarBtn');
+      if (aprovarBtn) {
+        aprovarBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          const form = document.getElementById('clienteForm');
+          const aprovarUrl = this.getAttribute('data-url');
+          
+          // Cria um campo hidden para identificar que é uma aprovação
+          const hiddenField = document.createElement('input');
+          hiddenField.type = 'hidden';
+          hiddenField.name = 'aprovar_apos_salvar';
+          hiddenField.value = aprovarUrl;
+          form.appendChild(hiddenField);
+          
+          // Submete o formulário
+          form.submit();
+        });
+      }
     });
   </script>
 
