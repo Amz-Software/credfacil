@@ -555,7 +555,7 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
         # Adiciona informação sobre permissão de visualizar consulta Serasa
         context['can_view_consulta_serasa'] = self.request.user.has_perm('vendas.view_consulta_serasa')
         
-        produtos = Produto.objects.all().values('id', 'nome', 'valor_4_vezes', 'valor_6_vezes', 'valor_8_vezes', 'valor_10_vezes', 'entrada_cliente')
+        produtos = Produto.objects.filter(ativo=True).values('id', 'nome', 'valor_4_vezes', 'valor_6_vezes', 'valor_8_vezes', 'valor_10_vezes', 'entrada_cliente')
         produtos_list = [
             {
                 'id': p['id'],
