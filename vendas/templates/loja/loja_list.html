@@ -46,6 +46,9 @@ Lojas
                   <th scope="col">Telefone</th>
                   <th scope="col">Endereço</th>
                   <th scope="col">Repasse Pendente</th>
+                  {% if user.is_superuser or user.groups.all|selectattr:"name"|map:"lower"|select:"equalto","administrador"|list|length > 0 %}
+                  <th scope="col">Pode Vender iPhone</th>
+                  {% endif %}
                   <th scope="col">Ações</th>
                 </tr>
               </thead>
@@ -73,7 +76,15 @@ Lojas
                       <span class="badge bg-secondary">Sem Dados de Repasse</span>
                     {% endif %}
                   </td>
-                  
+                  {% if user.is_superuser or user.groups.all|selectattr:"name"|map:"lower"|select:"equalto","administrador"|list|length > 0 %}
+                  <td>
+                    {% if loja.pode_vender_iphone %}
+                      <span class="badge bg-success"><i class='bx bx-check'></i> Sim</span>
+                    {% else %}
+                      <span class="badge bg-secondary"><i class='bx bx-x'></i> Não</span>
+                    {% endif %}
+                  </td>
+                  {% endif %}
                   <td>
                     <div class="dropdown">
                       <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
