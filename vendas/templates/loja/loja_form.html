@@ -94,7 +94,7 @@
                 <label for="id_codigo_aplicativo" class="form-label">Código Aplicativo</label>
                 <input type="text" class="form-control" id="id_codigo_aplicativo" name="codigo_aplicativo" value="{{ form.codigo_aplicativo.value|default_if_none:'' }}">
               </div>
-              {% if user.is_superuser or user.groups.all|selectattr:"name"|map:"lower"|select:"equalto","administrador"|list|length > 0 %}
+              {% if user.is_superuser or user|has_group:"ADMINISTRADOR" %}
               <div class="col-md-6 mb-3">
                 <label for="id_pode_vender_iphone" class="form-label">Pode Vender iPhone</label>
                 <div class="form-check form-switch">
