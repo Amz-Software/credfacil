@@ -507,9 +507,9 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
             from produtos.models import Produto
             # Se a loja não pode vender iPhone, excluir produtos iPhone da lista
             if not loja.pode_vender_iphone:
-                self.fields['produto'].queryset = Produto.objects.filter(loja=loja, is_iphone=False, ativo=True)
+                self.fields['produto'].queryset = Produto.objects.filter(is_iphone=False, ativo=True)
             else:
-                self.fields['produto'].queryset = Produto.objects.filter(loja=loja, ativo=True)
+                self.fields['produto'].queryset = Produto.objects.filter(ativo=True)
         
         # Verificar se o usuário pode ver campos iCloud
         can_manage_icloud = False
