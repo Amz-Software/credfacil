@@ -1064,7 +1064,8 @@ def gerar_venda(request, cliente_id):
     if not analise.imei:
         messages.error(request, "❌ Nenhum IMEI associado à análise de crédito. Informe o IMEI antes de gerar a venda.")
         return redirect('vendas:cliente_update', pk=cliente.pk)
-    if analise.status_aplicativo != 'I':
+    # Para produtos que não são iPhone, exigimos que o app esteja instalado ('I')
+    if not getattr(analise.produto, 'is_iphone', False) and analise.status_aplicativo != 'I':
         messages.error(request, "❌ Aplicativo não está instalado. Confirme a instalação antes de gerar a venda.")
         return redirect('vendas:cliente_update', pk=cliente.pk)
     if analise.venda:
@@ -1085,7 +1086,8 @@ def gerar_venda(request, cliente_id):
     if not analise.imei:
         messages.error(request, "❌ Nenhum IMEI associado à análise de crédito. Informe o IMEI antes de gerar a venda.")
         return redirect('vendas:cliente_update', pk=cliente.pk)
-    if analise.status_aplicativo != 'I':
+    # Para produtos que não são iPhone, exigimos que o app esteja instalado ('I')
+    if not getattr(analise.produto, 'is_iphone', False) and analise.status_aplicativo != 'I':
         messages.error(request, "❌ Aplicativo não está instalado. Confirme a instalação antes de gerar a venda.")
         return redirect('vendas:cliente_update', pk=cliente.pk)
     if analise.venda:
@@ -1094,6 +1096,23 @@ def gerar_venda(request, cliente_id):
 
     produto = analise.produto
     imei = analise.imei
+
+    # Validações específicas para fluxo iPhone
+    if getattr(produto, 'is_iphone', False):
+        # Deve haver email/senha iCloud
+        if not analise.email_icloud or not analise.senha_icloud:
+            messages.error(request, "❌ Para gerar venda de iPhone, Email e Senha iCloud devem estar preenchidos na análise.")
+            return redirect('vendas:cliente_update', pk=cliente.pk)
+
+        # Deve ter sido configurado pelo vendedor
+        if not analise.icloud_configurado_vendedor:
+            messages.error(request, "❌ iCloud ainda não foi configurado pelo vendedor. Complete o fluxo antes de gerar a venda.")
+            return redirect('vendas:cliente_update', pk=cliente.pk)
+
+        # Deve ter confirmação do analista
+        if not analise.icloud_confirmado_analista:
+            messages.error(request, "❌ iCloud não confirmado pelo analista. Aguarde confirmação antes de gerar a venda.")
+            return redirect('vendas:cliente_update', pk=cliente.pk)
 
     # Verifica se o IMEI já está sendo usado em outra venda (único)
     if ProdutoVenda.objects.filter(imei=imei.imei).exists():
