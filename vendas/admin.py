@@ -93,9 +93,9 @@ class LancamentoCaixaAdmin(AdminBase):
     
 @admin.register(AnaliseCreditoCliente)
 class AnaliseCreditoClienteAdmin(AdminBase):
-    list_display = ('cliente', 'status')
-    list_filter = ('status',)
-    search_fields = ('cliente__nome',)
+    list_display = ('cliente', 'status', 'data_analise', 'loja')
+    list_filter = ('status', 'loja',)
+    search_fields = ('cliente__nome', 'loja__nome')
     list_editable = ('status',)
 
 
