@@ -883,16 +883,24 @@ class VendaForm(forms.ModelForm):
 
 
 class VendaDocumentosForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = getattr(self, 'instance', None)
+        if instance and instance.pk and not instance.tem_iphone:
+            self.fields.pop('imagem_imei', None)
+
     class Meta:
         model = Venda
-        fields = ['documento_assinado', 'foto_cliente']
+        fields = ['documento_assinado', 'foto_cliente', 'imagem_imei']
         widgets = {
             'documento_assinado': forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf,.doc,.docx,.jpg,.jpeg,.png'}),
             'foto_cliente': forms.FileInput(attrs={'class': 'form-control', 'accept': '.jpg,.jpeg,.png'}),
+            'imagem_imei': forms.FileInput(attrs={'class': 'form-control', 'accept': '.jpg,.jpeg,.png'}),
         }
         labels = {
             'documento_assinado': 'Documento Assinado',
             'foto_cliente': 'Foto do Cliente',
+            'imagem_imei': 'Imagem do IMEI (iPhone)',
         }
 
 
