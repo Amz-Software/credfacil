@@ -1201,6 +1201,10 @@ class UsuarioSelectWidget(ModelSelect2MultipleWidget):
     
 
 class LojaForm(forms.ModelForm):
+    class ProdutoPermitidoField(forms.ModelMultipleChoiceField):
+        def label_from_instance(self, obj):
+            return f"{obj.nome} - {obj.id}"
+
     usuarios = forms.ModelMultipleChoiceField(
         queryset=User.objects.all(),
         widget=UsuarioSelectWidget(attrs={'class': 'form-control'}),
@@ -1213,7 +1217,7 @@ class LojaForm(forms.ModelForm):
         required=False
     )
 
-    produtos_permitidos = forms.ModelMultipleChoiceField(
+    produtos_permitidos = ProdutoPermitidoField(
         queryset=Produto.objects.filter(ativo=True),
         widget=Select2MultipleWidget(attrs={'class': 'form-control'}),
         required=False,
@@ -1240,13 +1244,8 @@ class LojaForm(forms.ModelForm):
         if user_loja_id:
             self.fields['loja'].initial = Loja.objects.get(id=user_loja_id)
 
-        if self.instance and self.instance.pk:
-            self.fields['produtos_permitidos'].queryset = Produto.objects.filter(
-                loja=self.instance,
-                ativo=True,
-            )
-        else:
-            self.fields['produtos_permitidos'].queryset = Produto.objects.filter(ativo=True)
+        # Na edicao da loja, mostrar todos os modelos ativos, independente da loja logada
+        self.fields['produtos_permitidos'].queryset = Produto.objects.filter(ativo=True).order_by('nome')
 
         # Apenas ADMINISTRADOR pode editar pode_vender_iphone
         if user and 'pode_vender_iphone' in self.fields:
