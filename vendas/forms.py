@@ -1217,11 +1217,11 @@ class LojaForm(forms.ModelForm):
         required=False
     )
 
-    produtos_permitidos = ProdutoPermitidoField(
+    produtos_bloqueados = ProdutoPermitidoField(
         queryset=Produto.objects.filter(ativo=True),
         widget=Select2MultipleWidget(attrs={'class': 'form-control'}),
         required=False,
-        help_text='Se vazio, todos os modelos ativos da loja ficam liberados.',
+        help_text='Selecione apenas os modelos que NAO podem ser vendidos nesta loja.',
     )
 
     class Meta:
@@ -1245,7 +1245,7 @@ class LojaForm(forms.ModelForm):
             self.fields['loja'].initial = Loja.objects.get(id=user_loja_id)
 
         # Na edicao da loja, mostrar todos os modelos ativos, independente da loja logada
-        self.fields['produtos_permitidos'].queryset = Produto.objects.filter(ativo=True).order_by('nome')
+        self.fields['produtos_bloqueados'].queryset = Produto.objects.filter(ativo=True).order_by('nome')
 
         # Apenas ADMINISTRADOR pode editar pode_vender_iphone
         if user and 'pode_vender_iphone' in self.fields:

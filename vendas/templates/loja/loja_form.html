@@ -105,13 +105,13 @@
             </div>
             <div class="row">
               <div class="col-md-12 mb-3">
-                <label for="id_produtos_permitidos" class="form-label">Modelos Permitidos</label>
-                {{ form.produtos_permitidos }}
-                {% if form.produtos_permitidos.help_text %}
-                  <small class="text-muted d-block mt-1">{{ form.produtos_permitidos.help_text }}</small>
+                <label for="id_produtos_bloqueados" class="form-label">Modelos Nao Permitidos</label>
+                {{ form.produtos_bloqueados }}
+                {% if form.produtos_bloqueados.help_text %}
+                  <small class="text-muted d-block mt-1">{{ form.produtos_bloqueados.help_text }}</small>
                 {% endif %}
-                {% if form.produtos_permitidos.errors %}
-                  <div class="text-danger small mt-1">{{ form.produtos_permitidos.errors|striptags }}</div>
+                {% if form.produtos_bloqueados.errors %}
+                  <div class="text-danger small mt-1">{{ form.produtos_bloqueados.errors|striptags }}</div>
                 {% endif %}
               </div>
             </div>

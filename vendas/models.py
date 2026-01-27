@@ -180,9 +180,9 @@ class Loja(Base):
     qr_code_aplicativo = models.ImageField(upload_to='qr_codes_aplicativo/', null=True, blank=True)
     codigo_aplicativo = models.CharField(max_length=100, null=True, blank=True)
     pode_vender_iphone = models.BooleanField(default=False)
-    produtos_permitidos = models.ManyToManyField(
+    produtos_bloqueados = models.ManyToManyField(
         'produtos.Produto',
-        related_name='lojas_permitidas',
+        related_name='lojas_bloqueadas',
         blank=True,
     )
     objects = LojaQuerySet.as_manager()
@@ -197,9 +197,9 @@ class Loja(Base):
         if not self.pode_vender_iphone:
             qs = qs.filter(is_iphone=False)
 
-        permitted_ids = list(self.produtos_permitidos.values_list('id', flat=True))
-        if permitted_ids:
-            qs = qs.filter(id__in=permitted_ids)
+        blocked_ids = list(self.produtos_bloqueados.values_list('id', flat=True))
+        if blocked_ids:
+            qs = qs.exclude(id__in=blocked_ids)
 
         if require_stock:
             Estoque = apps.get_model('estoque', 'Estoque')
