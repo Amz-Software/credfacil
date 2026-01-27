@@ -192,7 +192,8 @@ class Loja(Base):
 
     def produtos_permitidos_qs(self, require_stock=False):
         Produto = apps.get_model('produtos', 'Produto')
-        qs = Produto.objects.filter(ativo=True, loja=self)
+        # Em analise de credito, a loja deve enxergar todos os modelos ativos.
+        qs = Produto.objects.filter(ativo=True)
 
         if not self.pode_vender_iphone:
             qs = qs.filter(is_iphone=False)
