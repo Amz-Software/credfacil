@@ -3,7 +3,8 @@ from django.utils import timezone
 from datetime import date, timedelta
 from decimal import Decimal
 from django.utils.functional import cached_property
-from django.db.models import Count, Q, Case, When, Value, IntegerField, BooleanField, F, Min
+from django.db.models import Count, Q, Case, When, Value, IntegerField, BooleanField, F, Min, OuterRef, Exists
+from django.apps import apps
 from django.db import models
 from django.utils import timezone
 from django.urls import reverse
@@ -179,10 +180,40 @@ class Loja(Base):
     qr_code_aplicativo = models.ImageField(upload_to='qr_codes_aplicativo/', null=True, blank=True)
     codigo_aplicativo = models.CharField(max_length=100, null=True, blank=True)
     pode_vender_iphone = models.BooleanField(default=False)
+    produtos_permitidos = models.ManyToManyField(
+        'produtos.Produto',
+        related_name='lojas_permitidas',
+        blank=True,
+    )
     objects = LojaQuerySet.as_manager()
 
 
     REPASSES_DIAS = (6, 16, 26)
+
+    def produtos_permitidos_qs(self, require_stock=False):
+        Produto = apps.get_model('produtos', 'Produto')
+        qs = Produto.objects.filter(ativo=True, loja=self)
+
+        if not self.pode_vender_iphone:
+            qs = qs.filter(is_iphone=False)
+
+        permitted_ids = list(self.produtos_permitidos.values_list('id', flat=True))
+        if permitted_ids:
+            qs = qs.filter(id__in=permitted_ids)
+
+        if require_stock:
+            Estoque = apps.get_model('estoque', 'Estoque')
+            qs = qs.filter(
+                Exists(
+                    Estoque.objects.filter(
+                        produto=OuterRef('pk'),
+                        loja=self,
+                        quantidade_disponivel__gt=0,
+                    )
+                )
+            )
+
+        return qs.distinct()
 
     def get_repasses_status(self, meses_atras=0, limite_meses=6):
         hoje = date.today()

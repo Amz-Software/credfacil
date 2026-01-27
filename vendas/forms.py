@@ -501,15 +501,14 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         # Determinar a loja: pode vir como parâmetro ou do user.loja
         if not loja and user and hasattr(user, 'loja'):
             loja = user.loja
+        self._loja = loja
         
         # Filtrar produtos baseado na loja
         if loja:
-            from produtos.models import Produto
-            # Se a loja não pode vender iPhone, excluir produtos iPhone da lista
-            if not loja.pode_vender_iphone:
-                self.fields['produto'].queryset = Produto.objects.filter(is_iphone=False, ativo=True)
-            else:
-                self.fields['produto'].queryset = Produto.objects.filter(ativo=True)
+            produtos_qs = loja.produtos_permitidos_qs(require_stock=False)
+            if self.instance and self.instance.produto_id:
+                produtos_qs = (produtos_qs | Produto.objects.filter(pk=self.instance.produto_id)).distinct()
+            self.fields['produto'].queryset = produtos_qs
         
         # Verificar se o usuário pode ver campos iCloud
         can_manage_icloud = False
@@ -564,6 +563,14 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         email_icloud = cleaned_data.get('email_icloud')
         senha_icloud = cleaned_data.get('senha_icloud')
         status = cleaned_data.get('status')
+        loja = getattr(self, '_loja', None)
+
+        if loja and produto:
+            allowed_qs = loja.produtos_permitidos_qs(require_stock=False)
+            if self.instance and self.instance.produto_id:
+                allowed_qs = (allowed_qs | Produto.objects.filter(pk=self.instance.produto_id)).distinct()
+            if not allowed_qs.filter(pk=produto.pk).exists():
+                self.add_error('produto', 'Este modelo nao esta liberado para esta loja.')
         
         # Validação condicional: se for iPhone E status aprovado, email e senha são obrigatórios
         if produto and produto.is_iphone and status == 'AP':
@@ -599,7 +606,17 @@ class AnaliseCreditoClienteImeiForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
+        loja = kwargs.pop('loja', None)
         super().__init__(*args, **kwargs)
+
+        if not loja and user and hasattr(user, 'loja'):
+            loja = user.loja
+
+        if loja:
+            produtos_qs = loja.produtos_permitidos_qs(require_stock=False)
+            if self.instance and self.instance.produto_id:
+                produtos_qs = (produtos_qs | Produto.objects.filter(pk=self.instance.produto_id)).distinct()
+            self.fields['produto'].queryset = produtos_qs
 
         # Desabilita todos os campos, exceto 'imei'
         for field_name in ['produto', 'data_pagamento', 'numero_parcelas']:
@@ -957,23 +974,29 @@ class ProdutoVendaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         loja = kwargs.pop('loja', None)
         super().__init__(*args, **kwargs)
+        self._loja = loja
         
-        # Filtrar produtos baseado se a loja pode vender iPhone
-        produtos_query = Produto.objects.filter(
-            Exists(
-                Estoque.objects.filter(
-                    produto=OuterRef('pk'),
-                    quantidade_disponivel__gt=0
-                )
-            )
-        ).filter(loja=loja)
-        
-        # Se a loja não pode vender iPhone, excluir produtos iPhone
-        if loja and not loja.pode_vender_iphone:
-            produtos_query = produtos_query.filter(is_iphone=False)
+        if loja:
+            produtos_query = loja.produtos_permitidos_qs(require_stock=True)
+        else:
+            produtos_query = Produto.objects.none()
         
         self.fields['produto'].queryset = produtos_query
         self.fields['imei'].queryset = EstoqueImei.objects.filter(vendido=False, cancelado=False)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        produto = cleaned_data.get('produto')
+        loja = getattr(self, '_loja', None)
+
+        if loja and produto:
+            allowed_qs = loja.produtos_permitidos_qs(require_stock=False)
+            if self.instance and self.instance.produto_id:
+                allowed_qs = (allowed_qs | Produto.objects.filter(pk=self.instance.produto_id)).distinct()
+            if not allowed_qs.filter(pk=produto.pk).exists():
+                self.add_error('produto', 'Este modelo nao esta liberado para esta loja.')
+
+        return cleaned_data
         
         
 class ProdutoVendaEditForm(forms.ModelForm):
@@ -1046,10 +1069,9 @@ class ProdutoVendaEdicaoEspecialForm(forms.ModelForm):
         loja = kwargs.pop('loja', None)
         super().__init__(*args, **kwargs)
         if loja:
-            # Filtrar produtos baseado se a loja pode vender iPhone
-            produtos_query = Produto.objects.filter(ativo=True)
-            if not loja.pode_vender_iphone:
-                produtos_query = produtos_query.filter(is_iphone=False)
+            produtos_query = loja.produtos_permitidos_qs(require_stock=False)
+            if self.instance and self.instance.produto_id:
+                produtos_query = (produtos_query | Produto.objects.filter(pk=self.instance.produto_id)).distinct()
             self.fields['produto'].queryset = produtos_query
 
 
@@ -1191,6 +1213,13 @@ class LojaForm(forms.ModelForm):
         required=False
     )
 
+    produtos_permitidos = forms.ModelMultipleChoiceField(
+        queryset=Produto.objects.filter(ativo=True),
+        widget=Select2MultipleWidget(attrs={'class': 'form-control'}),
+        required=False,
+        help_text='Se vazio, todos os modelos ativos da loja ficam liberados.',
+    )
+
     class Meta:
         model = Loja
         fields = '__all__'
@@ -1210,6 +1239,14 @@ class LojaForm(forms.ModelForm):
 
         if user_loja_id:
             self.fields['loja'].initial = Loja.objects.get(id=user_loja_id)
+
+        if self.instance and self.instance.pk:
+            self.fields['produtos_permitidos'].queryset = Produto.objects.filter(
+                loja=self.instance,
+                ativo=True,
+            )
+        else:
+            self.fields['produtos_permitidos'].queryset = Produto.objects.filter(ativo=True)
 
         # Apenas ADMINISTRADOR pode editar pode_vender_iphone
         if user and 'pode_vender_iphone' in self.fields:
@@ -1316,7 +1353,7 @@ class RelatorioVendasForm(forms.Form):
         print(f'Loja no form: {loja}')
         super().__init__(*args, **kwargs)
         if loja:
-            self.fields['produtos'].queryset = Produto.objects.filter(ativo=True)
+            self.fields['produtos'].queryset = loja.produtos_permitidos_qs(require_stock=False)
             self.fields['cliente'].queryset = Cliente.objects.filter(loja=loja)
             self.fields['vendedores'].queryset = User.objects.filter(loja=loja)
             if user and not user.has_perm('vendas.can_view_all_stores'):
@@ -1424,7 +1461,7 @@ class RelatorioSolicitacoesForm(forms.Form):
 
         # Se houver loja no contexto, limitamos alguns querysets
         if loja:
-            self.fields['produtos'].queryset   = Produto.objects.filter(loja=loja)
+            self.fields['produtos'].queryset   = loja.produtos_permitidos_qs(require_stock=False)
             self.fields['cliente'].queryset    = Cliente.objects.filter(loja=loja)
             self.fields['vendedores'].queryset = User.objects.filter(loja=loja)
             if user and not user.has_perm('vendas.can_view_all_stores'):
