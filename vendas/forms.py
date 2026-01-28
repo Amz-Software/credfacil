@@ -504,10 +504,14 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         self._loja = loja
         
         # Filtrar produtos baseado na loja
+        if loja and not hasattr(loja, 'produtos_permitidos_qs'):
+            loja = Loja.objects.filter(pk=loja).first()
         if loja:
             produtos_qs = loja.produtos_permitidos_qs(require_stock=False)
             if self.instance and self.instance.produto_id:
-                produtos_qs = (produtos_qs | Produto.objects.filter(pk=self.instance.produto_id)).distinct()
+                allowed_ids = list(produtos_qs.values_list('pk', flat=True))
+                allowed_ids.append(self.instance.produto_id)
+                produtos_qs = Produto.objects.filter(pk__in=set(allowed_ids))
             self.fields['produto'].queryset = produtos_qs
         
         # Verificar se o usuário pode ver campos iCloud
@@ -568,7 +572,9 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         if loja and produto:
             allowed_qs = loja.produtos_permitidos_qs(require_stock=False)
             if self.instance and self.instance.produto_id:
-                allowed_qs = (allowed_qs | Produto.objects.filter(pk=self.instance.produto_id)).distinct()
+                allowed_ids = list(allowed_qs.values_list('pk', flat=True))
+                allowed_ids.append(self.instance.produto_id)
+                allowed_qs = Produto.objects.filter(pk__in=set(allowed_ids))
             if not allowed_qs.filter(pk=produto.pk).exists():
                 self.add_error('produto', 'Este modelo nao esta liberado para esta loja.')
         
@@ -612,10 +618,14 @@ class AnaliseCreditoClienteImeiForm(forms.ModelForm):
         if not loja and user and hasattr(user, 'loja'):
             loja = user.loja
 
+        if loja and not hasattr(loja, 'produtos_permitidos_qs'):
+            loja = Loja.objects.filter(pk=loja).first()
         if loja:
             produtos_qs = loja.produtos_permitidos_qs(require_stock=False)
             if self.instance and self.instance.produto_id:
-                produtos_qs = (produtos_qs | Produto.objects.filter(pk=self.instance.produto_id)).distinct()
+                allowed_ids = list(produtos_qs.values_list('pk', flat=True))
+                allowed_ids.append(self.instance.produto_id)
+                produtos_qs = Produto.objects.filter(pk__in=set(allowed_ids))
             self.fields['produto'].queryset = produtos_qs
 
         # Desabilita todos os campos, exceto 'imei'
@@ -976,6 +986,8 @@ class ProdutoVendaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self._loja = loja
         
+        if loja and not hasattr(loja, 'produtos_permitidos_qs'):
+            loja = Loja.objects.filter(pk=loja).first()
         if loja:
             produtos_query = loja.produtos_permitidos_qs(require_stock=True)
         else:
@@ -992,7 +1004,9 @@ class ProdutoVendaForm(forms.ModelForm):
         if loja and produto:
             allowed_qs = loja.produtos_permitidos_qs(require_stock=False)
             if self.instance and self.instance.produto_id:
-                allowed_qs = (allowed_qs | Produto.objects.filter(pk=self.instance.produto_id)).distinct()
+                allowed_ids = list(allowed_qs.values_list('pk', flat=True))
+                allowed_ids.append(self.instance.produto_id)
+                allowed_qs = Produto.objects.filter(pk__in=set(allowed_ids))
             if not allowed_qs.filter(pk=produto.pk).exists():
                 self.add_error('produto', 'Este modelo nao esta liberado para esta loja.')
 
@@ -1068,10 +1082,14 @@ class ProdutoVendaEdicaoEspecialForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         loja = kwargs.pop('loja', None)
         super().__init__(*args, **kwargs)
+        if loja and not hasattr(loja, 'produtos_permitidos_qs'):
+            loja = Loja.objects.filter(pk=loja).first()
         if loja:
             produtos_query = loja.produtos_permitidos_qs(require_stock=False)
             if self.instance and self.instance.produto_id:
-                produtos_query = (produtos_query | Produto.objects.filter(pk=self.instance.produto_id)).distinct()
+                allowed_ids = list(produtos_query.values_list('pk', flat=True))
+                allowed_ids.append(self.instance.produto_id)
+                produtos_query = Produto.objects.filter(pk__in=set(allowed_ids))
             self.fields['produto'].queryset = produtos_query
 
 
