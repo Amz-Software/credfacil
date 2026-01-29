@@ -564,6 +564,8 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
                 'valor6': float(p['valor_6_vezes']),
                 'valor8': float(p['valor_8_vezes']),
                 'valor10': float(p['valor_10_vezes']),
+                'valor12': float(p.get('valor_12_vezes', p['valor_10_vezes'])),
+                'valor14': float(p.get('valor_14_vezes', p['valor_10_vezes'])),
                 'entrada': float(p['entrada_cliente']),
             }
             for p in produtos
@@ -721,6 +723,8 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
                 'valor6': float(p['valor_6_vezes']),
                 'valor8': float(p['valor_8_vezes']),
                 'valor10': float(p['valor_10_vezes']),
+                'valor12': float(p.get('valor_12_vezes', p['valor_10_vezes'])),
+                'valor14': float(p.get('valor_14_vezes', p['valor_10_vezes'])),
                 'entrada': float(p['entrada_cliente']),
             }
             for p in produtos
@@ -1154,6 +1158,14 @@ def gerar_venda(request, cliente_id):
         valor_credfacil = produto.valor_10_vezes
         parcelas = 10
         porcentagem_desconto = credfacil.porcentagem_desconto_10
+    elif analise.numero_parcelas == '12':
+        valor_credfacil = getattr(produto, 'valor_12_vezes', produto.valor_10_vezes)
+        parcelas = 12
+        porcentagem_desconto = getattr(credfacil, 'porcentagem_desconto_12', credfacil.porcentagem_desconto_10)
+    elif analise.numero_parcelas == '14':
+        valor_credfacil = getattr(produto, 'valor_14_vezes', produto.valor_10_vezes)
+        parcelas = 14
+        porcentagem_desconto = getattr(credfacil, 'porcentagem_desconto_14', credfacil.porcentagem_desconto_10)
 
     # Cria ProdutoVenda
     ProdutoVenda.objects.create(

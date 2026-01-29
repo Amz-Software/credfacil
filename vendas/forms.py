@@ -1051,6 +1051,8 @@ class PagamentoEdicaoEspecialForm(forms.ModelForm):
         (6, '6x'),
         (8, '8x'),
         (10, '10x'),
+        (12, '12x'),
+        (14, '14x'),
     )
 
     parcelas = forms.ChoiceField(

@@ -518,6 +518,8 @@ class AnaliseCreditoCliente(Base):
         ('6', '6x'),
         ('8', '8x'),
         ('10', '10x'),
+        ('12', '12x'),
+        ('14', '14x'),
     ))
     produto = models.ForeignKey('produtos.Produto', on_delete=models.CASCADE, related_name='analises_credito')
     imei = models.ForeignKey('estoque.EstoqueImei', on_delete=models.CASCADE, related_name='analises_credito_imei', null=True, blank=True)

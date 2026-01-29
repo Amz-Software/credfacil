@@ -456,9 +456,11 @@
         const valor6  = p.valor6   || 0;
         const valor8  = p.valor8   || 0;
         const valor10 = p.valor10  || 0;
+        const valor12 = p.valor12  || 0;
+        const valor14 = p.valor14  || 0;
 
         // escolhe total conforme parcelas
-        const total = { '4': valor4, '6': valor6, '8': valor8, '10': valor10 }[np] || 0;
+        const total = { '4': valor4, '6': valor6, '8': valor8, '10': valor10, '12': valor12, '14': valor14 }[np] || 0;
         const parcela = (np && total)
           ? total / parseInt(np, 10)
           : 0;
