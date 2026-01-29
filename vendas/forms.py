@@ -17,6 +17,11 @@ def user_can_manage_obteve_contato(user):
         return True
     return user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR']).exists()
 
+def normalize_loja(loja):
+    if loja and not hasattr(loja, 'produtos_permitidos_qs'):
+        return Loja.objects.filter(pk=loja).first()
+    return loja
+
 
 class ProdutoChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
@@ -501,11 +506,10 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         # Determinar a loja: pode vir como parâmetro ou do user.loja
         if not loja and user and hasattr(user, 'loja'):
             loja = user.loja
+        loja = normalize_loja(loja)
         self._loja = loja
         
         # Filtrar produtos baseado na loja
-        if loja and not hasattr(loja, 'produtos_permitidos_qs'):
-            loja = Loja.objects.filter(pk=loja).first()
         if loja:
             produtos_qs = loja.produtos_permitidos_qs(require_stock=False)
             if self.instance and self.instance.produto_id:
@@ -618,8 +622,7 @@ class AnaliseCreditoClienteImeiForm(forms.ModelForm):
         if not loja and user and hasattr(user, 'loja'):
             loja = user.loja
 
-        if loja and not hasattr(loja, 'produtos_permitidos_qs'):
-            loja = Loja.objects.filter(pk=loja).first()
+        loja = normalize_loja(loja)
         if loja:
             produtos_qs = loja.produtos_permitidos_qs(require_stock=False)
             if self.instance and self.instance.produto_id:
@@ -984,10 +987,8 @@ class ProdutoVendaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         loja = kwargs.pop('loja', None)
         super().__init__(*args, **kwargs)
+        loja = normalize_loja(loja)
         self._loja = loja
-        
-        if loja and not hasattr(loja, 'produtos_permitidos_qs'):
-            loja = Loja.objects.filter(pk=loja).first()
         if loja:
             produtos_query = loja.produtos_permitidos_qs(require_stock=True)
         else:
@@ -1082,8 +1083,7 @@ class ProdutoVendaEdicaoEspecialForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         loja = kwargs.pop('loja', None)
         super().__init__(*args, **kwargs)
-        if loja and not hasattr(loja, 'produtos_permitidos_qs'):
-            loja = Loja.objects.filter(pk=loja).first()
+        loja = normalize_loja(loja)
         if loja:
             produtos_query = loja.produtos_permitidos_qs(require_stock=False)
             if self.instance and self.instance.produto_id:
@@ -1221,7 +1221,7 @@ class UsuarioSelectWidget(ModelSelect2MultipleWidget):
 class LojaForm(forms.ModelForm):
     class ProdutoPermitidoField(forms.ModelMultipleChoiceField):
         def label_from_instance(self, obj):
-            return f"{obj.nome} - {obj.id}"
+            return f"{obj.nome} - {obj.codigo}"
 
     usuarios = forms.ModelMultipleChoiceField(
         queryset=User.objects.all(),
