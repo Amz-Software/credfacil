@@ -106,6 +106,35 @@ Documentos da Venda #{{ object.pk }}
                   </div>
                 </div>
               </div>
+
+              {% if form.imagem_imei %}
+              <!-- Imagem do IMEI (iPhone) -->
+              <div class="col-md-6">
+                <div class="card border h-100">
+                  <div class="card-body">
+                    <label for="{{ form.imagem_imei.id_for_label }}" class="form-label fw-semibold">
+                      <i class="bx bx-barcode me-2"></i>
+                      {{ form.imagem_imei.label }}
+                    </label>
+
+                    {% if form.imagem_imei.value and form.imagem_imei.value.url %}
+                      <div class="mb-3">
+                        <a href="{{ form.imagem_imei.value.url }}" target="_blank" class="d-block mb-2">
+                          <img src="{{ form.imagem_imei.value.url }}" class="img-thumbnail" style="max-height:200px; width: auto;">
+                        </a>
+                        <small class="text-muted d-block">Escolha um novo arquivo se quiser substituir.</small>
+                      </div>
+                    {% endif %}
+
+                    {{ form.imagem_imei }}
+                    {% if form.imagem_imei.errors %}
+                      <div class="text-danger small mt-1">{{ form.imagem_imei.errors|striptags }}</div>
+                    {% endif %}
+                    <small class="form-text text-muted">Formatos aceitos: JPG, JPEG, PNG</small>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
             </div>
 
             <div class="row mt-4">

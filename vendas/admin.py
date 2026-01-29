@@ -31,8 +31,8 @@ class PagamentoInline(admin.TabularInline):
 
 @admin.register(Venda)
 class VendaAdmin(AdminBase):
-    list_display = ('data_venda', 'cliente', 'vendedor', 'calcular_valor_total')
-    search_fields = ('cliente__nome', 'vendedor__first_name', 'vendedor__last_name')
+    list_display = ('data_venda', 'cliente', 'vendedor', 'calcular_valor_total', 'loja')
+    search_fields = ('cliente__nome', 'vendedor__first_name', 'vendedor__last_name', 'loja__nome')
     inlines = [ProdutoVendaInline, PagamentoInline]
 
 @admin.register(Pagamento)
@@ -93,9 +93,9 @@ class LancamentoCaixaAdmin(AdminBase):
     
 @admin.register(AnaliseCreditoCliente)
 class AnaliseCreditoClienteAdmin(AdminBase):
-    list_display = ('cliente', 'status')
-    list_filter = ('status',)
-    search_fields = ('cliente__nome',)
+    list_display = ('cliente', 'status', 'data_analise', 'loja')
+    list_filter = ('status', 'loja',)
+    search_fields = ('cliente__nome', 'loja__nome')
     list_editable = ('status',)
 
 

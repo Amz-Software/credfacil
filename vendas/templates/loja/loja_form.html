@@ -105,6 +105,18 @@
             </div>
             <div class="row">
               <div class="col-md-12 mb-3">
+                <label for="id_produtos_bloqueados" class="form-label">Modelos Nao Permitidos</label>
+                {{ form.produtos_bloqueados }}
+                {% if form.produtos_bloqueados.help_text %}
+                  <small class="text-muted d-block mt-1">{{ form.produtos_bloqueados.help_text }}</small>
+                {% endif %}
+                {% if form.produtos_bloqueados.errors %}
+                  <div class="text-danger small mt-1">{{ form.produtos_bloqueados.errors|striptags }}</div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-12 mb-3">
                 <label for="id_mensagem_garantia" class="form-label">Mensagem de Garantia</label>
                 <textarea class="form-control" id="id_mensagem_garantia" name="mensagem_garantia" rows="6">{{ form.mensagem_garantia.value|default_if_none:'' }}</textarea>
               </div>

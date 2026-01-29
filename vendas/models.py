@@ -3,7 +3,8 @@ from django.utils import timezone
 from datetime import date, timedelta
 from decimal import Decimal
 from django.utils.functional import cached_property
-from django.db.models import Count, Q, Case, When, Value, IntegerField, BooleanField, F, Min
+from django.db.models import Count, Q, Case, When, Value, IntegerField, BooleanField, F, Min, OuterRef, Exists
+from django.apps import apps
 from django.db import models
 from django.utils import timezone
 from django.urls import reverse
@@ -179,10 +180,41 @@ class Loja(Base):
     qr_code_aplicativo = models.ImageField(upload_to='qr_codes_aplicativo/', null=True, blank=True)
     codigo_aplicativo = models.CharField(max_length=100, null=True, blank=True)
     pode_vender_iphone = models.BooleanField(default=False)
+    produtos_bloqueados = models.ManyToManyField(
+        'produtos.Produto',
+        related_name='lojas_bloqueadas',
+        blank=True,
+    )
     objects = LojaQuerySet.as_manager()
 
 
     REPASSES_DIAS = (6, 16, 26)
+
+    def produtos_permitidos_qs(self, require_stock=False):
+        Produto = apps.get_model('produtos', 'Produto')
+        # Em analise de credito, a loja deve enxergar todos os modelos ativos.
+        qs = Produto.objects.filter(ativo=True)
+
+        if not self.pode_vender_iphone:
+            qs = qs.filter(is_iphone=False)
+
+        blocked_ids = list(self.produtos_bloqueados.values_list('id', flat=True))
+        if blocked_ids:
+            qs = qs.exclude(id__in=blocked_ids)
+
+        if require_stock:
+            Estoque = apps.get_model('estoque', 'Estoque')
+            qs = qs.filter(
+                Exists(
+                    Estoque.objects.filter(
+                        produto=OuterRef('pk'),
+                        loja=self,
+                        quantidade_disponivel__gt=0,
+                    )
+                )
+            )
+
+        return qs.distinct()
 
     def get_repasses_status(self, meses_atras=0, limite_meses=6):
         hoje = date.today()
@@ -365,6 +397,7 @@ class Venda(Base):
     repasse_logista = models.DecimalField(max_digits=10, decimal_places=2)
     documento_assinado = models.FileField(upload_to=upload_to_venda, null=True, blank=True)
     foto_cliente = models.ImageField(upload_to=upload_to_venda, null=True, blank=True)
+    imagem_imei = models.ImageField(upload_to=upload_to_venda, null=True, blank=True)
     is_deleted = models.BooleanField(default=False)
     is_trocado = models.BooleanField(default=False)
     
@@ -376,6 +409,7 @@ class Venda(Base):
         if is_new and self.pk:
             moved_documento = False
             moved_foto = False
+            moved_imagem_imei = False
             
             if self.documento_assinado and 'vendas/temp/' in str(self.documento_assinado):
                 old_path = str(self.documento_assinado)
@@ -396,9 +430,23 @@ class Venda(Base):
                     default_storage.delete(old_path)
                     self.foto_cliente = new_path
                     moved_foto = True
+
+            if self.imagem_imei and 'vendas/temp/' in str(self.imagem_imei):
+                old_path = str(self.imagem_imei)
+                new_path = f'vendas/{self.pk}/{os.path.basename(old_path)}'
+                if default_storage.exists(old_path):
+                    with default_storage.open(old_path, 'rb') as old_file:
+                        default_storage.save(new_path, old_file)
+                    default_storage.delete(old_path)
+                    self.imagem_imei = new_path
+                    moved_imagem_imei = True
             
-            if moved_documento or moved_foto:
-                super().save(update_fields=['documento_assinado', 'foto_cliente'])
+            if moved_documento or moved_foto or moved_imagem_imei:
+                super().save(update_fields=['documento_assinado', 'foto_cliente', 'imagem_imei'])
+
+    @cached_property
+    def tem_iphone(self):
+        return self.itens_venda.filter(produto__is_iphone=True).exists()
     
     def qtd_total_parcelas(self):
         return sum(pagamento.parcelas for pagamento in self.pagamentos.filter(tipo_pagamento__parcelas=True))
