@@ -33,6 +33,8 @@ Produtos
           <th scope="col">Tipo</th>
           <th scope="col">Valor Repasse Logista</th>
           <th scope="col">Entrada Cliente</th>
+          <th scope="col">Valor 14 Vezes</th>
+          <th scope="col">Valor 12 Vezes</th>
           <th scope="col">Valor 10 Vezes</th>
           <th scope="col">Valor 8 Vezes</th>
           <th scope="col">Valor 6 Vezes</th>
@@ -59,6 +61,16 @@ Produtos
           </td>
           <td>{{ produto.valor_repasse_logista|floatformat:2 }}</td>
           <td>{{ produto.entrada_cliente|floatformat:2 }}</td>
+          <td>
+            {{ produto.valor_14_vezes|floatformat:2 }}
+            <br>
+            <small class="text-muted per-parcela" data-total="{{ produto.valor_14_vezes }}" data-n="14"></small>
+          </td>
+          <td>
+            {{ produto.valor_12_vezes|floatformat:2 }}
+            <br>
+            <small class="text-muted per-parcela" data-total="{{ produto.valor_12_vezes }}" data-n="12"></small>
+          </td>
           <td>
             {{ produto.valor_10_vezes|floatformat:2 }}
             <br>

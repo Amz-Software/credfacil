@@ -1369,7 +1369,7 @@ class RelatorioVendasForm(forms.Form):
     def __init__(self, *args, **kwargs):
         loja = kwargs.pop('loja', None)
         user = kwargs.pop('user', None)
-        print(f'Loja no form: {loja}')
+        loja = normalize_loja(loja)
         super().__init__(*args, **kwargs)
         if loja:
             self.fields['produtos'].queryset = loja.produtos_permitidos_qs(require_stock=False)
@@ -1476,6 +1476,7 @@ class RelatorioSolicitacoesForm(forms.Form):
     def __init__(self, *args, **kwargs):
         loja = kwargs.pop('loja', None)
         user = kwargs.pop('user', None)
+        loja = normalize_loja(loja)
         super().__init__(*args, **kwargs)
 
         # Se houver loja no contexto, limitamos alguns querysets

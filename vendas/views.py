@@ -555,7 +555,17 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
         # Adiciona informação sobre permissão de visualizar consulta Serasa
         context['can_view_consulta_serasa'] = self.request.user.has_perm('vendas.view_consulta_serasa')
         
-        produtos = Produto.objects.filter(ativo=True).values('id', 'nome', 'valor_4_vezes', 'valor_6_vezes', 'valor_8_vezes', 'valor_10_vezes', 'entrada_cliente')
+        produtos = Produto.objects.filter(ativo=True).values(
+            'id',
+            'nome',
+            'valor_4_vezes',
+            'valor_6_vezes',
+            'valor_8_vezes',
+            'valor_10_vezes',
+            'valor_12_vezes',
+            'valor_14_vezes',
+            'entrada_cliente'
+        )
         produtos_list = [
             {
                 'id': p['id'],
@@ -564,8 +574,8 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
                 'valor6': float(p['valor_6_vezes']),
                 'valor8': float(p['valor_8_vezes']),
                 'valor10': float(p['valor_10_vezes']),
-                'valor12': float(p.get('valor_12_vezes', p['valor_10_vezes'])),
-                'valor14': float(p.get('valor_14_vezes', p['valor_10_vezes'])),
+                'valor12': float(p['valor_12_vezes']),
+                'valor14': float(p['valor_14_vezes']),
                 'entrada': float(p['entrada_cliente']),
             }
             for p in produtos
@@ -713,6 +723,8 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             'valor_6_vezes',
             'valor_8_vezes',
             'valor_10_vezes',
+            'valor_12_vezes',
+            'valor_14_vezes',
             'entrada_cliente'
         )
         produtos_list = [
@@ -723,8 +735,8 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
                 'valor6': float(p['valor_6_vezes']),
                 'valor8': float(p['valor_8_vezes']),
                 'valor10': float(p['valor_10_vezes']),
-                'valor12': float(p.get('valor_12_vezes', p['valor_10_vezes'])),
-                'valor14': float(p.get('valor_14_vezes', p['valor_10_vezes'])),
+                'valor12': float(p['valor_12_vezes']),
+                'valor14': float(p['valor_14_vezes']),
                 'entrada': float(p['entrada_cliente']),
             }
             for p in produtos
@@ -1159,13 +1171,13 @@ def gerar_venda(request, cliente_id):
         parcelas = 10
         porcentagem_desconto = credfacil.porcentagem_desconto_10
     elif analise.numero_parcelas == '12':
-        valor_credfacil = getattr(produto, 'valor_12_vezes', produto.valor_10_vezes)
+        valor_credfacil = produto.valor_12_vezes
         parcelas = 12
-        porcentagem_desconto = getattr(credfacil, 'porcentagem_desconto_12', credfacil.porcentagem_desconto_10)
+        porcentagem_desconto = 0
     elif analise.numero_parcelas == '14':
-        valor_credfacil = getattr(produto, 'valor_14_vezes', produto.valor_10_vezes)
+        valor_credfacil = produto.valor_14_vezes
         parcelas = 14
-        porcentagem_desconto = getattr(credfacil, 'porcentagem_desconto_14', credfacil.porcentagem_desconto_10)
+        porcentagem_desconto = 0
 
     # Cria ProdutoVenda
     ProdutoVenda.objects.create(
@@ -1641,6 +1653,8 @@ class VendaEdicaoEspecialView(PermissionRequiredMixin, UpdateView):
                 6: produto_base.valor_6_vezes * quantidade_base,
                 8: produto_base.valor_8_vezes * quantidade_base,
                 10: produto_base.valor_10_vezes * quantidade_base,
+                12: produto_base.valor_12_vezes * quantidade_base,
+                14: produto_base.valor_14_vezes * quantidade_base,
             }
 
         for pagamento in pagamentos_modificados:
