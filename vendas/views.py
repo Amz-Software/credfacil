@@ -53,6 +53,43 @@ from pypix import Pix
 
 logger = logging.getLogger(__name__)
 
+def _avisar_solicitacoes_existentes(request, *, cpf=None, rg=None, nome=None, telefone=None, exclude_cliente_id=None):
+    filtros = Q()
+    if cpf:
+        filtros |= Q(cpf=cpf)
+    if rg:
+        filtros |= Q(rg=rg)
+    if nome:
+        filtros |= Q(nome__iexact=nome)
+    if telefone:
+        filtros |= Q(telefone=telefone)
+
+    if not filtros:
+        return
+
+    qs = Cliente.objects.filter(filtros).select_related('analise_credito')
+    if exclude_cliente_id:
+        qs = qs.exclude(pk=exclude_cliente_id)
+
+    if not qs.exists():
+        return
+
+    detalhes = []
+    for cliente in qs[:5]:
+        analise = getattr(cliente, 'analise_credito', None)
+        if analise:
+            detalhes.append(
+                f"Solicitação #{analise.id} (Cliente {cliente.nome}, status {analise.get_status_display()})"
+            )
+        else:
+            detalhes.append(f"Cliente #{cliente.id} ({cliente.nome})")
+
+    total = qs.count()
+    sufixo = f" +{total - len(detalhes)}" if total > len(detalhes) else ""
+    mensagem = "⚠️ Existem solicitações de crédito com dados já cadastrados (CPF, RG, Nome ou Telefone). "
+    mensagem += "Encontradas: " + "; ".join(detalhes) + sufixo
+    messages.warning(request, mensagem)
+
 class BaseView(View):
     def get_loja(self):
         loja_id = self.request.session.get('loja_id')
@@ -611,6 +648,14 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
             form_analise_credito.is_valid()
         ]):
             
+            _avisar_solicitacoes_existentes(
+                request,
+                cpf=form_cliente.cleaned_data.get('cpf'),
+                rg=form_cliente.cleaned_data.get('rg'),
+                nome=form_cliente.cleaned_data.get('nome'),
+                telefone=form_cliente.cleaned_data.get('telefone'),
+            )
+            
             contato_adicional_val = form_adicional.cleaned_data.get('contato')
             contato_pessoal_val = form_informacao.cleaned_data.get('contato_pessoal')
             endereco_adicional_val = (form_adicional.cleaned_data.get('endereco_adicional') or '').strip().lower()
@@ -804,6 +849,15 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             form_comprovantes.is_valid(),
             form_analise_credito.is_valid()
         ]):
+            
+            _avisar_solicitacoes_existentes(
+                request,
+                cpf=form_cliente.cleaned_data.get('cpf'),
+                rg=form_cliente.cleaned_data.get('rg'),
+                nome=form_cliente.cleaned_data.get('nome'),
+                telefone=form_cliente.cleaned_data.get('telefone'),
+                exclude_cliente_id=self.object.pk,
+            )
             
             contato_adicional_val = form_adicional.cleaned_data.get('contato')
             contato_pessoal_val = form_informacao.cleaned_data.get('contato_pessoal')
