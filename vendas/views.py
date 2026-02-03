@@ -613,12 +613,28 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
             
             contato_adicional_val = form_adicional.cleaned_data.get('contato')
             contato_pessoal_val = form_informacao.cleaned_data.get('contato_pessoal')
-            endereco_adicional_val = form_adicional.cleaned_data.get('endereco_adicional').lower()
-            endereco_pessoal_val = form_informacao.cleaned_data.get('endereco_pessoal').lower()
+            endereco_adicional_val = (form_adicional.cleaned_data.get('endereco_adicional') or '').strip().lower()
+            endereco_pessoal_val = (form_informacao.cleaned_data.get('endereco_pessoal') or '').strip().lower()
+            nome_adicional_val = (form_adicional.cleaned_data.get('nome_adicional') or '').strip().lower()
+            nome_pessoal_val = (form_informacao.cleaned_data.get('nome_pessoal') or '').strip().lower()
 
-            if (contato_adicional_val == contato_pessoal_val) or (endereco_adicional_val == endereco_pessoal_val):
-                print("❌ CONDIÇÃO ATINGIDA: Os contatos e endereços adicionais não podem ser iguais.")
-                messages.error(request, "❌ Os contatos e endereços adicionais não podem ser iguais.")
+            conflito = False
+            if contato_adicional_val and contato_pessoal_val and contato_adicional_val == contato_pessoal_val:
+                conflito = True
+                form_adicional.add_error('contato', 'Contato Adicional não pode ser igual ao Contato de Informações Pessoais.')
+                form_informacao.add_error('contato_pessoal', 'Contato de Informações Pessoais não pode ser igual ao Contato Adicional.')
+            if endereco_adicional_val and endereco_pessoal_val and endereco_adicional_val == endereco_pessoal_val:
+                conflito = True
+                form_adicional.add_error('endereco_adicional', 'Endereço Adicional não pode ser igual ao Endereço de Informações Pessoais.')
+                form_informacao.add_error('endereco_pessoal', 'Endereço de Informações Pessoais não pode ser igual ao Endereço Adicional.')
+            if nome_adicional_val and nome_pessoal_val and nome_adicional_val == nome_pessoal_val:
+                conflito = True
+                form_adicional.add_error('nome_adicional', 'Nome Adicional não pode ser igual ao Nome de Informações Pessoais.')
+                form_informacao.add_error('nome_pessoal', 'Nome de Informações Pessoais não pode ser igual ao Nome Adicional.')
+
+            if conflito:
+                print("❌ CONDIÇÃO ATINGIDA: Informações Pessoais e Contato Adicional não podem ser iguais.")
+                messages.error(request, "❌ Informações Pessoais e Contato Adicional não podem ser iguais.")
                 return self.form_invalid(form_cliente)
             
             comprovantes = form_comprovantes.save()
@@ -791,12 +807,28 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             
             contato_adicional_val = form_adicional.cleaned_data.get('contato')
             contato_pessoal_val = form_informacao.cleaned_data.get('contato_pessoal')
-            endereco_adicional_val = form_adicional.cleaned_data.get('endereco_adicional').lower()
-            endereco_pessoal_val = form_informacao.cleaned_data.get('endereco_pessoal').lower()
+            endereco_adicional_val = (form_adicional.cleaned_data.get('endereco_adicional') or '').strip().lower()
+            endereco_pessoal_val = (form_informacao.cleaned_data.get('endereco_pessoal') or '').strip().lower()
+            nome_adicional_val = (form_adicional.cleaned_data.get('nome_adicional') or '').strip().lower()
+            nome_pessoal_val = (form_informacao.cleaned_data.get('nome_pessoal') or '').strip().lower()
 
-            if (contato_adicional_val == contato_pessoal_val) or (endereco_adicional_val == endereco_pessoal_val):
-                print("❌ CONDIÇÃO ATINGIDA: Os contatos e endereços adicionais não podem ser iguais.")
-                messages.error(request, "❌ Os contatos e endereços adicionais não podem ser iguais.")
+            conflito = False
+            if contato_adicional_val and contato_pessoal_val and contato_adicional_val == contato_pessoal_val:
+                conflito = True
+                form_adicional.add_error('contato', 'Contato Adicional não pode ser igual ao Contato de Informações Pessoais.')
+                form_informacao.add_error('contato_pessoal', 'Contato de Informações Pessoais não pode ser igual ao Contato Adicional.')
+            if endereco_adicional_val and endereco_pessoal_val and endereco_adicional_val == endereco_pessoal_val:
+                conflito = True
+                form_adicional.add_error('endereco_adicional', 'Endereço Adicional não pode ser igual ao Endereço de Informações Pessoais.')
+                form_informacao.add_error('endereco_pessoal', 'Endereço de Informações Pessoais não pode ser igual ao Endereço Adicional.')
+            if nome_adicional_val and nome_pessoal_val and nome_adicional_val == nome_pessoal_val:
+                conflito = True
+                form_adicional.add_error('nome_adicional', 'Nome Adicional não pode ser igual ao Nome de Informações Pessoais.')
+                form_informacao.add_error('nome_pessoal', 'Nome de Informações Pessoais não pode ser igual ao Nome Adicional.')
+
+            if conflito:
+                print("❌ CONDIÇÃO ATINGIDA: Informações Pessoais e Contato Adicional não podem ser iguais.")
+                messages.error(request, "❌ Informações Pessoais e Contato Adicional não podem ser iguais.")
                 return self.form_invalid(form_cliente)
             
             
