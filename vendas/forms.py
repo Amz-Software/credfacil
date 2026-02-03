@@ -485,7 +485,7 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
     senha_icloud = forms.CharField(
         required=False,
         label='Senha iCloud',
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Digite a senha iCloud'}),
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Digite a senha iCloud'}),
         help_text='Obrigatório apenas para produtos iPhone'
     )
     
@@ -523,7 +523,7 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         if user:
             if user.is_superuser:
                 can_manage_icloud = True
-            elif user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR']).exists():
+            elif user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR', 'VENDEDOR', 'SUPERVISOR', 'GERENTE']).exists():
                 can_manage_icloud = True
         
         # Remover campos iCloud se o usuário não tiver permissão
