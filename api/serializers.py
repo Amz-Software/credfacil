@@ -11,6 +11,7 @@ from vendas.models import (
     Venda,
 )
 from produtos.models import Produto
+from vendas.models import ProdutoVenda, Pagamento
 
 
 class LojaSerializer(serializers.ModelSerializer):
@@ -170,3 +171,65 @@ class ProdutoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Produto
         fields = "__all__"
+
+
+class ProdutoVendaSerializer(serializers.ModelSerializer):
+    produto_nome = serializers.CharField(source="produto.nome", read_only=True)
+
+    class Meta:
+        model = ProdutoVenda
+        fields = [
+            "id",
+            "produto",
+            "produto_nome",
+            "imei",
+            "valor_unitario",
+            "quantidade",
+            "valor_desconto",
+        ]
+
+
+class PagamentoSerializer(serializers.ModelSerializer):
+    tipo_nome = serializers.CharField(source="tipo_pagamento.nome", read_only=True)
+
+    class Meta:
+        model = Pagamento
+        fields = [
+            "id",
+            "tipo_pagamento",
+            "tipo_nome",
+            "valor",
+            "parcelas",
+            "data_primeira_parcela",
+            "porcentagem_desconto",
+            "bloqueado",
+            "desativado",
+            "devolucao",
+            "quitado",
+        ]
+
+
+class VendaSerializer(serializers.ModelSerializer):
+    cliente_nome = serializers.CharField(source="cliente.nome", read_only=True)
+    itens_venda = ProdutoVendaSerializer(many=True, read_only=True)
+    pagamentos = PagamentoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Venda
+        fields = [
+            "id",
+            "loja",
+            "cliente",
+            "cliente_nome",
+            "vendedor",
+            "data_venda",
+            "observacao",
+            "repasse_logista",
+            "documento_assinado",
+            "foto_cliente",
+            "imagem_imei",
+            "is_deleted",
+            "is_trocado",
+            "itens_venda",
+            "pagamentos",
+        ]

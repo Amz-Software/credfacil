@@ -58,3 +58,26 @@ class ProdutoPermission(BasePermission):
             return user.has_perm("produtos.delete_produto")
 
         return False
+
+
+class VendaPermission(BasePermission):
+    def has_permission(self, request, view):
+        action = getattr(view, "action", None)
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+
+        if action in ("list", "retrieve"):
+            return user.has_perm("vendas.view_venda")
+        if action == "create":
+            return user.has_perm("vendas.add_venda")
+        if action in ("update", "partial_update", "documentos", "trocar_produto"):
+            return user.has_perm("vendas.change_venda")
+        if action in ("edicao_especial",):
+            return user.has_perm("vendas.can_edit_imei_valores_venda")
+        if action in ("cancelar",):
+            return user.has_perm("vendas.change_venda")
+        if action == "destroy":
+            return user.has_perm("vendas.delete_venda")
+
+        return False

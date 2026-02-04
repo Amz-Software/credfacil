@@ -1,4 +1,6 @@
 from datetime import date
+import re
+import calendar
 
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -24,26 +26,98 @@ from vendas.forms import (
     ComprovantesClienteForm,
     ContatoAdicionalForm,
     InformacaoPessoalForm,
+    FormaPagamentoEditFormSet,
+    FormaPagamentoEdicaoEspecialFormSet,
+    FormaPagamentoFormSet,
+    ProdutoVendaEditFormSet,
+    ProdutoVendaEdicaoEspecialFormSet,
+    ProdutoVendaFormSet,
+    VendaDocumentosForm,
+    VendaEdicaoEspecialForm,
+    VendaForm,
 )
-from vendas.models import AnaliseCreditoCliente, Cliente, Loja, Venda
+from vendas.models import (
+    AnaliseCreditoCliente,
+    Caixa,
+    Cliente,
+    Loja,
+    Pagamento,
+    Parcela,
+    ProdutoVenda,
+    TipoPagamento,
+    Venda,
+)
 from produtos.models import Produto
+from estoque.models import EstoqueImei
 from accounts.models import User
 
 from .pagination import SolicitacaoPagination
-from .permissions import LojaPermission, SolicitacaoCreditoPermission, ProdutoPermission
+from .permissions import LojaPermission, SolicitacaoCreditoPermission, ProdutoPermission, VendaPermission
 from .serializers import (
     ClienteSolicitacaoSerializer,
     LojaListSerializer,
     LojaSerializer,
     ProdutoSerializer,
-    RepasseSerializer,
     VendaSerializer,
+    RepasseSerializer,
 )
 
 
 @api_view(["GET"])
 def health(request):
     return Response({"status": "ok"})
+
+
+def calcular_data_primeira_parcela(data_pagamento_str):
+    hoje = timezone.now().date()
+    dia_escolhido = int(data_pagamento_str)
+    max_dias = 40
+    ano, mes = hoje.year, hoje.month
+
+    melhor_data = None
+    maior_diferenca = -1
+
+    for i in range(3):
+        novo_mes = mes + i
+        novo_ano = ano + (novo_mes - 1) // 12
+        novo_mes = ((novo_mes - 1) % 12) + 1
+
+        ultimo_dia_mes = calendar.monthrange(novo_ano, novo_mes)[1]
+        dia_real = min(dia_escolhido, ultimo_dia_mes)
+
+        data_candidata = date(novo_ano, novo_mes, dia_real)
+        dias_ate_parcela = (data_candidata - hoje).days
+
+        if 0 < dias_ate_parcela <= max_dias:
+            if dias_ate_parcela > maior_diferenca:
+                melhor_data = data_candidata
+                maior_diferenca = dias_ate_parcela
+
+    return melhor_data
+
+
+def criar_parcelas(pagamento, loja):
+    Parcela.objects.filter(pagamento=pagamento).delete()
+    dia = pagamento.data_primeira_parcela.day
+
+    for n in range(1, pagamento.parcelas + 1):
+        month_offset = pagamento.data_primeira_parcela.month - 1 + (n - 1)
+        ano = pagamento.data_primeira_parcela.year + month_offset // 12
+        mes = month_offset % 12 + 1
+
+        ultimo = calendar.monthrange(ano, mes)[1]
+        venc_dia = min(dia, ultimo)
+        data_venc = date(ano, mes, venc_dia)
+
+        Parcela.objects.create(
+            loja=loja,
+            pagamento=pagamento,
+            numero_parcela=n,
+            valor=pagamento.valor_parcela,
+            data_vencimento=data_venc,
+            criado_por=pagamento.criado_por,
+            modificado_por=pagamento.modificado_por,
+        )
 
 
 def _avisos_solicitacoes_existentes(*, cpf=None, rg=None, nome=None, telefone=None, exclude_cliente_id=None):
@@ -647,6 +721,162 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         analise.save()
         return Response({"detail": "Analise de credito cancelada com sucesso."})
 
+    @action(detail=True, methods=["post"], url_path="gerar-venda")
+    def gerar_venda(self, request, pk=None):
+        cliente = Cliente.objects.get(pk=pk)
+        loja = Loja.objects.filter(id=request.session.get("loja_id")).first()
+        credfacil = Loja.objects.filter(credfacil=True).first()
+
+        if not credfacil or not loja or not cliente:
+            return Response({"detail": "Loja ou cliente nao encontrado."}, status=400)
+
+        cpf_limpo = re.sub(r"\D", "", cliente.cpf or "")
+        vendas_com_poucas_parcelas = (
+            Venda.objects.filter(cliente__cpf=cpf_limpo, is_deleted=False)
+            .annotate(
+                parcelas_pagas=Count(
+                    "pagamentos__parcelas_pagamento",
+                    filter=Q(
+                        pagamentos__tipo_pagamento__nome__iexact="IPX",
+                        pagamentos__parcelas_pagamento__pago=True,
+                    ),
+                    distinct=True,
+                )
+            )
+            .filter(parcelas_pagas__lt=3)
+        )
+
+        if vendas_com_poucas_parcelas.exists():
+            return Response(
+                {
+                    "detail": "Para gerar uma nova venda, cada venda anterior do mesmo CPF deve ter pelo menos 3 parcelas pagas."
+                },
+                status=400,
+            )
+
+        analise = cliente.analise_credito
+        if not analise or analise.status != "A":
+            return Response({"detail": "Analise de credito nao aprovada para o cliente."}, status=400)
+        if not analise.imei:
+            return Response({"detail": "Nenhum IMEI associado a analise de credito."}, status=400)
+        if not getattr(analise.produto, "is_iphone", False) and analise.status_aplicativo != "I":
+            return Response({"detail": "Aplicativo nao esta instalado."}, status=400)
+        if analise.venda:
+            return Response({"detail": "Essa solicitacao ja foi convertida em venda."}, status=400)
+
+        caixa = Caixa.objects.filter(loja=analise.loja, data_fechamento__isnull=True).first()
+        if not caixa:
+            return Response(
+                {"detail": f"Nenhum caixa aberto encontrado para a loja {analise.loja.nome}."},
+                status=400,
+            )
+
+        produto = analise.produto
+        imei = analise.imei
+
+        if getattr(produto, "is_iphone", False):
+            if not analise.email_icloud or not analise.senha_icloud:
+                return Response(
+                    {"detail": "Para gerar venda de iPhone, Email e Senha iCloud devem estar preenchidos."},
+                    status=400,
+                )
+            if not analise.icloud_configurado_vendedor:
+                return Response(
+                    {"detail": "iCloud ainda nao foi configurado pelo vendedor."},
+                    status=400,
+                )
+            if not analise.icloud_confirmado_analista:
+                return Response(
+                    {"detail": "iCloud nao confirmado pelo analista."},
+                    status=400,
+                )
+
+        if ProdutoVenda.objects.filter(imei=imei.imei).exists():
+            return Response(
+                {"detail": f"IMEI {imei.imei} ja esta sendo usado em outra venda."}, status=400
+            )
+
+        try:
+            with transaction.atomic():
+                venda = Venda.objects.create(
+                    loja=analise.loja,
+                    cliente=cliente,
+                    vendedor=request.user,
+                    caixa=caixa,
+                    repasse_logista=produto.valor_repasse_logista,
+                    observacao=analise.observacao,
+                    criado_por=request.user,
+                    modificado_por=request.user,
+                    criado_em=timezone.now(),
+                    modificado_em=timezone.now(),
+                )
+                analise.venda = venda
+                analise.save()
+
+                porcentagem_desconto = 0
+                if analise.numero_parcelas == "4":
+                    valor_credfacil = produto.valor_4_vezes
+                    parcelas = 4
+                    porcentagem_desconto = credfacil.porcentagem_desconto_4
+                elif analise.numero_parcelas == "6":
+                    valor_credfacil = produto.valor_6_vezes
+                    parcelas = 6
+                    porcentagem_desconto = credfacil.porcentagem_desconto_6
+                elif analise.numero_parcelas == "8":
+                    valor_credfacil = produto.valor_8_vezes
+                    parcelas = 8
+                    porcentagem_desconto = credfacil.porcentagem_desconto_8
+                elif analise.numero_parcelas == "10":
+                    valor_credfacil = produto.valor_10_vezes
+                    parcelas = 10
+                    porcentagem_desconto = credfacil.porcentagem_desconto_10
+                elif analise.numero_parcelas == "12":
+                    valor_credfacil = produto.valor_12_vezes
+                    parcelas = 12
+                else:
+                    valor_credfacil = produto.valor_14_vezes
+                    parcelas = 14
+
+                ProdutoVenda.objects.create(
+                    loja=analise.loja,
+                    venda=venda,
+                    produto=produto,
+                    imei=imei.imei,
+                    valor_unitario=valor_credfacil,
+                    quantidade=1,
+                    valor_desconto=0,
+                )
+
+                tipo_entrada = TipoPagamento.objects.get(nome__iexact="ENTRADA")
+                tipo_credfacil = TipoPagamento.objects.get(nome__iexact="IPX")
+
+                pagamento_entrada = Pagamento.objects.create(
+                    loja=analise.loja,
+                    venda=venda,
+                    tipo_pagamento=tipo_entrada,
+                    valor=produto.entrada_cliente,
+                    parcelas=1,
+                    data_primeira_parcela=timezone.now().date(),
+                )
+
+                data1 = calcular_data_primeira_parcela(analise.data_pagamento)
+                pagamento_credfacil = Pagamento.objects.create(
+                    loja=analise.loja,
+                    venda=venda,
+                    tipo_pagamento=tipo_credfacil,
+                    valor=valor_credfacil,
+                    parcelas=parcelas,
+                    data_primeira_parcela=data1,
+                    porcentagem_desconto=porcentagem_desconto,
+                )
+
+                criar_parcelas(pagamento_entrada, analise.loja)
+                criar_parcelas(pagamento_credfacil, analise.loja)
+        except Exception as exc:
+            return Response({"detail": f"Erro ao processar a venda: {exc}"}, status=400)
+
+        return Response(VendaSerializer(venda).data, status=201)
+
 
 class ProdutoViewSet(viewsets.ModelViewSet):
     queryset = Produto.objects.all()
@@ -684,3 +914,341 @@ class ProdutoViewSet(viewsets.ModelViewSet):
         produto.ativo = False
         produto.save()
         return Response({"detail": "Produto desativado com sucesso."})
+
+
+def _build_formset_data(formset_cls, items, initial_forms=0):
+    formset = formset_cls()
+    prefix = formset.prefix
+
+    from django.http import QueryDict
+
+    data = QueryDict("", mutable=True)
+    data[f"{prefix}-TOTAL_FORMS"] = str(len(items))
+    data[f"{prefix}-INITIAL_FORMS"] = str(initial_forms)
+    data[f"{prefix}-MIN_NUM_FORMS"] = "0"
+    data[f"{prefix}-MAX_NUM_FORMS"] = "1000"
+
+    for i, item in enumerate(items):
+        for key, value in item.items():
+            data[f"{prefix}-{i}-{key}"] = "" if value is None else str(value)
+
+    return data
+
+
+class VendaViewSet(viewsets.ModelViewSet):
+    queryset = Venda.objects.all()
+    serializer_class = VendaSerializer
+    permission_classes = [VendaPermission]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_queryset(self):
+        query = Venda.objects.all()
+        data_filter = self.request.query_params.get("search")
+        loja = self.request.query_params.get("loja_id")
+        cliente_nome = self.request.query_params.get("cliente_nome")
+        vendas_canceladas = self.request.query_params.get("vendas_canceladas")
+        vendas_trocadas = self.request.query_params.get("vendas_trocadas")
+
+        if loja:
+            query = query.filter(loja__id=loja)
+        if data_filter:
+            query = query.filter(data_venda=data_filter)
+        if cliente_nome:
+            query = query.filter(cliente__nome__icontains=cliente_nome)
+        if vendas_canceladas:
+            query = query.filter(is_deleted=True)
+        if vendas_trocadas:
+            query = query.filter(is_trocado=True)
+
+        if not self.request.user.has_perm("vendas.can_view_all_sales"):
+            loja_id = self.request.session.get("loja_id")
+            query = query.filter(loja_id=loja_id)
+
+        return query.order_by("-criado_em")
+
+    def _get_formset_payload(self, request, formset_cls, key, initial_forms=0):
+        if key in request.data:
+            items = request.data.get(key) or []
+            return _build_formset_data(formset_cls, items, initial_forms=initial_forms)
+        return request.data
+
+    def create(self, request, *args, **kwargs):
+        loja_id = request.session.get("loja_id")
+        loja = Loja.objects.filter(id=loja_id).first()
+        if not loja:
+            return Response({"detail": "Loja nao encontrada na sessao."}, status=400)
+
+        form = VendaForm(request.data, loja=loja_id, user=request.user)
+
+        produto_data = self._get_formset_payload(request, ProdutoVendaFormSet, "itens", initial_forms=0)
+        pagamento_data = self._get_formset_payload(request, FormaPagamentoFormSet, "pagamentos", initial_forms=0)
+
+        produto_venda_formset = ProdutoVendaFormSet(
+            produto_data, form_kwargs={"loja": loja_id}
+        )
+        pagamento_formset = FormaPagamentoFormSet(
+            pagamento_data, form_kwargs={"loja": loja_id}
+        )
+
+        if not (produto_venda_formset.is_valid() and pagamento_formset.is_valid() and form.is_valid()):
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {
+                        "venda": form.errors,
+                        "itens": produto_venda_formset.errors,
+                        "pagamentos": pagamento_formset.errors,
+                    },
+                },
+                status=400,
+            )
+
+        if not Caixa.caixa_aberto(timezone.localtime(timezone.now()).date(), loja):
+            return Response({"detail": "Nao e possivel realizar vendas com a loja bloqueada."}, status=400)
+
+        try:
+            with transaction.atomic():
+                form.instance.loja = loja
+                form.instance.criado_por = request.user
+                form.instance.modificado_por = request.user
+                form.instance.caixa = (
+                    Caixa.objects.filter(data_abertura=timezone.localtime(timezone.now()).date(), loja=loja)
+                    .order_by("-criado_em")
+                    .first()
+                )
+                form.instance.data_venda = timezone.localtime(timezone.now())
+                venda = form.save()
+
+                for produto_venda in produto_venda_formset.save(commit=False):
+                    produto_venda.venda = venda
+                    produto_venda.loja = loja
+                    produto_venda.save()
+
+                for pagamento in pagamento_formset.save(commit=False):
+                    pagamento.venda = venda
+                    pagamento.loja = loja
+                    pagamento.save()
+        except Exception as exc:
+            return Response({"detail": f"Erro ao processar a venda: {exc}"}, status=400)
+
+        return Response(VendaSerializer(venda).data, status=201)
+
+    def update(self, request, *args, **kwargs):
+        venda = self.get_object()
+        loja_id = request.session.get("loja_id")
+
+        try:
+            loja = Loja.objects.get(id=loja_id)
+        except Loja.DoesNotExist:
+            return Response({"detail": "Loja nao encontrada."}, status=400)
+
+        if not Caixa.caixa_aberto(timezone.localtime(timezone.now()).date(), loja):
+            return Response({"detail": "Nao e possivel editar vendas com a loja bloqueada."}, status=400)
+
+        form = VendaForm(request.data, instance=venda, loja=loja_id, user=request.user)
+
+        produto_data = self._get_formset_payload(
+            request, ProdutoVendaEditFormSet, "itens", initial_forms=venda.itens_venda.count()
+        )
+        pagamento_data = self._get_formset_payload(
+            request, FormaPagamentoEditFormSet, "pagamentos", initial_forms=venda.pagamentos.count()
+        )
+
+        produto_venda_formset = ProdutoVendaEditFormSet(
+            produto_data, instance=venda, form_kwargs={"loja": loja_id}
+        )
+        pagamento_formset = FormaPagamentoEditFormSet(
+            pagamento_data, instance=venda, form_kwargs={"loja": loja_id}
+        )
+
+        if not (form.is_valid() and produto_venda_formset.is_valid() and pagamento_formset.is_valid()):
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {
+                        "venda": form.errors,
+                        "itens": produto_venda_formset.errors,
+                        "pagamentos": pagamento_formset.errors,
+                    },
+                },
+                status=400,
+            )
+
+        try:
+            with transaction.atomic():
+                form.instance.loja = loja
+                form.instance.modificado_por = request.user
+                venda = form.save()
+
+                for deletado in produto_venda_formset.deleted_objects:
+                    deletado.delete()
+                for produto_venda in produto_venda_formset.save(commit=False):
+                    produto_venda.venda = venda
+                    produto_venda.loja = loja
+                    produto_venda.save()
+                produto_venda_formset.save_m2m()
+
+                for deletado in pagamento_formset.deleted_objects:
+                    deletado.delete()
+                for pagamento in pagamento_formset.save(commit=False):
+                    pagamento.venda = venda
+                    pagamento.loja = loja
+                    pagamento.save()
+                pagamento_formset.save_m2m()
+        except Exception as exc:
+            return Response({"detail": f"Erro ao processar a venda: {exc}"}, status=400)
+
+        return Response(VendaSerializer(venda).data)
+
+    @action(detail=True, methods=["post"], url_path="documentos")
+    def documentos(self, request, pk=None):
+        venda = self.get_object()
+        form = VendaDocumentosForm(request.data, request.FILES, instance=venda)
+        if not form.is_valid():
+            return Response({"detail": "Erros de validacao.", "errors": form.errors}, status=400)
+        form.save()
+        return Response(VendaSerializer(venda).data)
+
+    @action(detail=True, methods=["post"], url_path="edicao-especial")
+    def edicao_especial(self, request, pk=None):
+        venda = self.get_object()
+        loja = venda.loja
+        if not loja:
+            return Response({"detail": "Loja nao encontrada na venda."}, status=400)
+
+        if not Caixa.caixa_aberto(timezone.localtime(timezone.now()).date(), loja):
+            return Response({"detail": "Nao e possivel editar vendas com a loja bloqueada."}, status=400)
+
+        form = VendaEdicaoEspecialForm(request.data, instance=venda)
+
+        produto_data = self._get_formset_payload(
+            request, ProdutoVendaEdicaoEspecialFormSet, "itens", initial_forms=venda.itens_venda.count()
+        )
+        pagamento_data = self._get_formset_payload(
+            request, FormaPagamentoEdicaoEspecialFormSet, "pagamentos", initial_forms=venda.pagamentos.count()
+        )
+
+        produto_venda_formset = ProdutoVendaEdicaoEspecialFormSet(
+            produto_data, instance=venda, form_kwargs={"loja": loja.id}
+        )
+        pagamento_formset = FormaPagamentoEdicaoEspecialFormSet(pagamento_data, instance=venda)
+
+        if not (form.is_valid() and produto_venda_formset.is_valid() and pagamento_formset.is_valid()):
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {
+                        "itens": produto_venda_formset.errors,
+                        "pagamentos": pagamento_formset.errors,
+                    },
+                },
+                status=400,
+            )
+
+        try:
+            with transaction.atomic():
+                form.instance.loja = loja
+                form.instance.modificado_por = request.user
+                venda = form.save()
+
+                for produto_venda in produto_venda_formset.save(commit=False):
+                    produto_venda.venda = venda
+                    produto_venda.loja = loja
+                    produto_venda.save()
+                produto_venda_formset.save_m2m()
+
+                produto_venda = venda.itens_venda.first()
+                produto_base = produto_venda.produto if produto_venda else None
+                quantidade_base = produto_venda.quantidade if produto_venda else 0
+
+                entrada_base = None
+                totais_parcelamento = {}
+                if produto_base:
+                    entrada_base = produto_base.entrada_cliente * quantidade_base
+                    totais_parcelamento = {
+                        4: produto_base.valor_4_vezes * quantidade_base,
+                        6: produto_base.valor_6_vezes * quantidade_base,
+                        8: produto_base.valor_8_vezes * quantidade_base,
+                        10: produto_base.valor_10_vezes * quantidade_base,
+                        12: produto_base.valor_12_vezes * quantidade_base,
+                        14: produto_base.valor_14_vezes * quantidade_base,
+                    }
+
+                for pagamento in pagamento_formset.save(commit=False):
+                    pagamento.venda = venda
+                    pagamento.loja = loja
+                    if pagamento.tipo_pagamento and pagamento.tipo_pagamento.nome.upper() == "ENTRADA":
+                        if entrada_base is not None:
+                            pagamento.valor = entrada_base
+                    else:
+                        try:
+                            parcelas = int(pagamento.parcelas) if pagamento.parcelas else None
+                        except (TypeError, ValueError):
+                            parcelas = None
+                        total = totais_parcelamento.get(parcelas)
+                        if total is not None:
+                            pagamento.valor = total
+                    pagamento.save()
+                pagamento_formset.save_m2m()
+        except Exception as exc:
+            return Response({"detail": f"Erro ao processar a venda: {exc}"}, status=400)
+
+        return Response(VendaSerializer(venda).data)
+
+    @action(detail=True, methods=["post"], url_path="trocar-produto")
+    def trocar_produto(self, request, pk=None):
+        venda = self.get_object()
+        produto_atual_id = request.data.get("produto_atual")
+        novo_produto_id = request.data.get("novo_produto")
+        imei_id = request.data.get("imei")
+        motivo_troca = request.data.get("motivo")
+
+        if not produto_atual_id or not novo_produto_id or not imei_id:
+            return Response({"detail": "Todos os campos sao obrigatorios."}, status=400)
+
+        try:
+            imei_obj = EstoqueImei.objects.get(id=imei_id)
+            imei = imei_obj.imei
+        except EstoqueImei.DoesNotExist:
+            return Response({"detail": "IMEI selecionado nao encontrado."}, status=400)
+
+        try:
+            produto_atual = ProdutoVenda.objects.get(id=produto_atual_id, venda=venda)
+            novo_produto = Produto.objects.get(id=novo_produto_id)
+        except Exception as exc:
+            return Response({"detail": f"Erro ao trocar produto: {exc}"}, status=400)
+
+        produto_antigo_nome = produto_atual.produto.nome
+        produto_antigo_imei = produto_atual.imei
+
+        produto_atual.produto = novo_produto
+        produto_atual.imei = imei
+        produto_atual.save(user=request.user)
+
+        data_atual = timezone.localtime(timezone.now()).date().strftime("%d/%m/%Y")
+        hora_atual = timezone.localtime(timezone.now()).time().strftime("%H:%M")
+
+        venda.is_trocado = True
+        venda.observacao = (venda.observacao or "") + (
+            f"\n{data_atual} {hora_atual} | Troca de produto:\n"
+            f"- Usuario: {request.user.username}\n"
+            f"- De: {produto_antigo_nome} - {produto_antigo_imei}\n"
+            f"- Para: {novo_produto.nome} - {imei}\n"
+            f"- Motivo: {motivo_troca}"
+        )
+        venda.save(user=request.user)
+
+        return Response({"detail": "Produto trocado com sucesso."})
+
+    @action(detail=True, methods=["post"], url_path="cancelar")
+    def cancelar(self, request, pk=None):
+        venda = self.get_object()
+        if venda.is_deleted:
+            return Response({"detail": "Venda ja cancelada."}, status=400)
+
+        if not Caixa.caixa_aberto(timezone.localtime(timezone.now()).date(), venda.loja):
+            return Response({"detail": "Nao e possivel cancelar vendas com a loja bloqueada."}, status=400)
+
+        venda.is_deleted = True
+        venda.save(user=request.user)
+        return Response({"detail": "Venda cancelada com sucesso."})
