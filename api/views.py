@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
@@ -25,14 +26,16 @@ from vendas.forms import (
     InformacaoPessoalForm,
 )
 from vendas.models import AnaliseCreditoCliente, Cliente, Loja, Venda
+from produtos.models import Produto
 from accounts.models import User
 
 from .pagination import SolicitacaoPagination
-from .permissions import LojaPermission, SolicitacaoCreditoPermission
+from .permissions import LojaPermission, SolicitacaoCreditoPermission, ProdutoPermission
 from .serializers import (
     ClienteSolicitacaoSerializer,
     LojaListSerializer,
     LojaSerializer,
+    ProdutoSerializer,
     RepasseSerializer,
     VendaSerializer,
 )
@@ -643,3 +646,41 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         analise.modificado_em = timezone.now()
         analise.save()
         return Response({"detail": "Analise de credito cancelada com sucesso."})
+
+
+class ProdutoViewSet(viewsets.ModelViewSet):
+    queryset = Produto.objects.all()
+    serializer_class = ProdutoSerializer
+    permission_classes = [ProdutoPermission]
+
+    def get_queryset(self):
+        if self.request.user.has_perm("produtos.view_all_produtos"):
+            queryset = Produto.objects.all()
+        else:
+            queryset = Produto.objects.filter(ativo=True)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(nome__icontains=search)
+
+        return queryset.order_by("nome")
+
+    def perform_create(self, serializer):
+        loja_id = self.request.session.get("loja_id")
+        if not loja_id:
+            raise ValidationError({"detail": "Loja nao encontrada na sessao."})
+        serializer.save(loja_id=loja_id)
+
+    @action(detail=True, methods=["post"], url_path="ativar")
+    def ativar(self, request, pk=None):
+        produto = self.get_object()
+        produto.ativo = True
+        produto.save()
+        return Response({"detail": "Produto ativado com sucesso."})
+
+    @action(detail=True, methods=["post"], url_path="desativar")
+    def desativar(self, request, pk=None):
+        produto = self.get_object()
+        produto.ativo = False
+        produto.save()
+        return Response({"detail": "Produto desativado com sucesso."})

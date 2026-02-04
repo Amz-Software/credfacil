@@ -12,6 +12,7 @@ router = DefaultRouter()
 router.APIRootView = PublicAPIRootView
 router.register("lojas", views.LojaViewSet, basename="loja")
 router.register("solicitacoes", views.SolicitacaoCreditoViewSet, basename="solicitacao")
+router.register("produtos", views.ProdutoViewSet, basename="produto")
 
 urlpatterns = [
     path("health/", views.health, name="api-health"),

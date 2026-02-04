@@ -10,6 +10,7 @@ from vendas.models import (
     Loja,
     Venda,
 )
+from produtos.models import Produto
 
 
 class LojaSerializer(serializers.ModelSerializer):
@@ -163,3 +164,9 @@ class ClienteSolicitacaoSerializer(serializers.ModelSerializer):
             "comprovantes",
             "analise_credito",
         ]
+
+
+class ProdutoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Produto
+        fields = "__all__"

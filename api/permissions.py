@@ -39,3 +39,22 @@ class SolicitacaoCreditoPermission(BasePermission):
             return user.has_perm("vendas.delete_cliente")
 
         return False
+
+
+class ProdutoPermission(BasePermission):
+    def has_permission(self, request, view):
+        action = getattr(view, "action", None)
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+
+        if action in ("list", "retrieve"):
+            return user.has_perm("produtos.view_produto")
+        if action == "create":
+            return user.has_perm("produtos.add_produto")
+        if action in ("update", "partial_update"):
+            return user.has_perm("produtos.change_produto")
+        if action in ("destroy", "ativar", "desativar"):
+            return user.has_perm("produtos.delete_produto")
+
+        return False
