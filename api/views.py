@@ -18,6 +18,7 @@ from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiTypes,
     extend_schema,
+    extend_schema_view,
 )
 
 from financeiro.models import Repasse
@@ -170,6 +171,14 @@ def _avisos_solicitacoes_existentes(*, cpf=None, rg=None, nome=None, telefone=No
     return mensagem
 
 
+@extend_schema_view(
+    list=extend_schema(tags=["Lojas"]),
+    retrieve=extend_schema(tags=["Lojas"]),
+    create=extend_schema(tags=["Lojas"]),
+    update=extend_schema(tags=["Lojas"]),
+    partial_update=extend_schema(tags=["Lojas"]),
+    replicar_qrcode=extend_schema(tags=["Lojas"]),
+)
 class LojaViewSet(viewsets.ModelViewSet):
     queryset = Loja.objects.all()
     permission_classes = [LojaPermission]
@@ -316,6 +325,20 @@ class LojaViewSet(viewsets.ModelViewSet):
         return Response({"detail": "QR Code e codigo do aplicativo replicados com sucesso."})
 
 
+@extend_schema_view(
+    list=extend_schema(tags=["Solicitacoes"]),
+    retrieve=extend_schema(tags=["Solicitacoes"]),
+    create=extend_schema(tags=["Solicitacoes"]),
+    update=extend_schema(tags=["Solicitacoes"]),
+    imei_telefone=extend_schema(tags=["Solicitacoes"]),
+    status_app=extend_schema(tags=["Solicitacoes"]),
+    instalar_app=extend_schema(tags=["Solicitacoes"]),
+    confirmar_app=extend_schema(tags=["Solicitacoes"]),
+    aprovar=extend_schema(tags=["Solicitacoes"]),
+    reprovar=extend_schema(tags=["Solicitacoes"]),
+    cancelar=extend_schema(tags=["Solicitacoes"]),
+    gerar_venda=extend_schema(tags=["Solicitacoes"]),
+)
 class SolicitacaoCreditoViewSet(viewsets.ViewSet):
     permission_classes = [SolicitacaoCreditoPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -1025,6 +1048,15 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return Response(VendaSerializer(venda).data, status=201)
 
 
+@extend_schema_view(
+    list=extend_schema(tags=["Produtos"]),
+    retrieve=extend_schema(tags=["Produtos"]),
+    create=extend_schema(tags=["Produtos"]),
+    update=extend_schema(tags=["Produtos"]),
+    partial_update=extend_schema(tags=["Produtos"]),
+    ativar=extend_schema(tags=["Produtos"]),
+    desativar=extend_schema(tags=["Produtos"]),
+)
 class ProdutoViewSet(viewsets.ModelViewSet):
     queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer
@@ -1089,6 +1121,17 @@ def _build_formset_data(formset_cls, items, initial_forms=0):
     return data
 
 
+@extend_schema_view(
+    list=extend_schema(tags=["Vendas"]),
+    retrieve=extend_schema(tags=["Vendas"]),
+    create=extend_schema(tags=["Vendas"]),
+    update=extend_schema(tags=["Vendas"]),
+    partial_update=extend_schema(tags=["Vendas"]),
+    documentos=extend_schema(tags=["Vendas"]),
+    edicao_especial=extend_schema(tags=["Vendas"]),
+    trocar_produto=extend_schema(tags=["Vendas"]),
+    cancelar=extend_schema(tags=["Vendas"]),
+)
 class VendaViewSet(viewsets.ModelViewSet):
     queryset = Venda.objects.all()
     serializer_class = VendaSerializer
