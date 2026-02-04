@@ -32,7 +32,10 @@ html5lib==1.1
 hyperlink==21.0.0
 idna==3.10
 incremental==24.7.2
+inflection==0.5.1
 jsonfield==3.1.0
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
 msgpack==1.1.0
 mysqlclient==2.2.6
 openpyxl==3.1.2
@@ -51,8 +54,11 @@ pypix==0.1.6
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 pytz==2025.2
+PyYAML==6.0.3
 qrcode==8.2
 redis==5.2.1
+referencing==0.37.0
+rpds-py==0.30.0
 service-identity==24.2.0
 setuptools==68.1.2
 six==1.17.0
@@ -63,6 +69,7 @@ Twisted==24.11.0
 txaio==23.1.1
 typing_extensions==4.12.2
 tzdata==2024.2
+uritemplate==4.2.0
 weasyprint==62.3
 webencodings==0.5.1
 wheel==0.42.0
