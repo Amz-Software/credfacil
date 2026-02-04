@@ -13,6 +13,12 @@ from rest_framework.decorators import action, api_view
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+)
 
 from financeiro.models import Repasse
 from notifications.signals import notify
@@ -60,6 +66,12 @@ from .serializers import (
     ProdutoSerializer,
     VendaSerializer,
     RepasseSerializer,
+    SolicitacaoCreditoInputSerializer,
+    SolicitacaoImeiTelefoneInputSerializer,
+    VendaCreateUpdateSerializer,
+    VendaDocumentosSerializer,
+    VendaEdicaoEspecialInputSerializer,
+    VendaTrocaProdutoSerializer,
 )
 
 
@@ -192,6 +204,20 @@ class LojaViewSet(viewsets.ModelViewSet):
 
         return query.order_by("nome")
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("search", OpenApiTypes.STR, required=False),
+            OpenApiParameter("filter", OpenApiTypes.STR, required=False, description="pendente|sem_pendente"),
+        ],
+        responses=LojaListSerializer,
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(responses=LojaSerializer)
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
     def get_serializer_class(self):
         if self.action == "list":
             return LojaListSerializer
@@ -266,6 +292,10 @@ class LojaViewSet(viewsets.ModelViewSet):
         return Response(payload)
 
     @action(detail=True, methods=["post"], url_path="replicar-qrcode")
+    @extend_schema(
+        request=None,
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def replicar_qrcode(self, request, pk=None):
         loja = self.get_object()
         if not request.user.has_perm("vendas.change_loja"):
@@ -349,6 +379,19 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
         return qs.order_by("-id")
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("search", OpenApiTypes.STR, required=False),
+            OpenApiParameter("status", OpenApiTypes.STR, required=False),
+            OpenApiParameter("status_app", OpenApiTypes.STR, required=False),
+            OpenApiParameter("analise_online", OpenApiTypes.STR, required=False, description="1|0"),
+            OpenApiParameter("loja", OpenApiTypes.INT, required=False),
+            OpenApiParameter("data_inicio", OpenApiTypes.DATE, required=False),
+            OpenApiParameter("data_fim", OpenApiTypes.DATE, required=False),
+            OpenApiParameter("vendas_nao_finalizadas", OpenApiTypes.STR, required=False),
+        ],
+        responses=ClienteSolicitacaoSerializer,
+    )
     def list(self, request):
         qs = self._get_queryset(request)
 
@@ -383,6 +426,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             }
         )
 
+    @extend_schema(responses=ClienteSolicitacaoSerializer)
     def retrieve(self, request, pk=None):
         cliente = Cliente.objects.select_related(
             "loja", "contato_adicional", "informacao_pessoal", "comprovantes", "analise_credito"
@@ -395,6 +439,44 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return Response(data)
 
     @transaction.atomic
+    @extend_schema(
+        request=SolicitacaoCreditoInputSerializer,
+        responses=ClienteSolicitacaoSerializer,
+        examples=[
+            OpenApiExample(
+                "Exemplo",
+                value={
+                    "nome": "Fulano",
+                    "telefone": "11999999999",
+                    "cpf": "12345678900",
+                    "nascimento": "1990-01-01",
+                    "rg": "1234567",
+                    "cep": "01001000",
+                    "endereco": "Rua A",
+                    "bairro": "Centro",
+                    "cidade": "Sao Paulo",
+                    "profissao": "Vendedor",
+                    "quantidade_dependentes": 0,
+                    "recebe_auxilio": False,
+                    "total_renda": "3500.00",
+                    "nome_adicional": "Beltrano",
+                    "contato": "11988887777",
+                    "endereco_adicional": "Rua B",
+                    "nome_pessoal": "Ciclano",
+                    "contato_pessoal": "11977776666",
+                    "endereco_pessoal": "Rua C",
+                    "documento_identificacao_frente": "file",
+                    "documento_identificacao_verso": "file",
+                    "comprovante_residencia": "file",
+                    "foto_cliente": "file",
+                    "produto": 1,
+                    "numero_parcelas": "6",
+                    "data_pagamento": "10",
+                    "analise_online": False,
+                },
+            )
+        ],
+    )
     def create(self, request):
         loja_id = request.session.get("loja_id")
         loja = Loja.objects.filter(id=loja_id).first() if loja_id else None
@@ -490,6 +572,44 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return Response(payload, status=201)
 
     @transaction.atomic
+    @extend_schema(
+        request=SolicitacaoCreditoInputSerializer,
+        responses=ClienteSolicitacaoSerializer,
+        examples=[
+            OpenApiExample(
+                "Exemplo update",
+                value={
+                    "nome": "Fulano",
+                    "telefone": "11999999999",
+                    "cpf": "12345678900",
+                    "nascimento": "1990-01-01",
+                    "rg": "1234567",
+                    "cep": "01001000",
+                    "endereco": "Rua A",
+                    "bairro": "Centro",
+                    "cidade": "Sao Paulo",
+                    "profissao": "Vendedor",
+                    "quantidade_dependentes": 0,
+                    "recebe_auxilio": False,
+                    "total_renda": "3500.00",
+                    "nome_adicional": "Beltrano",
+                    "contato": "11988887777",
+                    "endereco_adicional": "Rua B",
+                    "nome_pessoal": "Ciclano",
+                    "contato_pessoal": "11977776666",
+                    "endereco_pessoal": "Rua C",
+                    "documento_identificacao_frente": "file",
+                    "documento_identificacao_verso": "file",
+                    "comprovante_residencia": "file",
+                    "foto_cliente": "file",
+                    "produto": 1,
+                    "numero_parcelas": "6",
+                    "data_pagamento": "10",
+                    "analise_online": False,
+                },
+            )
+        ],
+    )
     def update(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         user = request.user
@@ -592,6 +712,22 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return Response(payload)
 
     @action(detail=True, methods=["post"], url_path="imei-telefone")
+    @extend_schema(
+        request=SolicitacaoImeiTelefoneInputSerializer,
+        responses=ClienteSolicitacaoSerializer,
+        examples=[
+            OpenApiExample(
+                "Exemplo imei",
+                value={
+                    "telefone": "11999999999",
+                    "produto": 1,
+                    "data_pagamento": "10",
+                    "numero_parcelas": "6",
+                    "imei": 123,
+                },
+            )
+        ],
+    )
     def imei_telefone(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         user = request.user
@@ -614,6 +750,11 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return Response({"detail": "Erros de validacao.", "errors": errors}, status=400)
 
     @action(detail=True, methods=["post"], url_path="status-app")
+    @extend_schema(
+        parameters=[OpenApiParameter("status_app", OpenApiTypes.STR, required=True)],
+        request=None,
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def status_app(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         new_status = request.data.get("status_app")
@@ -630,6 +771,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return Response({"detail": "Status invalido."}, status=400)
 
     @action(detail=True, methods=["post"], url_path="instalar-app")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def instalar_app(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         analise_credito = cliente.analise_credito
@@ -643,6 +785,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return Response({"detail": "Status alterado para Confirmacao Pendente."})
 
     @action(detail=True, methods=["post"], url_path="confirmar-app")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def confirmar_app(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         analise_credito = cliente.analise_credito
@@ -684,6 +827,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return Response({"detail": "Instalacao confirmada. Aguardando analista informar IMEI."})
 
     @action(detail=True, methods=["post"], url_path="aprovar")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def aprovar(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         analise = cliente.analise_credito
@@ -702,6 +846,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return Response({"detail": "Analise de credito aprovada com sucesso."})
 
     @action(detail=True, methods=["post"], url_path="reprovar")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def reprovar(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         analise = cliente.analise_credito
@@ -712,6 +857,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return Response({"detail": "Analise de credito reprovada com sucesso."})
 
     @action(detail=True, methods=["post"], url_path="cancelar")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def cancelar(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         analise = cliente.analise_credito
@@ -722,6 +868,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return Response({"detail": "Analise de credito cancelada com sucesso."})
 
     @action(detail=True, methods=["post"], url_path="gerar-venda")
+    @extend_schema(request=None, responses=VendaSerializer)
     def gerar_venda(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         loja = Loja.objects.filter(id=request.session.get("loja_id")).first()
@@ -895,6 +1042,13 @@ class ProdutoViewSet(viewsets.ModelViewSet):
 
         return queryset.order_by("nome")
 
+    @extend_schema(
+        parameters=[OpenApiParameter("search", OpenApiTypes.STR, required=False)],
+        responses=ProdutoSerializer,
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         loja_id = self.request.session.get("loja_id")
         if not loja_id:
@@ -941,6 +1095,19 @@ class VendaViewSet(viewsets.ModelViewSet):
     permission_classes = [VendaPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("search", OpenApiTypes.STR, required=False),
+            OpenApiParameter("loja_id", OpenApiTypes.INT, required=False),
+            OpenApiParameter("cliente_nome", OpenApiTypes.STR, required=False),
+            OpenApiParameter("vendas_canceladas", OpenApiTypes.STR, required=False),
+            OpenApiParameter("vendas_trocadas", OpenApiTypes.STR, required=False),
+        ],
+        responses=VendaSerializer,
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
     def get_queryset(self):
         query = Venda.objects.all()
         data_filter = self.request.query_params.get("search")
@@ -972,6 +1139,37 @@ class VendaViewSet(viewsets.ModelViewSet):
             return _build_formset_data(formset_cls, items, initial_forms=initial_forms)
         return request.data
 
+    @extend_schema(
+        request=VendaCreateUpdateSerializer,
+        responses=VendaSerializer,
+        examples=[
+            OpenApiExample(
+                "Exemplo venda",
+                value={
+                    "cliente": 1,
+                    "vendedor": 2,
+                    "observacao": "Venda via API",
+                    "itens": [
+                        {
+                            "produto": 10,
+                            "quantidade": 1,
+                            "valor_unitario": "1200.00",
+                            "valor_desconto": "0.00",
+                            "imei": 5,
+                        }
+                    ],
+                    "pagamentos": [
+                        {
+                            "tipo_pagamento": 3,
+                            "valor": "1200.00",
+                            "parcelas": 1,
+                            "data_primeira_parcela": "2026-02-04",
+                        }
+                    ],
+                },
+            )
+        ],
+    )
     def create(self, request, *args, **kwargs):
         loja_id = request.session.get("loja_id")
         loja = Loja.objects.filter(id=loja_id).first()
@@ -1033,6 +1231,37 @@ class VendaViewSet(viewsets.ModelViewSet):
 
         return Response(VendaSerializer(venda).data, status=201)
 
+    @extend_schema(
+        request=VendaCreateUpdateSerializer,
+        responses=VendaSerializer,
+        examples=[
+            OpenApiExample(
+                "Exemplo update venda",
+                value={
+                    "cliente": 1,
+                    "vendedor": 2,
+                    "observacao": "Atualizacao",
+                    "itens": [
+                        {
+                            "produto": 10,
+                            "quantidade": 1,
+                            "valor_unitario": "1200.00",
+                            "valor_desconto": "0.00",
+                            "imei": 5,
+                        }
+                    ],
+                    "pagamentos": [
+                        {
+                            "tipo_pagamento": 3,
+                            "valor": "1200.00",
+                            "parcelas": 1,
+                            "data_primeira_parcela": "2026-02-04",
+                        }
+                    ],
+                },
+            )
+        ],
+    )
     def update(self, request, *args, **kwargs):
         venda = self.get_object()
         loja_id = request.session.get("loja_id")
@@ -1101,6 +1330,7 @@ class VendaViewSet(viewsets.ModelViewSet):
         return Response(VendaSerializer(venda).data)
 
     @action(detail=True, methods=["post"], url_path="documentos")
+    @extend_schema(request=VendaDocumentosSerializer, responses=VendaSerializer)
     def documentos(self, request, pk=None):
         venda = self.get_object()
         form = VendaDocumentosForm(request.data, request.FILES, instance=venda)
@@ -1110,6 +1340,34 @@ class VendaViewSet(viewsets.ModelViewSet):
         return Response(VendaSerializer(venda).data)
 
     @action(detail=True, methods=["post"], url_path="edicao-especial")
+    @extend_schema(
+        request=VendaEdicaoEspecialInputSerializer,
+        responses=VendaSerializer,
+        examples=[
+            OpenApiExample(
+                "Exemplo edicao especial",
+                value={
+                    "itens": [
+                        {
+                            "produto": 10,
+                            "quantidade": 1,
+                            "valor_unitario": "1200.00",
+                            "valor_desconto": "0.00",
+                            "imei": 5,
+                        }
+                    ],
+                    "pagamentos": [
+                        {
+                            "tipo_pagamento": 3,
+                            "valor": "1200.00",
+                            "parcelas": 1,
+                            "data_primeira_parcela": "2026-02-04",
+                        }
+                    ],
+                },
+            )
+        ],
+    )
     def edicao_especial(self, request, pk=None):
         venda = self.get_object()
         loja = venda.loja
@@ -1196,6 +1454,7 @@ class VendaViewSet(viewsets.ModelViewSet):
         return Response(VendaSerializer(venda).data)
 
     @action(detail=True, methods=["post"], url_path="trocar-produto")
+    @extend_schema(request=VendaTrocaProdutoSerializer, responses={200: OpenApiTypes.OBJECT})
     def trocar_produto(self, request, pk=None):
         venda = self.get_object()
         produto_atual_id = request.data.get("produto_atual")
@@ -1241,6 +1500,7 @@ class VendaViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Produto trocado com sucesso."})
 
     @action(detail=True, methods=["post"], url_path="cancelar")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def cancelar(self, request, pk=None):
         venda = self.get_object()
         if venda.is_deleted:

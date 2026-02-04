@@ -233,3 +233,92 @@ class VendaSerializer(serializers.ModelSerializer):
             "itens_venda",
             "pagamentos",
         ]
+
+
+class ProdutoVendaInputSerializer(serializers.Serializer):
+    produto = serializers.IntegerField()
+    quantidade = serializers.IntegerField()
+    valor_unitario = serializers.DecimalField(max_digits=10, decimal_places=2)
+    valor_desconto = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    imei = serializers.IntegerField(required=False)
+
+
+class PagamentoInputSerializer(serializers.Serializer):
+    tipo_pagamento = serializers.IntegerField()
+    valor = serializers.DecimalField(max_digits=10, decimal_places=2)
+    parcelas = serializers.IntegerField()
+    data_primeira_parcela = serializers.DateField()
+
+
+class VendaCreateUpdateSerializer(serializers.Serializer):
+    cliente = serializers.IntegerField()
+    vendedor = serializers.IntegerField()
+    observacao = serializers.CharField(required=False, allow_blank=True)
+    itens = ProdutoVendaInputSerializer(many=True)
+    pagamentos = PagamentoInputSerializer(many=True)
+
+
+class VendaEdicaoEspecialInputSerializer(serializers.Serializer):
+    itens = ProdutoVendaInputSerializer(many=True)
+    pagamentos = PagamentoInputSerializer(many=True)
+
+
+class VendaTrocaProdutoSerializer(serializers.Serializer):
+    produto_atual = serializers.IntegerField()
+    novo_produto = serializers.IntegerField()
+    imei = serializers.IntegerField()
+    motivo = serializers.CharField(required=False, allow_blank=True)
+
+
+class VendaDocumentosSerializer(serializers.Serializer):
+    documento_assinado = serializers.FileField(required=False)
+    foto_cliente = serializers.FileField(required=False)
+    imagem_imei = serializers.FileField(required=False)
+
+
+class SolicitacaoCreditoInputSerializer(serializers.Serializer):
+    nome = serializers.CharField()
+    telefone = serializers.CharField()
+    cpf = serializers.CharField()
+    nascimento = serializers.DateField()
+    rg = serializers.CharField()
+    cep = serializers.CharField()
+    endereco = serializers.CharField()
+    bairro = serializers.CharField()
+    cidade = serializers.CharField()
+    profissao = serializers.CharField()
+    quantidade_dependentes = serializers.IntegerField()
+    recebe_auxilio = serializers.BooleanField()
+    total_renda = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    nome_adicional = serializers.CharField()
+    contato = serializers.CharField()
+    endereco_adicional = serializers.CharField()
+    obteve_contato = serializers.BooleanField(required=False)
+
+    nome_pessoal = serializers.CharField()
+    contato_pessoal = serializers.CharField()
+    endereco_pessoal = serializers.CharField()
+    obteve_contato_pessoal = serializers.BooleanField(required=False)
+
+    documento_identificacao_frente = serializers.FileField()
+    documento_identificacao_verso = serializers.FileField()
+    comprovante_residencia = serializers.FileField()
+    consulta_serasa = serializers.FileField(required=False)
+    foto_cliente = serializers.FileField()
+    restricao = serializers.BooleanField(required=False)
+
+    produto = serializers.IntegerField()
+    data_pagamento = serializers.CharField()
+    numero_parcelas = serializers.CharField()
+    analise_online = serializers.BooleanField(required=False)
+    email_icloud = serializers.EmailField(required=False, allow_blank=True)
+    senha_icloud = serializers.CharField(required=False, allow_blank=True)
+
+
+class SolicitacaoImeiTelefoneInputSerializer(serializers.Serializer):
+    telefone = serializers.CharField()
+    produto = serializers.IntegerField()
+    data_pagamento = serializers.CharField()
+    numero_parcelas = serializers.CharField()
+    imei = serializers.IntegerField()
