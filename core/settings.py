@@ -307,9 +307,6 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    '*'
-]
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
