@@ -322,3 +322,7 @@ class SolicitacaoImeiTelefoneInputSerializer(serializers.Serializer):
     data_pagamento = serializers.CharField()
     numero_parcelas = serializers.CharField()
     imei = serializers.IntegerField()
+
+
+class InformarImeiAnaliseInputSerializer(serializers.Serializer):
+    imei_informado = serializers.CharField()

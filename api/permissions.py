@@ -31,9 +31,19 @@ class SolicitacaoCreditoPermission(BasePermission):
             return user.has_perm("vendas.view_cliente")
         if action == "create":
             return user.has_perm("vendas.add_cliente")
-        if action in ("update", "partial_update", "imei_telefone"):
+        if action in ("update", "partial_update", "imei_telefone", "configurar_icloud"):
             return user.has_perm("vendas.change_cliente")
-        if action in ("aprovar", "reprovar", "cancelar", "status_app", "confirmar_app", "instalar_app"):
+        if action in (
+            "aprovar",
+            "reprovar",
+            "cancelar",
+            "status_app",
+            "confirmar_app",
+            "instalar_app",
+            "analista_confirm_icloud",
+            "analista_confirm_installed",
+            "informar_imei_analise",
+        ):
             return user.has_perm("vendas.change_status_analise") or user.has_perm("vendas.change_cliente")
         if action == "destroy":
             return user.has_perm("vendas.delete_cliente")

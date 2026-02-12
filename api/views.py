@@ -62,6 +62,7 @@ from .pagination import SolicitacaoPagination
 from .permissions import LojaPermission, SolicitacaoCreditoPermission, ProdutoPermission, VendaPermission
 from .serializers import (
     ClienteSolicitacaoSerializer,
+    InformarImeiAnaliseInputSerializer,
     LojaListSerializer,
     LojaSerializer,
     ProdutoSerializer,
@@ -334,6 +335,10 @@ class LojaViewSet(viewsets.ModelViewSet):
     status_app=extend_schema(tags=["Solicitacoes"]),
     instalar_app=extend_schema(tags=["Solicitacoes"]),
     confirmar_app=extend_schema(tags=["Solicitacoes"]),
+    configurar_icloud=extend_schema(tags=["Solicitacoes"]),
+    analista_confirm_icloud=extend_schema(tags=["Solicitacoes"]),
+    analista_confirm_installed=extend_schema(tags=["Solicitacoes"]),
+    informar_imei_analise=extend_schema(tags=["Solicitacoes"]),
     aprovar=extend_schema(tags=["Solicitacoes"]),
     reprovar=extend_schema(tags=["Solicitacoes"]),
     cancelar=extend_schema(tags=["Solicitacoes"]),
@@ -848,6 +853,249 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                 )
 
         return Response({"detail": "Instalacao confirmada. Aguardando analista informar IMEI."})
+
+    @action(detail=True, methods=["post"], url_path="configurar-icloud")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
+    def configurar_icloud(self, request, pk=None):
+        cliente = Cliente.objects.get(pk=pk)
+        analise = cliente.analise_credito
+
+        if not analise.email_icloud or not analise.senha_icloud:
+            return Response({"detail": "Email e senha iCloud nao configurados na analise."}, status=400)
+
+        analise.icloud_configurado_vendedor = True
+        analise.save()
+
+        cliente_nome = cliente.nome if cliente else "Cliente"
+        loja = cliente.loja
+        verb = f"Vendedor configurou iCloud para cliente {cliente_nome.capitalize()}"
+        description = f"iPhone da loja {loja.nome.capitalize()}. Aguardando confirmacao do analista."
+
+        usuarios_para_notificar = list(
+            User.objects.filter(groups__name__in=["ANALISTA", "ADMINISTRADOR"]).exclude(id=request.user.id)
+        )
+        for user in usuarios_para_notificar:
+            notify.send(
+                analise,
+                recipient=user,
+                verb=verb,
+                description=description,
+                target=cliente,
+            )
+
+            ultima_notificacao = user.notifications.unread().order_by("-timestamp").first()
+            if ultima_notificacao:
+                enviar_ws_para_usuario(
+                    usuario=user,
+                    instance=analise,
+                    notification_id=ultima_notificacao.id,
+                    verb=verb,
+                    description=description,
+                    target_url=cliente.get_absolute_url(),
+                    type_notification="analise_credito_cliente",
+                )
+
+        return Response({"detail": f"Configuracao iCloud confirmada para {cliente.nome}."})
+
+    @action(detail=True, methods=["post"], url_path="analista-confirm-icloud")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
+    def analista_confirm_icloud(self, request, pk=None):
+        cliente = Cliente.objects.get(pk=pk)
+        analise = cliente.analise_credito
+
+        if not request.user.groups.filter(name="ANALISTA").exists():
+            return Response({"detail": "Apenas analistas podem confirmar o iCloud."}, status=403)
+
+        if not analise.icloud_configurado_vendedor:
+            return Response({"detail": "Vendedor ainda nao confirmou a configuracao do iCloud."}, status=400)
+
+        analise.icloud_confirmado_analista = True
+        analise.save()
+
+        cliente_nome = cliente.nome if cliente else "Cliente"
+        loja = cliente.loja
+        verb = f"Analista confirmou configuracao iCloud para cliente {cliente_nome.capitalize()}"
+        description = f"iPhone da loja {loja.nome.capitalize()}. Aguardando IMEI para gerar venda."
+
+        usuarios_para_notificar = list(
+            User.objects.filter(groups__name__in=["VENDEDOR", "ADMINISTRADOR", "ANALISTA"]).exclude(id=request.user.id)
+        )
+        for user in usuarios_para_notificar:
+            notify.send(
+                analise,
+                recipient=user,
+                verb=verb,
+                description=description,
+                target=cliente,
+            )
+
+            ultima_notificacao = user.notifications.unread().order_by("-timestamp").first()
+            if ultima_notificacao:
+                enviar_ws_para_usuario(
+                    usuario=user,
+                    instance=analise,
+                    notification_id=ultima_notificacao.id,
+                    verb=verb,
+                    description=description,
+                    target_url=cliente.get_absolute_url(),
+                    type_notification="analise_credito_cliente",
+                )
+
+        return Response({"detail": f"Configuracao iCloud confirmada pelo analista para {cliente.nome}."})
+
+    @action(detail=True, methods=["post"], url_path="analista-confirmar-instalacao")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
+    def analista_confirm_installed(self, request, pk=None):
+        cliente = Cliente.objects.get(pk=pk)
+        analise_credito = cliente.analise_credito
+
+        if not request.user.groups.filter(name="ANALISTA").exists():
+            return Response({"detail": "Apenas analistas podem confirmar a instalacao."}, status=403)
+
+        if not analise_credito.imei:
+            return Response({"detail": "IMEI deve estar informado para confirmar a instalacao."}, status=400)
+
+        if analise_credito.status_aplicativo != "C":
+            return Response(
+                {"detail": 'Status do aplicativo deve estar "Aguardando Confirmacao" para confirmar a instalacao.'},
+                status=400,
+            )
+
+        analise_credito.status_aplicativo = "I"
+        analise_credito.save()
+
+        cliente_nome = cliente.nome if cliente else "Cliente"
+        loja = cliente.loja
+        verb = f"Analista confirmou instalacao do app para cliente {cliente_nome.capitalize()}."
+        description = f"IMEI {analise_credito.imei.imei} da loja {loja.nome.capitalize()}. Venda liberada para geracao."
+
+        usuarios_para_notificar = list(
+            User.objects.filter(groups__name__in=["VENDEDOR", "ADMINISTRADOR", "ANALISTA"]).exclude(id=request.user.id)
+        )
+        for user in usuarios_para_notificar:
+            notify.send(
+                analise_credito,
+                recipient=user,
+                verb=verb,
+                description=description,
+                target=cliente,
+            )
+
+            ultima_notificacao = user.notifications.unread().order_by("-timestamp").first()
+            if ultima_notificacao:
+                enviar_ws_para_usuario(
+                    usuario=user,
+                    instance=analise_credito,
+                    notification_id=ultima_notificacao.id,
+                    verb=verb,
+                    description=description,
+                    target_url=cliente.get_absolute_url(),
+                    type_notification="analise_credito_cliente",
+                )
+
+        return Response({"detail": "Instalacao confirmada pelo analista. Venda liberada para geracao."})
+
+    @action(detail=False, methods=["post"], url_path=r"analises/(?P<analise_id>[^/.]+)/informar-imei")
+    @extend_schema(request=InformarImeiAnaliseInputSerializer, responses={200: OpenApiTypes.OBJECT})
+    def informar_imei_analise(self, request, analise_id=None):
+        if not request.user.groups.filter(name="ANALISTA").exists():
+            return Response({"detail": "Apenas analistas podem informar IMEI."}, status=403)
+
+        analise = AnaliseCreditoCliente.objects.filter(pk=analise_id).select_related("cliente", "produto").first()
+        if not analise:
+            return Response({"detail": "Analise nao encontrada."}, status=404)
+
+        if analise.produto.is_iphone:
+            if not analise.icloud_confirmado_analista:
+                return Response(
+                    {"detail": "So e possivel informar IMEI apos confirmar a configuracao do iCloud."},
+                    status=400,
+                )
+        else:
+            if analise.status_aplicativo != "C":
+                return Response(
+                    {"detail": "So e possivel informar IMEI apos o vendedor confirmar a instalacao do aplicativo."},
+                    status=400,
+                )
+
+        imei_informado = request.data.get("imei_informado")
+        if not imei_informado:
+            return Response({"detail": "IMEI e obrigatorio."}, status=400)
+
+        loja = Loja.objects.filter(id=request.session.get("loja_id")).first()
+        if not loja:
+            return Response({"detail": "Loja nao encontrada na sessao."}, status=400)
+
+        estoque_imei_existente = EstoqueImei.objects.filter(
+            imei=imei_informado,
+            produto=analise.produto,
+            loja=loja,
+            vendido=False,
+            cancelado=False,
+        ).first()
+
+        if estoque_imei_existente:
+            analise.imei = estoque_imei_existente
+            analise.imei_informado = imei_informado
+            analise.save()
+        else:
+            try:
+                novo_estoque_imei = EstoqueImei(
+                    produto=analise.produto,
+                    imei=imei_informado,
+                    loja=loja,
+                    vendido=False,
+                    aplicativo_instalado=False,
+                    cancelado=False,
+                )
+                novo_estoque_imei.save(user=request.user)
+                analise.imei = novo_estoque_imei
+                analise.imei_informado = imei_informado
+                analise.save()
+            except Exception as exc:
+                return Response({"detail": f"Erro ao criar IMEI: {exc}"}, status=400)
+
+        if not analise.produto.is_iphone:
+            analise.status_aplicativo = "I"
+            analise.save()
+
+        cliente_nome = analise.cliente.nome if analise.cliente else "Cliente"
+        imei_info = f"Imei {imei_informado}" if imei_informado else "IMEI nao informado"
+        verb = f"Analista informou IMEI para cliente {cliente_nome.capitalize()}."
+        description = f"{imei_info} da loja {loja.nome.capitalize()}. Venda liberada para geracao pelo vendedor."
+
+        usuarios_para_notificar = list(
+            User.objects.filter(groups__name__in=["ADMINISTRADOR", "ANALISTA"]).exclude(id=request.user.id)
+        )
+        for user in usuarios_para_notificar:
+            notify.send(
+                analise,
+                recipient=user,
+                verb=verb,
+                description=description,
+                target=analise.cliente,
+            )
+
+            ultima_notificacao = user.notifications.unread().order_by("-timestamp").first()
+            if ultima_notificacao:
+                enviar_ws_para_usuario(
+                    usuario=user,
+                    instance=analise,
+                    notification_id=ultima_notificacao.id,
+                    verb=verb,
+                    description=description,
+                    target_url=analise.cliente.get_absolute_url(),
+                    type_notification="analise_credito_cliente",
+                )
+
+        return Response(
+            {
+                "detail": "IMEI informado com sucesso. Venda liberada para geracao.",
+                "cliente_id": analise.cliente.id,
+                "analise_id": analise.id,
+                "imei_informado": imei_informado,
+            }
+        )
 
     @action(detail=True, methods=["post"], url_path="aprovar")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
