@@ -67,6 +67,7 @@ from .serializers import (
     LojaSerializer,
     ProdutoSerializer,
     VendaSerializer,
+    RepasseCreateSerializer,
     RepasseSerializer,
     SolicitacaoCreditoInputSerializer,
     SolicitacaoImeiTelefoneInputSerializer,
@@ -246,7 +247,10 @@ class LojaViewSet(viewsets.ModelViewSet):
         di = parse_date(data_inicio) if data_inicio else None
         df = parse_date(data_fim) if data_fim else None
 
-        repasses_qs = Repasse.objects.filter(loja=loja).select_related("criado_por")
+        can_view_repasse = request.user.has_perm("financeiro.view_repasse")
+        can_create_repasse = request.user.has_perm("financeiro.add_repasse")
+
+        repasses_qs = Repasse.objects.filter(loja=loja).select_related("criado_por") if can_view_repasse else Repasse.objects.none()
         repasse_paginator = Paginator(repasses_qs, 10)
         repasse_page = repasse_paginator.get_page(request.query_params.get("repasse_page"))
 
@@ -262,13 +266,16 @@ class LojaViewSet(viewsets.ModelViewSet):
         venda_paginator = Paginator(vendas_qs.order_by("-data_venda"), 10)
         venda_page = venda_paginator.get_page(request.query_params.get("venda_page"))
 
-        status_list, _ = loja.get_repasses_status(meses_atras=1)
-        if di:
-            status_list = [r for r in status_list if r["data"] >= di]
-        if df:
-            status_list = [r for r in status_list if r["data"] <= df]
+        status_list = []
+        repasse_atrasados = 0
+        if can_view_repasse:
+            status_list, _ = loja.get_repasses_status(meses_atras=1)
+            if di:
+                status_list = [r for r in status_list if r["data"] >= di]
+            if df:
+                status_list = [r for r in status_list if r["data"] <= df]
 
-        repasse_atrasados = sum(1 for r in status_list if not r["feito"] and r["data"] < date.today())
+            repasse_atrasados = sum(1 for r in status_list if not r["feito"] and r["data"] < date.today())
         kpi_valor_repasse = loja.calcular_valor_repasse(di, df)
 
         payload = {
@@ -297,9 +304,47 @@ class LojaViewSet(viewsets.ModelViewSet):
                 "valor_total": valor_total,
                 "valor_repasse": kpi_valor_repasse,
             },
+            "acessos": {
+                "pode_editar_loja": request.user.has_perm("vendas.change_loja"),
+                "pode_criar_repasse": can_create_repasse,
+                "pode_ver_repasse": can_view_repasse,
+                "can_view_all_stores": request.user.has_perm("vendas.can_view_all_stores"),
+            },
         }
 
         return Response(payload)
+
+    @action(detail=True, methods=["get", "post"], url_path="repasses")
+    @extend_schema(
+        request=RepasseCreateSerializer,
+        responses={200: RepasseSerializer(many=True), 201: RepasseSerializer, 403: OpenApiTypes.OBJECT},
+    )
+    def repasses(self, request, pk=None):
+        loja = self.get_object()
+
+        if request.method == "GET":
+            if not request.user.has_perm("financeiro.view_repasse"):
+                return Response({"detail": "Sem permissao para visualizar repasses."}, status=status.HTTP_403_FORBIDDEN)
+
+            repasses_qs = Repasse.objects.filter(loja=loja).select_related("criado_por")
+            paginator = Paginator(repasses_qs, 10)
+            page = paginator.get_page(request.query_params.get("repasse_page"))
+            return Response(
+                {
+                    "count": paginator.count,
+                    "num_pages": paginator.num_pages,
+                    "page": page.number,
+                    "results": RepasseSerializer(page, many=True).data,
+                }
+            )
+
+        if not request.user.has_perm("financeiro.add_repasse"):
+            return Response({"detail": "Sem permissao para criar repasse."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = RepasseCreateSerializer(data=request.data, context={"request": request, "loja": loja})
+        serializer.is_valid(raise_exception=True)
+        repasse = serializer.save()
+        return Response(RepasseSerializer(repasse).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="replicar-qrcode")
     @extend_schema(

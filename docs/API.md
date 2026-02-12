@@ -62,6 +62,22 @@ Ou, quando ha validacao de formularios compostos:
 
 Rotas baseadas em `LojaViewSet`.
 
+### Permissoes de acesso em lojas
+
+- `list` e `retrieve`: exige `vendas.view_loja`
+- `create`: exige `vendas.add_loja`
+- `update`/`partial_update` e `replicar-qrcode`: exige `vendas.change_loja`
+- `destroy`: exige `vendas.delete_loja`
+- `repasses` (`GET`/`POST`): exige respectivamente `financeiro.view_repasse` e `financeiro.add_repasse`
+
+Regra de escopo (quem pode entrar/ver cada loja):
+
+- Se o usuario **nao** tem `vendas.can_view_all_stores`, a API restringe a visualizacao para:
+  - `loja_id` da sessao (quando existir), ou
+  - lojas associadas em `user.lojas`, ou
+  - `user.loja` (fallback)
+- Se nao houver vinculo, a listagem retorna vazia.
+
 ### `GET /api/lojas/`
 
 Lista lojas visiveis para o usuario.
@@ -90,18 +106,37 @@ Query params:
 
 Resposta inclui:
 
-- `loja`
+- `loja` (inclui tambem `usuarios_detalhes` e `gerentes_detalhes`)
 - `contrato`
-- `repasses` (paginado)
+- `repasses` (paginado; vazio quando o usuario nao possui `financeiro.view_repasse`)
 - `vendas` (paginado)
-- `repasse_status_list`
+- `repasse_status_list` (vazio sem permissao de visualizar repasse)
 - `repasse_atrasados`
 - `kpi_valor_repasse`
 - `kpi`
+- `acessos` (flags de permissao: `pode_editar_loja`, `pode_criar_repasse`, `pode_ver_repasse`, `can_view_all_stores`)
 
 ### `PUT/PATCH /api/lojas/{id}/`
 
 Atualiza loja.
+
+### `GET /api/lojas/{id}/repasses/`
+
+Lista repasses da loja (paginado).
+
+- Exige permissao `financeiro.view_repasse`.
+- Query param: `repasse_page` (opcional).
+
+### `POST /api/lojas/{id}/repasses/`
+
+Cria repasse para a loja.
+
+- Exige permissao `financeiro.add_repasse`.
+- Payload:
+  - `valor`
+  - `data`
+  - `status` (`pendente`, `pago`, `cancelado`)
+  - `observacao` (opcional)
 
 ### `POST /api/lojas/{id}/replicar-qrcode/`
 

@@ -14,6 +14,8 @@ class LojaPermission(BasePermission):
             return user.has_perm("vendas.add_loja")
         if action in ("update", "partial_update", "replicar_qrcode"):
             return user.has_perm("vendas.change_loja")
+        if action == "repasses":
+            return user.has_perm("financeiro.view_repasse") or user.has_perm("financeiro.add_repasse")
         if action == "destroy":
             return user.has_perm("vendas.delete_loja")
 
