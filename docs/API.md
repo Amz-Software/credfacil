@@ -393,29 +393,87 @@ Observacao:
 
 ### `POST /api/produtos/`
 
-Cria produto. A loja e vinculada pela sessao (`loja_id`).
+Cria produto. Exige permissão `produtos.add_produto`.
 
 Payload: campos do modelo `Produto`.
 
+Campos principais:
+
+- `nome` (obrigatório): nome do produto;
+- `fabricante` (obrigatório): ID do fabricante;
+- `tipo` (opcional): ID do tipo de produto;
+- `codigo` (opcional): código único do produto (gerado automaticamente se não fornecido);
+- `entrada_cliente` (decimal, padrão 0): valor da entrada à vista;
+- `valor_4_vezes` (decimal, padrão 0): valor total se parcelado em 4 vezes;
+- `valor_6_vezes` (decimal, padrão 0): valor total se parcelado em 6 vezes;
+- `valor_8_vezes` (decimal, padrão 0): valor total se parcelado em 8 vezes;
+- `valor_10_vezes` (decimal, padrão 0): valor total se parcelado em 10 vezes;
+- `valor_12_vezes` (decimal, padrão 0): valor total se parcelado em 12 vezes;
+- `valor_14_vezes` (decimal, padrão 0): valor total se parcelado em 14 vezes;
+- `valor_repasse_logista` (decimal, padrão 0): valor de repasse para a loja;
+- `is_iphone` (boolean, padrão False): marca se é produto iPhone;
+- `ativo` (boolean, padrão True): ativa/desativa produto.
+
+Exemplo de payload:
+
+```json
+{
+  "nome": "iPhone 12 Pro",
+  "fabricante": 1,
+  "tipo": 2,
+  "entrada_cliente": "300.00",
+  "valor_4_vezes": "1200.00",
+  "valor_6_vezes": "1220.00",
+  "valor_8_vezes": "1240.00",
+  "valor_10_vezes": "1260.00",
+  "valor_12_vezes": "1280.00",
+  "valor_14_vezes": "1300.00",
+  "valor_repasse_logista": "100.00",
+  "is_iphone": true,
+  "ativo": true
+}
+```
+
 ### `GET /api/produtos/{id}/`
 
-Detalhe de produto.
+Detalhe de produto, incluindo todos os campos de opções de parcelamento.
+
+Resposta inclui:
+
+- Dados cadastrais (nome, código, tipo, fabricante, etc.)
+- Opções de parcelamento (entrada_cliente, valor_4_vezes até valor_14_vezes)
+- Valor de repasse (valor_repasse_logista)
+- Status (ativo, is_iphone)
+- Timestamps (criado_em, atualizado_em)
 
 ### `PUT/PATCH /api/produtos/{id}/`
 
-Atualiza produto.
+Atualiza produto (exige permissão `produtos.change_produto`).
+
+Payload: mesmos campos de criação.
+
+Observação: É possível ajustar qualquer valor de parcelamento individualmente ou em conjunto. Útil para:
+
+- Alterar tabela de preços por número de parcelas
+- Atualizar valores de entrada ou repasse
+- Marcar/desmarcar como iPhone
+- Mudar tipo ou fabricante associado
 
 ### `POST /api/produtos/{id}/ativar/`
 
-Ativa produto (`ativo=True`).
+Ativa produto (`ativo=True`). Exige permissão `produtos.change_produto`.
 
 Payload: vazio.
+
+Efeito: Produto volta a aparecer em dropdowns de criação/edição de vendas e solicitações de crédito.
 
 ### `POST /api/produtos/{id}/desativar/`
 
-Desativa produto (`ativo=False`).
+Desativa produto (`ativo=False`). Exige permissão `produtos.change_produto`.
 
 Payload: vazio.
+
+Efeito: Produto sai de listas normais e não aparece em novos formulários, mas vendas já criadas com o produto mantêm referência normal.
 
 ## Vendas
 
