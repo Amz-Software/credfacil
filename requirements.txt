@@ -14,14 +14,14 @@ crispy-bootstrap5==2024.10
 cryptography==44.0.3
 cssselect2==0.7.0
 daphne==4.2.0
-Django==5.2.11
+Django==6.0.2
 django-appconf==1.0.6
 django-crispy-forms==2.3
 django-filter==25.2
 django-model-utils==5.0.0
-django-notifications-hq==1.8.3
 django-redis==5.4.0
 django-select2==8.2.3
+django-notifications-hq==2.0.1
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.28.0
