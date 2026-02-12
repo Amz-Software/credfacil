@@ -15,9 +15,32 @@ from vendas.models import ProdutoVenda, Pagamento
 
 
 class LojaSerializer(serializers.ModelSerializer):
+    usuarios_detalhes = serializers.SerializerMethodField()
+    gerentes_detalhes = serializers.SerializerMethodField()
+
     class Meta:
         model = Loja
         fields = "__all__"
+
+    def get_usuarios_detalhes(self, obj):
+        return [
+            {
+                "id": usuario.id,
+                "nome": usuario.get_full_name() or usuario.username,
+                "email": usuario.email,
+            }
+            for usuario in obj.usuarios.all()
+        ]
+
+    def get_gerentes_detalhes(self, obj):
+        return [
+            {
+                "id": gerente.id,
+                "nome": gerente.get_full_name() or gerente.username,
+                "email": gerente.email,
+            }
+            for gerente in obj.gerentes.all()
+        ]
 
     def validate(self, attrs):
         request = self.context.get("request")
@@ -47,6 +70,23 @@ class RepasseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Repasse
         fields = ["id", "valor", "data", "status", "observacao", "criado_por", "criado_em"]
+
+
+class RepasseCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Repasse
+        fields = ["valor", "data", "status", "observacao"]
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        loja = self.context["loja"]
+        user = request.user
+        return Repasse.objects.create(
+            loja=loja,
+            criado_por=user,
+            atualizado_por=user,
+            **validated_data,
+        )
 
 
 class VendaSerializer(serializers.ModelSerializer):
