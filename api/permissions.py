@@ -45,6 +45,8 @@ class SolicitacaoCreditoPermission(BasePermission):
             "informar_imei_analise",
         ):
             return user.has_perm("vendas.change_status_analise") or user.has_perm("vendas.change_cliente")
+        if action == "gerar_venda":
+            return user.has_perm("vendas.add_venda")
         if action == "destroy":
             return user.has_perm("vendas.delete_cliente")
 
