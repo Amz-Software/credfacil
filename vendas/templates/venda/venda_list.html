@@ -254,12 +254,17 @@ Vendas
                           </li>
                           <li><hr class="dropdown-divider"></li>
                           {% endif %}
+                          {% if user|has_perm:"vendas.change_venda" or user|has_perm:"vendas.view_venda" %}
                           <li><h6 class="dropdown-header">Documentos</h6></li>
+                          {% endif %}
+                          {% if user|has_perm:"vendas.change_venda" %}
                           <li>
                             <a class="dropdown-item" href="{% url 'vendas:venda_documentos' item.pk %}">
                               <i class="bx bx-upload me-2"></i> Inserir Documentos
                             </a>
                           </li>
+                          {% endif %}
+                          {% if user|has_perm:"vendas.view_venda" %}
                           <li>
                             <a class="dropdown-item" href="{% url 'vendas:venda_pdf' item.pk %}" target="_blank">
                               <i class="bx bx-file-pdf me-2"></i> Gerar PDF
@@ -275,6 +280,7 @@ Vendas
                               <i class="bx bx-file-blank me-2"></i> Gerar Contrato
                             </a>
                           </li>
+                          {% endif %}
                         {% else %}
                           <li>
                             <span class="dropdown-item-text text-muted">
