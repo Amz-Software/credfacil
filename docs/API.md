@@ -322,7 +322,22 @@ Gera venda a partir da solicitacao, seguindo as mesmas regras do fluxo existente
 - caixa aberto
 - cria venda, produto_venda, pagamentos e parcelas
 
+Permissao minima:
+
+- `vendas.add_venda`
+
 Payload: vazio.
+
+### Mapeamento do dropdown da tela de clientes (fluxo de solicitacao)
+
+Itens do dropdown enviado no front correspondem aos seguintes endpoints da API:
+
+- `Configurar iCloud (Vendedor)` → `POST /api/solicitacoes/{cliente_id}/configurar-icloud/`
+- `Confirmar iCloud (Analista)` → `POST /api/solicitacoes/{cliente_id}/analista-confirm-icloud/`
+- `Informar IMEI (Analista)` → `POST /api/solicitacoes/analises/{analise_id}/informar-imei/`
+- `Confirmar Leitura QR (Vendedor)` → `POST /api/solicitacoes/{cliente_id}/confirmar-app/`
+- `Confirmar Instalacao (Analista)` → `POST /api/solicitacoes/{cliente_id}/analista-confirmar-instalacao/`
+- `Gerar Venda (Vendedor)` → `POST /api/solicitacoes/{cliente_id}/gerar-venda/`
 
 ## Produtos
 
