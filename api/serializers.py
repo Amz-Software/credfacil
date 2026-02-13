@@ -17,6 +17,7 @@ from vendas.models import ProdutoVenda, Pagamento
 class LojaSerializer(serializers.ModelSerializer):
     usuarios_detalhes = serializers.SerializerMethodField()
     gerentes_detalhes = serializers.SerializerMethodField()
+    acessos = serializers.SerializerMethodField()
 
     class Meta:
         model = Loja
@@ -48,6 +49,32 @@ class LojaSerializer(serializers.ModelSerializer):
         if user and not (user.is_superuser or user.groups.filter(name="ADMINISTRADOR").exists()):
             attrs.pop("pode_vender_iphone", None)
         return attrs
+
+    def get_acessos(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user:
+            return {}
+
+        # Mapar permissões para os nomes esperados pelo frontend
+        acessos = {
+            "pode_editar_loja": user.has_perm("vendas.change_loja"),
+            "pode_criar_loja": user.has_perm("vendas.add_loja"),
+            "pode_deletar_loja": user.has_perm("vendas.delete_loja"),
+            "pode_criar_repasse": user.has_perm("financeiro.add_repasse"),
+            "pode_ver_repasse": user.has_perm("financeiro.view_repasse"),
+            "can_view_all_stores": user.has_perm("vendas.can_view_all_stores"),
+            "pode_criar_produto": user.has_perm("produtos.add_produto"),
+            "pode_editar_produto": user.has_perm("produtos.change_produto"),
+            "pode_deletar_produto": user.has_perm("produtos.delete_produto"),
+            # Para criar uma solicitação consideramos permissão de criar cliente ou criar análise
+            "pode_criar_solicitacao": (
+                user.has_perm("vendas.add_cliente") or user.has_perm("vendas.add_analisecreditocliente")
+            ),
+            "pode_criar_venda": user.has_perm("vendas.add_venda"),
+        }
+
+        return acessos
 
     def update(self, instance, validated_data):
         if "credfacil" not in self.initial_data:
