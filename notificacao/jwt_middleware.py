@@ -67,8 +67,44 @@ class JwtAuthMiddleware:
                     print("JwtAuthMiddleware: import error for TokenBackend/get_user_model:", exc)
                 else:
                     try:
+                        # Build TokenBackend using simplejwt api_settings where possible
+                        from rest_framework_simplejwt.settings import api_settings as jwt_api_settings
+
+                        algorithm = None
+                        # Prefer explicit setting in SIMPLE_JWT, fall back to api_settings
+                        try:
+                            algorithm = settings.SIMPLE_JWT.get("ALGORITHM") if isinstance(settings.SIMPLE_JWT, dict) else None
+                        except Exception:
+                            algorithm = None
+                        if not algorithm:
+                            algorithm = getattr(jwt_api_settings, "ALGORITHM", "HS256")
+
+                        # Determine signing and verifying keys, ensure they are strings
+                        signing_key = None
+                        verifying_key = None
+                        try:
+                            signing_key = settings.SIMPLE_JWT.get("SIGNING_KEY") if isinstance(settings.SIMPLE_JWT, dict) else None
+                        except Exception:
+                            signing_key = None
+                        if not signing_key:
+                            signing_key = getattr(jwt_api_settings, "SIGNING_KEY", None) or getattr(settings, "SECRET_KEY", None)
+                        if not isinstance(signing_key, str) and signing_key is not None:
+                            signing_key = str(signing_key)
+
+                        try:
+                            verifying_key = settings.SIMPLE_JWT.get("VERIFYING_KEY") if isinstance(settings.SIMPLE_JWT, dict) else None
+                        except Exception:
+                            verifying_key = None
+                        if not verifying_key:
+                            verifying_key = getattr(jwt_api_settings, "VERIFYING_KEY", None)
+                        if not isinstance(verifying_key, str):
+                            # ensure verifying_key is either a string or None
+                            verifying_key = None
+
                         token_backend = TokenBackend(
-                            algorithm=settings.SIMPLE_JWT.get("ALGORITHM", "HS256")
+                            algorithm=algorithm,
+                            signing_key=signing_key,
+                            verifying_key=verifying_key,
                         )
                         logger.debug("JwtAuthMiddleware: attempting to decode token")
                         print("JwtAuthMiddleware: attempting to decode token")
