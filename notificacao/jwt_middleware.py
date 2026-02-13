@@ -35,10 +35,13 @@ class JwtAuthMiddleware:
                 query_string = str(raw_qs)
 
             logger.debug("JwtAuthMiddleware: incoming websocket path=%s", scope.get("path"))
+            print("JwtAuthMiddleware: incoming websocket path=", scope.get("path"))
             logger.debug("JwtAuthMiddleware: raw query_string=%s", query_string)
+            print("JwtAuthMiddleware: raw query_string=", query_string)
             qs = parse_qs(query_string)
             token = qs.get("token", [None])[0]
             logger.debug("JwtAuthMiddleware: extracted token (pre-normalize)=%s type=%s", token, type(token))
+            print("JwtAuthMiddleware: extracted token (pre-normalize)=", token, "type=", type(token))
             if token:
                 # normalize token: decode bytes, ensure str, strip whitespace
                 if isinstance(token, bytes):
@@ -51,7 +54,9 @@ class JwtAuthMiddleware:
                 if token and token.lower().startswith("bearer "):
                     token = token.split(" ", 1)[1]
                     logger.debug("JwtAuthMiddleware: stripped Bearer prefix")
+                    print("JwtAuthMiddleware: stripped Bearer prefix, token=", token)
                 logger.debug("JwtAuthMiddleware: normalized token type=%s", type(token))
+                print("JwtAuthMiddleware: normalized token=", token, "type=", type(token))
 
                 # Import lazily to avoid touching Django app registry at module import time.
                 try:
@@ -59,14 +64,17 @@ class JwtAuthMiddleware:
                     from django.contrib.auth import get_user_model
                 except Exception as exc:
                     logger.exception("Failed importing JWT backend or user model: %s", exc)
+                    print("JwtAuthMiddleware: import error for TokenBackend/get_user_model:", exc)
                 else:
                     try:
                         token_backend = TokenBackend(
                             algorithm=settings.SIMPLE_JWT.get("ALGORITHM", "HS256")
                         )
                         logger.debug("JwtAuthMiddleware: attempting to decode token")
+                        print("JwtAuthMiddleware: attempting to decode token")
                         validated_data = token_backend.decode(token, verify=True)
                         logger.debug("JwtAuthMiddleware: validated_data=%s", validated_data)
+                        print("JwtAuthMiddleware: validated_data=", validated_data)
                         user_id = validated_data.get("user_id")
                         if user_id:
                             User = get_user_model()
@@ -74,12 +82,15 @@ class JwtAuthMiddleware:
                                 user = await sync_to_async(User.objects.get)(id=user_id)
                                 scope["user"] = user
                                 logger.debug("JwtAuthMiddleware: scope['user'] set to user id=%s", user_id)
+                                print("JwtAuthMiddleware: scope['user'] set to user id=", user_id)
                             except Exception as e:
                                 logger.debug("User lookup failed for id=%s: %s", user_id, e)
+                                print("JwtAuthMiddleware: user lookup failed for id=", user_id, "error=", e)
                     except Exception as e:
                         # Log decode/validation errors so they can be diagnosed instead of
                         # being silently swallowed (which causes anonymous user and immediate close).
                         logger.debug("JWT decode/validation failed: %s", e, exc_info=True)
+                        print("JwtAuthMiddleware: JWT decode/validation failed:", e)
 
         return await self.inner(scope, receive, send)
 
