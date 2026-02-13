@@ -24,17 +24,34 @@ class JwtAuthMiddleware:
     async def __call__(self, scope, receive, send):
         # Only inspect websocket connections
         if scope.get("type") == "websocket":
-            query_string = scope.get("query_string", b"").decode()
+            raw_qs = scope.get("query_string", b"")
+            # ensure query_string is a str (scope may provide bytes)
+            if isinstance(raw_qs, bytes):
+                try:
+                    query_string = raw_qs.decode()
+                except Exception:
+                    query_string = raw_qs.decode("utf-8", "ignore")
+            else:
+                query_string = str(raw_qs)
+
             print("JwtAuthMiddleware: incoming websocket, path=", scope.get("path"))
             print("JwtAuthMiddleware: raw query_string=", query_string)
             qs = parse_qs(query_string)
             token = qs.get("token", [None])[0]
-            print("JwtAuthMiddleware: extracted token=", token)
+            print("JwtAuthMiddleware: extracted token (pre-normalize)=", token, "type=", type(token))
             if token:
-                # strip common "Bearer " prefix if present
-                if isinstance(token, str) and token.lower().startswith("bearer "):
+                # normalize token: decode bytes, ensure str, strip whitespace
+                if isinstance(token, bytes):
+                    try:
+                        token = token.decode()
+                    except Exception:
+                        token = token.decode("utf-8", "ignore")
+
+                token = str(token).strip() if token is not None else None
+                if token and token.lower().startswith("bearer "):
                     token = token.split(" ", 1)[1]
                     print("JwtAuthMiddleware: stripped Bearer prefix, token=", token)
+                print("JwtAuthMiddleware: normalized token=", token, "type=", type(token))
 
                 # Import lazily to avoid touching Django app registry at module import time.
                 try:
