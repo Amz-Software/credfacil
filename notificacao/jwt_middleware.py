@@ -1,8 +1,6 @@
 from urllib.parse import parse_qs
 from asgiref.sync import sync_to_async
-from django.contrib.auth import get_user_model
 from django.conf import settings
-from rest_framework_simplejwt.backends import TokenBackend
 
 
 class JwtAuthMiddleware:
@@ -27,12 +25,17 @@ class JwtAuthMiddleware:
                 qs = parse_qs(query_string)
                 token = qs.get("token", [None])[0]
                 if token:
+                    # Import TokenBackend and get_user_model lazily to avoid
+                    # touching Django app registry at module import time (ASGI startup).
+                    from rest_framework_simplejwt.backends import TokenBackend
+                    from django.contrib.auth import get_user_model
+
                     token_backend = TokenBackend(
                         algorithm=settings.SIMPLE_JWT.get("ALGORITHM", "HS256")
                     )
                     # decode verifies signature and returns payload
                     validated_data = token_backend.decode(token, verify=True)
-                    user_id = validated_data.get("user_id") or validated_data.get("user_id")
+                    user_id = validated_data.get("user_id")
                     if user_id:
                         User = get_user_model()
                         user = await sync_to_async(User.objects.get)(id=user_id)
