@@ -1105,7 +1105,6 @@ class PermissionViewSet(ReadOnlyModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ['codename', 'name']
 
-        return Response({"detail": "Instalacao confirmada pelo analista. Venda liberada para geracao."})
 
     @action(detail=False, methods=["post"], url_path=r"analises/(?P<analise_id>[^/.]+)/informar-imei")
     @extend_schema(request=InformarImeiAnaliseInputSerializer, responses={200: OpenApiTypes.OBJECT})
