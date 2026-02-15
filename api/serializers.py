@@ -393,3 +393,84 @@ class SolicitacaoImeiTelefoneInputSerializer(serializers.Serializer):
 
 class InformarImeiAnaliseInputSerializer(serializers.Serializer):
     imei_informado = serializers.CharField()
+
+
+# --- User / Group / Permission serializers ---
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group, Permission
+
+
+class PermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = ["id", "codename", "name", "content_type"]
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    permissions = serializers.PrimaryKeyRelatedField(many=True, queryset=Permission.objects.all())
+
+    class Meta:
+        model = Group
+        fields = ["id", "name", "permissions"]
+
+
+User = get_user_model()
+
+
+class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False)
+    groups = serializers.PrimaryKeyRelatedField(many=True, queryset=Group.objects.all(), required=False)
+    user_permissions = serializers.PrimaryKeyRelatedField(many=True, queryset=Permission.objects.all(), required=False)
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "is_staff",
+            "is_active",
+            "is_superuser",
+            "loja",
+            "groups",
+            "user_permissions",
+            "password",
+        ]
+
+    def create(self, validated_data):
+        password = validated_data.pop("password", None)
+        groups = validated_data.pop("groups", [])
+        perms = validated_data.pop("user_permissions", [])
+        user = User(**validated_data)
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
+        user.save()
+        if groups:
+            user.groups.set(groups)
+        if perms:
+            user.user_permissions.set(perms)
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+        groups = validated_data.pop("groups", None)
+        perms = validated_data.pop("user_permissions", None)
+
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
+
+        if password:
+            instance.set_password(password)
+
+        instance.save()
+
+        if groups is not None:
+            instance.groups.set(groups)
+        if perms is not None:
+            instance.user_permissions.set(perms)
+
+        return instance

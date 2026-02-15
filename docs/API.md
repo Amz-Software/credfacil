@@ -1,10 +1,5 @@
 # CredFacil API
 
-Documentacao da API REST do projeto, com base na implementacao atual em `api/urls.py`, `api/views.py` e `core/urls.py`.
-
-## Base URL
-
-- Prefixo da API: `/api/`
 - Health check: `GET /api/health/`
 - OpenAPI (JSON): `GET /api/schema/`
 - Swagger UI: `GET /api/docs/`
@@ -12,27 +7,12 @@ Documentacao da API REST do projeto, com base na implementacao atual em `api/url
 ## Autenticacao
 
 A API aceita dois modos:
-
 - JWT Bearer token
-- Sessao do Django (cookie de login)
 
-### JWT
 
-- Obter token: `POST /api/token/`
-- Renovar token: `POST /api/token/refresh/`
-
-Exemplo para obter token:
-
-```json
-{
-  "username": "seu_usuario",
   "password": "sua_senha"
-}
-```
 
 Exemplo de uso no header:
-
-```http
 Authorization: Bearer <access_token>
 ```
 

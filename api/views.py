@@ -76,6 +76,14 @@ from .serializers import (
     VendaEdicaoEspecialInputSerializer,
     VendaTrocaProdutoSerializer,
 )
+from django.contrib.auth.models import Group, Permission
+from .serializers import UserSerializer, GroupSerializer, PermissionSerializer
+from .permissions import UserPermission
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import mixins
+from rest_framework import filters
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from drf_spectacular.utils import extend_schema, extend_schema_view
 
 
 @api_view(["GET"])
@@ -1037,6 +1045,65 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                     target_url=cliente.get_absolute_url(),
                     type_notification="analise_credito_cliente",
                 )
+
+
+# --- User / Group / Permission ViewSets ---
+@extend_schema_view(
+    list=extend_schema(tags=['Users']),
+    retrieve=extend_schema(tags=['Users']),
+    create=extend_schema(tags=['Users']),
+    update=extend_schema(tags=['Users']),
+    partial_update=extend_schema(tags=['Users']),
+)
+class UserViewSet(ModelViewSet):
+    queryset = User.objects.all().order_by('id')
+    serializer_class = UserSerializer
+    permission_classes = [UserPermission]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['username', 'first_name', 'last_name', 'email']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        # Non-superusers see only users from the same loja or themselves
+        if not user.is_superuser:
+            if getattr(user, 'loja_id', None):
+                qs = qs.filter(loja_id=user.loja_id)
+            else:
+                qs = qs.filter(id=user.id)
+        return qs
+
+    @action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+
+
+@extend_schema_view(
+    list=extend_schema(tags=['Groups']),
+    retrieve=extend_schema(tags=['Groups']),
+    create=extend_schema(tags=['Groups']),
+    update=extend_schema(tags=['Groups']),
+    partial_update=extend_schema(tags=['Groups']),
+)
+class GroupViewSet(ModelViewSet):
+    queryset = Group.objects.all().order_by('name')
+    serializer_class = GroupSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name']
+
+
+@extend_schema_view(
+    list=extend_schema(tags=['Permissions']),
+    retrieve=extend_schema(tags=['Permissions']),
+)
+class PermissionViewSet(ReadOnlyModelViewSet):
+    queryset = Permission.objects.select_related('content_type').all().order_by('content_type__app_label', 'codename')
+    serializer_class = PermissionSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['codename', 'name']
 
         return Response({"detail": "Instalacao confirmada pelo analista. Venda liberada para geracao."})
 

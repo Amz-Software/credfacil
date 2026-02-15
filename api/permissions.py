@@ -95,3 +95,23 @@ class VendaPermission(BasePermission):
             return user.has_perm("vendas.delete_venda")
 
         return False
+
+
+class UserPermission(BasePermission):
+    def has_permission(self, request, view):
+        action = getattr(view, "action", None)
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+
+        # List and retrieve require view permission
+        if action in ("list", "retrieve", "me"):
+            return user.is_superuser or user.has_perm("accounts.view_user")
+        if action == "create":
+            return user.is_superuser or user.has_perm("accounts.add_user")
+        if action in ("update", "partial_update"):
+            return user.is_superuser or user.has_perm("accounts.change_user")
+        if action == "destroy":
+            return user.is_superuser or user.has_perm("accounts.delete_user")
+
+        return False
