@@ -17,6 +17,9 @@ router.register("vendas", views.VendaViewSet, basename="venda")
 router.register("users", views.UserViewSet, basename="user")
 router.register("groups", views.GroupViewSet, basename="group")
 router.register("permissions", views.PermissionViewSet, basename="permission")
+router.register("usuarios", views.UserViewSet, basename="usuario")
+router.register("grupos", views.GroupViewSet, basename="grupo")
+router.register("permissoes", views.PermissionViewSet, basename="permissao")
 
 urlpatterns = [
     path("health/", views.health, name="api-health"),

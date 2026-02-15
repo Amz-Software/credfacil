@@ -568,3 +568,80 @@ Cada endpoint usa as classes de permissao do modulo `api/permissions.py` e as me
 - A documentacao oficial interativa e `/api/docs/`.
 - A especificacao OpenAPI JSON e `/api/schema/`.
 - Alguns endpoints aceitam tanto JSON quanto `multipart/form-data`, mas uploads de arquivo exigem `multipart/form-data`.
+
+## Usuários, Grupos e Permissões
+
+Rotas baseadas em `UserViewSet`, `GroupViewSet` e `PermissionViewSet`.
+
+### Rotas principais
+
+- `GET /api/users/` e `GET /api/usuarios/` — lista de usuários visíveis.
+- `GET /api/users/{id}/` e `GET /api/usuarios/{id}/` — detalhe de usuário.
+- `POST /api/users/` e `POST /api/usuarios/` — cria usuário.
+- `PATCH /api/users/{id}/` e `PATCH /api/usuarios/{id}/` — atualiza usuário (parcial).
+- `GET /api/users/me/` e `GET /api/usuarios/me/` — dados do usuário autenticado.
+- `GET /api/groups/` (`/api/grupos/`) — lista grupos.
+- `GET /api/permissions/` (`/api/permissoes/`) — lista permissões (read-only).
+
+### `GET /api/usuarios/`
+
+Query params:
+- `search` (opcional): filtra por `username`, `first_name` ou `email` (icontains).
+- `raw=1` (opcional): quando presente retorna um array simples de objetos (sem paginação). Caso contrário, a resposta é paginada.
+
+Exemplo de resposta (lista paginada):
+
+```json
+{
+  "count": 12,
+  "num_pages": 2,
+  "page": 1,
+  "results": [ {"id":1, "username":"jose", "email":"jose@x.com"} ]
+}
+```
+
+### Criação / Atualização
+
+Payload para `POST`/`PATCH` (exemplo):
+
+```json
+{
+  "username": "ana",
+  "first_name": "Ana",
+  "last_name": "Silva",
+  "email": "ana@example.com",
+  "password": "senha_segura",
+  "loja": 1,
+  "groups": [2,3],
+  "user_permissions": [10,11]
+}
+```
+
+- Observações:
+  - Em write (`POST`/`PATCH`) `groups` e `user_permissions` são arrays de IDs e substituem (set) os valores existentes.
+  - `password` é write-only; em criação o campo será aplicado como senha do usuário.
+
+### Representation (leitura)
+
+Ao ler (`GET`) um usuário, os campos `groups` e `user_permissions` vêm como objetos aninhados (nome/descricao/id), por exemplo:
+
+```json
+{
+  "id": 3,
+  "username": "ana",
+  "email": "ana@example.com",
+  "groups": [{"id":2,"name":"VENDEDOR"}],
+  "user_permissions": [{"id":10,"codename":"vendas.add_venda"}]
+}
+```
+
+### Permissões
+
+- Os endpoints de usuário usam a classe `api.permissions.UserPermission` (mapeia actions para as permissões Django `accounts.view_user`, `accounts.add_user`, `accounts.change_user`, `accounts.delete_user`).
+- Superusers têm acesso total.
+
+### Notas rápidas
+
+- O frontend pode consumir as rotas em português (`/api/usuarios`, `/api/grupos`, `/api/permissoes`) ou em inglês (`/api/users`, `/api/groups`, `/api/permissions`).
+- Use `GET /api/usuarios/?raw=1` para obter um array simples quando for necessário preencher dropdowns sem paginação.
+

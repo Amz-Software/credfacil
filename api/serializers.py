@@ -419,6 +419,7 @@ User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
+    # Accept lists of IDs on write
     groups = serializers.PrimaryKeyRelatedField(many=True, queryset=Group.objects.all(), required=False)
     user_permissions = serializers.PrimaryKeyRelatedField(many=True, queryset=Permission.objects.all(), required=False)
 
@@ -474,3 +475,14 @@ class UserSerializer(serializers.ModelSerializer):
             instance.user_permissions.set(perms)
 
         return instance
+
+    def to_representation(self, instance):
+        """
+        Represent groups and user_permissions as nested objects on read,
+        while still accepting lists of IDs on write.
+        """
+        ret = super().to_representation(instance)
+        # Replace groups ids with full objects
+        ret["groups"] = GroupSerializer(instance.groups.all(), many=True).data
+        ret["user_permissions"] = PermissionSerializer(instance.user_permissions.all(), many=True).data
+        return ret

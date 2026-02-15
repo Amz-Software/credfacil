@@ -1073,6 +1073,27 @@ class UserViewSet(ModelViewSet):
                 qs = qs.filter(id=user.id)
         return qs
 
+    def list(self, request, *args, **kwargs):
+        """Support both paginated responses and a raw array.
+
+        - Default: paginated response (DRF pagination settings)
+        - If query param `raw=1` or `all=1` present: return a plain list `[{...}, ...]`
+        """
+        raw = request.query_params.get('raw') or request.query_params.get('all')
+        queryset = self.filter_queryset(self.get_queryset())
+
+        if raw in ('1', 'true', 'True'):
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['get'], url_path='me')
     def me(self, request):
         serializer = self.get_serializer(request.user)
