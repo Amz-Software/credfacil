@@ -116,14 +116,6 @@ class RepasseCreateSerializer(serializers.ModelSerializer):
         )
 
 
-class VendaSerializer(serializers.ModelSerializer):
-    cliente_nome = serializers.CharField(source="cliente.nome", read_only=True)
-
-    class Meta:
-        model = Venda
-        fields = ["id", "data_venda", "cliente", "cliente_nome", "repasse_logista", "is_deleted"]
-
-
 class ContatoAdicionalSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContatoAdicional
@@ -257,6 +249,8 @@ class ProdutoVendaSerializer(serializers.ModelSerializer):
 
 
 class PagamentoSerializer(serializers.ModelSerializer):
+    tipo_pagamento_nome = serializers.CharField(source="tipo_pagamento.nome", read_only=True)
+    # Alias para compatibilidade
     tipo_nome = serializers.CharField(source="tipo_pagamento.nome", read_only=True)
 
     class Meta:
@@ -264,6 +258,7 @@ class PagamentoSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "tipo_pagamento",
+            "tipo_pagamento_nome",
             "tipo_nome",
             "valor",
             "parcelas",
@@ -278,17 +273,26 @@ class PagamentoSerializer(serializers.ModelSerializer):
 
 class VendaSerializer(serializers.ModelSerializer):
     cliente_nome = serializers.CharField(source="cliente.nome", read_only=True)
+    vendedor_nome = serializers.SerializerMethodField()
+    loja_nome = serializers.CharField(source="loja.nome", read_only=True)
     itens_venda = ProdutoVendaSerializer(many=True, read_only=True)
     pagamentos = PagamentoSerializer(many=True, read_only=True)
+    
+    def get_vendedor_nome(self, obj):
+        if obj.vendedor:
+            return obj.vendedor.get_full_name() or obj.vendedor.username
+        return None
 
     class Meta:
         model = Venda
         fields = [
             "id",
             "loja",
+            "loja_nome",
             "cliente",
             "cliente_nome",
             "vendedor",
+            "vendedor_nome",
             "data_venda",
             "observacao",
             "repasse_logista",

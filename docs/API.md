@@ -676,6 +676,46 @@ Efeito: Produto sai de listas normais e não aparece em novos formulários, mas 
 
 Rotas baseadas em `VendaViewSet`.
 
+### Campos retornados
+
+Ao listar ou detalhar vendas (`GET /api/vendas/` ou `GET /api/vendas/{id}/`), a API retorna:
+
+#### Campos principais da venda:
+- `id`: ID da venda
+- `loja`: ID da loja
+- `loja_nome`: ✅ Nome da loja (ex: "Loja A")
+- `cliente`: ID do cliente
+- `cliente_nome`: ✅ Nome do cliente
+- `vendedor`: ID do vendedor
+- `vendedor_nome`: ✅ Nome completo ou username do vendedor
+- `data_venda`: Data/hora da venda
+- `observacao`: Observações
+- `repasse_logista`: Valor do repasse
+- `is_deleted`: Se foi cancelada
+- `is_trocado`: Se teve troca
+
+#### Itens da venda (`itens_venda`):
+Array de objetos com:
+- `id`: ID do item
+- `produto`: ID do produto
+- `produto_nome`: ✅ Nome do produto
+- `imei`: IMEI do aparelho
+- `valor_unitario`: Valor unitário
+- `quantidade`: Quantidade
+- `valor_desconto`: Desconto aplicado
+
+#### Pagamentos (`pagamentos`):
+Array de objetos com:
+- `id`: ID do pagamento
+- `tipo_pagamento`: ID do tipo
+- `tipo_pagamento_nome`: ✅ Nome do tipo de pagamento
+- `tipo_nome`: ✅ (Alias para compatibilidade)
+- `valor`: Valor do pagamento
+- `parcelas`: Número de parcelas
+- `data_primeira_parcela`: Data da primeira parcela
+- `porcentagem_desconto`: Desconto em %
+- `bloqueado`, `desativado`, `devolucao`, `quitado`: Flags
+
 ### `GET /api/vendas/`
 
 Lista vendas.
