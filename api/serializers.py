@@ -485,4 +485,59 @@ class UserSerializer(serializers.ModelSerializer):
         # Replace groups ids with full objects
         ret["groups"] = GroupSerializer(instance.groups.all(), many=True).data
         ret["user_permissions"] = PermissionSerializer(instance.user_permissions.all(), many=True).data
+        
+        # Adicionar lojas acessíveis
+        lojas_como_usuario = list(instance.lojas.values('id', 'nome', 'cnpj'))
+        lojas_como_gerente = list(instance.lojas_gerenciadas.values('id', 'nome', 'cnpj'))
+        loja_principal = None
+        if instance.loja:
+            loja_principal = {
+                'id': instance.loja.id,
+                'nome': instance.loja.nome,
+                'cnpj': instance.loja.cnpj
+            }
+        
+        ret["loja_principal"] = loja_principal
+        ret["lojas_acesso"] = lojas_como_usuario
+        ret["lojas_gerenciadas"] = lojas_como_gerente
+        
+        # Adicionar informações de permissões/acessos
+        ret["acessos"] = {
+            "pode_ver_todas_lojas": instance.has_perm("vendas.can_view_all_stores"),
+            "pode_criar_loja": instance.has_perm("vendas.add_loja"),
+            "pode_editar_loja": instance.has_perm("vendas.change_loja"),
+            "pode_deletar_loja": instance.has_perm("vendas.delete_loja"),
+            "pode_criar_repasse": instance.has_perm("financeiro.add_repasse"),
+            "pode_ver_repasse": instance.has_perm("financeiro.view_repasse"),
+            "pode_criar_produto": instance.has_perm("produtos.add_produto"),
+            "pode_editar_produto": instance.has_perm("produtos.change_produto"),
+            "pode_deletar_produto": instance.has_perm("produtos.delete_produto"),
+            "pode_criar_solicitacao": (
+                instance.has_perm("vendas.add_cliente") or instance.has_perm("vendas.add_analisecreditocliente")
+            ),
+            "pode_criar_venda": instance.has_perm("vendas.add_venda"),
+            "pode_ver_todas_vendas": instance.has_perm("vendas.can_view_all_sales"),
+            "pode_ver_todas_analises": instance.has_perm("vendas.view_all_analise_credito"),
+        }
+        
         return ret
+
+
+# Custom JWT Token Serializer para incluir informações do usuário e lojas no login
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Serializer customizado para incluir informações do usuário e lojas no response do login JWT.
+    """
+    
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        
+        # Adicionar dados do usuário no response
+        user_serializer = UserSerializer(self.user)
+        data['user'] = user_serializer.data
+        
+        return data
+

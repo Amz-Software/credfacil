@@ -8,13 +8,153 @@
 
 A API aceita dois modos:
 - JWT Bearer token
+- Session authentication (para uso via navegador/Swagger)
 
+### Login via JWT
 
+Para obter os tokens de acesso, envie uma requisição POST:
+
+```
+POST /api/token/
+Content-Type: application/json
+
+{
+  "username": "seu_usuario",
   "password": "sua_senha"
+}
+```
+
+Resposta:
+
+```json
+{
+  "access": "<access_token>",
+  "refresh": "<refresh_token>",
+  "user": {
+    "id": 1,
+    "username": "seu_usuario",
+    "first_name": "Nome",
+    "last_name": "Sobrenome",
+    "email": "email@exemplo.com",
+    "is_staff": false,
+    "is_active": true,
+    "is_superuser": false,
+    "loja": 1,
+    "loja_principal": {
+      "id": 1,
+      "nome": "Loja Principal",
+      "cnpj": "12345678000190"
+    },
+    "lojas_acesso": [
+      {
+        "id": 1,
+        "nome": "Loja A",
+        "cnpj": "12345678000190"
+      },
+      {
+        "id": 2,
+        "nome": "Loja B",
+        "cnpj": "98765432000110"
+      }
+    ],
+    "lojas_gerenciadas": [
+      {
+        "id": 1,
+        "nome": "Loja A",
+        "cnpj": "12345678000190"
+      }
+    ],
+    "groups": [
+      {
+        "id": 1,
+        "name": "VENDEDOR",
+        "permissions": [1, 2, 3]
+      }
+    ],
+    "user_permissions": [],
+    "acessos": {
+      "pode_ver_todas_lojas": false,
+      "pode_criar_loja": false,
+      "pode_editar_loja": false,
+      "pode_deletar_loja": false,
+      "pode_criar_repasse": false,
+      "pode_ver_repasse": true,
+      "pode_criar_produto": false,
+      "pode_editar_produto": false,
+      "pode_deletar_produto": false,
+      "pode_criar_solicitacao": true,
+      "pode_criar_venda": true,
+      "pode_ver_todas_vendas": false,
+      "pode_ver_todas_analises": false
+    }
+  }
+}
+```
+
+### Informações sobre lojas acessíveis
+
+Após o login, o response inclui:
+
+- `user.loja_principal`: Loja principal do usuário (FK User.loja)
+- `user.lojas_acesso`: Lista de lojas onde o usuário está cadastrado como usuário (M2M Loja.usuarios)
+- `user.lojas_gerenciadas`: Lista de lojas onde o usuário é gerente (M2M Loja.gerentes)
+- `user.acessos`: Objeto com flags de permissões do usuário
+
+O cliente deve armazenar essas informações localmente e permitir que o usuário selecione qual loja deseja usar durante a sessão. 
+
+**Importante**: Ao fazer requisições na API que dependem de loja (solicitações, vendas, produtos, etc.), certifique-se de usar o `loja_id` correto nos filtros ou ter a loja armazenada na sessão (quando usar session authentication).
+
+### Refresh Token
+
+Para renovar o access token:
+
+```
+POST /api/token/refresh/
+Content-Type: application/json
+
+{
+  "refresh": "<refresh_token>"
+}
+```
+
+### Uso do Token
 
 Exemplo de uso no header:
+
+```
 Authorization: Bearer <access_token>
 ```
+
+## Usuarios
+
+Rotas baseadas em `UserViewSet`.
+
+### `GET /api/users/me/`
+
+Retorna informações completas do usuário autenticado, incluindo lojas acessíveis e permissões.
+
+Resposta: mesmo formato do objeto `user` retornado no login.
+
+### `GET /api/users/`
+
+Lista usuários (com paginação). Suporta query params:
+
+- `search` (opcional): busca por username, first_name, last_name ou email
+- `raw=1` ou `all=1` (opcional): retorna lista sem paginação
+
+### `GET /api/users/{id}/`
+
+Retorna detalhes de um usuário específico.
+
+### `POST /api/users/`
+
+Cria novo usuário. Campos obrigatórios: `username`, `email`, `password`.
+
+### `PUT/PATCH /api/users/{id}/`
+
+Atualiza usuário.
+
+
 
 ## Resposta de erro (padrao)
 

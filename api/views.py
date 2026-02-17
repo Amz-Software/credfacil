@@ -1127,6 +1127,18 @@ class PermissionViewSet(ReadOnlyModelViewSet):
     search_fields = ['codename', 'name']
 
 
+# Custom JWT Token View para incluir informações do usuário e lojas no login
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenObtainPairSerializer
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    View customizada para login JWT que retorna tokens + informações do usuário e lojas.
+    """
+    serializer_class = CustomTokenObtainPairSerializer
+
+
     @action(detail=False, methods=["post"], url_path=r"analises/(?P<analise_id>[^/.]+)/informar-imei")
     @extend_schema(request=InformarImeiAnaliseInputSerializer, responses={200: OpenApiTypes.OBJECT})
     def informar_imei_analise(self, request, analise_id=None):
