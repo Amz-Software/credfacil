@@ -482,9 +482,22 @@ class UserSerializer(serializers.ModelSerializer):
         while still accepting lists of IDs on write.
         """
         ret = super().to_representation(instance)
-        # Replace groups ids with full objects
+        
+        # Informações básicas de admin
+        ret["is_admin"] = instance.is_superuser or instance.is_staff
+        ret["is_superuser"] = instance.is_superuser
+        ret["is_staff"] = instance.is_staff
+        
+        # Grupos do usuário
         ret["groups"] = GroupSerializer(instance.groups.all(), many=True).data
+        ret["grupos_nomes"] = list(instance.groups.values_list('name', flat=True))
+        
+        # Permissões diretas do usuário
         ret["user_permissions"] = PermissionSerializer(instance.user_permissions.all(), many=True).data
+        
+        # TODAS as permissões efetivas (usuário + grupos)
+        todas_permissoes = instance.get_all_permissions()
+        ret["todas_permissoes"] = sorted(list(todas_permissoes))
         
         # Adicionar lojas acessíveis
         lojas_como_usuario = list(instance.lojas.values('id', 'nome', 'cnpj'))
@@ -501,23 +514,51 @@ class UserSerializer(serializers.ModelSerializer):
         ret["lojas_acesso"] = lojas_como_usuario
         ret["lojas_gerenciadas"] = lojas_como_gerente
         
-        # Adicionar informações de permissões/acessos
+        # Adicionar informações de permissões/acessos específicas
         ret["acessos"] = {
+            # Admin
+            "is_admin": ret["is_admin"],
+            "is_superuser": instance.is_superuser,
+            # Lojas
             "pode_ver_todas_lojas": instance.has_perm("vendas.can_view_all_stores"),
             "pode_criar_loja": instance.has_perm("vendas.add_loja"),
             "pode_editar_loja": instance.has_perm("vendas.change_loja"),
             "pode_deletar_loja": instance.has_perm("vendas.delete_loja"),
+            "pode_ver_loja": instance.has_perm("vendas.view_loja"),
+            # Repasses
             "pode_criar_repasse": instance.has_perm("financeiro.add_repasse"),
             "pode_ver_repasse": instance.has_perm("financeiro.view_repasse"),
+            "pode_editar_repasse": instance.has_perm("financeiro.change_repasse"),
+            "pode_deletar_repasse": instance.has_perm("financeiro.delete_repasse"),
+            # Produtos
             "pode_criar_produto": instance.has_perm("produtos.add_produto"),
             "pode_editar_produto": instance.has_perm("produtos.change_produto"),
             "pode_deletar_produto": instance.has_perm("produtos.delete_produto"),
+            "pode_ver_produto": instance.has_perm("produtos.view_produto"),
+            # Solicitações/Clientes
             "pode_criar_solicitacao": (
                 instance.has_perm("vendas.add_cliente") or instance.has_perm("vendas.add_analisecreditocliente")
             ),
-            "pode_criar_venda": instance.has_perm("vendas.add_venda"),
-            "pode_ver_todas_vendas": instance.has_perm("vendas.can_view_all_sales"),
+            "pode_criar_cliente": instance.has_perm("vendas.add_cliente"),
+            "pode_editar_cliente": instance.has_perm("vendas.change_cliente"),
+            "pode_ver_cliente": instance.has_perm("vendas.view_cliente"),
+            # Análise de Crédito
+            "pode_criar_analise": instance.has_perm("vendas.add_analisecreditocliente"),
+            "pode_editar_analise": instance.has_perm("vendas.change_analisecreditocliente"),
             "pode_ver_todas_analises": instance.has_perm("vendas.view_all_analise_credito"),
+            "pode_mudar_status_analise": instance.has_perm("vendas.change_status_analise"),
+            # Vendas
+            "pode_criar_venda": instance.has_perm("vendas.add_venda"),
+            "pode_editar_venda": instance.has_perm("vendas.change_venda"),
+            "pode_deletar_venda": instance.has_perm("vendas.delete_venda"),
+            "pode_ver_venda": instance.has_perm("vendas.view_venda"),
+            "pode_ver_todas_vendas": instance.has_perm("vendas.can_view_all_sales"),
+            "pode_editar_venda_finalizada": instance.has_perm("vendas.can_edit_finished_sale"),
+            # Usuários
+            "pode_criar_usuario": instance.has_perm("accounts.add_user"),
+            "pode_editar_usuario": instance.has_perm("accounts.change_user"),
+            "pode_deletar_usuario": instance.has_perm("accounts.delete_user"),
+            "pode_ver_usuario": instance.has_perm("accounts.view_user"),
         }
         
         return ret

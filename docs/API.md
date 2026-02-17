@@ -36,9 +36,37 @@ Resposta:
     "first_name": "Nome",
     "last_name": "Sobrenome",
     "email": "email@exemplo.com",
-    "is_staff": false,
     "is_active": true,
+    
+    // Flags de administrador
+    "is_admin": false,
     "is_superuser": false,
+    "is_staff": false,
+    
+    // Grupos do usuário
+    "grupos_nomes": ["VENDEDOR"],
+    "groups": [
+      {
+        "id": 1,
+        "name": "VENDEDOR",
+        "permissions": [1, 2, 3]
+      }
+    ],
+    
+    // Permissões diretas
+    "user_permissions": [],
+    
+    // TODAS as permissões efetivas (usuário + grupos)
+    "todas_permissoes": [
+      "vendas.add_cliente",
+      "vendas.add_venda",
+      "vendas.view_cliente",
+      "vendas.view_venda",
+      "financeiro.view_repasse",
+      // ... todas as outras permissões
+    ],
+    
+    // Lojas
     "loja": 1,
     "loja_principal": {
       "id": 1,
@@ -64,45 +92,94 @@ Resposta:
         "cnpj": "12345678000190"
       }
     ],
-    "groups": [
-      {
-        "id": 1,
-        "name": "VENDEDOR",
-        "permissions": [1, 2, 3]
-      }
-    ],
-    "user_permissions": [],
+    
+    // Permissões específicas (flags booleanas para facilitar)
     "acessos": {
+      // Admin
+      "is_admin": false,
+      "is_superuser": false,
+      
+      // Lojas
       "pode_ver_todas_lojas": false,
       "pode_criar_loja": false,
       "pode_editar_loja": false,
       "pode_deletar_loja": false,
+      "pode_ver_loja": true,
+      
+      // Repasses
       "pode_criar_repasse": false,
       "pode_ver_repasse": true,
+      "pode_editar_repasse": false,
+      "pode_deletar_repasse": false,
+      
+      // Produtos
       "pode_criar_produto": false,
       "pode_editar_produto": false,
       "pode_deletar_produto": false,
+      "pode_ver_produto": true,
+      
+      // Solicitações/Clientes
       "pode_criar_solicitacao": true,
+      "pode_criar_cliente": true,
+      "pode_editar_cliente": true,
+      "pode_ver_cliente": true,
+      
+      // Análise de Crédito
+      "pode_criar_analise": true,
+      "pode_editar_analise": true,
+      "pode_ver_todas_analises": false,
+      "pode_mudar_status_analise": false,
+      
+      // Vendas
       "pode_criar_venda": true,
+      "pode_editar_venda": true,
+      "pode_deletar_venda": false,
+      "pode_ver_venda": true,
       "pode_ver_todas_vendas": false,
-      "pode_ver_todas_analises": false
+      "pode_editar_venda_finalizada": false,
+      
+      // Usuários
+      "pode_criar_usuario": false,
+      "pode_editar_usuario": false,
+      "pode_deletar_usuario": false,
+      "pode_ver_usuario": false
     }
   }
 }
 ```
 
-### Informações sobre lojas acessíveis
+### Informações retornadas no login
 
-Após o login, o response inclui:
+O response do login inclui informações completas sobre o usuário:
 
-- `user.loja_principal`: Loja principal do usuário (FK User.loja)
-- `user.lojas_acesso`: Lista de lojas onde o usuário está cadastrado como usuário (M2M Loja.usuarios)
-- `user.lojas_gerenciadas`: Lista de lojas onde o usuário é gerente (M2M Loja.gerentes)
-- `user.acessos`: Objeto com flags de permissões do usuário
+#### Administração
+- `user.is_admin`: True se o usuário é superuser ou staff
+- `user.is_superuser`: True se o usuário é superusuário (acesso total)
+- `user.is_staff`: True se o usuário pode acessar o Django Admin
 
-O cliente deve armazenar essas informações localmente e permitir que o usuário selecione qual loja deseja usar durante a sessão. 
+#### Grupos e Permissões
+- `user.grupos_nomes`: Array com nomes dos grupos (ex: `["VENDEDOR", "GERENTE"]`)
+- `user.groups`: Array com objetos completos dos grupos
+- `user.user_permissions`: Permissões diretas do usuário
+- `user.todas_permissoes`: **Array com TODAS as permissões efetivas** (incluindo as dos grupos)
+  - Formato: `["app.codename", "vendas.add_venda", ...]`
+  - Use isso para verificar se o usuário tem uma permissão específica
 
-**Importante**: Ao fazer requisições na API que dependem de loja (solicitações, vendas, produtos, etc.), certifique-se de usar o `loja_id` correto nos filtros ou ter a loja armazenada na sessão (quando usar session authentication).
+#### Lojas
+- `loja_selecionada`: Loja atualmente selecionada na sessão (se fornecido `loja_id` no login)
+- `user.loja_principal`: Loja principal do usuário (FK User.loja)  
+- `user.lojas_acesso`: Lojas onde o usuário está cadastrado como usuário
+- `user.lojas_gerenciadas`: Lojas onde o usuário é gerente
+
+#### Acessos Específicos
+- `user.acessos`: Objeto com **flags booleanas** para facilitar verificação de permissões
+  - Permissões para: admin, lojas, repasses, produtos, clientes, análises, vendas, usuários
+  - Ex: `acessos.pode_criar_venda`, `acessos.pode_ver_todas_analises`, `acessos.is_admin`
+
+**Importante**: 
+- Use `user.is_admin` ou `user.is_superuser` para verificar se é administrador
+- Use `user.todas_permissoes` para verificar permissões específicas
+- Use `user.acessos` para facilitar verificações no frontend (já vem como boolean)
 
 ### Refresh Token
 
