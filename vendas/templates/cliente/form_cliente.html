@@ -756,16 +756,50 @@
               </div>
               {% endif %}
               
-              {# Aviso sobre campos iCloud #}
-              {% if 'email_icloud' in form_analise_credito.fields or 'senha_icloud' in form_analise_credito.fields %}
-                <div class="alert alert-info mb-3">
-                  <i class="bx bx-info-circle me-2"></i>
-                  <strong>Atenção:</strong> Os campos de Email e Senha iCloud devem ser preenchidos <strong>somente quando o produto for iPhone</strong>. Para outros produtos, deixe esses campos em branco.
-                </div>
-              {% endif %}
-              
+              {# Alerta iPhone — visível apenas quando produto iPhone for selecionado #}
+              <div id="iphone-alert" class="alert alert-warning mb-3" style="display:none;">
+                <i class="bx bx-mobile me-2"></i>
+                <strong>Produto iPhone selecionado.</strong>
+                O valor e os juros serão calculados com base na tabela de parcelamentos.
+                {% if 'email_icloud' in form_analise_credito.fields %}
+                  Preencha os dados do iCloud abaixo.
+                {% endif %}
+              </div>
+
               <div class="row">
                 {% for field in form_analise_credito %}
+                  {# entrada_informada: visível apenas para iPhone (JS controla) #}
+                  {% if field.html_name == 'entrada_informada' %}
+                  <div class="col-md-6" id="wrapper-entrada-informada" style="display:none;">
+                    <div class="form-group">
+                      <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        <i class="bx bx-help-circle tooltip-icon" data-bs-toggle="tooltip"
+                           title="Valor de entrada para o cliente. Deve ser maior ou igual à entrada mínima do produto."></i>
+                      </label>
+                      {{ field }}
+                      <small id="entrada-minima-hint" class="form-text text-muted"></small>
+                      <div id="entrada-minima-alert" class="alert alert-warning py-1 px-2 mt-1 small" style="display:none;">
+                        <i class="bx bx-error-circle me-1"></i>
+                        O valor de entrada não pode ser menor que a entrada mínima.
+                      </div>
+                      {% if field.errors %}
+                        <div class="text-danger small">{{ field.errors|striptags }}</div>
+                      {% endif %}
+                    </div>
+                  </div>
+                  {# campos iCloud: visíveis apenas para iPhone (JS controla) #}
+                  {% elif field.html_name == 'email_icloud' or field.html_name == 'senha_icloud' %}
+                  <div class="col-md-6 icloud-field" style="display:none;">
+                    <div class="form-group">
+                      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                      {{ field }}
+                      {% if field.errors %}
+                        <div class="text-danger small">{{ field.errors|striptags }}</div>
+                      {% endif %}
+                    </div>
+                  </div>
+                  {% else %}
                   <div class="col-md-6">
                     <div class="form-group">
                       <label for="{{ field.id_for_label }}" class="form-label">
@@ -787,8 +821,8 @@
                       {% endif %}
                     </div>
                   </div>
-
-                  {% endfor %}
+                  {% endif %}
+                {% endfor %}
                   
                 <div class="col-md-12">
                   <div class="form-group">
@@ -809,7 +843,7 @@
                   <div class="info-card-value" id="info-total">—</div>
                 </div>
                 <div class="info-card parcelas">
-                  <div class="info-card-label">Parcelas</div>
+                  <div class="info-card-label" id="info-parcela-label">Parcelas</div>
                   <div class="info-card-value" id="info-parcela">—</div>
                 </div>
               </div>
@@ -1268,75 +1302,148 @@
         console.error('Erro ao parsear produtos:', e);
       }
 
+      let parcelamentos = [];
+      try {
+        parcelamentos = JSON.parse('{{ parcelamentos_json|escapejs }}');
+      } catch (e) {
+        console.error('Erro ao parsear parcelamentos:', e);
+      }
+
+      let currentEntradaMinima = 0;
+
       function formatBRL(v) {
         return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      }
+
+      function validaEntrada() {
+        const val = parseFloat($('#id_entrada_informada').val());
+        const alert = $('#entrada-minima-alert');
+        if (!isNaN(val) && val < currentEntradaMinima) {
+          alert.show();
+        } else {
+          alert.hide();
+        }
+      }
+
+      function toggleIphoneFields(isIphone) {
+        if (isIphone) {
+          $('#iphone-alert').show();
+          $('#wrapper-entrada-informada').show();
+          $('.icloud-field').show();
+        } else {
+          $('#iphone-alert').hide();
+          $('#wrapper-entrada-informada').hide();
+          $('.icloud-field').hide();
+          $('#id_entrada_informada').val('');
+        }
       }
 
       function atualizaInfo() {
         const prodId = $('#id_produto').val();
         const numParcelas = $('#id_numero_parcelas').val();
 
-        console.log('🔄 atualizaInfo chamado');
-        console.log('prodId:', prodId);
-        console.log('numParcelas:', numParcelas);
-        console.log('produtos array:', produtos);
-
-        // Se não tem produto, zera tudo
+        // Se não tem produto, zera tudo e oculta campos iPhone
         if (!prodId) {
-          console.log('❌ Sem produto, zerando cards');
-          $('#info-entrada').text(formatBRL(0));
-          $('#info-total').text(formatBRL(0));
-          $('#info-parcela').text(formatBRL(0));
+          toggleIphoneFields(false);
+          $('#info-entrada').text('—');
+          $('#info-total').text('—');
+          $('#info-parcela').text('—');
+          $('#info-parcela-label').text('Parcelas');
           return;
         }
 
-        // Encontra o produto
         const produto = produtos.find(p => p.id == prodId) || {};
-        console.log('✓ Produto encontrado:', produto);
-        const entrada = produto.entrada || 0;
+        const isIphone = !!produto.is_iphone;
 
-        // Se não tem parcelas, mostra entrada e zera total/parcela
-        if (!numParcelas) {
-          console.log('❌ Sem parcelas, mostrando entrada:', entrada);
+        // Controla visibilidade dos campos exclusivos de iPhone
+        toggleIphoneFields(isIphone);
+
+        if (isIphone) {
+          // --- Fluxo iPhone ---
+          const valorBase = produto.valor || 0;
+          const entradaMinima = produto.entrada || 0;
+          currentEntradaMinima = entradaMinima;
+
+          // Atualiza hint de entrada mínima
+          $('#entrada-minima-hint').text('Entrada mínima: ' + formatBRL(entradaMinima));
+          validaEntrada();
+
+          // Entrada exibida: o que o operador digitar ou a mínima
+          const entradaDigitada = parseFloat($('#id_entrada_informada').val()) || entradaMinima;
+          $('#info-entrada').text(formatBRL(entradaDigitada));
+
+          if (!numParcelas) {
+            $('#info-total').text('—');
+            $('#info-parcela-label').text('Parcelas');
+            $('#info-parcela').text('—');
+            return;
+          }
+
+          // Busca juros na tabela de parcelamentos
+          const parc = parcelamentos.find(p => p.qtd_vezes == parseInt(numParcelas, 10));
+          if (!parc) {
+            $('#info-total').text('Parcelamento ' + numParcelas + 'x não cadastrado');
+            $('#info-parcela-label').text('Parcelas');
+            $('#info-parcela').text('—');
+            return;
+          }
+
+          const juros = valorBase * parc.porcentagem_juros / 100;
+          const total = valorBase + juros;
+          const parcela = total / parseInt(numParcelas, 10);
+
+          $('#info-total').text(formatBRL(total));
+          $('#info-parcela-label').text('Parcela (' + numParcelas + 'x)');
+          $('#info-parcela').text(formatBRL(parcela));
+        } else {
+          // --- Fluxo padrão (não iPhone) ---
+          $('#info-parcela-label').text('Parcelas');
+
+          const entrada = produto.entrada || 0;
           $('#info-entrada').text(formatBRL(entrada));
-          $('#info-total').text(formatBRL(0));
-          $('#info-parcela').text(formatBRL(0));
-          return;
+
+          if (!numParcelas) {
+            $('#info-total').text('—');
+            $('#info-parcela').text('—');
+            return;
+          }
+
+          const valoresParcelamento = {
+            '4': produto.valor4 || 0,
+            '6': produto.valor6 || 0,
+            '8': produto.valor8 || 0,
+            '10': produto.valor10 || 0,
+            '12': produto.valor12 || 0,
+            '14': produto.valor14 || 0
+          };
+          const total = valoresParcelamento[numParcelas] || 0;
+          const parcela = total > 0 ? total / parseInt(numParcelas, 10) : 0;
+
+          $('#info-total').text(formatBRL(total));
+          $('#info-parcela').text(formatBRL(parcela));
         }
-
-        // Ambos preenchidos: calcula os valores
-        const valoresParcelamento = {
-          '4': produto.valor4 || 0,
-          '6': produto.valor6 || 0,
-          '8': produto.valor8 || 0,
-          '10': produto.valor10 || 0,
-          '12': produto.valor12 || 0,
-          '14': produto.valor14 || 0
-        };
-        const total = valoresParcelamento[numParcelas] || 0;
-        const parcela = total > 0 ? total / parseInt(numParcelas, 10) : 0;
-
-        console.log('✓ Valores calculados - entrada:', entrada, 'total:', total, 'parcela:', parcela);
-
-        $('#info-entrada').text(formatBRL(entrada));
-        $('#info-total').text(formatBRL(total));
-        $('#info-parcela').text(formatBRL(parcela));
 
         updateProgress();
       }
 
       // Registra listeners para atualizar cards
       $('#id_produto').on('select2:select', function() {
-        console.log('📍 Evento select2:select disparado no produto');
+        atualizaInfo();
+      });
+      $('#id_produto').on('select2:clear', function() {
         atualizaInfo();
       });
       $('#id_numero_parcelas').on('change', function() {
-        console.log('📍 Evento change disparado no número de parcelas');
         atualizaInfo();
+      });
+      // Recalcula entrada ao digitar valor de entrada (iPhone)
+      $('#id_entrada_informada').on('input', function() {
+        atualizaInfo();
+        validaEntrada();
       });
 
       // Inicializa cards ao carregar a página
-      setTimeout(atualizaInfo, 100);
+      setTimeout(atualizaInfo, 300);
       
       // Form submission enhancement - simplified
       $('#clienteForm').on('submit', function(e) {

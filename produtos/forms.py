@@ -5,6 +5,14 @@ from produtos.models import *
 
 
 class ProdutoForms(forms.ModelForm):
+    is_iphone = forms.TypedChoiceField(
+        choices=[('False', 'Não'), ('True', 'Sim')],
+        coerce=lambda v: v == 'True',
+        label='É iPhone?',
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_is_iphone'}),
+        initial='False',
+    )
+
     class Meta:
         model = Produto
         fields = '__all__'
@@ -12,6 +20,7 @@ class ProdutoForms(forms.ModelForm):
         labels = {
             'codigo': 'Código',
             'nome': 'Nome',
+            'valor': 'Valor base (iPhone)',
             'valor_repasse_logista': 'Valor Repasse Logista',
             'entrada_cliente': 'Entrada Cliente',
             'valor_8_vezes': 'Valor total 8X',
@@ -25,11 +34,11 @@ class ProdutoForms(forms.ModelForm):
             'cor': 'Cor',
             'memoria': 'Memória',
             'estado': 'Estado',
-            'is_iphone': 'iPhone',
         }
         widgets = {
             'codigo': forms.TextInput(attrs={'class': 'form-control', 'disabled': 'disabled'}),
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
+            'valor': forms.TextInput(attrs={'class': 'form-control'}),
             'valor_repasse_logista': forms.TextInput(attrs={'class': 'form-control'}),
             'entrada_cliente': forms.TextInput(attrs={'class': 'form-control'}),
             'valor_8_vezes': forms.TextInput(attrs={'class': 'form-control', 'oninput': 'updateValues()'}),
@@ -43,7 +52,6 @@ class ProdutoForms(forms.ModelForm):
             'cor': forms.Select(attrs={'class': 'form-control'}),
             'memoria': forms.Select(attrs={'class': 'form-control'}),
             'estado': forms.Select(attrs={'class': 'form-control'}),
-            'is_iphone': forms.RadioSelect(attrs={'class': 'form-check-input'}, choices=[(True, 'Sim'), (False, 'Não')]),
         }
 
     def __init__(self, *args, disabled=False, **kwargs):
@@ -207,10 +215,42 @@ class EstadoProdutoForms(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        if self.user:  
-            if not instance.pk: 
+        if self.user:
+            if not instance.pk:
                 instance.criado_por = self.user
-            instance.modificado_por = self.user 
+            instance.modificado_por = self.user
+        if commit:
+            instance.save()
+        return instance
+
+
+class ParcelamentoForms(forms.ModelForm):
+    class Meta:
+        model = Parcelamento
+        fields = '__all__'
+        exclude = ['loja', 'criado_por', 'modificado_por']
+        labels = {
+            'qtd_vezes': 'Quantidade de Vezes',
+            'porcentagem_juros': 'Porcentagem de Juros (%)',
+        }
+        widgets = {
+            'qtd_vezes': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'porcentagem_juros': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': 0}),
+        }
+
+    def __init__(self, *args, disabled=False, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if disabled:
+            for field in self.fields.values():
+                field.widget.attrs['disabled'] = True
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.user:
+            if not instance.pk:
+                instance.criado_por = self.user
+            instance.modificado_por = self.user
         if commit:
             instance.save()
         return instance

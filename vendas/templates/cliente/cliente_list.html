@@ -678,9 +678,10 @@ Clientes
                   </a>
                   {% endif %}
                   
+                  {% if cliente.analise_credito %}
                   {# Separador visual #}
                   <div class="dropdown-divider"></div>
-                  
+
                   {# Verificar se é fluxo iPhone ou Android #}
                   {% if cliente.analise_credito.produto.is_iphone %}
                     {# ===== FLUXO IPHONE ===== #}
@@ -808,7 +809,8 @@ Clientes
                     <i class="bx bx-check-double me-1"></i>✅ Venda já gerada
                   </span>
                   {% endif %}
-            
+                  {% endif %}{# fim if cliente.analise_credito #}
+
                 </div>
               </div>
             </td>

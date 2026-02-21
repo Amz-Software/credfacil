@@ -4,6 +4,7 @@ from vendas.models import Base
 class Produto(Base):
     codigo = models.IntegerField(unique=True, blank=True, null=True)
     nome = models.CharField(max_length=100)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Valor base (iPhone)')
     valor_repasse_logista = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     entrada_cliente = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     valor_8_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -49,6 +50,19 @@ class Produto(Base):
         permissions = (
             ('view_all_produtos', 'Can view all produtos'),
         )
+
+
+class Parcelamento(Base):
+    qtd_vezes = models.IntegerField(unique=True, verbose_name='Quantidade de vezes')
+    porcentagem_juros = models.DecimalField(max_digits=5, decimal_places=2, verbose_name='Porcentagem de juros (%)')
+
+    def __str__(self):
+        return f"{self.qtd_vezes}x — {self.porcentagem_juros}%"
+
+    class Meta:
+        ordering = ['qtd_vezes']
+        verbose_name = 'Parcelamento'
+        verbose_name_plural = 'Parcelamentos'
 
 
 class TipoProduto(Base):

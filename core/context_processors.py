@@ -157,12 +157,23 @@ def menu_items(request):
                 }
             ]
         },
-        {          
+        {
             "label": "Produtos",
             "icon": "bx bx-box",
             "permission": "produtos.view_produto",
-            "url_name": "produtos:produtos",
-            "section": "Produtos"
+            "section": "Produtos",
+            "sub_items": [
+                {
+                    "label": "Produtos",
+                    "url_name": "produtos:produtos",
+                    "permission": "produtos.view_produto",
+                },
+                {
+                    "label": "Parcelamentos (iPhone)",
+                    "url_name": "produtos:parcelamentos",
+                    "permission": "produtos.view_parcelamento",
+                },
+            ],
         },
         # {
         #     "label": "Assistência",

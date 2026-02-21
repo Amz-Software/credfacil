@@ -6,7 +6,7 @@ from django.views.generic import ListView, CreateView, DetailView, UpdateView, D
 from django.views import View
 from vendas.models import Loja
 from vendas.views import BaseView
-from .models import Produto
+from .models import Parcelamento, Produto
 
 class ProdutoListView(PermissionRequiredMixin, ListView):
     model = Produto
@@ -50,6 +50,16 @@ class ProdutoActivateView(PermissionRequiredMixin, View):
         produto.save()
         messages.success(request, f'Produto "{produto.nome}" foi ativado com sucesso.')
         return redirect('produtos:produtos')
+
+
+class ParcelamentoDeleteView(PermissionRequiredMixin, View):
+    permission_required = 'produtos.delete_parcelamento'
+
+    def post(self, request, pk):
+        parcelamento = get_object_or_404(Parcelamento, pk=pk)
+        parcelamento.delete()
+        messages.success(request, f'Parcelamento {parcelamento.qtd_vezes}x removido com sucesso.')
+        return redirect('produtos:parcelamentos')
 
 
 def generate_views(modelo, form=None, paginacao=10, template_dir=''):

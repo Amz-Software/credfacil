@@ -25,8 +25,9 @@ def normalize_loja(loja):
 
 class ProdutoChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
-        # aqui você define exatamente como quer que apareça cada opção
-        return f"{obj.nome} – Entrada: R$ {obj.entrada_cliente}"
+        if obj.tipo:
+            return f"{obj.nome} - {obj.tipo}"
+        return obj.nome
 
 class EstoqueImeiSelectWidgetEdit(HeavySelect2Widget):
     data_view = 'estoque:estoque-imei-search-edit'
@@ -469,10 +470,13 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         label='Produto'
     )
     
-    analise_online = forms.BooleanField(
+    analise_online = forms.TypedChoiceField(
         required=False,
+        choices=[('False', 'Não'), ('True', 'Sim')],
+        coerce=lambda v: v == 'True',
         label='Análise Online',
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        initial='False',
     )
     
     email_icloud = forms.EmailField(
@@ -489,10 +493,18 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         help_text='Obrigatório apenas para produtos iPhone'
     )
     
+    entrada_informada = forms.DecimalField(
+        required=False,
+        min_value=0,
+        label='Entrada',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0,00'}),
+        help_text='Para iPhone: valor de entrada (deve ser maior ou igual à entrada mínima do produto)',
+    )
+
     class Meta:
         model = AnaliseCreditoCliente
         # removido 'observacao' do formulário para não ser preenchido pelo vendedor
-        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'analise_online', 'email_icloud', 'senha_icloud']
+        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada', 'analise_online', 'email_icloud', 'senha_icloud']
         widgets = {
             'data_pagamento': forms.Select(attrs={'class': 'form-control'}),
             'numero_parcelas': forms.Select(attrs={'class': 'form-control'}),
@@ -525,13 +537,18 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                 can_manage_icloud = True
             elif user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR', 'VENDEDOR', 'SUPERVISOR', 'GERENTE']).exists():
                 can_manage_icloud = True
-        
-        # Remover campos iCloud se o usuário não tiver permissão
-        if not can_manage_icloud:
+
+        # Remover campos iCloud se a loja não pode vender iPhone OU usuário não tem permissão
+        loja_pode_iphone = getattr(loja, 'pode_vender_iphone', False) if loja else False
+        if not can_manage_icloud or not loja_pode_iphone:
             if 'email_icloud' in self.fields:
                 del self.fields['email_icloud']
             if 'senha_icloud' in self.fields:
                 del self.fields['senha_icloud']
+
+        # entrada_informada: ocultar via atributo CSS (JS controla visibilidade por produto)
+        if 'entrada_informada' in self.fields:
+            self.fields['entrada_informada'].widget.attrs['data-iphone-only'] = 'true'
         
         # O campo 'observacao' foi removido do formulário de vendedor; analistas
         # que precisarem registrar observação devem utilizar a interface de aprovação.

@@ -33,7 +33,7 @@ from pixqrcodegen import Payload
 from estoque.models import Estoque, EstoqueImei
 from financeiro.forms import RepasseForm
 from financeiro.models import Repasse
-from produtos.models import Produto
+from produtos.models import Parcelamento, Produto
 from vendas.forms import (
     AnaliseCreditoClienteForm, ClienteConsultaForm, ClienteForm, ComprovantesClienteEditForm,
     ComprovantesClienteForm, ContatoAdicionalEditForm, ContatoAdicionalForm, FormaPagamentoEditFormSet,
@@ -593,20 +593,17 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
         context['can_view_consulta_serasa'] = self.request.user.has_perm('vendas.view_consulta_serasa')
         
         produtos = Produto.objects.filter(ativo=True).values(
-            'id',
-            'nome',
-            'valor_4_vezes',
-            'valor_6_vezes',
-            'valor_8_vezes',
-            'valor_10_vezes',
-            'valor_12_vezes',
-            'valor_14_vezes',
+            'id', 'nome', 'is_iphone', 'valor',
+            'valor_4_vezes', 'valor_6_vezes', 'valor_8_vezes',
+            'valor_10_vezes', 'valor_12_vezes', 'valor_14_vezes',
             'entrada_cliente'
         )
         produtos_list = [
             {
                 'id': p['id'],
                 'nome': p['nome'],
+                'is_iphone': p['is_iphone'],
+                'valor': float(p['valor'] or 0),
                 'valor4': float(p['valor_4_vezes']),
                 'valor6': float(p['valor_6_vezes']),
                 'valor8': float(p['valor_8_vezes']),
@@ -618,6 +615,12 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
             for p in produtos
         ]
         context['produtos_json'] = json.dumps(produtos_list)
+
+        parcelamentos = list(Parcelamento.objects.values('qtd_vezes', 'porcentagem_juros'))
+        context['parcelamentos_json'] = json.dumps([
+            {'qtd_vezes': p['qtd_vezes'], 'porcentagem_juros': float(p['porcentagem_juros'])}
+            for p in parcelamentos
+        ])
 
         return context
 
@@ -778,20 +781,17 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
         context['status_app_choices'] = AnaliseCreditoCliente.STATUS_APP_CHOICES
 
         produtos = Produto.objects.all().values(
-            'id',
-            'nome',
-            'valor_4_vezes',
-            'valor_6_vezes',
-            'valor_8_vezes',
-            'valor_10_vezes',
-            'valor_12_vezes',
-            'valor_14_vezes',
+            'id', 'nome', 'is_iphone', 'valor',
+            'valor_4_vezes', 'valor_6_vezes', 'valor_8_vezes',
+            'valor_10_vezes', 'valor_12_vezes', 'valor_14_vezes',
             'entrada_cliente'
         )
         produtos_list = [
             {
                 'id': p['id'],
                 'nome': p['nome'],
+                'is_iphone': p['is_iphone'],
+                'valor': float(p['valor'] or 0),
                 'valor4': float(p['valor_4_vezes']),
                 'valor6': float(p['valor_6_vezes']),
                 'valor8': float(p['valor_8_vezes']),
@@ -803,6 +803,12 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             for p in produtos
         ]
         context['produtos_json'] = json.dumps(produtos_list)
+
+        parcelamentos = list(Parcelamento.objects.values('qtd_vezes', 'porcentagem_juros'))
+        context['parcelamentos_json'] = json.dumps([
+            {'qtd_vezes': p['qtd_vezes'], 'porcentagem_juros': float(p['porcentagem_juros'])}
+            for p in parcelamentos
+        ])
 
         return context
 
@@ -1221,13 +1227,64 @@ def gerar_venda(request, cliente_id):
         messages.error(request, f"❌ IMEI {imei.imei} já está sendo usado em outra venda. IMEI deve ser único.")
         return redirect('vendas:cliente_update', pk=cliente.pk)
 
+    # Define valores e número de parcelas — bifurcação iPhone / não-iPhone
+    porcentagem_desconto = 0
+    parcelas = int(analise.numero_parcelas)
+
+    if getattr(produto, 'is_iphone', False):
+        # --- Fluxo iPhone ---
+        if not produto.valor:
+            messages.error(request, "❌ Produto iPhone sem valor base cadastrado.")
+            return redirect('vendas:cliente_update', pk=cliente.pk)
+
+        entrada_informada = analise.entrada_informada
+        if entrada_informada is None:
+            entrada_informada = produto.entrada_cliente
+        if entrada_informada < produto.entrada_cliente:
+            messages.error(
+                request,
+                f"❌ Entrada informada (R$ {entrada_informada}) não pode ser menor que a entrada mínima do produto (R$ {produto.entrada_cliente})."
+            )
+            return redirect('vendas:cliente_update', pk=cliente.pk)
+
+        parcelamento = Parcelamento.objects.filter(qtd_vezes=parcelas).first()
+        if not parcelamento:
+            messages.error(request, f"❌ Nenhum parcelamento cadastrado para {parcelas}x.")
+            return redirect('vendas:cliente_update', pk=cliente.pk)
+
+        valor_credfacil = produto.valor + (produto.valor * parcelamento.porcentagem_juros / 100)
+        repasse_logista = produto.valor - entrada_informada
+        valor_entrada = entrada_informada
+    else:
+        # --- Fluxo padrão (não iPhone) ---
+        num_parcelas_str = str(analise.numero_parcelas)
+        if num_parcelas_str == '4':
+            valor_credfacil = produto.valor_4_vezes
+            porcentagem_desconto = credfacil.porcentagem_desconto_4
+        elif num_parcelas_str == '6':
+            valor_credfacil = produto.valor_6_vezes
+            porcentagem_desconto = credfacil.porcentagem_desconto_6
+        elif num_parcelas_str == '8':
+            valor_credfacil = produto.valor_8_vezes
+            porcentagem_desconto = credfacil.porcentagem_desconto_8
+        elif num_parcelas_str == '10':
+            valor_credfacil = produto.valor_10_vezes
+            porcentagem_desconto = credfacil.porcentagem_desconto_10
+        elif num_parcelas_str == '12':
+            valor_credfacil = produto.valor_12_vezes
+        else:
+            valor_credfacil = produto.valor_14_vezes
+
+        repasse_logista = produto.valor_repasse_logista
+        valor_entrada = produto.entrada_cliente
+
     # Cria venda
     venda = Venda.objects.create(
-        loja=analise.loja,  # Usa a loja da análise de crédito
+        loja=analise.loja,
         cliente=cliente,
         vendedor=request.user,
         caixa=caixa,
-        repasse_logista=produto.valor_repasse_logista,
+        repasse_logista=repasse_logista,
         observacao=analise.observacao,
         criado_por=request.user,
         modificado_por=request.user,
@@ -1236,38 +1293,10 @@ def gerar_venda(request, cliente_id):
     )
     analise.venda = venda
     analise.save()
-    
-    porcentagem_desconto = 0
-    
-    # Define valores e número de parcelas
-    if analise.numero_parcelas == '4':
-        valor_credfacil = produto.valor_4_vezes
-        parcelas = 4
-        porcentagem_desconto = credfacil.porcentagem_desconto_4
-    elif analise.numero_parcelas == '6':
-        valor_credfacil = produto.valor_6_vezes
-        parcelas = 6
-        porcentagem_desconto = credfacil.porcentagem_desconto_6
-    elif analise.numero_parcelas == '8':
-        valor_credfacil = produto.valor_8_vezes
-        parcelas = 8
-        porcentagem_desconto = credfacil.porcentagem_desconto_8
-    elif analise.numero_parcelas == '10':
-        valor_credfacil = produto.valor_10_vezes
-        parcelas = 10
-        porcentagem_desconto = credfacil.porcentagem_desconto_10
-    elif analise.numero_parcelas == '12':
-        valor_credfacil = produto.valor_12_vezes
-        parcelas = 12
-        porcentagem_desconto = 0
-    elif analise.numero_parcelas == '14':
-        valor_credfacil = produto.valor_14_vezes
-        parcelas = 14
-        porcentagem_desconto = 0
 
     # Cria ProdutoVenda
     ProdutoVenda.objects.create(
-        loja=analise.loja,  # Usa a loja da análise de crédito
+        loja=analise.loja,
         venda=venda,
         produto=produto,
         imei=imei.imei,
@@ -1283,10 +1312,10 @@ def gerar_venda(request, cliente_id):
     tipo_credfacil = TipoPagamento.objects.get(nome__iexact='IPX')
 
     pagamento_entrada = Pagamento.objects.create(
-        loja=analise.loja,  # Usa a loja da análise de crédito
+        loja=analise.loja,
         venda=venda,
         tipo_pagamento=tipo_entrada,
-        valor=produto.entrada_cliente,
+        valor=valor_entrada,
         parcelas=1,
         data_primeira_parcela=timezone.now().date()
     )

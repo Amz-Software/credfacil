@@ -54,7 +54,7 @@ from vendas.models import (
     TipoPagamento,
     Venda,
 )
-from produtos.models import Produto
+from produtos.models import Parcelamento, Produto
 from estoque.models import EstoqueImei
 from accounts.models import User
 
@@ -65,6 +65,7 @@ from .serializers import (
     InformarImeiAnaliseInputSerializer,
     LojaListSerializer,
     LojaSerializer,
+    ParcelamentoSerializer,
     ProdutoSerializer,
     VendaSerializer,
     RepasseCreateSerializer,
@@ -179,6 +180,36 @@ def _avisos_solicitacoes_existentes(*, cpf=None, rg=None, nome=None, telefone=No
     mensagem = "Existem solicitacoes de credito com dados ja cadastrados (CPF, RG, Nome ou Telefone). "
     mensagem += "Encontradas: " + "; ".join(detalhes) + sufixo
     return mensagem
+
+
+def _validar_parcelamento_iphone(form_analise_credito):
+    """
+    Valida se existem parcelamentos cadastrados para o produto iPhone selecionado.
+    Retorna dict de erros (formato compatível com form.errors) ou None se válido.
+    """
+    produto = form_analise_credito.cleaned_data.get("produto")
+    if not produto or not getattr(produto, "is_iphone", False):
+        return None
+
+    numero_parcelas = form_analise_credito.cleaned_data.get("numero_parcelas")
+
+    if not Parcelamento.objects.exists():
+        return {
+            "numero_parcelas": [
+                "Nenhum parcelamento cadastrado no sistema. "
+                "Solicite ao administrador que cadastre os parcelamentos antes de criar uma solicitacao de iPhone."
+            ]
+        }
+
+    if numero_parcelas and not Parcelamento.objects.filter(qtd_vezes=int(numero_parcelas)).exists():
+        return {
+            "numero_parcelas": [
+                f"Parcelamento de {numero_parcelas}x nao cadastrado. "
+                "Solicite ao administrador que cadastre o parcelamento correspondente."
+            ]
+        }
+
+    return None
 
 
 @extend_schema_view(
@@ -623,6 +654,14 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                 status=400,
             )
 
+        # Validação de parcelamento para produto iPhone
+        erro_parcelamento = _validar_parcelamento_iphone(form_analise_credito)
+        if erro_parcelamento:
+            return Response(
+                {"detail": "Erros de validacao.", "errors": {"analise_credito": erro_parcelamento}},
+                status=400,
+            )
+
         comprovantes = form_comprovantes.save()
         contato_adicional = form_adicional.save()
         informacao = form_informacao.save()
@@ -774,6 +813,14 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if conflito:
             return Response(
                 {"detail": "Informacoes Pessoais e Contato Adicional nao podem ser iguais.", "errors": conflito_erros},
+                status=400,
+            )
+
+        # Validação de parcelamento para produto iPhone
+        erro_parcelamento = _validar_parcelamento_iphone(form_analise_credito)
+        if erro_parcelamento:
+            return Response(
+                {"detail": "Erros de validacao.", "errors": {"analise_credito": erro_parcelamento}},
                 status=400,
             )
 
@@ -1360,12 +1407,74 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
         try:
             with transaction.atomic():
+                parcelas = int(analise.numero_parcelas)
+                porcentagem_desconto = 0
+
+                if getattr(produto, "is_iphone", False):
+                    # --- Fluxo iPhone ---
+                    # Valor base obrigatório no produto iPhone
+                    if not produto.valor:
+                        return Response(
+                            {"detail": "Produto iPhone sem valor base cadastrado."},
+                            status=400,
+                        )
+
+                    # Entrada informada pelo operador (deve ser >= entrada_minima do produto)
+                    entrada_informada = analise.entrada_informada
+                    if entrada_informada is None:
+                        entrada_informada = produto.entrada_cliente
+                    if entrada_informada < produto.entrada_cliente:
+                        return Response(
+                            {
+                                "detail": (
+                                    f"Entrada informada (R$ {entrada_informada}) nao pode ser menor "
+                                    f"que a entrada minima do produto (R$ {produto.entrada_cliente})."
+                                )
+                            },
+                            status=400,
+                        )
+
+                    # Buscar percentual de juros na tabela Parcelamento
+                    parcelamento = Parcelamento.objects.filter(qtd_vezes=parcelas).first()
+                    if not parcelamento:
+                        return Response(
+                            {"detail": f"Nenhum parcelamento cadastrado para {parcelas}x."},
+                            status=400,
+                        )
+
+                    porcentagem_juros = parcelamento.porcentagem_juros
+                    valor_total_produto = produto.valor + (produto.valor * porcentagem_juros / 100)
+                    valor_credfacil = valor_total_produto
+                    repasse_logista = produto.valor - entrada_informada
+                    valor_entrada = entrada_informada
+                else:
+                    # --- Fluxo padrão (não iPhone) ---
+                    if parcelas == 4:
+                        valor_credfacil = produto.valor_4_vezes
+                        porcentagem_desconto = credfacil.porcentagem_desconto_4
+                    elif parcelas == 6:
+                        valor_credfacil = produto.valor_6_vezes
+                        porcentagem_desconto = credfacil.porcentagem_desconto_6
+                    elif parcelas == 8:
+                        valor_credfacil = produto.valor_8_vezes
+                        porcentagem_desconto = credfacil.porcentagem_desconto_8
+                    elif parcelas == 10:
+                        valor_credfacil = produto.valor_10_vezes
+                        porcentagem_desconto = credfacil.porcentagem_desconto_10
+                    elif parcelas == 12:
+                        valor_credfacil = produto.valor_12_vezes
+                    else:
+                        valor_credfacil = produto.valor_14_vezes
+
+                    repasse_logista = produto.valor_repasse_logista
+                    valor_entrada = produto.entrada_cliente
+
                 venda = Venda.objects.create(
                     loja=analise.loja,
                     cliente=cliente,
                     vendedor=request.user,
                     caixa=caixa,
-                    repasse_logista=produto.valor_repasse_logista,
+                    repasse_logista=repasse_logista,
                     observacao=analise.observacao,
                     criado_por=request.user,
                     modificado_por=request.user,
@@ -1374,30 +1483,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 )
                 analise.venda = venda
                 analise.save()
-
-                porcentagem_desconto = 0
-                if analise.numero_parcelas == "4":
-                    valor_credfacil = produto.valor_4_vezes
-                    parcelas = 4
-                    porcentagem_desconto = credfacil.porcentagem_desconto_4
-                elif analise.numero_parcelas == "6":
-                    valor_credfacil = produto.valor_6_vezes
-                    parcelas = 6
-                    porcentagem_desconto = credfacil.porcentagem_desconto_6
-                elif analise.numero_parcelas == "8":
-                    valor_credfacil = produto.valor_8_vezes
-                    parcelas = 8
-                    porcentagem_desconto = credfacil.porcentagem_desconto_8
-                elif analise.numero_parcelas == "10":
-                    valor_credfacil = produto.valor_10_vezes
-                    parcelas = 10
-                    porcentagem_desconto = credfacil.porcentagem_desconto_10
-                elif analise.numero_parcelas == "12":
-                    valor_credfacil = produto.valor_12_vezes
-                    parcelas = 12
-                else:
-                    valor_credfacil = produto.valor_14_vezes
-                    parcelas = 14
 
                 ProdutoVenda.objects.create(
                     loja=analise.loja,
@@ -1416,7 +1501,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     loja=analise.loja,
                     venda=venda,
                     tipo_pagamento=tipo_entrada,
-                    valor=produto.entrada_cliente,
+                    valor=valor_entrada,
                     parcelas=1,
                     data_primeira_parcela=timezone.now().date(),
                 )
@@ -1492,6 +1577,26 @@ class ProdutoViewSet(viewsets.ModelViewSet):
         produto.ativo = False
         produto.save()
         return Response({"detail": "Produto desativado com sucesso."})
+
+
+@extend_schema_view(
+    list=extend_schema(tags=["Parcelamentos"]),
+    retrieve=extend_schema(tags=["Parcelamentos"]),
+    create=extend_schema(tags=["Parcelamentos"]),
+    update=extend_schema(tags=["Parcelamentos"]),
+    partial_update=extend_schema(tags=["Parcelamentos"]),
+    destroy=extend_schema(tags=["Parcelamentos"]),
+)
+class ParcelamentoViewSet(viewsets.ModelViewSet):
+    queryset = Parcelamento.objects.all()
+    serializer_class = ParcelamentoSerializer
+    permission_classes = [ProdutoPermission]
+
+    def perform_create(self, serializer):
+        loja_id = self.request.session.get("loja_id")
+        if not loja_id:
+            raise ValidationError({"detail": "Loja nao encontrada na sessao."})
+        serializer.save(loja_id=loja_id)
 
 
 def _build_formset_data(formset_cls, items, initial_forms=0):

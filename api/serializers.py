@@ -10,7 +10,7 @@ from vendas.models import (
     Loja,
     Venda,
 )
-from produtos.models import Produto
+from produtos.models import Parcelamento, Produto
 from vendas.models import ProdutoVenda, Pagamento
 
 
@@ -180,6 +180,7 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
             "imei_informado",
             "venda",
             "observacao",
+            "entrada_informada",
             "email_icloud",
             "senha_icloud",
             "icloud_configurado_vendedor",
@@ -224,6 +225,12 @@ class ClienteSolicitacaoSerializer(serializers.ModelSerializer):
             "comprovantes",
             "analise_credito",
         ]
+
+
+class ParcelamentoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Parcelamento
+        fields = ["id", "qtd_vezes", "porcentagem_juros"]
 
 
 class ProdutoSerializer(serializers.ModelSerializer):
@@ -382,6 +389,7 @@ class SolicitacaoCreditoInputSerializer(serializers.Serializer):
     produto = serializers.IntegerField()
     data_pagamento = serializers.CharField()
     numero_parcelas = serializers.CharField()
+    entrada_informada = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     analise_online = serializers.BooleanField(required=False)
     email_icloud = serializers.EmailField(required=False, allow_blank=True)
     senha_icloud = serializers.CharField(required=False, allow_blank=True)

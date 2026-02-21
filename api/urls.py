@@ -13,6 +13,7 @@ router.APIRootView = PublicAPIRootView
 router.register("lojas", views.LojaViewSet, basename="loja")
 router.register("solicitacoes", views.SolicitacaoCreditoViewSet, basename="solicitacao")
 router.register("produtos", views.ProdutoViewSet, basename="produto")
+router.register("parcelamentos", views.ParcelamentoViewSet, basename="parcelamento")
 router.register("vendas", views.VendaViewSet, basename="venda")
 router.register("users", views.UserViewSet, basename="user")
 router.register("groups", views.GroupViewSet, basename="group")

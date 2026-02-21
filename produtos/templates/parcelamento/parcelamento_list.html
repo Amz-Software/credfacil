@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static iam_tags %}
+{% block title %}
+Parcelamentos (iPhone)
+{% endblock title %}
+
+{% block content %}
+
+<div class="container-xxl mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div>
+            <h4 class="card-title mb-0">Parcelamentos (iPhone)</h4>
+            <small class="text-muted">Juros aplicados por quantidade de parcelas no financiamento iPhone</small>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <form action="" method="get" class="d-inline-block" id="searchForm">
+              <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Pesquisar" onchange="document.getElementById('searchForm').submit()">
+            </form>
+            {% if user|has_perm:"produtos.add_parcelamento" %}
+            <a href="{% url 'produtos:parcelamento_create' %}" class="btn btn-primary">
+              <i class="bx bx-plus me-1"></i> Adicionar
+            </a>
+            {% endif %}
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th scope="col">Qtd. Vezes</th>
+                  <th scope="col">Juros (%)</th>
+                  <th scope="col">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for parcelamento in items %}
+                <tr>
+                  <td><span class="badge bg-label-primary fs-6">{{ parcelamento.qtd_vezes }}x</span></td>
+                  <td>{{ parcelamento.porcentagem_juros }}%</td>
+                  <td>
+                    <div class="dropdown">
+                      <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
+                        <i class="bx bx-dots-vertical-rounded"></i>
+                      </button>
+                      <div class="dropdown-menu">
+                        {% if user|has_perm:"produtos.view_parcelamento" %}
+                        <a class="dropdown-item" href="{% url 'produtos:parcelamento_detail' parcelamento.id %}">
+                          <i class="bx bx-show me-1"></i> Detalhes
+                        </a>
+                        {% endif %}
+                        {% if user|has_perm:"produtos.change_parcelamento" %}
+                        <a class="dropdown-item" href="{% url 'produtos:parcelamento_update' parcelamento.id %}">
+                          <i class="bx bx-edit-alt me-1"></i> Editar
+                        </a>
+                        {% endif %}
+                        {% if user|has_perm:"produtos.delete_parcelamento" %}
+                        <a class="dropdown-item text-danger"
+                           href="#"
+                           data-bs-toggle="modal"
+                           data-bs-target="#deleteModal{{ parcelamento.id }}">
+                          <i class="bx bx-trash me-1"></i> Remover
+                        </a>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    {% if user|has_perm:"produtos.delete_parcelamento" %}
+                    <div class="modal fade" id="deleteModal{{ parcelamento.id }}" tabindex="-1">
+                      <div class="modal-dialog modal-sm">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h5 class="modal-title">Confirmar remoção</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                          </div>
+                          <div class="modal-body">
+                            Remover o parcelamento <strong>{{ parcelamento.qtd_vezes }}x ({{ parcelamento.porcentagem_juros }}%)</strong>?
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                            <form method="post" action="{% url 'produtos:parcelamento_delete' parcelamento.id %}">
+                              {% csrf_token %}
+                              <button type="submit" class="btn btn-danger btn-sm">Remover</button>
+                            </form>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="3" class="text-center text-muted py-4">Nenhum parcelamento cadastrado</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% include "snippets/pagination.html" %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

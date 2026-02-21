@@ -575,6 +575,9 @@ class AnaliseCreditoCliente(Base):
     venda = models.ForeignKey('vendas.Venda', on_delete=models.CASCADE, related_name='analises_credito_venda', null=True, blank=True)
     observacao = models.TextField(null=True, blank=True)
     
+    # Entrada informada pelo operador (editável no fluxo iPhone; mínimo = produto.entrada_cliente)
+    entrada_informada = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Entrada informada pelo operador')
+
     # Campos para fluxo iPhone
     email_icloud = models.EmailField(max_length=200, null=True, blank=True, verbose_name='Email iCloud')
     senha_icloud = models.CharField(max_length=100, null=True, blank=True, verbose_name='Senha iCloud')

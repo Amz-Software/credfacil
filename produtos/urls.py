@@ -3,7 +3,7 @@ from django.urls import path
 
 from produtos.forms import *
 from produtos.models import *
-from .views import generate_views, ProdutoListView, ProdutoDeleteView, ProdutoActivateView
+from .views import generate_views, ProdutoListView, ProdutoDeleteView, ProdutoActivateView, ParcelamentoDeleteView
 
 app_name = 'produtos'
 
@@ -13,6 +13,7 @@ tipoViews = generate_views(TipoProduto, TipoForms, 10, 'tipo')
 fabricanteViews = generate_views(Fabricante, FabricanteForms, 10, 'fabricante')
 estadoViews = generate_views(EstadoProduto, EstadoProdutoForms, 10, 'estado')
 memoriaViews = generate_views(MemoriaProduto, MemoriaForms, 10, 'memoria')
+parcelamentoViews = generate_views(Parcelamento, ParcelamentoForms, 20, 'parcelamento')
 
 
 urlpatterns = [
@@ -52,5 +53,11 @@ urlpatterns = [
     path('memoria/detalhe/<int:pk>/', memoriaViews['detail_view'].as_view(), name='memoria_detail'),
     path('memoria/editar/<int:pk>/', memoriaViews['update_view'].as_view(), name='memoria_update'),
     path('memoria/deletar/<int:pk>/', memoriaViews['delete_view'].as_view(), name='memoria_delete'),
+
+    path('parcelamento/', parcelamentoViews['list_view'].as_view(), name='parcelamentos'),
+    path('parcelamento/novo/', parcelamentoViews['create_view'].as_view(), name='parcelamento_create'),
+    path('parcelamento/detalhe/<int:pk>/', parcelamentoViews['detail_view'].as_view(), name='parcelamento_detail'),
+    path('parcelamento/editar/<int:pk>/', parcelamentoViews['update_view'].as_view(), name='parcelamento_update'),
+    path('parcelamento/deletar/<int:pk>/', ParcelamentoDeleteView.as_view(), name='parcelamento_delete'),
 
 ]

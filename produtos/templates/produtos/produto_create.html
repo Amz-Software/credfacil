@@ -22,6 +22,12 @@ Criar Produto
                   <form method="post">
                     {% csrf_token %}
 
+                    <!-- Tipo de Produto (iPhone ou não) — sempre visível, no topo -->
+                    <div class="form-group mb-3">
+                      {{ form.is_iphone.label_tag }}
+                      {{ form.is_iphone }}
+                    </div>
+
                     <!-- Campo Código -->
                     <div class="form-group mb-3">
                       {{ form.codigo.label_tag }}
@@ -34,119 +40,94 @@ Criar Produto
                       {{ form.nome }}
                     </div>
 
-                    <!-- Campo Valor Repasse Logista -->
+                    <!-- Campo Entrada Cliente — sempre visível -->
                     <div class="form-group mb-3">
-                      {{ form.valor_repasse_logista.label_tag }}
-                      {{ form.valor_repasse_logista }}
-                    </div>
-
-                    <!-- Campo Entrada Cliente -->
-                    <div class="form-group mb-3">
-                      {{ form.entrada_cliente.label_tag }}
+                      <label for="id_entrada_cliente" id="label-entrada-cliente">Entrada Cliente</label>
                       {{ form.entrada_cliente }}
                     </div>
 
-                    <!-- Campo Valor 8 Vezes -->
-                    <div class="form-group mb-3">
-                      {{ form.valor_8_vezes.label_tag }}
-                      {{ form.valor_8_vezes }}
-
-                      <!-- Campo calculado 8 vezes -->
-                      <label for="id_valor_8_vezes_calculado" class="mt-2">Valor da parcela 8x</label>
-                      <input type="text" id="id_valor_8_vezes_calculado" class="form-control" readonly>
-                    </div>
-                    <!-- Campo Valor 10 Vezes -->
-                    <div class="form-group mb-3">
-                      {{ form.valor_10_vezes.label_tag }}
-                      {{ form.valor_10_vezes }}
-
-                      <!-- Campo calculado 10 vezes -->
-                      <label for="id_valor_10_vezes_calculado" class="mt-2">Valor da parcela 10x</label>
-                      <input type="text" id="id_valor_10_vezes_calculado" class="form-control" readonly>
-                    </div>
-
-                    <!-- Campo Valor 12 Vezes -->
-                    <div class="form-group mb-3">
-                      {{ form.valor_12_vezes.label_tag }}
-                      {{ form.valor_12_vezes }}
-
-                      <!-- Campo calculado 12 vezes -->
-                      <label for="id_valor_12_vezes_calculado" class="mt-2">Valor da parcela 12x</label>
-                      <input type="text" id="id_valor_12_vezes_calculado" class="form-control" readonly>
-                    </div>
-
-                    <!-- Campo Valor 14 Vezes -->
-                    <div class="form-group mb-3">
-                      {{ form.valor_14_vezes.label_tag }}
-                      {{ form.valor_14_vezes }}
-
-                      <!-- Campo calculado 14 vezes -->
-                      <label for="id_valor_14_vezes_calculado" class="mt-2">Valor da parcela 14x</label>
-                      <input type="text" id="id_valor_14_vezes_calculado" class="form-control" readonly>
-                    </div>
-
-                    <!-- Campo Valor 6 Vezes -->
-                    <div class="form-group mb-3">
-                      {{ form.valor_6_vezes.label_tag }}
-                      {{ form.valor_6_vezes }}
-
-                      <!-- Campo calculado 6 vezes -->
-                      <label for="id_valor_6_vezes_calculado" class="mt-2">Valor da parcela 6x</label>
-                      <input type="text" id="id_valor_6_vezes_calculado" class="form-control" readonly>
-                    </div>
-
-                    <!-- Campo Valor 4 Vezes -->
-                    <div class="form-group mb-3">
-                      {{ form.valor_4_vezes.label_tag }}
-                      {{ form.valor_4_vezes }}
-
-                      <!-- Campo calculado 4 vezes -->
-                      <label for="id_valor_4_vezes_calculado" class="mt-2">Valor da parcela 4x</label>
-                      <input type="text" id="id_valor_4_vezes_calculado" class="form-control" readonly>
-                    </div>
-
-                    <!-- Campo Tipo -->
-                    <div class="form-group mb-3">
-                      {{ form.tipo.label_tag }}
-                      {{ form.tipo }}
-                    </div>
-
-                    <!-- Campo Fabricante -->
+                    <!-- Campo Fabricante — sempre visível -->
                     <div class="form-group mb-3">
                       {{ form.fabricante.label_tag }}
                       {{ form.fabricante }}
                     </div>
 
-                    <!-- Campo Cor -->
+                    <!-- Campo Tipo — sempre visível -->
                     <div class="form-group mb-3">
-                      {{ form.cor.label_tag }}
-                      {{ form.cor }}
+                      {{ form.tipo.label_tag }}
+                      {{ form.tipo }}
                     </div>
 
-                    <!-- Campo Memória -->
-                    <div class="form-group mb-3">
-                      {{ form.memoria.label_tag }}
-                      {{ form.memoria }}
+                    <!-- Campos exclusivos iPhone -->
+                    <div id="iphone-fields" style="display:none;">
+                      <div class="form-group mb-3">
+                        {{ form.valor.label_tag }}
+                        {{ form.valor }}
+                      </div>
                     </div>
 
-                    <!-- Campo Estado -->
-                    <div class="form-group mb-3">
-                      {{ form.estado.label_tag }}
-                      {{ form.estado }}
-                    </div>
+                    <!-- Campos exclusivos Não-iPhone -->
+                    <div id="non-iphone-fields" style="display:none;">
+                      <div class="form-group mb-3">
+                        {{ form.valor_repasse_logista.label_tag }}
+                        {{ form.valor_repasse_logista }}
+                      </div>
 
-                    <!-- Campo iPhone -->
-                    <div class="form-group mb-3">
-                      <label class="form-label">{{ form.is_iphone.label }}</label>
-                      <div class="d-flex gap-3">
-                        {% for radio in form.is_iphone %}
-                        <div class="form-check">
-                          {{ radio.tag }}
-                          <label class="form-check-label" for="{{ radio.id_for_label }}">
-                            {{ radio.choice_label }}
-                          </label>
-                        </div>
-                        {% endfor %}
+                      <div class="form-group mb-3">
+                        {{ form.valor_8_vezes.label_tag }}
+                        {{ form.valor_8_vezes }}
+                        <label for="id_valor_8_vezes_calculado" class="mt-2">Valor da parcela 8x</label>
+                        <input type="text" id="id_valor_8_vezes_calculado" class="form-control" readonly>
+                      </div>
+
+                      <div class="form-group mb-3">
+                        {{ form.valor_10_vezes.label_tag }}
+                        {{ form.valor_10_vezes }}
+                        <label for="id_valor_10_vezes_calculado" class="mt-2">Valor da parcela 10x</label>
+                        <input type="text" id="id_valor_10_vezes_calculado" class="form-control" readonly>
+                      </div>
+
+                      <div class="form-group mb-3">
+                        {{ form.valor_12_vezes.label_tag }}
+                        {{ form.valor_12_vezes }}
+                        <label for="id_valor_12_vezes_calculado" class="mt-2">Valor da parcela 12x</label>
+                        <input type="text" id="id_valor_12_vezes_calculado" class="form-control" readonly>
+                      </div>
+
+                      <div class="form-group mb-3">
+                        {{ form.valor_14_vezes.label_tag }}
+                        {{ form.valor_14_vezes }}
+                        <label for="id_valor_14_vezes_calculado" class="mt-2">Valor da parcela 14x</label>
+                        <input type="text" id="id_valor_14_vezes_calculado" class="form-control" readonly>
+                      </div>
+
+                      <div class="form-group mb-3">
+                        {{ form.valor_6_vezes.label_tag }}
+                        {{ form.valor_6_vezes }}
+                        <label for="id_valor_6_vezes_calculado" class="mt-2">Valor da parcela 6x</label>
+                        <input type="text" id="id_valor_6_vezes_calculado" class="form-control" readonly>
+                      </div>
+
+                      <div class="form-group mb-3">
+                        {{ form.valor_4_vezes.label_tag }}
+                        {{ form.valor_4_vezes }}
+                        <label for="id_valor_4_vezes_calculado" class="mt-2">Valor da parcela 4x</label>
+                        <input type="text" id="id_valor_4_vezes_calculado" class="form-control" readonly>
+                      </div>
+
+                      <div class="form-group mb-3">
+                        {{ form.cor.label_tag }}
+                        {{ form.cor }}
+                      </div>
+
+                      <div class="form-group mb-3">
+                        {{ form.memoria.label_tag }}
+                        {{ form.memoria }}
+                      </div>
+
+                      <div class="form-group mb-3">
+                        {{ form.estado.label_tag }}
+                        {{ form.estado }}
                       </div>
                     </div>
 
@@ -166,38 +147,35 @@ Criar Produto
 
 <script>
 function updateValues() {
-    const valor6Vezes = parseFloat(document.getElementById('id_valor_6_vezes').value) || 0;
-    const valor4Vezes = parseFloat(document.getElementById('id_valor_4_vezes').value) || 0;
-    const valor8Vezes = parseFloat(document.getElementById('id_valor_8_vezes').value) || 0;
-    const valor10Vezes = parseFloat(document.getElementById('id_valor_10_vezes')?.value) || 0;
-    const valor12Vezes = parseFloat(document.getElementById('id_valor_12_vezes')?.value) || 0;
-    const valor14Vezes = parseFloat(document.getElementById('id_valor_14_vezes')?.value) || 0;
-    
-    document.getElementById('id_valor_6_vezes_calculado').value = (valor6Vezes / 6).toFixed(2);
-    document.getElementById('id_valor_4_vezes_calculado').value = (valor4Vezes / 4).toFixed(2);
-    document.getElementById('id_valor_8_vezes_calculado').value = (valor8Vezes / 8).toFixed(2);
-    const calc10 = document.getElementById('id_valor_10_vezes_calculado');
-    if (calc10) calc10.value = (valor10Vezes / 10).toFixed(2);
-    const calc12 = document.getElementById('id_valor_12_vezes_calculado');
-    if (calc12) calc12.value = (valor12Vezes / 12).toFixed(2);
-    const calc14 = document.getElementById('id_valor_14_vezes_calculado');
-    if (calc14) calc14.value = (valor14Vezes / 14).toFixed(2);
+    var calc6 = document.getElementById('id_valor_6_vezes_calculado');
+    var calc4 = document.getElementById('id_valor_4_vezes_calculado');
+    var calc8 = document.getElementById('id_valor_8_vezes_calculado');
+    var calc10 = document.getElementById('id_valor_10_vezes_calculado');
+    var calc12 = document.getElementById('id_valor_12_vezes_calculado');
+    var calc14 = document.getElementById('id_valor_14_vezes_calculado');
+    if (calc6) calc6.value = (parseFloat(document.getElementById('id_valor_6_vezes').value) / 6 || 0).toFixed(2);
+    if (calc4) calc4.value = (parseFloat(document.getElementById('id_valor_4_vezes').value) / 4 || 0).toFixed(2);
+    if (calc8) calc8.value = (parseFloat(document.getElementById('id_valor_8_vezes').value) / 8 || 0).toFixed(2);
+    if (calc10) calc10.value = (parseFloat(document.getElementById('id_valor_10_vezes').value) / 10 || 0).toFixed(2);
+    if (calc12) calc12.value = (parseFloat(document.getElementById('id_valor_12_vezes').value) / 12 || 0).toFixed(2);
+    if (calc14) calc14.value = (parseFloat(document.getElementById('id_valor_14_vezes').value) / 14 || 0).toFixed(2);
 }
 
-// Ativa o update automático ao digitar
+function toggleProdutoFields() {
+    var isIphone = document.getElementById('id_is_iphone').value === 'True';
+    document.getElementById('iphone-fields').style.display = isIphone ? '' : 'none';
+    document.getElementById('non-iphone-fields').style.display = isIphone ? 'none' : '';
+    document.getElementById('label-entrada-cliente').textContent = isIphone ? 'Entrada Mínima' : 'Entrada Cliente';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    const campo6 = document.getElementById('id_valor_6_vezes');
-    const campo4 = document.getElementById('id_valor_4_vezes');
-    const campo8 = document.getElementById('id_valor_8_vezes');
-    const campo10 = document.getElementById('id_valor_10_vezes');
-    const campo12 = document.getElementById('id_valor_12_vezes');
-    const campo14 = document.getElementById('id_valor_14_vezes');
-    if (campo6) campo6.addEventListener('input', updateValues);
-    if (campo4) campo4.addEventListener('input', updateValues);
-    if (campo8) campo8.addEventListener('input', updateValues);
-    if (campo10) campo10.addEventListener('input', updateValues);
-    if (campo12) campo12.addEventListener('input', updateValues);
-    if (campo14) campo14.addEventListener('input', updateValues);
+    toggleProdutoFields();
+    document.getElementById('id_is_iphone').addEventListener('change', toggleProdutoFields);
+
+    ['id_valor_6_vezes','id_valor_4_vezes','id_valor_8_vezes','id_valor_10_vezes','id_valor_12_vezes','id_valor_14_vezes'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', updateValues);
+    });
 });
 </script>
 
