@@ -838,8 +838,12 @@
                   <div class="info-card-label">Entrada</div>
                   <div class="info-card-value" id="info-entrada">—</div>
                 </div>
+                <div class="info-card" id="card-preco-venda" style="display:none;">
+                  <div class="info-card-label">Preço de Venda</div>
+                  <div class="info-card-value" id="info-preco-venda">—</div>
+                </div>
                 <div class="info-card total">
-                  <div class="info-card-label">Total</div>
+                  <div class="info-card-label">Total Financiado</div>
                   <div class="info-card-value" id="info-total">—</div>
                 </div>
                 <div class="info-card parcelas">
@@ -1349,6 +1353,8 @@
           $('#info-total').text('—');
           $('#info-parcela').text('—');
           $('#info-parcela-label').text('Parcelas');
+          $('#card-preco-venda').hide();
+          $('#info-preco-venda').text('—');
           return;
         }
 
@@ -1382,6 +1388,8 @@
             $('#info-total').text('—');
             $('#info-parcela-label').text('Parcelas');
             $('#info-parcela').text('—');
+            $('#card-preco-venda').hide();
+            $('#info-preco-venda').text('—');
             return;
           } else {
             entradaUsada = entradaDigitada;
@@ -1392,6 +1400,8 @@
             $('#info-total').text('—');
             $('#info-parcela-label').text('Parcelas');
             $('#info-parcela').text('—');
+            $('#card-preco-venda').hide();
+            $('#info-preco-venda').text('—');
             return;
           }
 
@@ -1401,6 +1411,8 @@
             $('#info-total').text('Parcelamento ' + numParcelas + 'x não cadastrado');
             $('#info-parcela-label').text('Parcelas');
             $('#info-parcela').text('—');
+            $('#card-preco-venda').hide();
+            $('#info-preco-venda').text('—');
             return;
           }
 
@@ -1409,11 +1421,16 @@
           const total = valorFinanciado + juros;
           const parcela = total / parseInt(numParcelas, 10);
 
+          const precoVenda = valorBase;
+          $('#card-preco-venda').show();
+          $('#info-preco-venda').text(formatBRL(precoVenda));
           $('#info-total').text(formatBRL(total));
           $('#info-parcela-label').text('Parcela (' + numParcelas + 'x)');
           $('#info-parcela').text(formatBRL(parcela));
         } else {
           // --- Fluxo padrão (não iPhone) ---
+          $('#card-preco-venda').hide();
+          $('#info-preco-venda').text('—');
           $('#info-parcela-label').text('Parcelas');
 
           const entrada = produto.entrada || 0;
