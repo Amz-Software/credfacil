@@ -1368,9 +1368,25 @@
           $('#entrada-minima-hint').text('Entrada mínima: ' + formatBRL(entradaMinima));
           validaEntrada();
 
-          // Entrada exibida: o que o operador digitar ou a mínima
-          const entradaDigitada = parseFloat($('#id_entrada_informada').val()) || entradaMinima;
-          $('#info-entrada').text(formatBRL(entradaDigitada));
+          // Entrada digitada pelo operador
+          const rawEntrada = $('#id_entrada_informada').val().trim();
+          const entradaDigitada = parseFloat(rawEntrada);
+          const campoVazio = rawEntrada === '' || isNaN(entradaDigitada);
+
+          // Se vazio: usa a entrada mínima. Se preenchido e menor que o mínimo: bloqueia cálculo.
+          let entradaUsada;
+          if (campoVazio) {
+            entradaUsada = entradaMinima;
+          } else if (entradaDigitada < entradaMinima) {
+            $('#info-entrada').text(formatBRL(entradaDigitada));
+            $('#info-total').text('—');
+            $('#info-parcela-label').text('Parcelas');
+            $('#info-parcela').text('—');
+            return;
+          } else {
+            entradaUsada = entradaDigitada;
+          }
+          $('#info-entrada').text(formatBRL(entradaUsada));
 
           if (!numParcelas) {
             $('#info-total').text('—');
@@ -1388,8 +1404,9 @@
             return;
           }
 
-          const juros = valorBase * parc.porcentagem_juros / 100;
-          const total = valorBase + juros;
+          const valorFinanciado = valorBase - entradaUsada;
+          const juros = valorFinanciado * parc.porcentagem_juros / 100;
+          const total = valorFinanciado + juros;
           const parcela = total / parseInt(numParcelas, 10);
 
           $('#info-total').text(formatBRL(total));

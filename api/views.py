@@ -1443,8 +1443,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                         )
 
                     porcentagem_juros = parcelamento.porcentagem_juros
-                    valor_total_produto = produto.valor + (produto.valor * porcentagem_juros / 100)
-                    valor_credfacil = valor_total_produto
+                    valor_financiado = produto.valor - entrada_informada
+                    valor_credfacil = valor_financiado + (valor_financiado * porcentagem_juros / 100)
                     repasse_logista = produto.valor - entrada_informada
                     valor_entrada = entrada_informada
                 else:

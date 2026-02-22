@@ -1252,7 +1252,8 @@ def gerar_venda(request, cliente_id):
             messages.error(request, f"❌ Nenhum parcelamento cadastrado para {parcelas}x.")
             return redirect('vendas:cliente_update', pk=cliente.pk)
 
-        valor_credfacil = produto.valor + (produto.valor * parcelamento.porcentagem_juros / 100)
+        valor_financiado = produto.valor - entrada_informada
+        valor_credfacil = valor_financiado + (valor_financiado * parcelamento.porcentagem_juros / 100)
         repasse_logista = produto.valor - entrada_informada
         valor_entrada = entrada_informada
     else:
