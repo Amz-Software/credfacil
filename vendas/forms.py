@@ -25,9 +25,14 @@ def normalize_loja(loja):
 
 class ProdutoChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
-        if obj.tipo:
-            return f"{obj.nome} - {obj.tipo}"
-        return obj.nome
+        if obj.is_iphone:
+            if obj.tipo:
+                return f"{obj.nome} - {obj.tipo}"
+            return obj.nome
+        else:
+            entrada = obj.entrada_cliente or 0
+            entrada_fmt = f"R$ {entrada:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            return f"{obj.nome} - Entrada: {entrada_fmt}"
 
 class EstoqueImeiSelectWidgetEdit(HeavySelect2Widget):
     data_view = 'estoque:estoque-imei-search-edit'
