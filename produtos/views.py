@@ -20,16 +20,21 @@ class ProdutoListView(PermissionRequiredMixin, ListView):
 
     def get_queryset(self):
         # Se o usuário tem permissão view_all_produtos, mostra todos (ativos e desativados)
-        # Caso contrário, mostra apenas produtos ativos
+        # Caso contrário, filtra pelos produtos permitidos da loja atual
         if self.request.user.has_perm('produtos.view_all_produtos'):
             queryset = Produto.objects.all()
         else:
-            queryset = Produto.objects.filter(ativo=True)
-        
+            loja_id = self.request.session.get('loja_id')
+            loja = Loja.objects.filter(id=loja_id).first() if loja_id else None
+            if loja:
+                queryset = loja.produtos_permitidos_qs()
+            else:
+                queryset = Produto.objects.filter(ativo=True)
+
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(nome__icontains=search)
-        
+
         return queryset.order_by('nome')
 
 
@@ -64,7 +69,12 @@ class ProdutoPDFView(PermissionRequiredMixin, View):
         if request.user.has_perm('produtos.view_all_produtos'):
             queryset = Produto.objects.all()
         else:
-            queryset = Produto.objects.filter(ativo=True)
+            loja_id = request.session.get('loja_id')
+            loja = Loja.objects.filter(id=loja_id).first() if loja_id else None
+            if loja:
+                queryset = loja.produtos_permitidos_qs()
+            else:
+                queryset = Produto.objects.filter(ativo=True)
 
         search = request.GET.get('search')
         if search:
