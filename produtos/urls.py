@@ -3,7 +3,7 @@ from django.urls import path
 
 from produtos.forms import *
 from produtos.models import *
-from .views import generate_views, ProdutoListView, ProdutoDeleteView, ProdutoActivateView, ParcelamentoDeleteView
+from .views import generate_views, ProdutoListView, ProdutoDeleteView, ProdutoActivateView, ParcelamentoDeleteView, ProdutoPDFView
 
 app_name = 'produtos'
 
@@ -18,6 +18,7 @@ parcelamentoViews = generate_views(Parcelamento, ParcelamentoForms, 20, 'parcela
 
 urlpatterns = [
     path('produto/', ProdutoListView.as_view(), name='produtos'),
+    path('produto/pdf/', ProdutoPDFView.as_view(), name='produto_pdf'),
     path('produtos/novo/', produtoViews['create_view'].as_view(), name='produto_create'),
     path('produtos/detalhe/<int:pk>/', produtoViews['detail_view'].as_view(), name='produto_detail'),
     path('produtos/editar/<int:pk>/', produtoViews['update_view'].as_view(), name='produto_update'),

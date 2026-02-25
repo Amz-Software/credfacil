@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Listagem de Produtos</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 1.5cm 1cm;
+      @top-center {
+        content: "CredFácil — Listagem de Produtos";
+        font-family: Arial, sans-serif;
+        font-size: 9pt;
+        color: #555;
+      }
+      @bottom-right {
+        content: "Página " counter(page) " de " counter(pages);
+        font-family: Arial, sans-serif;
+        font-size: 8pt;
+        color: #888;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 8.5pt;
+      color: #222;
+      background: #fff;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #1a56db;
+    }
+
+    .header h1 {
+      font-size: 16pt;
+      color: #1a56db;
+      font-weight: bold;
+    }
+
+    .header .meta {
+      font-size: 8pt;
+      color: #555;
+      text-align: right;
+    }
+
+    .badge-iphone {
+      background: #e0eaff;
+      color: #1a56db;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 7.5pt;
+      font-weight: bold;
+    }
+
+    .badge-android {
+      background: #d4f4e2;
+      color: #1a7f37;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 7.5pt;
+      font-weight: bold;
+    }
+
+    .badge-ativo {
+      color: #1a7f37;
+      font-weight: bold;
+    }
+
+    .badge-inativo {
+      background: #fee2e2;
+      color: #b91c1c;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-weight: bold;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+      font-size: 7.8pt;
+    }
+
+    thead tr {
+      background: #1a56db;
+      color: #fff;
+    }
+
+    thead th {
+      padding: 6px 5px;
+      text-align: left;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    thead th.right {
+      text-align: right;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #f5f8ff;
+    }
+
+    tbody tr:hover {
+      background: #eef2ff;
+    }
+
+    tbody td {
+      padding: 5px 5px;
+      border-bottom: 1px solid #e0e7ef;
+      vertical-align: middle;
+    }
+
+    tbody td.right {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .total-row {
+      font-weight: bold;
+      background: #f0f4ff;
+      border-top: 2px solid #1a56db;
+    }
+
+    .footer-note {
+      margin-top: 14px;
+      font-size: 7.5pt;
+      color: #888;
+      text-align: right;
+    }
+
+    .search-label {
+      display: inline-block;
+      margin-top: 2px;
+      font-size: 8pt;
+      color: #555;
+      background: #f0f4ff;
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>Listagem de Produtos</h1>
+      {% if search %}
+        <span class="search-label">Filtro: "{{ search }}"</span>
+      {% endif %}
+    </div>
+    <div class="meta">
+      Gerado em: {{ gerado_em|date:"d/m/Y \à\s H:i" }}<br>
+      Total de produtos: <strong>{{ produtos|length }}</strong>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Nome</th>
+        <th>Tipo</th>
+        <th class="right">Rep. Logista</th>
+        <th class="right">Entrada</th>
+        <th class="right">4x</th>
+        <th class="right">6x</th>
+        <th class="right">8x</th>
+        <th class="right">10x</th>
+        <th class="right">12x</th>
+        <th class="right">14x</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for produto in produtos %}
+      <tr>
+        <td>{{ produto.codigo|default:"—" }}</td>
+        <td>{{ produto.nome }}</td>
+        <td>
+          {% if produto.is_iphone %}
+            <span class="badge-iphone">iPhone</span>
+          {% else %}
+            <span class="badge-android">Android</span>
+          {% endif %}
+          {% if produto.tipo %}({{ produto.tipo }}){% endif %}
+        </td>
+        <td class="right">
+          {% if produto.valor_repasse_logista %}
+            R$ {{ produto.valor_repasse_logista|floatformat:2 }}
+          {% else %}—{% endif %}
+        </td>
+        <td class="right">
+          {% if produto.entrada_cliente %}
+            R$ {{ produto.entrada_cliente|floatformat:2 }}
+          {% else %}—{% endif %}
+        </td>
+        <td class="right">
+          {% if produto.valor_4_vezes %}R$ {{ produto.valor_4_vezes|floatformat:2 }}{% else %}—{% endif %}
+        </td>
+        <td class="right">
+          {% if produto.valor_6_vezes %}R$ {{ produto.valor_6_vezes|floatformat:2 }}{% else %}—{% endif %}
+        </td>
+        <td class="right">
+          {% if produto.valor_8_vezes %}R$ {{ produto.valor_8_vezes|floatformat:2 }}{% else %}—{% endif %}
+        </td>
+        <td class="right">
+          {% if produto.valor_10_vezes %}R$ {{ produto.valor_10_vezes|floatformat:2 }}{% else %}—{% endif %}
+        </td>
+        <td class="right">
+          {% if produto.valor_12_vezes %}R$ {{ produto.valor_12_vezes|floatformat:2 }}{% else %}—{% endif %}
+        </td>
+        <td class="right">
+          {% if produto.valor_14_vezes %}R$ {{ produto.valor_14_vezes|floatformat:2 }}{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if produto.ativo %}
+            <span class="badge-ativo">Ativo</span>
+          {% else %}
+            <span class="badge-inativo">Inativo</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="12" style="text-align:center; color:#888; padding:12px;">
+          Nenhum produto encontrado.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="footer-note">
+    CredFácil — documento gerado automaticamente em {{ gerado_em|date:"d/m/Y \à\s H:i" }}
+  </div>
+
+</body>
+</html>

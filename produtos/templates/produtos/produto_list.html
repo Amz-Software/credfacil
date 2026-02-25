@@ -21,6 +21,13 @@ Produtos
         <i class="bx bx-plus me-1"></i> Adicionar Produto
         </a>
         {% endif %}
+        {% if user|has_perm:"produtos.view_produto" %}
+        <a href="{% url 'produtos:produto_pdf' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}"
+           class="btn btn-outline-danger ms-1" target="_blank" title="Exportar listagem em PDF">
+          <i class="bx bxs-file-pdf me-1"></i> PDF
+        </a>
+        {% endif %}
+
       </div>
       </div>
       <div class="card-body">

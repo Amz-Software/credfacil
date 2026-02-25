@@ -4,6 +4,9 @@ from django.contrib import messages
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
 from django.views import View
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from django.utils import timezone
 from vendas.models import Loja
 from vendas.views import BaseView
 from .models import Parcelamento, Produto
@@ -50,6 +53,36 @@ class ProdutoActivateView(PermissionRequiredMixin, View):
         produto.save()
         messages.success(request, f'Produto "{produto.nome}" foi ativado com sucesso.')
         return redirect('produtos:produtos')
+
+
+class ProdutoPDFView(PermissionRequiredMixin, View):
+    permission_required = 'produtos.view_produto'
+
+    def get(self, request):
+        from weasyprint import HTML
+
+        if request.user.has_perm('produtos.view_all_produtos'):
+            queryset = Produto.objects.all()
+        else:
+            queryset = Produto.objects.filter(ativo=True)
+
+        search = request.GET.get('search')
+        if search:
+            queryset = queryset.filter(nome__icontains=search)
+
+        produtos = queryset.order_by('nome')
+
+        html_str = render_to_string('produtos/produto_pdf.html', {
+            'produtos': produtos,
+            'search': search,
+            'gerado_em': timezone.localtime(timezone.now()),
+        })
+
+        pdf_file = HTML(string=html_str, base_url=request.build_absolute_uri('/')).write_pdf()
+
+        response = HttpResponse(pdf_file, content_type='application/pdf')
+        response['Content-Disposition'] = 'inline; filename="produtos.pdf"'
+        return response
 
 
 class ParcelamentoDeleteView(PermissionRequiredMixin, View):
