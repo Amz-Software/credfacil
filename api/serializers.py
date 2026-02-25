@@ -237,6 +237,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Produto
         fields = "__all__"
+        read_only_fields = ["codigo"]
 
 
 class ProdutoVendaSerializer(serializers.ModelSerializer):

@@ -26,8 +26,12 @@ class Produto(Base):
             self.codigo = last_product.codigo + 1
 
     def save(self, *args, **kwargs):
-        if not self.codigo:
-            self.gerar_codigo()
+        if not self.pk:
+            if not self.codigo:
+                self.gerar_codigo()
+        else:
+            if not self.codigo:
+                self.codigo = Produto.objects.filter(pk=self.pk).values_list('codigo', flat=True).first()
         super(Produto, self).save(*args, **kwargs)
         
     def delete(self, *args, **kwargs):
