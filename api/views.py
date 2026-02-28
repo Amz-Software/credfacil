@@ -1197,98 +1197,6 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             }
         )
 
-
-# --- User / Group / Permission ViewSets ---
-@extend_schema_view(
-    list=extend_schema(tags=['Users']),
-    retrieve=extend_schema(tags=['Users']),
-    create=extend_schema(tags=['Users']),
-    update=extend_schema(tags=['Users']),
-    partial_update=extend_schema(tags=['Users']),
-)
-class UserViewSet(ModelViewSet):
-    queryset = User.objects.all().order_by('id')
-    serializer_class = UserSerializer
-    permission_classes = [UserPermission]
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['username', 'first_name', 'last_name', 'email']
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        user = self.request.user
-        # Non-superusers see only users from the same loja or themselves
-        if not user.is_superuser:
-            if getattr(user, 'loja_id', None):
-                qs = qs.filter(loja_id=user.loja_id)
-            else:
-                qs = qs.filter(id=user.id)
-        return qs
-
-    def list(self, request, *args, **kwargs):
-        """Support both paginated responses and a raw array.
-
-        - Default: paginated response (DRF pagination settings)
-        - If query param `raw=1` or `all=1` present: return a plain list `[{...}, ...]`
-        """
-        raw = request.query_params.get('raw') or request.query_params.get('all')
-        queryset = self.filter_queryset(self.get_queryset())
-
-        if raw in ('1', 'true', 'True'):
-            serializer = self.get_serializer(queryset, many=True)
-            return Response(serializer.data)
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['get'], url_path='me')
-    def me(self, request):
-        serializer = self.get_serializer(request.user)
-        return Response(serializer.data)
-
-
-@extend_schema_view(
-    list=extend_schema(tags=['Groups']),
-    retrieve=extend_schema(tags=['Groups']),
-    create=extend_schema(tags=['Groups']),
-    update=extend_schema(tags=['Groups']),
-    partial_update=extend_schema(tags=['Groups']),
-)
-class GroupViewSet(ModelViewSet):
-    queryset = Group.objects.all().order_by('name')
-    serializer_class = GroupSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['name']
-
-
-@extend_schema_view(
-    list=extend_schema(tags=['Permissions']),
-    retrieve=extend_schema(tags=['Permissions']),
-)
-class PermissionViewSet(ReadOnlyModelViewSet):
-    queryset = Permission.objects.select_related('content_type').all().order_by('content_type__app_label', 'codename')
-    serializer_class = PermissionSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['codename', 'name']
-
-
-# Custom JWT Token View para incluir informações do usuário e lojas no login
-from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import CustomTokenObtainPairSerializer
-
-
-class CustomTokenObtainPairView(TokenObtainPairView):
-    """
-    View customizada para login JWT que retorna tokens + informações do usuário e lojas.
-    """
-    serializer_class = CustomTokenObtainPairSerializer
-
     @action(detail=True, methods=["post"], url_path="aprovar")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def aprovar(self, request, pk=None):
@@ -1524,6 +1432,98 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             return Response({"detail": f"Erro ao processar a venda: {exc}"}, status=400)
 
         return Response(VendaSerializer(venda).data, status=201)
+
+
+# --- User / Group / Permission ViewSets ---
+@extend_schema_view(
+    list=extend_schema(tags=['Users']),
+    retrieve=extend_schema(tags=['Users']),
+    create=extend_schema(tags=['Users']),
+    update=extend_schema(tags=['Users']),
+    partial_update=extend_schema(tags=['Users']),
+)
+class UserViewSet(ModelViewSet):
+    queryset = User.objects.all().order_by('id')
+    serializer_class = UserSerializer
+    permission_classes = [UserPermission]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['username', 'first_name', 'last_name', 'email']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        # Non-superusers see only users from the same loja or themselves
+        if not user.is_superuser:
+            if getattr(user, 'loja_id', None):
+                qs = qs.filter(loja_id=user.loja_id)
+            else:
+                qs = qs.filter(id=user.id)
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        """Support both paginated responses and a raw array.
+
+        - Default: paginated response (DRF pagination settings)
+        - If query param `raw=1` or `all=1` present: return a plain list `[{...}, ...]`
+        """
+        raw = request.query_params.get('raw') or request.query_params.get('all')
+        queryset = self.filter_queryset(self.get_queryset())
+
+        if raw in ('1', 'true', 'True'):
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+
+
+@extend_schema_view(
+    list=extend_schema(tags=['Groups']),
+    retrieve=extend_schema(tags=['Groups']),
+    create=extend_schema(tags=['Groups']),
+    update=extend_schema(tags=['Groups']),
+    partial_update=extend_schema(tags=['Groups']),
+)
+class GroupViewSet(ModelViewSet):
+    queryset = Group.objects.all().order_by('name')
+    serializer_class = GroupSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name']
+
+
+@extend_schema_view(
+    list=extend_schema(tags=['Permissions']),
+    retrieve=extend_schema(tags=['Permissions']),
+)
+class PermissionViewSet(ReadOnlyModelViewSet):
+    queryset = Permission.objects.select_related('content_type').all().order_by('content_type__app_label', 'codename')
+    serializer_class = PermissionSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['codename', 'name']
+
+
+# Custom JWT Token View para incluir informações do usuário e lojas no login
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenObtainPairSerializer
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    View customizada para login JWT que retorna tokens + informações do usuário e lojas.
+    """
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 @extend_schema_view(
