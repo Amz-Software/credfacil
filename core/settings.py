@@ -3,6 +3,9 @@ from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+import sentry_sdk
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv()
@@ -272,6 +275,12 @@ LOGGING = {
     },
 }
 
+sentry_sdk.init(
+    dsn="https://4f00ce347bbfc855105b131f702032b2@o4509403596062720.ingest.us.sentry.io/4510964474052608",
+    # Add data like request headers and IP for users,
+    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    send_default_pii=True,
+)
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
