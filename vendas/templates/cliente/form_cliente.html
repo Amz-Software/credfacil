@@ -1558,17 +1558,12 @@
         }
       }
       if (melhorData) {
-        if (maiorDiferenca > 30) {
-          previsaoDiv.textContent = 'Primeiro vencimento acima de 30 dias. Selecione outra data.';
-          dataInput.value = '';
-          return;
-        }
         const diaStr = melhorData.getDate().toString().padStart(2, '0');
         const mesStr = (melhorData.getMonth() + 1).toString().padStart(2, '0');
         const anoStr = melhorData.getFullYear();
         previsaoDiv.textContent = 'Primeiro vencimento: ' + diaStr + '/' + mesStr + '/' + anoStr;
       } else {
-        previsaoDiv.textContent = 'Não há data de vencimento possível.';
+        previsaoDiv.textContent = 'Não há data de vencimento possível nos próximos 40 dias para este dia.';
       }
     }
     document.addEventListener('DOMContentLoaded', function() {

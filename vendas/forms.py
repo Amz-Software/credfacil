@@ -557,7 +557,9 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         
         # O campo 'observacao' foi removido do formulário de vendedor; analistas
         # que precisarem registrar observação devem utilizar a interface de aprovação.
-        
+
+        self.fields['data_pagamento'].required = True
+
         if self.instance and self.instance.pk:
             # Verifica se o usuário é analista
             is_analista = user and user.groups.filter(name='ANALISTA').exists()
@@ -569,7 +571,6 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                 # if self.instance.status == 'EA':
                 self.fields['produto'].disabled = True
                 self.fields['numero_parcelas'].disabled = True
-                self.fields['data_pagamento'].disabled = True
                 self.fields['analise_online'].disabled = True
             
             # Se a venda foi gerada, apenas usuários com permissão específica podem editar
@@ -577,7 +578,6 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                 if not user.has_perm('vendas.can_edit_finished_sale'):
                     self.fields['produto'].disabled = True
                     self.fields['numero_parcelas'].disabled = True
-                    self.fields['data_pagamento'].disabled = True
                     self.fields['analise_online'].disabled = True
             # Se a venda não foi gerada, analistas podem editar tudo
             elif not venda_gerada and is_analista:
