@@ -1064,11 +1064,11 @@ class ClienteStatusAppUpdateView(PermissionRequiredMixin, View):
 def calcular_data_primeira_parcela(data_pagamento_str):
     """
     Retorna a data com o dia escolhido (01, 10 ou 20) mais distante possível,
-    mas ainda dentro de até 40 dias após a data da compra.
+    mas ainda dentro de até 30 dias após a data da compra.
     """
     hoje = timezone.now().date()
     dia_escolhido = int(data_pagamento_str)
-    max_dias = 40
+    max_dias = 30
     ano, mes = hoje.year, hoje.month
 
     melhor_data = None

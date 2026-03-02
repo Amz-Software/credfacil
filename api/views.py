@@ -95,7 +95,7 @@ def health(request):
 def calcular_data_primeira_parcela(data_pagamento_str):
     hoje = timezone.now().date()
     dia_escolhido = int(data_pagamento_str)
-    max_dias = 40
+    max_dias = 30
     ano, mes = hoje.year, hoje.month
 
     melhor_data = None

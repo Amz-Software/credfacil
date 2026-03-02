@@ -1481,6 +1481,22 @@
       
       // Form submission enhancement - simplified
       $('#clienteForm').on('submit', function(e) {
+        // Bloqueia envio se a data de pagamento resultar em primeira parcela indisponível
+        const dataInput = document.getElementById('id_data_pagamento');
+        if (dataInput && dataInput.value) {
+          const dia = parseInt(dataInput.value, 10);
+          if (!calcularMelhorData(dia, 30) || dia === diaExcluido()) {
+            e.preventDefault();
+            const previsaoDiv = document.getElementById('vencimento-previsao-analise');
+            if (previsaoDiv) {
+              previsaoDiv.textContent = 'Vencimento da primeira parcela indisponível';
+              previsaoDiv.className = 'form-text text-danger fw-semibold';
+            }
+            $('[data-bs-target="#tab-analise"]').tab('show');
+            return;
+          }
+        }
+
         // Allow form submission without blocking
         // Just show a warning if there are validation errors
         let incompleteSteps = [];
@@ -1524,24 +1540,14 @@
     });
   </script>
   <script>
-    // Previsão de vencimento na aba Produto
-    function calcularPrevisaoVencimentoAnalise() {
-      const dataInput = document.getElementById('id_data_pagamento');
-      const parcelasInput = document.getElementById('id_numero_parcelas');
-      const previsaoDiv = document.getElementById('vencimento-previsao-analise');
-      if (!dataInput || !parcelasInput || !previsaoDiv) return;
-      const diaEscolhido = parseInt(dataInput.value, 10);
-      const parcelas = parseInt(parcelasInput.value, 10);
-      if (isNaN(diaEscolhido) || isNaN(parcelas) || parcelas < 1) {
-        previsaoDiv.textContent = '';
-        return;
-      }
+    // Retorna a melhor data de primeiro vencimento dentro de maxDias, ou null se indisponível
+    function calcularMelhorData(diaEscolhido, maxDias) {
       const hoje = new Date();
-      let ano = hoje.getFullYear();
-      let mes = hoje.getMonth() + 1; // 1-based
+      hoje.setHours(0, 0, 0, 0);
+      const ano = hoje.getFullYear();
+      const mes = hoje.getMonth() + 1;
       let melhorData = null;
       let maiorDiferenca = -1;
-      // Verifica até 3 meses à frente
       for (let i = 0; i < 3; i++) {
         let novoMes = mes + i;
         let novoAno = ano + Math.floor((novoMes - 1) / 12);
@@ -1550,22 +1556,89 @@
         let diaReal = Math.min(diaEscolhido, ultimoDiaMes);
         let dataCandidata = new Date(novoAno, novoMes - 1, diaReal);
         let diasAteParcela = Math.round((dataCandidata - hoje) / (1000 * 60 * 60 * 24));
-        if (diasAteParcela > 0 && diasAteParcela <= 40) {
+        if (diasAteParcela > 0 && diasAteParcela <= maxDias) {
           if (diasAteParcela > maiorDiferenca) {
             melhorData = dataCandidata;
             maiorDiferenca = diasAteParcela;
           }
         }
       }
-      if (melhorData) {
+      return melhorData;
+    }
+
+    // Retorna o dia (1, 10 ou 20) cuja próxima ocorrência futura é a mais próxima de hoje.
+    // Essa opção fica desabilitada pois o prazo seria muito curto para o cliente.
+    function diaExcluido() {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const ano = hoje.getFullYear();
+      const mes = hoje.getMonth() + 1;
+      const DIAS = [1, 10, 20];
+      let menorDias = Infinity;
+      let excluido = null;
+      for (const dia of DIAS) {
+        for (let i = 0; i < 3; i++) {
+          let novoMes = mes + i;
+          let novoAno = ano + Math.floor((novoMes - 1) / 12);
+          novoMes = ((novoMes - 1) % 12) + 1;
+          let ultimoDiaMes = new Date(novoAno, novoMes, 0).getDate();
+          let diaReal = Math.min(dia, ultimoDiaMes);
+          let dataCandidata = new Date(novoAno, novoMes - 1, diaReal);
+          let diasAte = Math.round((dataCandidata - hoje) / (1000 * 60 * 60 * 24));
+          if (diasAte > 0) {
+            if (diasAte < menorDias) {
+              menorDias = diasAte;
+              excluido = dia;
+            }
+            break; // próxima ocorrência encontrada para este dia
+          }
+        }
+      }
+      return excluido;
+    }
+
+    // Previsão de vencimento na aba Produto
+    function calcularPrevisaoVencimentoAnalise() {
+      const dataInput = document.getElementById('id_data_pagamento');
+      const previsaoDiv = document.getElementById('vencimento-previsao-analise');
+      if (!dataInput || !previsaoDiv) return;
+
+      const MAX_DIAS = 30;
+      const excluido = diaExcluido();
+
+      // Desabilita: o dia mais próximo (muito curto) e qualquer opção acima de 30 dias
+      Array.from(dataInput.options).forEach(function(option) {
+        if (!option.value) return;
+        const dia = parseInt(option.value, 10);
+        const melhor = calcularMelhorData(dia, MAX_DIAS);
+        option.disabled = !melhor || dia === excluido;
+      });
+
+      // Se a opção atual ficou desabilitada, limpa a seleção
+      if (dataInput.value && dataInput.options[dataInput.selectedIndex] && dataInput.options[dataInput.selectedIndex].disabled) {
+        dataInput.value = '';
+      }
+
+      const diaEscolhido = parseInt(dataInput.value, 10);
+      if (isNaN(diaEscolhido)) {
+        previsaoDiv.textContent = '';
+        previsaoDiv.className = 'form-text text-primary';
+        return;
+      }
+
+      const melhorData = calcularMelhorData(diaEscolhido, MAX_DIAS);
+      if (melhorData && diaEscolhido !== excluido) {
         const diaStr = melhorData.getDate().toString().padStart(2, '0');
         const mesStr = (melhorData.getMonth() + 1).toString().padStart(2, '0');
         const anoStr = melhorData.getFullYear();
         previsaoDiv.textContent = 'Primeiro vencimento: ' + diaStr + '/' + mesStr + '/' + anoStr;
+        previsaoDiv.className = 'form-text text-primary';
       } else {
-        previsaoDiv.textContent = 'Não há data de vencimento possível nos próximos 40 dias para este dia.';
+        previsaoDiv.textContent = 'Vencimento da primeira parcela indisponível';
+        previsaoDiv.className = 'form-text text-danger fw-semibold';
       }
     }
+
     document.addEventListener('DOMContentLoaded', function() {
       const dataInput = document.getElementById('id_data_pagamento');
       const parcelasInput = document.getElementById('id_numero_parcelas');
