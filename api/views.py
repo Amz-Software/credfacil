@@ -1707,7 +1707,7 @@ class VendaViewSet(viewsets.ModelViewSet):
     @extend_schema(
         parameters=[
             OpenApiParameter("search", OpenApiTypes.STR, required=False),
-            OpenApiParameter("loja_id", OpenApiTypes.INT, required=False),
+            OpenApiParameter("loja", OpenApiTypes.INT, required=False, description="ID da loja"),
             OpenApiParameter("cliente_nome", OpenApiTypes.STR, required=False),
             OpenApiParameter("vendas_canceladas", OpenApiTypes.STR, required=False),
             OpenApiParameter("vendas_trocadas", OpenApiTypes.STR, required=False),
@@ -1720,7 +1720,7 @@ class VendaViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         query = Venda.objects.all()
         data_filter = self.request.query_params.get("search")
-        loja = self.request.query_params.get("loja_id")
+        loja = self.request.query_params.get("loja") or self.request.query_params.get("loja_id")
         cliente_nome = self.request.query_params.get("cliente_nome")
         vendas_canceladas = self.request.query_params.get("vendas_canceladas")
         vendas_trocadas = self.request.query_params.get("vendas_trocadas")

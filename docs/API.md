@@ -255,6 +255,53 @@ Ou, quando ha validacao de formularios compostos:
 }
 ```
 
+## Padrões Comuns da API
+
+### Query Params Padrão
+
+Os endpoints seguem padrões consistentes para filtros:
+
+| Parâmetro | Tipo | Descrição |
+|-----------|------|-----------|
+| `search` | string | Busca genérica (nome, data, etc.) |
+| `loja` | integer | ID da loja para filtrar |
+| `status` | string | Status do registro (varia por tipo) |
+| `data_inicio` | date | Filtrar registros a partir desta data (YYYY-MM-DD) |
+| `data_fim` | date | Filtrar registros até esta data (YYYY-MM-DD) |
+
+### Filtro por Loja
+
+Todos os endpoints que suportam filtro por loja usam o parâmetro **`loja`**:
+
+```bash
+# Solicitações de uma loja específica
+GET /api/solicitacoes/?loja=1
+
+# Vendas de uma loja específica
+GET /api/vendas/?loja=1
+
+# KPIs de uma loja específica
+GET /api/solicitacoes/kpis/?loja=1
+```
+
+**Importante:** Se o usuário não tiver a permissão `view_all` (pode variar por endpoint), os resultados se limitarão à loja da sessão atual, mesmo que filtrar por outra loja.
+
+### Paginação
+
+Endpoints que retornam listas são paginados por padrão. A resposta inclui:
+
+```json
+{
+  "count": 2036,
+  "num_pages": 102,
+  "page": 1,
+  "results": [...]
+}
+```
+
+Para obter dados sem paginação (quando disponível), use:
+- `raw=1` ou `all=1` em endpoints específicos
+
 ## Lojas
 
 Rotas baseadas em `LojaViewSet`.
@@ -425,11 +472,11 @@ Exemplo de resposta:
 
 ### `GET /api/solicitacoes/kpis/`
 
-**Novo endpoint dedicado** para retornar apenas os KPIs de solicitações, sem paginação ou lista de resultados.
+**Endpoint dedicado** para retornar apenas os KPIs de solicitações, sem paginação ou lista de resultados.
 
 Query params:
 
-- `loja` (opcional): Filtrar KPIs por loja específica
+- `loja` (opcional): ID da loja para filtrar KPIs
 
 Resposta:
 
@@ -455,15 +502,24 @@ Resposta:
 }
 ```
 
-**Vantagens deste endpoint:**
-- ✅ Retorno mais rápido (sem paginação de dados)
+**Vantagens:**
+- ✅ Retorno ultra rápido (sem paginação)
 - ✅ Ideal para dashboards e cards de KPI
 - ✅ Pode filtrar por loja específica
-- ✅ Mesmas regras de permissão do endpoint principal
+- ✅ Mesmas regras de permissão
 
-**Uso recomendado:**
-- Use `GET /api/solicitacoes/kpis/` para atualizar apenas os contadores
-- Use `GET /api/solicitacoes/` quando precisar da lista completa + KPIs
+**Exemplos de uso:**
+```bash
+# KPIs de todas as lojas (se tiver permissão)
+GET /api/solicitacoes/kpis/
+
+# KPIs de uma loja específica
+GET /api/solicitacoes/kpis/?loja=1
+```
+
+**Quando usar:**
+- Usar `GET /api/solicitacoes/kpis/` para atualizar apenas os contadores
+- Usar `GET /api/solicitacoes/` quando precisar da lista completa com KPIs
 
 ### `GET /api/solicitacoes/{cliente_id}/`
 
@@ -919,10 +975,12 @@ Lista vendas.
 Query params:
 
 - `search` (opcional): data de venda
-- `loja_id` (opcional)
-- `cliente_nome` (opcional)
-- `vendas_canceladas` (opcional)
-- `vendas_trocadas` (opcional)
+- `loja` (opcional): id da loja
+- `cliente_nome` (opcional): filtrar por nome do cliente
+- `vendas_canceladas` (opcional): qualquer valor para filtrar vendas canceladas
+- `vendas_trocadas` (opcional): qualquer valor para filtrar vendas com troca
+
+**Nota:** O parâmetro legado `loja_id` também é aceito por backward compatibility.
 
 ### `POST /api/vendas/`
 
@@ -1021,6 +1079,104 @@ Cada endpoint usa as classes de permissao do modulo `api/permissions.py` e as me
 - A documentacao oficial interativa e `/api/docs/`.
 - A especificacao OpenAPI JSON e `/api/schema/`.
 - Alguns endpoints aceitam tanto JSON quanto `multipart/form-data`, mas uploads de arquivo exigem `multipart/form-data`.
+
+## Guia Rápido: Query Params por Endpoint
+
+### Solicitações (`/api/solicitacoes/`)
+
+```bash
+# Listar todas
+GET /api/solicitacoes/
+
+# Buscar por nome
+GET /api/solicitacoes/?search=João
+
+# Filtrar por status
+GET /api/solicitacoes/?status=A
+
+# Filtrar por loja
+GET /api/solicitacoes/?loja=1
+
+# Combinado
+GET /api/solicitacoes/?search=João&status=A&loja=1&data_inicio=2026-01-01&data_fim=2026-02-28
+
+# Apenas KPIs
+GET /api/solicitacoes/kpis/
+GET /api/solicitacoes/kpis/?loja=1
+```
+
+**Status disponíveis:** `EA` (em análise), `A` (aprovado), `R` (reprovado), `C` (cancelado)
+
+**Status do app:** `P` (pendente), `C` (confirmação pendente), `I` (instalado)
+
+### Vendas (`/api/vendas/`)
+
+```bash
+# Listar todas
+GET /api/vendas/
+
+# Buscar por data
+GET /api/vendas/?search=2026-02-15
+
+# Filtrar por loja
+GET /api/vendas/?loja=1
+
+# Filtrar por nome do cliente
+GET /api/vendas/?cliente_nome=João
+
+# Apenas vendas canceladas
+GET /api/vendas/?vendas_canceladas=1
+
+# Apenas vendas com troca
+GET /api/vendas/?vendas_trocadas=1
+
+# Combinado
+GET /api/vendas/?loja=1&cliente_nome=João&vendas_canceladas=1
+```
+
+### Lojas (`/api/lojas/`)
+
+```bash
+# Listar todas
+GET /api/lojas/
+
+# Buscar por nome
+GET /api/lojas/?search=Loja%20A
+
+# Filtrar por status
+GET /api/lojas/?filter=pendente
+
+# Detalhe com filtro de período
+GET /api/lojas/1/?data_inicio=2026-01-01&data_fim=2026-02-28
+
+# Detalhe com paginação
+GET /api/lojas/1/?repasse_page=2&venda_page=3
+```
+
+**Filtros disponíveis:** `pendente`, `sem_pendente`
+
+### Produtos (`/api/produtos/`)
+
+```bash
+# Listar todos
+GET /api/produtos/
+
+# Buscar por nome
+GET /api/produtos/?search=iPhone
+```
+
+### Usuários (`/api/usuarios/` ou `/api/users/`)
+
+```bash
+# Listar todos (paginado)
+GET /api/usuarios/
+
+# Buscar por nome, email ou username
+GET /api/usuarios/?search=joão
+
+# Lista simples (sem paginação)
+GET /api/usuarios/?raw=1
+```
 
 ## Usuários, Grupos e Permissões
 
