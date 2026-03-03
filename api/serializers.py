@@ -10,7 +10,7 @@ from vendas.models import (
     Loja,
     Venda,
 )
-from produtos.models import Parcelamento, Produto
+from produtos.models import Parcelamento, Produto, TipoProduto, Fabricante
 from vendas.models import ProdutoVenda, Pagamento
 
 
@@ -233,7 +233,22 @@ class ParcelamentoSerializer(serializers.ModelSerializer):
         fields = ["id", "qtd_vezes", "porcentagem_juros"]
 
 
+class TipoProdutoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoProduto
+        fields = ["id", "nome"]
+
+
+class FabricanteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Fabricante
+        fields = ["id", "nome"]
+
+
 class ProdutoSerializer(serializers.ModelSerializer):
+    tipo = TipoProdutoSerializer(read_only=True)
+    fabricante = FabricanteSerializer(read_only=True)
+    
     class Meta:
         model = Produto
         fields = "__all__"

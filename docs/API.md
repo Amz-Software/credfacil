@@ -571,6 +571,70 @@ Itens do dropdown enviado no front correspondem aos seguintes endpoints da API:
 - `Confirmar Instalacao (Analista)` → `POST /api/solicitacoes/{cliente_id}/analista-confirmar-instalacao/`
 - `Gerar Venda (Vendedor)` → `POST /api/solicitacoes/{cliente_id}/gerar-venda/`
 
+## Parcelamentos
+
+Rotas baseadas em `ParcelamentoViewSet`.
+
+### `GET /api/parcelamentos/`
+
+Lista todos os parcelamentos cadastrados.
+
+Resposta:
+
+```json
+[
+  {
+    "id": 1,
+    "qtd_vezes": 4,
+    "porcentagem_juros": "5.00"
+  },
+  {
+    "id": 2,
+    "qtd_vezes": 6,
+    "porcentagem_juros": "7.50"
+  },
+  {
+    "id": 3,
+    "qtd_vezes": 8,
+    "porcentagem_juros": "10.00"
+  }
+]
+```
+
+### `POST /api/parcelamentos/`
+
+Cria novo parcelamento. Exige permissão `produtos.add_produto` (via `ProdutoPermission`).
+
+Payload:
+
+```json
+{
+  "qtd_vezes": 10,
+  "porcentagem_juros": "12.50"
+}
+```
+
+Campos:
+
+- `qtd_vezes` (obrigatório, único): número de parcelas
+- `porcentagem_juros` (obrigatório): percentual de juros aplicado
+
+### `GET /api/parcelamentos/{id}/`
+
+Detalhe de um parcelamento específico.
+
+### `PUT/PATCH /api/parcelamentos/{id}/`
+
+Atualiza parcelamento (exige permissão `produtos.change_produto`).
+
+Payload: mesmos campos de criação.
+
+### `DELETE /api/parcelamentos/{id}/`
+
+Remove parcelamento (exige permissão `produtos.delete_produto`).
+
+**Atenção:** Apenas remova parcelamentos que não estejam sendo utilizados em vendas.
+
 ## Produtos
 
 Rotas baseadas em `ProdutoViewSet`.
@@ -588,6 +652,8 @@ Observacao:
 - usuarios com `produtos.view_all_produtos` veem ativos e inativos
 - demais veem apenas `ativo=True`
 
+**Retorno:** Cada produto retorna `tipo` e `fabricante` como objetos completos `{id, nome}` ao invés de apenas o ID.
+
 ### `POST /api/produtos/`
 
 Cria produto. Exige permissão `produtos.add_produto`.
@@ -597,8 +663,8 @@ Payload: campos do modelo `Produto`.
 Campos principais:
 
 - `nome` (obrigatório): nome do produto;
-- `fabricante` (obrigatório): ID do fabricante;
-- `tipo` (opcional): ID do tipo de produto;
+- `fabricante` (obrigatório): ID do fabricante (inteiro);
+- `tipo` (opcional): ID do tipo de produto (inteiro);
 - `codigo` (opcional): código único do produto (gerado automaticamente se não fornecido);
 - `entrada_cliente` (decimal, padrão 0): valor da entrada à vista;
 - `valor_4_vezes` (decimal, padrão 0): valor total se parcelado em 4 vezes;
@@ -638,10 +704,42 @@ Detalhe de produto, incluindo todos os campos de opções de parcelamento.
 Resposta inclui:
 
 - Dados cadastrais (nome, código, tipo, fabricante, etc.)
+  - **`tipo`**: objeto com `{id, nome}` ao invés de apenas ID
+  - **`fabricante`**: objeto com `{id, nome}` ao invés de apenas ID
 - Opções de parcelamento (entrada_cliente, valor_4_vezes até valor_14_vezes)
 - Valor de repasse (valor_repasse_logista)
 - Status (ativo, is_iphone)
 - Timestamps (criado_em, atualizado_em)
+
+Exemplo de resposta:
+
+```json
+{
+  "id": 1,
+  "codigo": 1001,
+  "nome": "iPhone 14 Pro Max",
+  "tipo": {
+    "id": 2,
+    "nome": "Smartphone"
+  },
+  "fabricante": {
+    "id": 1,
+    "nome": "Apple"
+  },
+  "entrada_cliente": "500.00",
+  "valor_4_vezes": "1200.00",
+  "valor_6_vezes": "1250.00",
+  "valor_8_vezes": "1300.00",
+  "valor_10_vezes": "1350.00",
+  "valor_12_vezes": "1400.00",
+  "valor_14_vezes": "1450.00",
+  "valor_repasse_logista": "150.00",
+  "is_iphone": true,
+  "ativo": true,
+  "criado_em": "2026-01-15T10:30:00Z",
+  "atualizado_em": "2026-02-20T14:45:00Z"
+}
+```
 
 ### `PUT/PATCH /api/produtos/{id}/`
 
