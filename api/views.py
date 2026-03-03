@@ -550,6 +550,74 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         data = ClienteSolicitacaoSerializer(cliente).data
         return Response(data)
 
+    @action(detail=False, methods=["get"], url_path="kpis")
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("loja", OpenApiTypes.INT, required=False, description="Filtrar KPIs por loja específica"),
+        ],
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "kpis": {
+                        "type": "object",
+                        "properties": {
+                            "EA": {"type": "integer", "description": "Em análise"},
+                            "A": {"type": "integer", "description": "Aprovado"},
+                            "R": {"type": "integer", "description": "Reprovado"},
+                            "C": {"type": "integer", "description": "Cancelado"},
+                        },
+                    },
+                    "status_choices": {
+                        "type": "array",
+                        "items": {"type": "array"},
+                    },
+                    "status_app_choices": {
+                        "type": "array",
+                        "items": {"type": "array"},
+                    },
+                },
+            }
+        },
+    )
+    def kpis(self, request):
+        """
+        Retorna KPIs (contadores) de solicitações de crédito agrupados por status.
+        
+        Resposta inclui:
+        - kpis: Objeto com contadores por status (EA, A, R, C)
+        - status_choices: Array com opções de status disponíveis
+        - status_app_choices: Array com opções de status do app
+        
+        Os KPIs respeitam as permissões do usuário. Se o usuário não tiver
+        'vendas.view_all_analise_credito', os contadores se limitam à loja da sessão.
+        """
+        if request.user.has_perm("vendas.view_all_analise_credito"):
+            analises = AnaliseCreditoCliente.objects.all()
+        else:
+            loja_id = request.session.get("loja_id")
+            analises = AnaliseCreditoCliente.objects.filter(loja_id=loja_id)
+
+        # Filtro opcional por loja
+        loja_filter = request.query_params.get("loja")
+        if loja_filter:
+            analises = analises.filter(loja_id=loja_filter)
+
+        counts = analises.values("status").annotate(total=Count("id"))
+        kpis = {item["status"]: item["total"] for item in counts}
+        
+        # Garantir que todos os status tenham um valor (0 se não houver)
+        for code, _ in AnaliseCreditoCliente.STATUS_CHOICES:
+            kpis.setdefault(code, 0)
+
+        return Response(
+            {
+                "kpis": kpis,
+                "status_choices": AnaliseCreditoCliente.STATUS_CHOICES,
+                "status_app_choices": AnaliseCreditoCliente.STATUS_APP_CHOICES,
+            }
+        )
+
     @transaction.atomic
     @extend_schema(
         request=SolicitacaoCreditoInputSerializer,

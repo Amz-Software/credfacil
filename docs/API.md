@@ -362,10 +362,108 @@ Query params:
 
 Resposta paginada inclui:
 
-- `count`, `num_pages`, `page`, `results`
-- `kpis`
-- `status_choices`
-- `status_app_choices`
+- `count`: Total de registros
+- `num_pages`: Número total de páginas
+- `page`: Página atual
+- `results`: Array com as solicitações
+- `kpis`: Objeto com contadores por status de análise
+- `status_choices`: Array com opções de status disponíveis
+- `status_app_choices`: Array com opções de status do app
+
+Exemplo de resposta:
+
+```json
+{
+  "count": 2036,
+  "num_pages": 102,
+  "page": 1,
+  "results": [
+    {
+      "id": 1,
+      "nome": "João Silva",
+      "cpf": "12345678900",
+      "telefone": "11999999999",
+      "analise_credito": {
+        "id": 1,
+        "status": "A",
+        "status_aplicativo": "I",
+        "data_analise": "2026-02-15T10:30:00Z",
+        "produto": {
+          "id": 5,
+          "nome": "iPhone 14 Pro"
+        }
+      }
+    }
+  ],
+  "kpis": {
+    "EA": 41,
+    "A": 1031,
+    "R": 799,
+    "C": 165
+  },
+  "status_choices": [
+    ["EA", "Em análise"],
+    ["A", "Aprovado"],
+    ["R", "Reprovado"],
+    ["C", "Cancelado"]
+  ],
+  "status_app_choices": [
+    ["P", "Pendente"],
+    ["C", "Confirmação pendente"],
+    ["I", "Instalado"]
+  ]
+}
+```
+
+**KPIs detalhados:**
+- `EA` (Em análise): Solicitações aguardando análise
+- `A` (Aprovado): Análises aprovadas
+- `R` (Reprovado): Análises reprovadas
+- `C` (Cancelado): Análises canceladas
+
+**Nota**: Os KPIs respeitam as permissões do usuário. Se o usuário não tiver `vendas.view_all_analise_credito`, os contadores se limitam à loja da sessão atual.
+
+### `GET /api/solicitacoes/kpis/`
+
+**Novo endpoint dedicado** para retornar apenas os KPIs de solicitações, sem paginação ou lista de resultados.
+
+Query params:
+
+- `loja` (opcional): Filtrar KPIs por loja específica
+
+Resposta:
+
+```json
+{
+  "kpis": {
+    "EA": 41,
+    "A": 1031,
+    "R": 799,
+    "C": 165
+  },
+  "status_choices": [
+    ["EA", "Em análise"],
+    ["A", "Aprovado"],
+    ["R", "Reprovado"],
+    ["C", "Cancelado"]
+  ],
+  "status_app_choices": [
+    ["P", "Pendente"],
+    ["C", "Confirmação pendente"],
+    ["I", "Instalado"]
+  ]
+}
+```
+
+**Vantagens deste endpoint:**
+- ✅ Retorno mais rápido (sem paginação de dados)
+- ✅ Ideal para dashboards e cards de KPI
+- ✅ Pode filtrar por loja específica
+- ✅ Mesmas regras de permissão do endpoint principal
+
+**Uso recomendado:**
+- Use `GET /api/solicitacoes/kpis/` para atualizar apenas os contadores
+- Use `GET /api/solicitacoes/` quando precisar da lista completa + KPIs
 
 ### `GET /api/solicitacoes/{cliente_id}/`
 
