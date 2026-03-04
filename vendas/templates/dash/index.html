@@ -324,7 +324,99 @@
     </div>
   </div>
 
-  <!-- Seção 2: Clientes Desativados -->
+  <!-- Seção 2: Clientes em Cobrança -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <h5 class="section-title">
+        <i class="bx bx-bell-minus me-2"></i>
+        Clientes em Cobrança (Pagamentos Marcados)
+      </h5>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-5">
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ffab00 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-error fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Pagamentos em Cobrança</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ total_pagamentos_cobranca|default:"0" }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ffab00 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-error-circle fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Parcelas Vencidas</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ qtd_cobranca_vencidas|default:"0" }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ffab00 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-money-withdraw fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Valor Vencidas</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_cobranca_vencidas|intcomma }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ffab00 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-time-five fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Parcelas a Vencer</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.75rem;">{{ qtd_cobranca_a_vencer|default:"0" }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card kpi-card shadow-sm h-100 border-0" style="border-left: 4px solid #ffab00 !important;">
+        <div class="card-body d-flex align-items-center p-4">
+          <div class="me-3">
+            <span class="avatar bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+              <i class="bx bx-wallet-alt fs-2"></i>
+            </span>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-1 text-muted small">Valor a Vencer</h6>
+            <h3 class="mb-0 fw-bold" style="font-size: 1.5rem;">R$ {{ total_cobranca_a_vencer|intcomma }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seção 3: Clientes Desativados -->
   <div class="row mb-4">
     <div class="col-12">
       <h5 class="section-title">
@@ -416,7 +508,7 @@
     </div>
   </div>
 
-  <!-- Seção 3: Repasses por Loja -->
+  <!-- Seção 4: Repasses por Loja -->
   {% if repasses_por_loja %}
   <div class="row mb-4">
     <div class="col-12">
@@ -455,7 +547,7 @@
   </div>
   {% endif %}
 
-  <!-- Seção 4: Gráficos -->
+  <!-- Seção 5: Gráficos -->
   <div class="row mb-4">
     <div class="col-12">
       <h5 class="section-title chart-title">
@@ -533,13 +625,17 @@
     const pctPagas = labels.map(loja => dadosLojas[loja].pct_pagas);
     const pctVencidas = labels.map(loja => dadosLojas[loja].pct_vencidas);
     const pctDesativados = labels.map(loja => dadosLojas[loja].pct_desativados || 0);
+    const pctCobrancas = labels.map(loja => dadosLojas[loja].pct_cobrancas || 0);
     const totalPagas = labels.map(loja => dadosLojas[loja].total_pagas);
     const totalVencidas = labels.map(loja => dadosLojas[loja].total_vencidas);
     const totalDesativados = labels.map(loja => 
       Number(dadosLojas[loja].total_desativados_vencidas || 0) + Number(dadosLojas[loja].total_desativados_a_vencer || 0)
     );
+    const totalCobrancas = labels.map(loja => 
+      Number(dadosLojas[loja].total_cobranca_vencidas || 0) + Number(dadosLojas[loja].total_cobranca_a_vencer || 0)
+    );
     const totais = labels.map(loja =>
-      Number(dadosLojas[loja].total_pagas) + Number(dadosLojas[loja].total_vencidas) + Number(dadosLojas[loja].total_a_vencer) + Number(dadosLojas[loja].total_desativados_vencidas || 0) + Number(dadosLojas[loja].total_desativados_a_vencer || 0)
+      Number(dadosLojas[loja].total_pagas) + Number(dadosLojas[loja].total_vencidas) + Number(dadosLojas[loja].total_a_vencer) + Number(dadosLojas[loja].total_desativados_vencidas || 0) + Number(dadosLojas[loja].total_desativados_a_vencer || 0) + Number(dadosLojas[loja].total_cobranca_vencidas || 0) + Number(dadosLojas[loja].total_cobranca_a_vencer || 0)
     );
 
     const ctxLojas = document.getElementById('graficoLojas');
@@ -588,6 +684,15 @@
               totalValores: totalDesativados,
               backgroundColor: gradientDesativados,
               borderColor: 'rgba(108, 117, 125, 1)',
+              borderWidth: 2,
+              stack: 'percentual'
+            },
+            {
+              label: '% Cobranças',
+              data: pctCobrancas,
+              totalValores: totalCobrancas,
+              backgroundColor: 'rgba(255, 171, 0, 0.5)',
+              borderColor: 'rgba(255, 171, 0, 1)',
               borderWidth: 2,
               stack: 'percentual'
             }

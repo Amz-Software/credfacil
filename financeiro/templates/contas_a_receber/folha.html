@@ -71,6 +71,7 @@
         .badge-warning { color: #664d03; background-color: #fff3cd; border: 1px solid #ffecb5; }
         .badge-success { color: #0f5132; background-color: #d4edda; border: 1px solid #badbcc; }
         .badge-info { color: #055160; background-color: #cff4fc; border: 1px solid #b6effb; }
+        .badge-orange { color: #fff; background-color: #fd7e14; }
     </style>
 </head>
 <body>
@@ -208,7 +209,10 @@
             {% if conta.todas_parcelas_pagas %}
                 <span class="badge badge-info">QUITADO</span>
             {% endif %}
-            {% if not conta.desativado and not conta.bloqueado and not conta.sem_contato and not conta.mais_prazo and not conta.com_parcela_atrasada and not conta.com_pagamento_pendente and not conta.pago_dentro_prazo and not conta.todas_parcelas_pagas %}
+            {% if conta.flag_atrasado %}
+                <span class="badge badge-orange">COBRANÇA</span>
+            {% endif %}
+            {% if not conta.desativado and not conta.bloqueado and not conta.sem_contato and not conta.mais_prazo and not conta.com_parcela_atrasada and not conta.com_pagamento_pendente and not conta.pago_dentro_prazo and not conta.todas_parcelas_pagas and not conta.flag_atrasado %}
                 <span class="badge badge-success">ATIVO</span>
             {% endif %}
             </td>

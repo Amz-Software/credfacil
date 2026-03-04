@@ -3147,6 +3147,7 @@ class GraficoTemplateView(TemplateView):
         valores_por_loja = defaultdict(lambda: {
             'total_pagas': 0, 'total_vencidas': 0, 'total_a_vencer': 0,
             'total_desativados_vencidas': 0, 'total_desativados_a_vencer': 0,
+            'total_cobranca_vencidas': 0, 'total_cobranca_a_vencer': 0,
         })
 
         # --- DASH POR MÊS ---
@@ -3207,6 +3208,20 @@ class GraficoTemplateView(TemplateView):
                 else:
                     valores_por_loja[loja_nome]['total_desativados_a_vencer'] += parcela_desativada.valor
 
+            # Calcular cobrança por loja
+            parcelas_cobranca_loja = Parcela.objects.filter(
+                pagamento__venda=venda,
+                pagamento__tipo_pagamento__nome='IPX',
+                pagamento__flag_atrasado=True,
+                pago=False
+            )
+
+            for parcela_cobranca in parcelas_cobranca_loja:
+                if parcela_cobranca.data_vencimento < timezone.now().date():
+                    valores_por_loja[loja_nome]['total_cobranca_vencidas'] += parcela_cobranca.valor
+                else:
+                    valores_por_loja[loja_nome]['total_cobranca_a_vencer'] += parcela_cobranca.valor
+
             # DASH MENSAL: soma por mês/ano
             for p in parcelas:
                 mes_ano = p.data_vencimento.strftime('%Y-%m')
@@ -3228,10 +3243,11 @@ class GraficoTemplateView(TemplateView):
                     dash_mensal_lojas[loja_nome][mes_ano]['a_vencer'] += float(p.valor)
 
         for loja_nome, valores in valores_por_loja.items():
-            total_geral = valores['total_pagas'] + valores['total_vencidas'] + valores['total_a_vencer'] + valores['total_desativados_vencidas'] + valores['total_desativados_a_vencer']
+            total_geral = valores['total_pagas'] + valores['total_vencidas'] + valores['total_a_vencer'] + valores['total_desativados_vencidas'] + valores['total_desativados_a_vencer'] + valores.get('total_cobranca_vencidas', 0) + valores.get('total_cobranca_a_vencer', 0)
             valores['pct_pagas'] = round((valores['total_pagas'] / total_geral) * 100, 2) if total_geral else 0
             valores['pct_vencidas'] = round((valores['total_vencidas'] / total_geral) * 100, 2) if total_geral else 0
             valores['pct_desativados'] = round(((valores['total_desativados_vencidas'] + valores['total_desativados_a_vencer']) / total_geral) * 100, 2) if total_geral else 0
+            valores['pct_cobrancas'] = round(((valores.get('total_cobranca_vencidas', 0) + valores.get('total_cobranca_a_vencer', 0)) / total_geral) * 100, 2) if total_geral else 0
 
         # Prepara dash mensal para o template (serializável)
         dash_mensal_json = {}
@@ -3274,6 +3290,35 @@ class GraficoTemplateView(TemplateView):
             desativado=True
         ).count()
 
+        # --- CÁLCULO DOS CLIENTES EM COBRANÇA ---
+        total_cobranca_vencidas = 0
+        total_cobranca_a_vencer = 0
+        qtd_cobranca_vencidas = 0
+        qtd_cobranca_a_vencer = 0
+
+        # Busca parcelas de clientes em cobrança (apenas não pagas)
+        parcelas_cobranca = Parcela.objects.filter(
+            pagamento__venda__in=vendas,
+            pagamento__tipo_pagamento__nome='IPX',
+            pagamento__flag_atrasado=True,
+            pago=False
+        )
+
+        for parcela in parcelas_cobranca:
+            if parcela.data_vencimento < timezone.now().date():
+                total_cobranca_vencidas += parcela.valor
+                qtd_cobranca_vencidas += 1
+            else:
+                total_cobranca_a_vencer += parcela.valor
+                qtd_cobranca_a_vencer += 1
+
+        # Total de pagamentos em cobrança
+        total_pagamentos_cobranca = Pagamento.objects.filter(
+            venda__in=vendas,
+            tipo_pagamento__nome='IPX',
+            flag_atrasado=True
+        ).count()
+
         # --- CÁLCULO DO VALOR TOTAL DE REPASSES ---
         total_repasses = 0
         repasses_por_loja = defaultdict(lambda: 0)
@@ -3306,6 +3351,11 @@ class GraficoTemplateView(TemplateView):
             'qtd_desativados_vencidas': qtd_desativados_vencidas,
             'qtd_desativados_a_vencer': qtd_desativados_a_vencer,
             'total_pagamentos_desativados': total_pagamentos_desativados,
+            'total_cobranca_vencidas': total_cobranca_vencidas,
+            'total_cobranca_a_vencer': total_cobranca_a_vencer,
+            'qtd_cobranca_vencidas': qtd_cobranca_vencidas,
+            'qtd_cobranca_a_vencer': qtd_cobranca_a_vencer,
+            'total_pagamentos_cobranca': total_pagamentos_cobranca,
             'total_repasses': total_repasses,
             'repasses_por_loja': dict(repasses_por_loja),
             'dados_lojas': json.dumps(valores_por_loja, default=str),
