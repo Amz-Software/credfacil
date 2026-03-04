@@ -1294,6 +1294,90 @@ Cancela venda (`is_deleted=True`) se caixa estiver aberto.
 
 Payload: vazio.
 
+### `GET /api/vendas/{id}/carne/`
+
+Gera e retorna arquivo **PDF** do carnê/promissória da venda.
+
+**Permissão requerida:** `vendas.view_venda`
+
+**Query params:**
+- `tipo` (opcional): `carne` ou `promissoria` (padrão: `carne`)
+
+**Resposta:** Arquivo PDF (binary)
+
+**Exemplo:**
+```bash
+# Gerar carnê
+GET /api/vendas/123/carne/
+# Retorna: <arquivo_pdf>
+
+# Com tipo específico
+GET /api/vendas/123/carne/?tipo=promissoria
+# Retorna: <arquivo_pdf>
+```
+
+**Erros possíveis:**
+- 400: Venda não possui pagamento em carnê/promissória
+- 500: Erro ao gerar PDF
+
+**Nota:** O backend renderiza o template `venda/folha_carne.html` e converte para PDF usando WeasyPrint. Inclui:
+- Dados do cliente
+- Parcelas com valores e datas de vencimento
+- QR codes PIX para cada parcela (se configurado)
+- Informações da loja
+
+### `GET /api/vendas/{id}/contrato/`
+
+Gera e retorna arquivo **PDF** do contrato da venda.
+
+**Permissão requerida:** `vendas.view_venda`
+
+**Resposta:** Arquivo PDF (binary)
+
+**Exemplo:**
+```bash
+GET /api/vendas/123/contrato/
+# Retorna: <arquivo_pdf>
+```
+
+**Erros possíveis:**
+- 404: Venda não encontrada
+- 500: Erro ao gerar PDF
+
+**Nota:** O backend renderiza o template `venda/contrato.html` com:
+- Dados completos da venda
+- Informações do cliente
+- Detalhes do aparelho (IMEI)
+- Configurações de pagamento e parcelas
+- Contrato personalizado da loja
+
+### Download automático
+
+Os PDFs são retornados com header `Content-Disposition: attachment`, o que causa download automático no navegador.
+
+Exemplo de consumo em sistema externo:
+```bash
+# Fazer download direto
+curl -H "Authorization: Bearer <TOKEN>" \
+  https://api.example.com/api/vendas/123/carne/ \
+  -o carne_123.pdf
+
+# Consumir em uma aplicação
+fetch('/api/vendas/123/contrato/', {
+  headers: {
+    'Authorization': 'Bearer <TOKEN>'
+  }
+})
+.then(response => response.blob())
+.then(blob => {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'contrato.pdf';
+  a.click();
+})
+```
+
 ## Permissoes (resumo)
 
 Cada endpoint usa as classes de permissao do modulo `api/permissions.py` e as mesmas permissoes Django do fluxo web (`vendas.*`, `produtos.*`).
@@ -1359,6 +1443,13 @@ GET /api/vendas/?vendas_trocadas=1
 
 # Combinado
 GET /api/vendas/?loja=1&cliente_nome=João&vendas_canceladas=1
+
+# Gerar PDF do carnê
+GET /api/vendas/123/carne/
+GET /api/vendas/123/carne/?tipo=promissoria
+
+# Gerar PDF do contrato
+GET /api/vendas/123/contrato/
 ```
 
 ### Lojas (`/api/lojas/`)
