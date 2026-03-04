@@ -2169,3 +2169,116 @@ class VendaViewSet(viewsets.ModelViewSet):
         venda.is_deleted = True
         venda.save(user=request.user)
         return Response({"detail": "Venda cancelada com sucesso."})
+
+
+class RepasseViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerenciar repasses agendados.
+    
+    Endpoints disponíveis:
+    - GET /api/repasses/ - Lista repasses (com filtros)
+    - GET /api/repasses/agendados/ - Lista apenas repasses agendados (status=pendente, data >= hoje)
+    - GET /api/repasses/{id}/ - Detalhe de um repasse
+    - POST /api/repasses/ - Cria novo repasse
+    - PUT /api/repasses/{id}/ - Atualiza repasse
+    - PATCH /api/repasses/{id}/ - Atualiza parcialmente
+    - DELETE /api/repasses/{id}/ - Deleta repasse
+    """
+    queryset = Repasse.objects.all()
+    serializer_class = RepasseSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    ordering_fields = ['data', 'valor', 'status']
+    ordering = ['-data']
+    
+    def get_queryset(self):
+        """
+        Filtra repasses por:
+        - loja: ID da loja
+        - status: pendente, pago, cancelado
+        - data_inicio: data inicial (YYYY-MM-DD)
+        - data_fim: data final (YYYY-MM-DD)
+        """
+        queryset = Repasse.objects.all()
+        user = self.request.user
+        
+        # Respeitar filtro de loja para não-admin
+        loja_filter = self.request.query_params.get('loja')
+        if loja_filter:
+            try:
+                loja_id = int(loja_filter)
+                # Se não é admin, valida se tem acesso à loja
+                if not user.is_superuser and not user.is_staff:
+                    lojas_usuario = list(user.lojas.values_list('id', flat=True))
+                    if loja_id in lojas_usuario:
+                        queryset = queryset.filter(loja_id=loja_id)
+                    elif 'loja_id' in self.request.session:
+                        # Fallback para loja da sessão
+                        queryset = queryset.filter(loja_id=self.request.session['loja_id'])
+                else:
+                    # Admin pode ver de qualquer loja
+                    queryset = queryset.filter(loja_id=loja_id)
+            except (ValueError, TypeError):
+                pass
+        elif 'loja_id' in self.request.session and not user.is_superuser:
+            # Se não-admin e sem parâmetro loja, usa loja da sessão
+            queryset = queryset.filter(loja_id=self.request.session['loja_id'])
+        
+        # Filtrar por status
+        status_filter = self.request.query_params.get('status')
+        if status_filter in ['pendente', 'pago', 'cancelado']:
+            queryset = queryset.filter(status=status_filter)
+        
+        # Filtrar por período
+        data_inicio = self.request.query_params.get('data_inicio')
+        if data_inicio:
+            try:
+                data_inicio_parsed = parse_date(data_inicio)
+                if data_inicio_parsed:
+                    queryset = queryset.filter(data__date__gte=data_inicio_parsed)
+            except:
+                pass
+        
+        data_fim = self.request.query_params.get('data_fim')
+        if data_fim:
+            try:
+                data_fim_parsed = parse_date(data_fim)
+                if data_fim_parsed:
+                    queryset = queryset.filter(data__date__lte=data_fim_parsed)
+            except:
+                pass
+        
+        return queryset.order_by('-data')
+    
+    @action(detail=False, methods=['get'], url_path='agendados')
+    @extend_schema(
+        description='Retorna repasses agendados (status=pendente e data >= hoje)',
+        responses={200: RepasseSerializer(many=True)},
+        parameters=[
+            OpenApiParameter('loja', OpenApiTypes.INT, description='ID da loja'),
+        ]
+    )
+    def agendados(self, request):
+        """Retorna apenas repasses agendados (pendentes com data futura)"""
+        hoje = timezone.now().date()
+        
+        queryset = self.get_queryset()
+        queryset = queryset.filter(
+            status='pendente',
+            data__date__gte=hoje
+        )
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @extend_schema(
+        description='Lista repasses com filtros opcionais',
+        parameters=[
+            OpenApiParameter('loja', OpenApiTypes.INT, description='Filtrar por ID da loja'),
+            OpenApiParameter('status', OpenApiTypes.STR, description='Filtrar por status: pendente, pago, cancelado'),
+            OpenApiParameter('data_inicio', OpenApiTypes.DATE, description='Filtrar a partir desta data (YYYY-MM-DD)'),
+            OpenApiParameter('data_fim', OpenApiTypes.DATE, description='Filtrar até esta data (YYYY-MM-DD)'),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)

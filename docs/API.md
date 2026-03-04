@@ -284,7 +284,37 @@ GET /api/vendas/?loja=1
 GET /api/solicitacoes/kpis/?loja=1
 ```
 
-**Importante:** Se o usuário não tiver a permissão `view_all` (pode variar por endpoint), os resultados se limitarão à loja da sessão atual, mesmo que filtrar por outra loja.
+#### Comportamento do Filtro por Loja
+
+**Para usuários ADMIN** (com permissão `view_all_analise_credito` ou `can_view_all_sales`):
+- ✅ Podem ver dados de todas as lojas
+- ✅ Parâmetro `?loja=X` funciona para qualquer loja
+- ✅ Se omitir `?loja`, vê dados de todas as lojas
+
+**Para usuários NÃO-ADMIN** (vendedores, analistas):
+- ✅ O backend verifica se o usuário tem acesso à loja solicitada via `user.lojas_acesso`
+- ✅ Se `?loja=27` for enviado E o usuário tiver acesso à loja 27 → retorna dados da loja 27
+- ⚠️ Se `?loja=27` for enviado MAS o usuário NÃO tiver acesso → ignora e usa loja da sessão
+- ⚠️ Se `?loja` for omitido → usa loja da sessão (`session['loja_id']`)
+
+**Exemplo prático:**
+```bash
+# Usuário "teste" tem acesso às lojas: [1, 27, 35]
+
+# ✅ Funciona - usuário tem acesso à loja 27
+GET /api/solicitacoes/?loja=27
+# Retorna: solicitações da loja 27
+
+# ⚠️ Não funciona - usuário NÃO tem acesso à loja 99
+GET /api/solicitacoes/?loja=99
+# Retorna: solicitações da loja da sessão (fallback)
+
+# ⚠️ Sem filtro - usa loja da sessão
+GET /api/solicitacoes/
+# Retorna: solicitações da loja da sessão atual
+```
+
+**Importante:** O frontend deve sempre enviar o parâmetro `?loja=X` correspondente à loja selecionada pelo usuário, pois o backend valida se o usuário tem acesso via `user.lojas_acesso`.
 
 ### Paginação
 
@@ -468,7 +498,9 @@ Exemplo de resposta:
 - `R` (Reprovado): Análises reprovadas
 - `C` (Cancelado): Análises canceladas
 
-**Nota**: Os KPIs respeitam as permissões do usuário. Se o usuário não tiver `vendas.view_all_analise_credito`, os contadores se limitam à loja da sessão atual.
+**Filtro por Loja:**
+- **Admin**: Os KPIs respeitam o parâmetro `?loja=X` se fornecido, ou retornam dados de todas as lojas
+- **Não-admin**: Os KPIs respeitam o parâmetro `?loja=X` se o usuário tiver acesso àquela loja via `user.lojas_acesso`, caso contrário usa a loja da sessão
 
 ### `GET /api/solicitacoes/kpis/`
 
@@ -506,15 +538,25 @@ Resposta:
 - ✅ Retorno ultra rápido (sem paginação)
 - ✅ Ideal para dashboards e cards de KPI
 - ✅ Pode filtrar por loja específica
-- ✅ Mesmas regras de permissão
+- ✅ Respeita `user.lojas_acesso` para não-admins
+
+**Comportamento do filtro:**
+- **Admin**: Retorna KPIs de todas as lojas, ou da loja especificada em `?loja=X`
+- **Não-admin**: Valida se usuário tem acesso à loja via `user.lojas_acesso`:
+  - ✅ Se tiver acesso à `?loja=X` → retorna KPIs da loja X
+  - ⚠️ Se não tiver acesso → retorna KPIs da loja da sessão
 
 **Exemplos de uso:**
 ```bash
-# KPIs de todas as lojas (se tiver permissão)
+# Admin: KPIs de todas as lojas
 GET /api/solicitacoes/kpis/
 
-# KPIs de uma loja específica
+# Admin: KPIs de uma loja específica
 GET /api/solicitacoes/kpis/?loja=1
+
+# Não-admin: KPIs da loja que tem acesso
+GET /api/solicitacoes/kpis/?loja=27
+# (Se usuário tiver acesso à loja 27, retorna os KPIs dela)
 ```
 
 **Quando usar:**
@@ -789,6 +831,183 @@ Remove parcelamento (exige permissão `produtos.delete_produto`).
 
 **Atenção:** Apenas remova parcelamentos que não estejam sendo utilizados em vendas.
 
+## Repasses
+
+Rotas baseadas em `RepasseViewSet`.
+
+Gerencia repasses agendados para pagamento às lojas.
+
+### Permissões
+
+- `list` e `retrieve`: exige `financeiro.view_repasse`
+- `create`: exige `financeiro.add_repasse`
+- `update`/`partial_update`: exige `financeiro.change_repasse` (ou staff)
+- `destroy`: exige `financeiro.delete_repasse` (ou staff)
+
+### `GET /api/repasses/`
+
+Lista repasses com filtros opcionais.
+
+Query params:
+
+- `loja` (opcional): ID da loja para filtrar
+- `status` (opcional): `pendente`, `pago` ou `cancelado`
+- `data_inicio` (opcional): data inicial para filtro (YYYY-MM-DD)
+- `data_fim` (opcional): data final para filtro (YYYY-MM-DD)
+- `ordering` (opcional): `data`, `-data`, `valor`, `-valor`, `status`
+
+**Comportamento do filtro por loja:**
+- **Admin**: Pode filtrar repasses de qualquer loja
+- **Não-admin**: Pode filtrar apenas repasses de lojas que tem acesso via `user.lojas_acesso`
+
+Resposta paginada:
+
+```json
+{
+  "count": 145,
+  "num_pages": 8,
+  "page": 1,
+  "results": [
+    {
+      "id": 1,
+      "valor": "5000.00",
+      "data": "2026-02-20T10:00:00Z",
+      "status": "pendente",
+      "observacao": "Repasse agendado para análise",
+      "criado_por": 1,
+      "criado_em": "2026-02-10T15:30:00Z"
+    }
+  ]
+}
+```
+
+**Campos:**
+- `id`: ID do repasse
+- `valor`: Valor em decimal
+- `data`: Data e hora do repasse (DateTime)
+- `status`: `pendente`, `pago` ou `cancelado`
+- `observacao`: Observações opcionais
+- `criado_por`: ID do usuário que criou
+- `criado_em`: Data de criação
+
+### `GET /api/repasses/agendados/`
+
+**Endpoint dedicado** para retornar apenas repasses agendados (status=`pendente` com data >= hoje).
+
+Query params:
+
+- `loja` (opcional): ID da loja para filtrar
+
+Resposta: array de repasses sem paginação (ideal para dashboards).
+
+Exemplo:
+
+```bash
+# Repasses agendados de todas as lojas (para admin)
+GET /api/repasses/agendados/
+
+# Repasses agendados de uma loja específica
+GET /api/repasses/agendados/?loja=1
+```
+
+Resposta:
+
+```json
+[
+  {
+    "id": 1,
+    "valor": "5000.00",
+    "data": "2026-02-20T10:00:00Z",
+    "status": "pendente",
+    "observacao": "Repasse agendado",
+    "criado_por": 1,
+    "criado_em": "2026-02-10T15:30:00Z"
+  },
+  {
+    "id": 2,
+    "valor": "3500.00",
+    "data": "2026-02-25T14:30:00Z",
+    "status": "pendente",
+    "observacao": null,
+    "criado_por": 1,
+    "criado_em": "2026-02-08T09:15:00Z"
+  }
+]
+```
+
+### `GET /api/repasses/{id}/`
+
+Detalhe de um repasse específico.
+
+### `POST /api/repasses/`
+
+Cria novo repasse.
+
+Campos obrigatórios:
+- `valor` (decimal): Valor do repasse
+- `data` (datetime): Data e hora do repasse
+- `status` (string): `pendente`, `pago` ou `cancelado`
+
+Campos opcionais:
+- `observacao` (string): Observações sobre o repasse
+
+Payload:
+
+```json
+{
+  "valor": "5000.00",
+  "data": "2026-02-20T10:00:00Z",
+  "status": "pendente",
+  "observacao": "Pagamento mensal - loja A"
+}
+```
+
+**Nota:** O campo `loja` é determinado automaticamente com base na sessão do usuário.
+
+### `PUT/PATCH /api/repasses/{id}/`
+
+Atualiza repasse. Exige permissão `financeiro.change_repasse`.
+
+Payload: mesmos campos de criação.
+
+### `DELETE /api/repasses/{id}/`
+
+Deleta repasse. Exige permissão `financeiro.delete_repasse`.
+
+### Exemplos de Uso
+
+```bash
+# Listar todos os repasses
+GET /api/repasses/
+
+# Listar repasses pendentes
+GET /api/repasses/?status=pendente
+
+# Listar repasses de uma loja específica
+GET /api/repasses/?loja=1
+
+# Listar repasses agendados de uma loja
+GET /api/repasses/?loja=1&status=pendente&data_inicio=2026-02-01
+
+# Repasses agendados (rápido)
+GET /api/repasses/agendados/
+GET /api/repasses/agendados/?loja=1
+
+# Repasses pago em um período
+GET /api/repasses/?status=pago&data_inicio=2026-01-01&data_fim=2026-01-31
+
+# Criar novo repasse
+POST /api/repasses/
+Content-Type: application/json
+
+{
+  "valor": "2500.00",
+  "data": "2026-03-15T10:00:00Z",
+  "status": "pendente",
+  "observacao": "Adiantamento para próxima venda"
+}
+```
+
 ## Produtos
 
 Rotas baseadas em `ProdutoViewSet`.
@@ -982,6 +1201,12 @@ Query params:
 
 **Nota:** O parâmetro legado `loja_id` também é aceito por backward compatibility.
 
+**Filtro por Loja:**
+- **Admin**: Lista vendas de todas as lojas, ou da loja especificada em `?loja=X`
+- **Não-admin**: Valida se usuário tem acesso à loja via `user.lojas_acesso`:
+  - ✅ Se tiver acesso à `?loja=X` → lista vendas da loja X
+  - ⚠️ Se não tiver acesso → lista vendas da loja da sessão
+
 ### `POST /api/vendas/`
 
 Cria venda com itens e pagamentos. Aplica as mesmas validacoes de caixa aberto e formularios.
@@ -1082,6 +1307,8 @@ Cada endpoint usa as classes de permissao do modulo `api/permissions.py` e as me
 
 ## Guia Rápido: Query Params por Endpoint
 
+**Nota sobre filtro de loja:** Para usuários não-admin, o backend valida se o usuário tem acesso à loja especificada no parâmetro `?loja=X` via `user.lojas_acesso`. Se não tiver acesso, usa a loja da sessão automaticamente.
+
 ### Solicitações (`/api/solicitacoes/`)
 
 ```bash
@@ -1154,6 +1381,34 @@ GET /api/lojas/1/?repasse_page=2&venda_page=3
 ```
 
 **Filtros disponíveis:** `pendente`, `sem_pendente`
+
+### Repasses (`/api/repasses/`)
+
+```bash
+# Listar todos
+GET /api/repasses/
+
+# Listar repasses pendentes
+GET /api/repasses/?status=pendente
+
+# Listar repasses de uma loja
+GET /api/repasses/?loja=1
+
+# Listar repasses agendados (pendente, data futura)
+GET /api/repasses/agendados/
+GET /api/repasses/agendados/?loja=1
+
+# Filtrar por período
+GET /api/repasses/?data_inicio=2026-02-01&data_fim=2026-02-28
+
+# Repasses pago em um período
+GET /api/repasses/?status=pago&data_inicio=2026-01-01&data_fim=2026-01-31
+
+# Combinado
+GET /api/repasses/?loja=1&status=pendente&data_inicio=2026-02-01
+```
+
+**Status disponíveis:** `pendente`, `pago`, `cancelado`
 
 ### Produtos (`/api/produtos/`)
 
@@ -1253,4 +1508,93 @@ Ao ler (`GET`) um usuário, os campos `groups` e `user_permissions` vêm como ob
 
 - O frontend pode consumir as rotas em português (`/api/usuarios`, `/api/grupos`, `/api/permissoes`) ou em inglês (`/api/users`, `/api/groups`, `/api/permissions`).
 - Use `GET /api/usuarios/?raw=1` para obter um array simples quando for necessário preencher dropdowns sem paginação.
+
+## Controle de Acesso por Loja (lojas_acesso)
+
+### Como funciona o acesso a lojas
+
+O sistema utiliza o relacionamento `User.lojas` (many-to-many) para determinar quais lojas um usuário pode acessar.
+
+**No login (`POST /api/token/`)**, o backend retorna:
+```json
+{
+  "user": {
+    "loja": 1,                    // ID da loja principal (FK)
+    "loja_principal": {           // Objeto completo da loja principal
+      "id": 1,
+      "nome": "Loja A",
+      "cnpj": "12345678000190"
+    },
+    "lojas_acesso": [             // ⭐ Todas as lojas que usuário pode acessar
+      {
+        "id": 1,
+        "nome": "Loja A",
+        "cnpj": "12345678000190"
+      },
+      {
+        "id": 27,
+        "nome": "CONNECT mocajuba",
+        "cnpj": "98765432000110"
+      },
+      {
+        "id": 35,
+        "nome": "Loja Filial Sul",
+        "cnpj": "11223344000155"
+      }
+    ]
+  }
+}
+```
+
+### Validação no Backend
+
+Quando um endpoint recebe o parâmetro `?loja=X`:
+
+1. **Se usuário tem permissão `view_all_*`** (admin):
+   - ✅ Aceita qualquer loja
+   - Retorna dados da loja solicitada
+
+2. **Se usuário NÃO tem permissão `view_all_*`** (vendedor/analista):
+   - ✅ Verifica se `X` está em `user.lojas.all()`
+   - ✅ Se SIM → retorna dados da loja X
+   - ⚠️ Se NÃO → ignora `?loja=X` e usa `session['loja_id']`
+
+### Endpoints Afetados
+
+Todos os endpoints que suportam filtro `?loja=`:
+- `GET /api/solicitacoes/` (listagem de solicitações)
+- `GET /api/solicitacoes/kpis/` (KPIs de solicitações)
+- `GET /api/vendas/` (listagem de vendas)
+
+### Exemplo Prático
+
+**Cenário:** Usuário "teste" tem `lojas_acesso = [1, 27, 35]`
+
+```bash
+# ✅ Caso 1: Loja permitida
+GET /api/solicitacoes/?loja=27
+# Backend valida: 27 in [1, 27, 35] → TRUE
+# Retorna: Solicitações da loja 27
+
+# ⚠️ Caso 2: Loja NÃO permitida
+GET /api/solicitacoes/?loja=99
+# Backend valida: 99 in [1, 27, 35] → FALSE
+# Retorna: Solicitações da loja da sessão (fallback)
+
+# ⚠️ Caso 3: Sem filtro
+GET /api/solicitacoes/
+# Backend usa: session['loja_id']
+# Retorna: Solicitações da loja da sessão
+```
+
+### Configuração no Admin Django
+
+Para adicionar acesso de um usuário a múltiplas lojas:
+
+1. Acesse o admin Django em `/admin/`
+2. Vá em **Usuários** e selecione o usuário
+3. Na seção **Lojas**, adicione as lojas no campo **Lojas** (many-to-many)
+4. Salve
+
+**Importante:** O campo `User.loja` (FK) define a loja "principal", mas é o relacionamento `User.lojas` (M2M) que determina **todas as lojas que o usuário pode filtrar**.
 
