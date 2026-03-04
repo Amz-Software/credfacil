@@ -48,7 +48,7 @@
         <td>{% if p.venda.itens_venda.first.imei %}{{ p.venda.itens_venda.first.imei }}{% else %}-{% endif %}</td>
         <td>
           {% if p.bo %}<span class="badge">BO</span>{% endif %}
-          {% if p.flag_atrasado %}<span class="badge">Atrasado</span>{% endif %}
+          {% if p.flag_atrasado %}<span class="badge">Cobrança</span>{% endif %}
           {% if p.sem_conexao %}<span class="badge">Sem conexão</span>{% endif %}
           {% if p.roubo %}<span class="badge">Roubo</span>{% endif %}
           {% if p.bloqueado %}<span class="badge">Bloqueado</span>{% endif %}

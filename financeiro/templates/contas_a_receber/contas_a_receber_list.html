@@ -180,6 +180,19 @@
             <input
               class="form-check-input"
               type="checkbox"
+              id="cobranca"
+              name="cobranca"
+              value="1"
+              {% if request.GET.cobranca %}checked{% endif %}
+            >
+            <label class="form-check-label" for="cobranca">Somente Cobrança</label>
+          </div>
+        </div>
+        <div class="col-auto">
+          <div class="form-check form-switch">
+            <input
+              class="form-check-input"
+              type="checkbox"
               id="sem_contato"
               name="sem_contato"
               value="1"
@@ -239,7 +252,7 @@
               <th class="text-center">IMEI</th>
               <th class="text-center">Contato do Cliente</th>
               <th class="text-center">BO</th>
-              <th class="text-center">Atrasado</th>
+              <th class="text-center">Cobrança</th>
               <th class="text-center">Sem conexão</th>
               <th class="text-center">Roubo</th>
               <th>Status</th>

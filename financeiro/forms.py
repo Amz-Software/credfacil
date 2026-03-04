@@ -174,7 +174,7 @@ class RelatorioContasAReceberForm(forms.Form):
             ('mais_prazo', 'Mais prazo'),
             ('quitado', 'Quitado'),
             ('lembrete', 'Lembrete'),
-            ('flag_atrasado', 'Flag Atrasado'),
+            ('flag_atrasado', 'Cobrança'),
             ('sem_conexao', 'Sem conexão'),
             ('roubo', 'Roubo'),
             ('devolucao', 'Devolução'),
@@ -309,7 +309,7 @@ class RelatorioContasAReceberAvancadoForm(forms.Form):
         choices=[
             ('lembrete','Lembrete'),
             ('bo','BO'),
-            ('flag_atrasado','Atrasado'),
+            ('flag_atrasado','Cobrança'),
             ('sem_conexao','Sem conexão'),
             ('roubo','Roubo'),
             ('bloqueado','Bloquear Aparelho'),
