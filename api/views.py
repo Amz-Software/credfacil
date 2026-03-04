@@ -469,9 +469,6 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if status:
             qs = qs.filter(analise_credito__status=status).distinct()
 
-        if loja_filter:
-            qs = qs.filter(loja_id=loja_filter)
-
         if data_inicio and data_fim:
             qs = qs.filter(analise_credito__data_analise__range=[data_inicio, data_fim]).distinct()
         elif data_inicio:
@@ -482,12 +479,33 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if vendas_nao_finalizadas:
             qs = qs.filter(analise_credito__venda__isnull=True).distinct()
 
+        # Aplicar filtro de loja baseado em permissões
         if not request.user.has_perm("vendas.view_all_analise_credito"):
-            loja_id = request.session.get("loja_id")
-            if loja_id:
-                qs = qs.filter(loja_id=loja_id)
+            # Se loja foi especificada na query string, verificar se usuário tem acesso
+            if loja_filter:
+                # Verificar se usuário tem acesso à loja solicitada
+                lojas_usuario = request.user.lojas.values_list('id', flat=True)
+                if int(loja_filter) in lojas_usuario:
+                    # Usuário tem acesso: usar filtro da query string
+                    qs = qs.filter(loja_id=loja_filter)
+                else:
+                    # Usuário não tem acesso: usar loja da sessão
+                    loja_id = request.session.get("loja_id")
+                    if loja_id:
+                        qs = qs.filter(loja_id=loja_id)
+                    else:
+                        qs = qs.none()
             else:
-                qs = qs.none()
+                # Sem filtro específico: usar loja da sessão
+                loja_id = request.session.get("loja_id")
+                if loja_id:
+                    qs = qs.filter(loja_id=loja_id)
+                else:
+                    qs = qs.none()
+        else:
+            # Admin: respeitar filtro da query string se fornecido
+            if loja_filter:
+                qs = qs.filter(loja_id=loja_filter)
 
         return qs.order_by("-id")
 
@@ -590,18 +608,32 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         - status_app_choices: Array com opções de status do app
         
         Os KPIs respeitam as permissões do usuário. Se o usuário não tiver
-        'vendas.view_all_analise_credito', os contadores se limitam à loja da sessão.
+        'vendas.view_all_analise_credito', os contadores se limitam à loja da sessão
+        ou às lojas que o usuário tem acesso.
         """
-        if request.user.has_perm("vendas.view_all_analise_credito"):
-            analises = AnaliseCreditoCliente.objects.all()
-        else:
-            loja_id = request.session.get("loja_id")
-            analises = AnaliseCreditoCliente.objects.filter(loja_id=loja_id)
-
-        # Filtro opcional por loja
         loja_filter = request.query_params.get("loja")
-        if loja_filter:
-            analises = analises.filter(loja_id=loja_filter)
+        
+        if request.user.has_perm("vendas.view_all_analise_credito"):
+            # Admin: pode ver tudo ou filtrar por loja específica
+            analises = AnaliseCreditoCliente.objects.all()
+            if loja_filter:
+                analises = analises.filter(loja_id=loja_filter)
+        else:
+            # Não-admin: verificar se tem acesso à loja solicitada
+            if loja_filter:
+                # Verificar se usuário tem acesso à loja solicitada
+                lojas_usuario = request.user.lojas.values_list('id', flat=True)
+                if int(loja_filter) in lojas_usuario:
+                    # Usuário tem acesso: usar filtro da query string
+                    analises = AnaliseCreditoCliente.objects.filter(loja_id=loja_filter)
+                else:
+                    # Usuário não tem acesso: usar loja da sessão
+                    loja_id = request.session.get("loja_id")
+                    analises = AnaliseCreditoCliente.objects.filter(loja_id=loja_id)
+            else:
+                # Sem filtro específico: usar loja da sessão
+                loja_id = request.session.get("loja_id")
+                analises = AnaliseCreditoCliente.objects.filter(loja_id=loja_id)
 
         counts = analises.values("status").annotate(total=Count("id"))
         kpis = {item["status"]: item["total"] for item in counts}
@@ -1725,8 +1757,6 @@ class VendaViewSet(viewsets.ModelViewSet):
         vendas_canceladas = self.request.query_params.get("vendas_canceladas")
         vendas_trocadas = self.request.query_params.get("vendas_trocadas")
 
-        if loja:
-            query = query.filter(loja__id=loja)
         if data_filter:
             query = query.filter(data_venda=data_filter)
         if cliente_nome:
@@ -1736,9 +1766,27 @@ class VendaViewSet(viewsets.ModelViewSet):
         if vendas_trocadas:
             query = query.filter(is_trocado=True)
 
+        # Aplicar filtro de loja baseado em permissões
         if not self.request.user.has_perm("vendas.can_view_all_sales"):
-            loja_id = self.request.session.get("loja_id")
-            query = query.filter(loja_id=loja_id)
+            # Se loja foi especificada na query string, verificar se usuário tem acesso
+            if loja:
+                # Verificar se usuário tem acesso à loja solicitada
+                lojas_usuario = self.request.user.lojas.values_list('id', flat=True)
+                if int(loja) in lojas_usuario:
+                    # Usuário tem acesso: usar filtro da query string
+                    query = query.filter(loja__id=loja)
+                else:
+                    # Usuário não tem acesso: usar loja da sessão
+                    loja_id = self.request.session.get("loja_id")
+                    query = query.filter(loja_id=loja_id)
+            else:
+                # Sem filtro específico: usar loja da sessão
+                loja_id = self.request.session.get("loja_id")
+                query = query.filter(loja_id=loja_id)
+        else:
+            # Admin: respeitar filtro da query string se fornecido
+            if loja:
+                query = query.filter(loja__id=loja)
 
         return query.order_by("-criado_em")
 
