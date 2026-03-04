@@ -2323,7 +2323,7 @@ class RepasseViewSet(viewsets.ModelViewSet):
     
     Endpoints disponíveis:
     - GET /api/repasses/ - Lista repasses (com filtros)
-    - GET /api/repasses/agendados/ - Lista apenas repasses agendados (status=pendente, data >= hoje)
+    - GET /api/repasses/agendados/ - Lista TODOS os repasses da loja (igual sistema web normal)
     - GET /api/repasses/{id}/ - Detalhe de um repasse
     - POST /api/repasses/ - Cria novo repasse
     - PUT /api/repasses/{id}/ - Atualiza repasse
@@ -2400,7 +2400,7 @@ class RepasseViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], url_path='agendados')
     @extend_schema(
-        description='Retorna repasses agendados/pendentes (status=pendente, incluindo atrasados)',
+        description='Retorna todos os repasses da loja (todos os status)',
         responses={200: RepasseSerializer(many=True)},
         parameters=[
             OpenApiParameter('loja', OpenApiTypes.INT, description='ID da loja'),
@@ -2408,15 +2408,15 @@ class RepasseViewSet(viewsets.ModelViewSet):
     )
     def agendados(self, request):
         """
-        Retorna todos os repasses pendentes (agendados e atrasados).
+        Retorna TODOS os repasses da loja selecionada.
         
-        Inclui:
-        - Repasses com data futura (agendados)
-        - Repasses com data no passado (atrasados)
-        - Todos com status='pendente'
+        Funciona igual ao sistema web normal - retorna repasses com qualquer status:
+        - Pendentes
+        - Pagos
+        - Cancelados
         """
         queryset = self.get_queryset()
-        queryset = queryset.filter(status='pendente')
+        # Não filtra por status - retorna TODOS igual ao sistema web
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)

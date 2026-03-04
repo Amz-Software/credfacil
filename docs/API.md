@@ -907,12 +907,13 @@ Resposta paginada:
 
 ### `GET /api/repasses/agendados/`
 
-**Endpoint dedicado** para retornar apenas os repasses pendentes (agendados e atrasados).
+**Endpoint dedicado** para retornar todos os repasses de uma loja específica (funciona igual ao sistema web normal).
 
-**Inclui:**
-- Repasses com data futura (agendados para o futuro)
-- Repasses com data no passado (atrasados/vencidos)
-- Todos com `status='pendente'`
+**Retorna:**
+- Todos os repasses da loja (qualquer status)
+- Repasses pendentes
+- Repasses pagos
+- Repasses cancelados
 
 Query params:
 
@@ -923,11 +924,11 @@ Resposta: array de repasses sem paginação (ideal para dashboards).
 Exemplo:
 
 ```bash
-# Todos os repasses pendentes (agendados + atrasados)
-GET /api/repasses/agendados/
-
-# Repasses pendentes de uma loja específica
+# Todos os repasses da loja 1 (qualquer status)
 GET /api/repasses/agendados/?loja=1
+
+# Se omitir loja, usa loja da sessão (não-admin) ou retorna de todas (admin)
+GET /api/repasses/agendados/
 ```
 
 Resposta:
@@ -947,19 +948,27 @@ Resposta:
     "id": 2,
     "valor": "3500.00",
     "data": "2026-01-25T14:30:00Z",
-    "status": "pendente",
-    "observacao": "Atrasado",
+    "status": "pago",
+    "observacao": "Repasse já efetuado",
     "criado_por": 1,
     "criado_em": "2026-01-08T09:15:00Z"
+  },
+  {
+    "id": 3,
+    "valor": "2500.00",
+    "data": "2026-01-15T14:30:00Z",
+    "status": "cancelado",
+    "observacao": "Cancelado",
+    "criado_por": 1,
+    "criado_em": "2026-01-05T09:15:00Z"
   }
 ]
 ```
 
-**Nota:** Para filtrar especificamente repasses atrasados, use:
+**Nota:** Este endpoint funciona **igual ao sistema web normal** - retorna TODOS os repasses da loja, independente do status. Para filtrar apenas pendentes, use:
 ```bash
-GET /api/repasses/?status=pendente&data_fim=YYYY-MM-DD
+GET /api/repasses/?status=pendente&loja=1
 ```
-Onde `data_fim` é a data de hoje ou anterior.
 
 ### `GET /api/repasses/{id}/`
 
@@ -1018,8 +1027,7 @@ GET /api/repasses/?status=cancelado
 # Listar repasses de uma loja específica
 GET /api/repasses/?loja=1
 
-# Apenas repasses pendentes (alias)
-GET /api/repasses/agendados/
+# Alias: Todos os repasses da loja (qualquer status)
 GET /api/repasses/agendados/?loja=1
 
 # Repasses pago em um período
@@ -1596,8 +1604,7 @@ GET /api/repasses/?status=pago
 # Listar repasses de uma loja
 GET /api/repasses/?loja=1
 
-# Alias: Todos os repasses pendentes
-GET /api/repasses/agendados/
+# Alias: Todos os repasses da loja (igual sistema web)
 GET /api/repasses/agendados/?loja=1
 
 # Filtrar por período
