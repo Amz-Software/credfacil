@@ -2295,6 +2295,7 @@ class VendaViewSet(viewsets.ModelViewSet):
             'cliente': {
                 'nome': cliente.nome,
                 'cpf': cliente.cpf,
+                'rg': cliente.rg,
                 'endereco': cliente.endereco,
                 'telefone': cliente.telefone,
             },
@@ -2302,6 +2303,7 @@ class VendaViewSet(viewsets.ModelViewSet):
             'loja': {
                 'nome': loja.nome,
                 'cnpj': loja.cnpj,
+                'endereco': loja.endereco,
                 'contrato': contrato,
             },
             'aparelho': {

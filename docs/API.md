@@ -1419,6 +1419,7 @@ Retorna **dados estruturados em JSON** do contrato para geração de PDF no fron
   "cliente": {
     "nome": "João Silva",
     "cpf": "123.456.789-00",
+    "rg": "1234567",
     "endereco": "Rua A, 123",
     "telefone": "91 99999-9999"
   },
@@ -1426,6 +1427,7 @@ Retorna **dados estruturados em JSON** do contrato para geração de PDF no fron
   "loja": {
     "nome": "Loja A",
     "cnpj": "12.345.678/0001-90",
+    "endereco": "Rua Principal, 100",
     "contrato": {
       "textos": [...],
       "clausulas": [...]
