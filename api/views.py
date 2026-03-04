@@ -2365,9 +2365,11 @@ class RepasseViewSet(viewsets.ModelViewSet):
         """
         Filtra repasses por:
         - loja: ID da loja
-        - status: pendente, pago, cancelado
+        - status: pendente, pago, cancelado (nenhum filtro de status por padrão)
         - data_inicio: data inicial (YYYY-MM-DD)
         - data_fim: data final (YYYY-MM-DD)
+        
+        Por padrão retorna TODOS os repasses sem filtrar por status.
         """
         queryset = Repasse.objects.all()
         user = self.request.user
@@ -2394,7 +2396,7 @@ class RepasseViewSet(viewsets.ModelViewSet):
             # Se não-admin e sem parâmetro loja, usa loja da sessão
             queryset = queryset.filter(loja_id=self.request.session['loja_id'])
         
-        # Filtrar por status
+        # Filtrar por status (opcional - sem padrão)
         status_filter = self.request.query_params.get('status')
         if status_filter in ['pendente', 'pago', 'cancelado']:
             queryset = queryset.filter(status=status_filter)
@@ -2422,21 +2424,23 @@ class RepasseViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], url_path='agendados')
     @extend_schema(
-        description='Retorna repasses agendados (status=pendente e data >= hoje)',
+        description='Retorna repasses agendados/pendentes (status=pendente, incluindo atrasados)',
         responses={200: RepasseSerializer(many=True)},
         parameters=[
             OpenApiParameter('loja', OpenApiTypes.INT, description='ID da loja'),
         ]
     )
     def agendados(self, request):
-        """Retorna apenas repasses agendados (pendentes com data futura)"""
-        hoje = timezone.now().date()
+        """
+        Retorna todos os repasses pendentes (agendados e atrasados).
         
+        Inclui:
+        - Repasses com data futura (agendados)
+        - Repasses com data no passado (atrasados)
+        - Todos com status='pendente'
+        """
         queryset = self.get_queryset()
-        queryset = queryset.filter(
-            status='pendente',
-            data__date__gte=hoje
-        )
+        queryset = queryset.filter(status='pendente')
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)

@@ -846,12 +846,12 @@ Gerencia repasses agendados para pagamento às lojas.
 
 ### `GET /api/repasses/`
 
-Lista repasses com filtros opcionais.
+Lista **TODOS os repasses** sem filtro de status por padrão.
 
 Query params:
 
 - `loja` (opcional): ID da loja para filtrar
-- `status` (opcional): `pendente`, `pago` ou `cancelado`
+- `status` (opcional): `pendente`, `pago` ou `cancelado` - filtra por um status específico
 - `data_inicio` (opcional): data inicial para filtro (YYYY-MM-DD)
 - `data_fim` (opcional): data final para filtro (YYYY-MM-DD)
 - `ordering` (opcional): `data`, `-data`, `valor`, `-valor`, `status`
@@ -860,12 +860,18 @@ Query params:
 - **Admin**: Pode filtrar repasses de qualquer loja
 - **Não-admin**: Pode filtrar apenas repasses de lojas que tem acesso via `user.lojas_acesso`
 
+**Comportamento padrão:**
+- Sem nenhum filtro: retorna **TODOS os repasses** (pendentes + pagos + cancelados)
+- Com `?status=pendente`: retorna apenas repasses pendentes
+- Com `?status=pago`: retorna apenas repasses pagos
+- Com `?status=cancelado`: retorna apenas repasses cancelados
+
 Resposta paginada:
 
 ```json
 {
-  "count": 145,
-  "num_pages": 8,
+  "count": 245,
+  "num_pages": 13,
   "page": 1,
   "results": [
     {
@@ -876,6 +882,15 @@ Resposta paginada:
       "observacao": "Repasse agendado para análise",
       "criado_por": 1,
       "criado_em": "2026-02-10T15:30:00Z"
+    },
+    {
+      "id": 2,
+      "valor": "2500.00",
+      "data": "2026-01-15T10:00:00Z",
+      "status": "pago",
+      "observacao": "Repasse pago",
+      "criado_por": 1,
+      "criado_em": "2026-01-10T15:30:00Z"
     }
   ]
 }
@@ -892,7 +907,12 @@ Resposta paginada:
 
 ### `GET /api/repasses/agendados/`
 
-**Endpoint dedicado** para retornar apenas repasses agendados (status=`pendente` com data >= hoje).
+**Endpoint dedicado** para retornar apenas os repasses pendentes (agendados e atrasados).
+
+**Inclui:**
+- Repasses com data futura (agendados para o futuro)
+- Repasses com data no passado (atrasados/vencidos)
+- Todos com `status='pendente'`
 
 Query params:
 
@@ -903,10 +923,10 @@ Resposta: array de repasses sem paginação (ideal para dashboards).
 Exemplo:
 
 ```bash
-# Repasses agendados de todas as lojas (para admin)
+# Todos os repasses pendentes (agendados + atrasados)
 GET /api/repasses/agendados/
 
-# Repasses agendados de uma loja específica
+# Repasses pendentes de uma loja específica
 GET /api/repasses/agendados/?loja=1
 ```
 
@@ -919,21 +939,27 @@ Resposta:
     "valor": "5000.00",
     "data": "2026-02-20T10:00:00Z",
     "status": "pendente",
-    "observacao": "Repasse agendado",
+    "observacao": "Agendado para o futuro",
     "criado_por": 1,
     "criado_em": "2026-02-10T15:30:00Z"
   },
   {
     "id": 2,
     "valor": "3500.00",
-    "data": "2026-02-25T14:30:00Z",
+    "data": "2026-01-25T14:30:00Z",
     "status": "pendente",
-    "observacao": null,
+    "observacao": "Atrasado",
     "criado_por": 1,
-    "criado_em": "2026-02-08T09:15:00Z"
+    "criado_em": "2026-01-08T09:15:00Z"
   }
 ]
 ```
+
+**Nota:** Para filtrar especificamente repasses atrasados, use:
+```bash
+GET /api/repasses/?status=pendente&data_fim=YYYY-MM-DD
+```
+Onde `data_fim` é a data de hoje ou anterior.
 
 ### `GET /api/repasses/{id}/`
 
@@ -977,19 +1003,22 @@ Deleta repasse. Exige permissão `financeiro.delete_repasse`.
 ### Exemplos de Uso
 
 ```bash
-# Listar todos os repasses
+# Listar TODOS os repasses (sem filtro)
 GET /api/repasses/
 
-# Listar repasses pendentes
+# Listar apenas repasses PENDENTES
 GET /api/repasses/?status=pendente
+
+# Listar repasses PAGOS
+GET /api/repasses/?status=pago
+
+# Listar repasses CANCELADOS
+GET /api/repasses/?status=cancelado
 
 # Listar repasses de uma loja específica
 GET /api/repasses/?loja=1
 
-# Listar repasses agendados de uma loja
-GET /api/repasses/?loja=1&status=pendente&data_inicio=2026-02-01
-
-# Repasses agendados (rápido)
+# Apenas repasses pendentes (alias)
 GET /api/repasses/agendados/
 GET /api/repasses/agendados/?loja=1
 
@@ -1476,16 +1505,19 @@ GET /api/lojas/1/?repasse_page=2&venda_page=3
 ### Repasses (`/api/repasses/`)
 
 ```bash
-# Listar todos
+# Listar TODOS os repasses (pendentes + pagos + cancelados)
 GET /api/repasses/
 
-# Listar repasses pendentes
+# Listar apenas repasses PENDENTES
 GET /api/repasses/?status=pendente
+
+# Listar repasses PAGOS
+GET /api/repasses/?status=pago
 
 # Listar repasses de uma loja
 GET /api/repasses/?loja=1
 
-# Listar repasses agendados (pendente, data futura)
+# Alias: Todos os repasses pendentes
 GET /api/repasses/agendados/
 GET /api/repasses/agendados/?loja=1
 
