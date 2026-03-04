@@ -1325,87 +1325,166 @@ Payload: vazio.
 
 ### `GET /api/vendas/{id}/carne/`
 
-Gera e retorna arquivo **PDF** do carnê/promissória da venda.
+Retorna **dados estruturados em JSON** do carnê/promissória para geração de PDF no frontend.
 
 **Permissão requerida:** `vendas.view_venda`
 
 **Query params:**
 - `tipo` (opcional): `carne` ou `promissoria` (padrão: `carne`)
 
-**Resposta:** Arquivo PDF (binary)
+**Resposta:** JSON com dados estruturados
 
-**Exemplo:**
-```bash
-# Gerar carnê
-GET /api/vendas/123/carne/
-# Retorna: <arquivo_pdf>
-
-# Com tipo específico
-GET /api/vendas/123/carne/?tipo=promissoria
-# Retorna: <arquivo_pdf>
+```json
+{
+  "venda_id": 123,
+  "valor_total": "5000.00",
+  "tipo_pagamento": "Carnê",
+  "quantidade_parcelas": 3,
+  "nome_cliente": "João Silva",
+  "endereco_cliente": "Rua A, 123",
+  "cpf": "123.456.789-00",
+  "data_atual": "2026-03-04",
+  "parcelas_info": [
+    {
+      "parcela": 1,
+      "valor_parcela": "1666.67",
+      "data_vencimento": "04/04/2026",
+      "qr_code_base64": "data:image/png;base64,...",
+      "chave_pix": "seu-pix@banco"
+    }
+  ],
+  "loja": {
+    "nome": "Loja A",
+    "telefone": "91 3333-3333",
+    "cnpj": "12.345.678/0001-90"
+  }
+}
 ```
 
-**Erros possíveis:**
-- 400: Venda não possui pagamento em carnê/promissória
-- 500: Erro ao gerar PDF
+**Como usar no Frontend:**
 
-**Nota:** O backend renderiza o template `venda/folha_carne.html` e converte para PDF usando WeasyPrint. Inclui:
-- Dados do cliente
-- Parcelas com valores e datas de vencimento
-- QR codes PIX para cada parcela (se configurado)
-- Informações da loja
+```javascript
+// Buscar dados
+const response = await fetch('/api/vendas/123/carne/', {
+  headers: { 'Authorization': 'Bearer TOKEN' }
+});
+const data = await response.json();
+
+// Montar HTML e gerar PDF com html2pdf.js
+const html = `
+  <h2>Carnê ${data.tipo_pagamento}</h2>
+  <p>Cliente: ${data.nome_cliente}</p>
+  <p>CPF: ${data.cpf}</p>
+  <table>
+    <tr>
+      <th>Parcela</th>
+      <th>Valor</th>
+      <th>Vencimento</th>
+    </tr>
+    ${data.parcelas_info.map(p => `
+      <tr>
+        <td>${p.parcela}</td>
+        <td>R$ ${p.valor_parcela}</td>
+        <td>${p.data_vencimento}</td>
+      </tr>
+    `).join('')}
+  </table>
+`;
+
+// Gerar PDF (requer html2pdf.js)
+html2pdf().set(options).fromString(html).save('carne.pdf');
+```
 
 ### `GET /api/vendas/{id}/contrato/`
 
-Gera e retorna arquivo **PDF** do contrato da venda.
+Retorna **dados estruturados em JSON** do contrato para geração de PDF no frontend.
 
 **Permissão requerida:** `vendas.view_venda`
 
-**Resposta:** Arquivo PDF (binary)
+**Resposta:** JSON com dados estruturados
 
-**Exemplo:**
-```bash
-GET /api/vendas/123/contrato/
-# Retorna: <arquivo_pdf>
+```json
+{
+  "venda_id": 123,
+  "valor_total": "5000.00",
+  "tipo_pagamento": "Carnê",
+  "cliente": {
+    "nome": "João Silva",
+    "cpf": "123.456.789-00",
+    "endereco": "Rua A, 123",
+    "telefone": "91 99999-9999"
+  },
+  "data_atual": "2026-03-04",
+  "loja": {
+    "nome": "Loja A",
+    "cnpj": "12.345.678/0001-90",
+    "contrato": {
+      "textos": [...],
+      "clausulas": [...]
+    }
+  },
+  "aparelho": {
+    "nome": "iPhone 14 Pro",
+    "imei": "358240092934802"
+  },
+  "valor_parcela": "1666.67",
+  "quantidade_parcelas": 3,
+  "parcelas_meses": ["04/04/2026", "04/05/2026", "04/06/2026"],
+  "primeira_parcela": "04/04/2026",
+  "ultima_parcela": "04/06/2026"
+}
 ```
 
-**Erros possíveis:**
+**Como usar no Frontend:**
+
+```javascript
+// Buscar dados
+const response = await fetch('/api/vendas/123/contrato/', {
+  headers: { 'Authorization': 'Bearer TOKEN' }
+});
+const data = await response.json();
+
+// Montar HTML com os dados
+const html = `
+  <h2>Contrato de Venda</h2>
+  <p>Cliente: ${data.cliente.nome}</p>
+  <p>CPF: ${data.cliente.cpf}</p>
+  <p>Loja: ${data.loja.nome}</p>
+  <p>Aparelho: ${data.aparelho.nome}</p>
+  <p>IMEI: ${data.aparelho.imei}</p>
+  <p>Valor Total: R$ ${data.valor_total}</p>
+  <p>Parcelas: ${data.quantidade_parcelas}x de R$ ${data.valor_parcela}</p>
+  ${(data.loja.contrato?.textos || []).map(t => `<p>${t}</p>`).join('')}
+`;
+
+// Gerar PDF
+html2pdf().set(options).fromString(html).save('contrato.pdf');
+```
+
+### Dependências de Frontend
+
+Para gerar PDFs no frontend, use uma dessas bibliotecas:
+
+1. **html2pdf.js** (recomendado - simples)
+   ```bash
+   npm install html2pdf.js
+   ```
+
+2. **jsPDF** + **html2canvas**
+   ```bash
+   npm install jspdf html2canvas
+   ```
+
+3. **pdfkit**
+   ```bash
+   npm install pdfkit
+   ```
+
+### Erros Possíveis
+
+- 400: Venda não possui pagamento em carnê/promissória
 - 404: Venda não encontrada
-- 500: Erro ao gerar PDF
 
-**Nota:** O backend renderiza o template `venda/contrato.html` com:
-- Dados completos da venda
-- Informações do cliente
-- Detalhes do aparelho (IMEI)
-- Configurações de pagamento e parcelas
-- Contrato personalizado da loja
-
-### Download automático
-
-Os PDFs são retornados com header `Content-Disposition: attachment`, o que causa download automático no navegador.
-
-Exemplo de consumo em sistema externo:
-```bash
-# Fazer download direto
-curl -H "Authorization: Bearer <TOKEN>" \
-  https://api.example.com/api/vendas/123/carne/ \
-  -o carne_123.pdf
-
-# Consumir em uma aplicação
-fetch('/api/vendas/123/contrato/', {
-  headers: {
-    'Authorization': 'Bearer <TOKEN>'
-  }
-})
-.then(response => response.blob())
-.then(blob => {
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'contrato.pdf';
-  a.click();
-})
-```
 
 ## Permissoes (resumo)
 
@@ -1473,11 +1552,11 @@ GET /api/vendas/?vendas_trocadas=1
 # Combinado
 GET /api/vendas/?loja=1&cliente_nome=João&vendas_canceladas=1
 
-# Gerar PDF do carnê
+# Dados para gerar carnê (JSON)
 GET /api/vendas/123/carne/
 GET /api/vendas/123/carne/?tipo=promissoria
 
-# Gerar PDF do contrato
+# Dados para gerar contrato (JSON)
 GET /api/vendas/123/contrato/
 ```
 

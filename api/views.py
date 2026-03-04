@@ -2,7 +2,6 @@ from datetime import date
 import re
 import calendar
 import json
-from io import BytesIO
 
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -10,10 +9,7 @@ from django.db.models import Count, Sum
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.template.loader import get_template, render_to_string
-from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-import weasyprint
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.exceptions import ValidationError
@@ -2178,12 +2174,13 @@ class VendaViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"], url_path="carne")
     @extend_schema(
-        description="Gera PDF do carnê/promissória da venda",
-        responses={200: OpenApiTypes.BINARY},
+        description="Retorna dados do carnê/promissória para geração de PDF no frontend",
+        responses={200: OpenApiTypes.OBJECT},
     )
     def carne(self, request, pk=None):
         """
-        Gera o PDF do carnê ou promissória para a venda.
+        Retorna dados estruturados do carnê ou promissória da venda.
+        O frontend é responsável por gerar o PDF.
         
         Query params:
         - tipo (opcional): 'carne' ou 'promissoria' (padrão: 'carne')
@@ -2234,45 +2231,33 @@ class VendaViewSet(viewsets.ModelViewSet):
                 'chave_pix': loja.chave_pix,
             })
         
-        context = {
-            'venda': venda,
-            'valor_total': venda.pagamentos_valor_total,
+        return Response({
+            'venda_id': venda.id,
+            'valor_total': str(venda.pagamentos_valor_total),
             'tipo_pagamento': 'Carnê' if tipo == 'carne' else 'Promissória',
             'quantidade_parcelas': len(parcelas),
             'nome_cliente': cliente.nome.title(),
             'endereco_cliente': cliente.endereco,
             'cpf': cliente.cpf,
-            'data_atual': timezone.now().date(),
+            'data_atual': timezone.now().date().isoformat(),
             'parcelas_info': parcelas_info,
-            'loja': loja,
-            'numero_loja': loja.telefone,
-        }
-        
-        # Renderizar template
-        html_string = render_to_string('venda/folha_carne.html', context)
-        
-        # Gerar PDF usando weasyprint
-        try:
-            pdf_buffer = BytesIO()
-            weasyprint.HTML(string=html_string).write_pdf(pdf_buffer)
-            pdf_buffer.seek(0)
-            
-            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="carne_venda_{venda.id}.pdf"'
-            return response
-        except Exception as e:
-            return Response(
-                {"detail": f"Erro ao gerar PDF: {str(e)}"},
-                status=500
-            )
+            'loja': {
+                'nome': loja.nome,
+                'telefone': loja.telefone,
+                'cnpj': loja.cnpj,
+            },
+        })
 
     @action(detail=True, methods=["get"], url_path="contrato")
     @extend_schema(
-        description="Gera PDF do contrato da venda",
-        responses={200: OpenApiTypes.BINARY},
+        description="Retorna dados do contrato para geração de PDF no frontend",
+        responses={200: OpenApiTypes.OBJECT},
     )
     def contrato(self, request, pk=None):
-        """Gera o PDF do contrato para a venda."""
+        """
+        Retorna dados estruturados do contrato para a venda.
+        O frontend é responsável por gerar o PDF.
+        """
         venda = self.get_object()
         
         valor_total = venda.pagamentos_valor_total
@@ -2286,7 +2271,6 @@ class VendaViewSet(viewsets.ModelViewSet):
         
         cliente = venda.cliente
         contrato = loja.contrato
-        contrato_json = json.dumps(contrato)
         
         primeira_parcela = pagamento_carne.data_primeira_parcela if pagamento_carne else None
         parcelas = pagamento_carne.parcelas if pagamento_carne else 0
@@ -2304,40 +2288,32 @@ class VendaViewSet(viewsets.ModelViewSet):
         
         ultima_parcela = parcelas_meses[-1] if parcelas_meses else None
         
-        context = {
-            'venda': venda,
-            'valor_total': valor_total,
+        return Response({
+            'venda_id': venda.id,
+            'valor_total': str(valor_total),
             'tipo_pagamento': 'Carnê' if pagamento_carne else 'À vista',
-            'cliente': cliente,
-            'data_atual': timezone.now().date(),
-            'loja': loja,
-            'contrato': contrato_json,
-            'aparelho': aparelho,
-            'imei': imei,
-            'valor_parcela': pagamento_carne.valor_parcela if pagamento_carne else None,
+            'cliente': {
+                'nome': cliente.nome,
+                'cpf': cliente.cpf,
+                'endereco': cliente.endereco,
+                'telefone': cliente.telefone,
+            },
+            'data_atual': timezone.now().date().isoformat(),
+            'loja': {
+                'nome': loja.nome,
+                'cnpj': loja.cnpj,
+                'contrato': contrato,
+            },
+            'aparelho': {
+                'nome': aparelho.produto.nome if aparelho else None,
+                'imei': imei,
+            },
+            'valor_parcela': str(pagamento_carne.valor_parcela) if pagamento_carne else None,
             'quantidade_parcelas': parcelas,
             'parcelas_meses': parcelas_meses,
             'primeira_parcela': primeira_parcela.strftime('%d/%m/%Y') if primeira_parcela else None,
             'ultima_parcela': ultima_parcela,
-        }
-        
-        # Renderizar template
-        html_string = render_to_string('venda/contrato.html', context)
-        
-        # Gerar PDF usando weasyprint
-        try:
-            pdf_buffer = BytesIO()
-            weasyprint.HTML(string=html_string).write_pdf(pdf_buffer)
-            pdf_buffer.seek(0)
-            
-            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="contrato_venda_{venda.id}.pdf"'
-            return response
-        except Exception as e:
-            return Response(
-                {"detail": f"Erro ao gerar PDF: {str(e)}"},
-                status=500
-            )
+        })
 
 
 
