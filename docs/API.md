@@ -1244,6 +1244,37 @@ Efeito: Produto sai de listas normais e não aparece em novos formulários, mas 
 
 Rotas baseadas em `VendaViewSet`.
 
+### Permissões e Restrições de Acesso
+
+**Permissões necessárias:**
+- `GET /api/vendas/` (list): `vendas.view_venda`
+- `GET /api/vendas/{id}/` (retrieve): `vendas.view_venda`
+- `GET /api/vendas/{id}/carne/`: `vendas.view_venda`
+- `GET /api/vendas/{id}/contrato/`: `vendas.view_venda`
+- `POST /api/vendas/`: `vendas.add_venda`
+- `PUT/PATCH /api/vendas/{id}/`: `vendas.change_venda`
+- `DELETE /api/vendas/{id}/`: `vendas.delete_venda`
+
+**Regras de acesso por loja:**
+
+| Tipo de Usuário | Acesso a Vendas |
+|-----------------|-----------------|
+| **Admin/Staff** | ✅ Todas as vendas (qualquer loja) |
+| **Usuário com `can_view_all_sales`** | ✅ Todas as vendas (qualquer loja) |
+| **Vendedor** | ✅ Apenas vendas de suas lojas vinculadas (`user.lojas` ou `user.loja`) |
+
+**Importante para vendedores:**
+- Na **listagem** (`GET /api/vendas/`): retorna apenas vendas da loja da sessão
+- Em **operações específicas** (`GET /api/vendas/{id}/`, carnê, contrato): verifica se a venda pertence a uma loja vinculada ao usuário
+- Se tentar acessar venda de outra loja: **retorna 403 Forbidden**
+
+Exemplo:
+```bash
+# Vendedor da Loja A
+GET /api/vendas/123/  # ✅ OK se venda 123 é da Loja A
+GET /api/vendas/456/  # ❌ 403 se venda 456 é da Loja B
+```
+
 ### Campos retornados
 
 Ao listar ou detalhar vendas (`GET /api/vendas/` ou `GET /api/vendas/{id}/`), a API retorna:
@@ -1601,8 +1632,19 @@ Para gerar PDFs no frontend, use uma dessas bibliotecas:
 ### Erros Possíveis
 
 - 400: Venda não possui pagamento em carnê/promissória
-- 403: Usuário não tem permissão `vendas.view_venda`
+- 403: Usuário não tem permissão `vendas.view_venda` **OU** não tem acesso à loja da venda
 - 404: Venda não encontrada
+
+### Restrições de Acesso
+
+**Para vendedores (não-admin):**
+- ✅ Pode acessar vendas das lojas vinculadas a ele (`user.lojas`)
+- ✅ Pode acessar vendas da sua loja principal (`user.loja`)
+- ❌ **Não pode** acessar vendas de outras lojas (retorna 403)
+
+**Para admin/gerentes:**
+- ✅ Acesso total a todas as vendas (qualquer loja)
+- ✅ Permissão `vendas.can_view_all_sales` também dá acesso total
 
 
 ## Permissoes (resumo)

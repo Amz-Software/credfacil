@@ -95,6 +95,37 @@ class VendaPermission(BasePermission):
             return user.has_perm("vendas.delete_venda")
 
         return False
+    
+    def has_object_permission(self, request, view, obj):
+        """
+        Verifica se o usuário tem acesso à venda específica.
+        
+        - Admin/staff: acesso total
+        - Usuário com can_view_all_sales: acesso total
+        - Outros: apenas vendas da(s) loja(s) vinculada(s)
+        """
+        user = request.user
+        
+        # Admin/staff tem acesso total
+        if user.is_superuser or user.is_staff:
+            return True
+        
+        # Usuários com permissão can_view_all_sales têm acesso total
+        if user.has_perm("vendas.can_view_all_sales"):
+            return True
+        
+        # Vendedores: apenas vendas das lojas vinculadas
+        lojas_usuario = list(user.lojas.values_list('id', flat=True))
+        
+        # Adicionar loja principal se existir
+        if hasattr(user, 'loja') and user.loja:
+            lojas_usuario.append(user.loja.id)
+        
+        # Verificar se a venda pertence a alguma loja do usuário
+        if obj.loja_id in lojas_usuario:
+            return True
+        
+        return False
 
 
 class UserPermission(BasePermission):
