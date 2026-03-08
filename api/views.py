@@ -448,6 +448,12 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             )
         )
 
+    def _lojas_usuario_ids(self, request):
+        lojas_ids = set(request.user.lojas.values_list("id", flat=True))
+        if getattr(request.user, "loja_id", None):
+            lojas_ids.add(request.user.loja_id)
+        return lojas_ids
+
     def _get_queryset(self, request):
         qs = self._base_queryset()
         search = request.query_params.get("search")
@@ -560,13 +566,36 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
     @extend_schema(responses=ClienteSolicitacaoSerializer)
     def retrieve(self, request, pk=None):
-        cliente = Cliente.objects.select_related(
-            "loja", "contato_adicional", "informacao_pessoal", "comprovantes", "analise_credito"
-        ).get(pk=pk)
+        cliente = get_object_or_404(
+            Cliente.objects.select_related(
+                "loja", "contato_adicional", "informacao_pessoal", "comprovantes", "analise_credito"
+            ),
+            pk=pk,
+        )
+
         if not request.user.has_perm("vendas.view_all_analise_credito"):
-            loja_id = request.session.get("loja_id")
-            if cliente.loja_id != loja_id:
-                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
+            lojas_usuario = self._lojas_usuario_ids(request)
+
+            loja_query = request.query_params.get("loja")
+            if loja_query:
+                try:
+                    loja_query_id = int(loja_query)
+                except (TypeError, ValueError):
+                    return Response({"detail": "Parametro loja invalido."}, status=400)
+
+                if loja_query_id not in lojas_usuario:
+                    return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
+
+                if cliente.loja_id != loja_query_id:
+                    return Response({"detail": "Solicitacao nao pertence a loja informada."}, status=403)
+            else:
+                loja_sessao = request.session.get("loja_id")
+                if loja_sessao:
+                    if cliente.loja_id != loja_sessao and cliente.loja_id not in lojas_usuario:
+                        return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
+                elif cliente.loja_id not in lojas_usuario:
+                    return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
+
         data = ClienteSolicitacaoSerializer(cliente).data
         return Response(data)
 

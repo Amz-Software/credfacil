@@ -297,6 +297,9 @@ GET /api/solicitacoes/kpis/?loja=1
 - ⚠️ Se `?loja=27` for enviado MAS o usuário NÃO tiver acesso → ignora e usa loja da sessão
 - ⚠️ Se `?loja` for omitido → usa loja da sessão (`session['loja_id']`)
 
+**Observação para endpoints de detalhe (`.../{id}/`)**:
+- Em detalhes de recurso (ex.: `GET /api/solicitacoes/{cliente_id}/`), quando `?loja=X` é enviado sem acesso, a API retorna **403** (não faz fallback silencioso)
+
 **Exemplo prático:**
 ```bash
 # Usuário "teste" tem acesso às lojas: [1, 27, 35]
@@ -566,6 +569,27 @@ GET /api/solicitacoes/kpis/?loja=27
 ### `GET /api/solicitacoes/{cliente_id}/`
 
 Detalhe completo da solicitacao do cliente.
+
+**Permissão requerida:** `vendas.view_cliente`
+
+**Regras de acesso por loja (não-admin):**
+- Se enviar `?loja=X`, o usuário precisa ter acesso a essa loja (`user.lojas`/`user.loja`), senão retorna **403**
+- Se enviar `?loja=X`, a solicitação também precisa pertencer à loja `X`, senão retorna **403**
+- Se não enviar `?loja`, usa loja da sessão quando disponível; sem sessão, valida pelas lojas vinculadas ao usuário
+
+**Erros comuns:**
+- `400`: parâmetro `loja` inválido
+- `403`: ação não autorizada para a loja
+- `404`: solicitação não encontrada
+
+**Exemplo:**
+```bash
+# Vendedor com acesso à loja 27
+GET /api/solicitacoes/2107/?loja=27  # ✅ se a solicitação 2107 for da loja 27
+
+# Usuário sem acesso à loja 27
+GET /api/solicitacoes/2107/?loja=27  # ❌ 403
+```
 
 ### `POST /api/solicitacoes/`
 
