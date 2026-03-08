@@ -1287,27 +1287,47 @@ Ao listar ou detalhar vendas (`GET /api/vendas/` ou `GET /api/vendas/{id}/`), a 
 - `cliente_nome`: ✅ Nome do cliente
 - `vendedor`: ID do vendedor
 - `vendedor_nome`: ✅ Nome completo ou username do vendedor
-- `data_venda`: Data/hora da venda
-- `observacao`: Observações
-- `repasse_logista`: Valor do repasse
-- `is_deleted`: Se foi cancelada
-- `is_trocado`: Se teve troca
+- `data_venda`: Data/hora da venda (ISO 8601: "2026-03-04T15:30:00Z")
+- `observacao`: Observações sobre a venda
+- `repasse_logista`: Valor do repasse para o lojista
+- `is_deleted`: Boolean - se a venda foi cancelada
+- `is_trocado`: Boolean - se houve troca de produto
+
+#### Anexos:
+- `documento_assinado`: URL do documento assinado (se houver)
+- `foto_cliente`: URL da foto do cliente (se houver)
+- `imagem_imei`: URL da imagem do IMEI (se houver)
+
+#### Valores calculados (somente leitura):
+- `valor_total`: ✅ Valor total dos produtos vendidos (string decimal)
+- `valor_total_pagamentos`: ✅ Valor total dos pagamentos registrados (string decimal)
+- `qtd_total_parcelas`: ✅ Quantidade total de parcelas (inteiro)
+- `valor_entrada_cliente`: ✅ Valor da entrada paga pelo cliente (string decimal)
 
 #### Itens da venda (`itens_venda`):
 Array de objetos com:
 - `id`: ID do item
 - `produto`: ID do produto
 - `produto_nome`: ✅ Nome do produto
-- `imei`: IMEI do aparelho
-- `valor_unitario`: Valor unitário
-- `quantidade`: Quantidade
-- `valor_desconto`: Desconto aplicado
+- `imei`: IMEI do aparelho (se aplicável)
+- `valor_unitario`: Valor unitário (string decimal)
+- `quantidade`: Quantidade (inteiro)
+- `valor_desconto`: Desconto aplicado (string decimal)
 
 #### Pagamentos (`pagamentos`):
 Array de objetos com:
 - `id`: ID do pagamento
 - `tipo_pagamento`: ID do tipo
 - `tipo_pagamento_nome`: ✅ Nome do tipo de pagamento
+- `tipo_nome`: ✅ Alias de `tipo_pagamento_nome` (compatibilidade)
+- `valor`: Valor do pagamento (string decimal)
+- `parcelas`: Número de parcelas (inteiro)
+- `data_primeira_parcela`: Data da primeira parcela (YYYY-MM-DD)
+- `porcentagem_desconto`: Porcentagem de desconto aplicada
+- `bloqueado`: Boolean - se o pagamento está bloqueado
+- `desativado`: Boolean - se o pagamento foi desativado
+- `devolucao`: Boolean - se é uma devolução
+- `quitado`: Boolean - se o pagamento foi quitado
 - `tipo_nome`: ✅ (Alias para compatibilidade)
 - `valor`: Valor do pagamento
 - `parcelas`: Número de parcelas
@@ -1376,7 +1396,82 @@ Exemplo:
 
 ### `GET /api/vendas/{id}/`
 
-Detalhe da venda, com `itens_venda` e `pagamentos`.
+Detalhe completo da venda, incluindo itens vendidos e pagamentos.
+
+**Exemplo de resposta:**
+
+```json
+{
+  "id": 1071,
+  "loja": 2,
+  "loja_nome": "Loja Centro",
+  "cliente": 45,
+  "cliente_nome": "João Silva",
+  "vendedor": 3,
+  "vendedor_nome": "Maria Santos",
+  "data_venda": "2026-03-04T15:30:00Z",
+  "observacao": "Cliente preferencial",
+  "repasse_logista": "800.00",
+  "documento_assinado": "/media/vendas/1071/contrato.pdf",
+  "foto_cliente": "/media/vendas/1071/foto.jpg",
+  "imagem_imei": "/media/vendas/1071/imei.jpg",
+  "is_deleted": false,
+  "is_trocado": false,
+  
+  // Valores calculados
+  "valor_total": "3000.00",
+  "valor_total_pagamentos": "3000.00",
+  "qtd_total_parcelas": 6,
+  "valor_entrada_cliente": "500.00",
+  
+  // Itens vendidos
+  "itens_venda": [
+    {
+      "id": 234,
+      "produto": 10,
+      "produto_nome": "iPhone 14 Pro 256GB",
+      "imei": "358240092934802",
+      "valor_unitario": "3000.00",
+      "quantidade": 1,
+      "valor_desconto": "0.00"
+    }
+  ],
+  
+  // Pagamentos
+  "pagamentos": [
+    {
+      "id": 189,
+      "tipo_pagamento": 1,
+      "tipo_pagamento_nome": "ENTRADA",
+      "tipo_nome": "ENTRADA",
+      "valor": "500.00",
+      "parcelas": 1,
+      "data_primeira_parcela": "2026-03-04",
+      "porcentagem_desconto": "0.00",
+      "bloqueado": false,
+      "desativado": false,
+      "devolucao": false,
+      "quitado": true
+    },
+    {
+      "id": 190,
+      "tipo_pagamento": 3,
+      "tipo_pagamento_nome": "Carnê",
+      "tipo_nome": "Carnê",
+      "valor": "2500.00",
+      "parcelas": 6,
+      "data_primeira_parcela": "2026-04-04",
+      "porcentagem_desconto": "25.00",
+      "bloqueado": false,
+      "desativado": false,
+      "devolucao": false,
+      "quitado": false
+    }
+  ]
+}
+```
+
+**Dica:** Use os campos calculados (`valor_total`, `valor_total_pagamentos`, etc) para exibir resumos sem precisar calcular no frontend.
 
 ### `PUT/PATCH /api/vendas/{id}/`
 

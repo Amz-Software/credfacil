@@ -301,10 +301,32 @@ class VendaSerializer(serializers.ModelSerializer):
     itens_venda = ProdutoVendaSerializer(many=True, read_only=True)
     pagamentos = PagamentoSerializer(many=True, read_only=True)
     
+    # Campos calculados para facilitar exibição no frontend
+    valor_total = serializers.SerializerMethodField()
+    valor_total_pagamentos = serializers.SerializerMethodField()
+    qtd_total_parcelas = serializers.SerializerMethodField()
+    valor_entrada_cliente = serializers.SerializerMethodField()
+    
     def get_vendedor_nome(self, obj):
         if obj.vendedor:
             return obj.vendedor.get_full_name() or obj.vendedor.username
         return None
+    
+    def get_valor_total(self, obj):
+        """Valor total calculado dos produtos (itens_venda)"""
+        return str(obj.calcular_valor_total())
+    
+    def get_valor_total_pagamentos(self, obj):
+        """Valor total dos pagamentos"""
+        return str(obj.pagamentos_valor_total)
+    
+    def get_qtd_total_parcelas(self, obj):
+        """Quantidade total de parcelas (soma de todos os pagamentos parcelados)"""
+        return obj.qtd_total_parcelas()
+    
+    def get_valor_entrada_cliente(self, obj):
+        """Valor da entrada paga pelo cliente"""
+        return str(obj.valor_entrada_cliente)
 
     class Meta:
         model = Venda
@@ -326,6 +348,11 @@ class VendaSerializer(serializers.ModelSerializer):
             "is_trocado",
             "itens_venda",
             "pagamentos",
+            # Campos calculados
+            "valor_total",
+            "valor_total_pagamentos",
+            "qtd_total_parcelas",
+            "valor_entrada_cliente",
         ]
 
 
