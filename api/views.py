@@ -2402,26 +2402,95 @@ class RepasseViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], url_path='agendados')
     @extend_schema(
-        description='Retorna todos os repasses da loja (todos os status)',
-        responses={200: RepasseSerializer(many=True)},
+        description='Retorna repasses calculados automaticamente baseado nos períodos de venda (dias 6, 16, 26)',
+        responses={200: OpenApiTypes.OBJECT},
         parameters=[
-            OpenApiParameter('loja', OpenApiTypes.INT, description='ID da loja'),
+            OpenApiParameter('loja', OpenApiTypes.INT, description='ID da loja (obrigatório para não-admin)'),
+            OpenApiParameter('meses_atras', OpenApiTypes.INT, description='Quantos meses olhar para trás (padrão: 0, máximo: 6)'),
         ]
     )
     def agendados(self, request):
         """
-        Retorna TODOS os repasses da loja selecionada.
+        Retorna repasses CALCULADOS automaticamente pela loja.
         
-        Funciona igual ao sistema web normal - retorna repasses com qualquer status:
-        - Pendentes
-        - Pagos
-        - Cancelados
+        Baseado no método get_repasses_status do modelo Loja:
+        - Calcula repasses nos dias 6, 16 e 26 de cada mês
+        - Períodos de competência:
+          * Dia 6: vendas de 26 do mês anterior até 05 do mês atual
+          * Dia 16: vendas de 06 até 15 do mês atual
+          * Dia 26: vendas de 16 até 25 do mês atual
+        - Verifica se repasse foi registrado no banco (feito=True/False)
+        - Calcula valor total baseado no repasse_logista de cada venda
         """
-        queryset = self.get_queryset()
-        # Não filtra por status - retorna TODOS igual ao sistema web
+        user = request.user
         
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        # Obter loja
+        loja_id = request.query_params.get('loja')
+        if loja_id:
+            try:
+                loja_id = int(loja_id)
+                # Validar acesso para não-admin
+                if not user.is_superuser and not user.is_staff:
+                    lojas_usuario = list(user.lojas.values_list('id', flat=True))
+                    if loja_id not in lojas_usuario:
+                        return Response(
+                            {'erro': 'Você não tem acesso a esta loja'},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                loja = Loja.objects.get(id=loja_id)
+            except (ValueError, TypeError):
+                return Response(
+                    {'erro': 'ID da loja inválido'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            except Loja.DoesNotExist:
+                return Response(
+                    {'erro': 'Loja não encontrada'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        elif 'loja_id' in request.session:
+            # Fallback para loja da sessão
+            loja = Loja.objects.get(id=request.session['loja_id'])
+        else:
+            return Response(
+                {'erro': 'Parâmetro loja é obrigatório'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Obter quantos meses olhar para trás (padrão: 0)
+        meses_atras = request.query_params.get('meses_atras', 0)
+        try:
+            meses_atras = int(meses_atras)
+            meses_atras = max(0, min(meses_atras, 6))  # Limitar entre 0 e 6
+        except (ValueError, TypeError):
+            meses_atras = 0
+        
+        # Calcular repasses usando o método do modelo
+        resultados, total_atrasados = loja.get_repasses_status(meses_atras=meses_atras)
+        
+        # Formatar resposta
+        repasses_formatados = []
+        for rep in resultados:
+            repasses_formatados.append({
+                'data': rep['data'].strftime('%Y-%m-%d'),
+                'data_formatada': rep['data'].strftime('%d/%m/%Y'),
+                'inicio_periodo': rep['inicio_periodo'].strftime('%Y-%m-%d'),
+                'inicio_periodo_formatado': rep['inicio_periodo'].strftime('%d/%m/%Y'),
+                'fim_periodo': rep['fim_periodo'].strftime('%Y-%m-%d'),
+                'fim_periodo_formatado': rep['fim_periodo'].strftime('%d/%m/%Y'),
+                'qtd_vendas': rep['qtd_vendas'],
+                'valor_total_repasse': str(rep['valor_total_repasse']),
+                'feito': rep['feito'],
+                'atrasado': rep['data'] < date.today() and not rep['feito'],
+            })
+        
+        return Response({
+            'loja_id': loja.id,
+            'loja_nome': loja.nome,
+            'meses_consultados': meses_atras,
+            'total_atrasados': total_atrasados,
+            'repasses': repasses_formatados
+        })
     
     @extend_schema(
         description='Lista repasses com filtros opcionais',

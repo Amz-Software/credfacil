@@ -907,66 +907,126 @@ Resposta paginada:
 
 ### `GET /api/repasses/agendados/`
 
-**Endpoint dedicado** para retornar todos os repasses de uma loja específica (funciona igual ao sistema web normal).
+**Endpoint dedicado** para retornar repasses **calculados automaticamente** baseado nos períodos de venda (funciona igual ao sistema web normal).
 
-**Retorna:**
-- Todos os repasses da loja (qualquer status)
-- Repasses pendentes
-- Repasses pagos
-- Repasses cancelados
+**Diferencial:** Este endpoint NÃO retorna registros do banco de dados. Ele **calcula dinamicamente** os repasses baseado nas vendas realizadas em períodos específicos.
+
+**Regras de Cálculo:**
+
+A loja possui 3 datas de repasse por mês (dias 6, 16 e 26), cada uma com seu período de competência:
+
+1. **Repasse do dia 6:** vendas do dia 26 do mês anterior até dia 05 do mês atual
+2. **Repasse do dia 16:** vendas do dia 06 até dia 15 do mês atual  
+3. **Repasse do dia 26:** vendas do dia 16 até dia 25 do mês atual
+
+O valor de cada repasse é calculado pela soma do `repasse_logista` de todas as vendas do período.
 
 Query params:
 
-- `loja` (opcional): ID da loja para filtrar
+- `loja` (obrigatório para não-admin): ID da loja para filtrar
+- `meses_atras` (opcional, padrão: 0): Quantos meses olhar para trás (máximo: 6)
 
-Resposta: array de repasses sem paginação (ideal para dashboards).
+Resposta: objeto com informações da loja, total de atrasados e array de repasses calculados.
 
 Exemplo:
 
 ```bash
-# Todos os repasses da loja 1 (qualquer status)
+# Repasses calculados da loja 1 (mês atual)
 GET /api/repasses/agendados/?loja=1
 
-# Se omitir loja, usa loja da sessão (não-admin) ou retorna de todas (admin)
+# Repasses dos últimos 3 meses (inclui mês atual)
+GET /api/repasses/agendados/?loja=1&meses_atras=3
+
+# Se omitir loja, usa loja da sessão (não-admin)
 GET /api/repasses/agendados/
 ```
 
 Resposta:
 
 ```json
-[
-  {
-    "id": 1,
-    "valor": "5000.00",
-    "data": "2026-02-20T10:00:00Z",
-    "status": "pendente",
-    "observacao": "Agendado para o futuro",
-    "criado_por": 1,
-    "criado_em": "2026-02-10T15:30:00Z"
-  },
-  {
-    "id": 2,
-    "valor": "3500.00",
-    "data": "2026-01-25T14:30:00Z",
-    "status": "pago",
-    "observacao": "Repasse já efetuado",
-    "criado_por": 1,
-    "criado_em": "2026-01-08T09:15:00Z"
-  },
-  {
-    "id": 3,
-    "valor": "2500.00",
-    "data": "2026-01-15T14:30:00Z",
-    "status": "cancelado",
-    "observacao": "Cancelado",
-    "criado_por": 1,
-    "criado_em": "2026-01-05T09:15:00Z"
-  }
-]
+{
+  "loja_id": 1,
+  "loja_nome": "Loja Centro",
+  "meses_consultados": 0,
+  "total_atrasados": 2,
+  "repasses": [
+    {
+      "data": "2026-03-26",
+      "data_formatada": "26/03/2026",
+      "inicio_periodo": "2026-03-16",
+      "inicio_periodo_formatado": "16/03/2026",
+      "fim_periodo": "2026-03-25",
+      "fim_periodo_formatado": "25/03/2026",
+      "qtd_vendas": 15,
+      "valor_total_repasse": "12500.50",
+      "feito": false,
+      "atrasado": false
+    },
+    {
+      "data": "2026-03-16",
+      "data_formatada": "16/03/2026",
+      "inicio_periodo": "2026-03-06",
+      "inicio_periodo_formatado": "06/03/2026",
+      "fim_periodo": "2026-03-15",
+      "fim_periodo_formatado": "15/03/2026",
+      "qtd_vendas": 18,
+      "valor_total_repasse": "15800.00",
+      "feito": false,
+      "atrasado": false
+    },
+    {
+      "data": "2026-03-06",
+      "data_formatada": "06/03/2026",
+      "inicio_periodo": "2026-02-26",
+      "inicio_periodo_formatado": "26/02/2026",
+      "fim_periodo": "2026-03-05",
+      "fim_periodo_formatado": "05/03/2026",
+      "qtd_vendas": 12,
+      "valor_total_repasse": "9500.00",
+      "feito": true,
+      "atrasado": false
+    },
+    {
+      "data": "2026-02-26",
+      "data_formatada": "26/02/2026",
+      "inicio_periodo": "2026-02-16",
+      "inicio_periodo_formatado": "16/02/2026",
+      "fim_periodo": "2026-02-25",
+      "fim_periodo_formatado": "25/02/2026",
+      "qtd_vendas": 10,
+      "valor_total_repasse": "8200.00",
+      "feito": false,
+      "atrasado": true
+    }
+  ]
+}
 ```
 
-**Nota:** Este endpoint funciona **igual ao sistema web normal** - retorna TODOS os repasses da loja, independente do status. Para filtrar apenas pendentes, use:
+**Campos da Resposta:**
+
+- `loja_id`: ID da loja consultada
+- `loja_nome`: Nome da loja
+- `meses_consultados`: Quantos meses foram consultados (0 = apenas mês atual)
+- `total_atrasados`: Número de repasses com `atrasado: true`
+- `repasses[]`: Array com os repasses calculados:
+  - `data`: Data do repasse (YYYY-MM-DD)
+  - `data_formatada`: Data formatada (DD/MM/YYYY)
+  - `inicio_periodo`/`fim_periodo`: Período de competência (YYYY-MM-DD)
+  - `inicio_periodo_formatado`/`fim_periodo_formatado`: Período formatado (DD/MM/YYYY)
+  - `qtd_vendas`: Quantidade de vendas no período
+  - `valor_total_repasse`: Valor total calculado (string decimal)
+  - `feito`: Se existe registro do repasse no banco (True/False)
+  - `atrasado`: Se a data passou e ainda não foi feito (True/False)
+
+**Nota Importante:** 
+- Este endpoint calcula os repasses em tempo real baseado nas **vendas realizadas**
+- O campo `feito` indica se existe um registro de `Repasse` no banco de dados para aquela data
+- Repasses só aparecem na resposta se houver vendas no período (qtd_vendas > 0)
+- Se o valor registrado no banco for menor que o calculado, o sistema automaticamente atualiza o status para `parcial`
+
+**Para acessar registros do banco de dados** (modelo Repasse), use:
 ```bash
+GET /api/repasses/?loja=1
 GET /api/repasses/?status=pendente&loja=1
 ```
 
@@ -1490,9 +1550,58 @@ Para gerar PDFs no frontend, use uma dessas bibliotecas:
    npm install pdfkit
    ```
 
+### Detalhes de Implementação
+
+#### QR Code PIX
+- ✅ **Fornecido pela API** em `parcelas_info[].qr_code_base64`
+- Formato: `data:image/png;base64,...` (pronto para usar em `<img src="">`)
+- Gerado automaticamente para cada parcela com:
+  - Chave PIX da loja CredFacil
+  - Valor exato da parcela
+  - TXID único (formato: `{pagamento_id:04d}{parcela:02d}`)
+  - Descrição: `"{cliente} - Parcela {n} de {total}"`
+
+#### Logo da Empresa
+- ⚠️ **NÃO fornecido pela API** (por questão de performance)
+- **Recomendação**: Use logo estática no projeto frontend
+- Caminho sugerido: `/assets/images/logo.png`
+- Formato: PNG com fundo transparente
+- Resolução recomendada: 300x100px
+
+```javascript
+// Exemplo de uso da logo
+<img src="/assets/images/logo.png" alt="Logo IPIX" style="max-width: 100px;">
+```
+
+#### Texto Personalizado do Contrato
+- ✅ **Fornecido pela API** em `loja.contrato`
+- Formato: JSON com estrutura livre (definida por cada loja)
+- Exemplo:
+  ```json
+  {
+    "textos": [
+      "4. Condições de Uso",
+      "O Locatário compromete-se a...",
+      "5. Penalidades",
+      "Em caso de atraso..."
+    ],
+    "clausulas": [...]
+  }
+  ```
+- Use `data.loja.contrato?.textos` ou `data.loja.contrato?.clausulas` conforme estrutura
+
+#### Formato de Datas
+- ✅ **Todas as datas vêm formatadas**
+- Datas de vencimento: `DD/MM/YYYY` (ex: "04/04/2026")
+- Data atual: `YYYY-MM-DD` ISO format (ex: "2026-03-04")
+- Arrays de datas: `["04/04/2026", "04/05/2026", ...]`
+
+**Importante:** Use as datas como vêm da API - já estão formatadas para exibição.
+
 ### Erros Possíveis
 
 - 400: Venda não possui pagamento em carnê/promissória
+- 403: Usuário não tem permissão `vendas.view_venda`
 - 404: Venda não encontrada
 
 
@@ -1606,8 +1715,9 @@ GET /api/repasses/?status=pago
 # Listar repasses de uma loja
 GET /api/repasses/?loja=1
 
-# Alias: Todos os repasses da loja (igual sistema web)
+# Repasses CALCULADOS automaticamente (baseado em períodos de venda)
 GET /api/repasses/agendados/?loja=1
+GET /api/repasses/agendados/?loja=1&meses_atras=3
 
 # Filtrar por período
 GET /api/repasses/?data_inicio=2026-02-01&data_fim=2026-02-28
