@@ -56,7 +56,7 @@ from vendas.models import (
     TipoPagamento,
     Venda,
 )
-from produtos.models import Parcelamento, Produto
+from produtos.models import Parcelamento, Produto, Marca
 from estoque.models import EstoqueImei
 from accounts.models import User
 
@@ -67,6 +67,7 @@ from .serializers import (
     InformarImeiAnaliseInputSerializer,
     LojaListSerializer,
     LojaSerializer,
+    MarcaSerializer,
     ParcelamentoSerializer,
     ProdutoSerializer,
     VendaSerializer,
@@ -1448,66 +1449,46 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         try:
             with transaction.atomic():
                 parcelas = int(analise.numero_parcelas)
-                porcentagem_desconto = 0
 
-                if getattr(produto, "is_iphone", False):
-                    # --- Fluxo iPhone ---
-                    # Valor base obrigatório no produto iPhone
-                    if not produto.valor:
-                        return Response(
-                            {"detail": "Produto iPhone sem valor base cadastrado."},
-                            status=400,
-                        )
+                # Valor base obrigatório
+                if not produto.valor:
+                    return Response(
+                        {"detail": "Produto sem valor base cadastrado."},
+                        status=400,
+                    )
 
-                    # Entrada informada pelo operador (deve ser >= entrada_minima do produto)
-                    entrada_informada = analise.entrada_informada
-                    if entrada_informada is None:
-                        entrada_informada = produto.entrada_cliente
-                    if entrada_informada < produto.entrada_cliente:
-                        return Response(
-                            {
-                                "detail": (
-                                    f"Entrada informada (R$ {entrada_informada}) nao pode ser menor "
-                                    f"que a entrada minima do produto (R$ {produto.entrada_cliente})."
-                                )
-                            },
-                            status=400,
-                        )
+                # Entrada informada pelo operador (deve ser >= entrada_cliente do produto)
+                entrada_informada = analise.entrada_informada
+                if entrada_informada is None:
+                    entrada_informada = produto.entrada_cliente
+                if entrada_informada < produto.entrada_cliente:
+                    return Response(
+                        {
+                            "detail": (
+                                f"Entrada informada (R$ {entrada_informada}) nao pode ser menor "
+                                f"que a entrada minima do produto (R$ {produto.entrada_cliente})."
+                            )
+                        },
+                        status=400,
+                    )
 
-                    # Buscar percentual de juros na tabela Parcelamento
-                    parcelamento = Parcelamento.objects.filter(qtd_vezes=parcelas).first()
-                    if not parcelamento:
-                        return Response(
-                            {"detail": f"Nenhum parcelamento cadastrado para {parcelas}x."},
-                            status=400,
-                        )
+                # Buscar percentual de juros na tabela Parcelamento vinculada à marca do produto
+                marca = produto.marca
+                parcelamento = Parcelamento.objects.filter(
+                    marca=marca, qtd_vezes=parcelas
+                ).first()
+                if not parcelamento:
+                    marca_nome = marca.nome if marca else "sem marca"
+                    return Response(
+                        {"detail": f"Nenhum parcelamento cadastrado para {parcelas}x na marca '{marca_nome}'."},
+                        status=400,
+                    )
 
-                    porcentagem_juros = parcelamento.porcentagem_juros
-                    valor_financiado = produto.valor - entrada_informada
-                    valor_credfacil = valor_financiado + (valor_financiado * porcentagem_juros / 100)
-                    repasse_logista = produto.valor - entrada_informada
-                    valor_entrada = entrada_informada
-                else:
-                    # --- Fluxo padrão (não iPhone) ---
-                    if parcelas == 4:
-                        valor_credfacil = produto.valor_4_vezes
-                        porcentagem_desconto = credfacil.porcentagem_desconto_4
-                    elif parcelas == 6:
-                        valor_credfacil = produto.valor_6_vezes
-                        porcentagem_desconto = credfacil.porcentagem_desconto_6
-                    elif parcelas == 8:
-                        valor_credfacil = produto.valor_8_vezes
-                        porcentagem_desconto = credfacil.porcentagem_desconto_8
-                    elif parcelas == 10:
-                        valor_credfacil = produto.valor_10_vezes
-                        porcentagem_desconto = credfacil.porcentagem_desconto_10
-                    elif parcelas == 12:
-                        valor_credfacil = produto.valor_12_vezes
-                    else:
-                        valor_credfacil = produto.valor_14_vezes
-
-                    repasse_logista = produto.valor_repasse_logista
-                    valor_entrada = produto.entrada_cliente
+                porcentagem_juros = parcelamento.porcentagem_juros
+                valor_financiado = produto.valor - entrada_informada
+                valor_credfacil = valor_financiado + (valor_financiado * porcentagem_juros / 100)
+                repasse_logista = produto.valor - entrada_informada
+                valor_entrada = entrada_informada
 
                 venda = Venda.objects.create(
                     loja=analise.loja,
@@ -1720,8 +1701,35 @@ class ProdutoViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=["Parcelamentos"]),
 )
 class ParcelamentoViewSet(viewsets.ModelViewSet):
-    queryset = Parcelamento.objects.all()
+    queryset = Parcelamento.objects.select_related("marca").all()
     serializer_class = ParcelamentoSerializer
+    permission_classes = [ProdutoPermission]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        marca_id = self.request.query_params.get("marca")
+        if marca_id:
+            qs = qs.filter(marca_id=marca_id)
+        return qs
+
+    def perform_create(self, serializer):
+        loja_id = self.request.session.get("loja_id")
+        if not loja_id:
+            raise ValidationError({"detail": "Loja nao encontrada na sessao."})
+        serializer.save(loja_id=loja_id)
+
+
+@extend_schema_view(
+    list=extend_schema(tags=["Marcas"]),
+    retrieve=extend_schema(tags=["Marcas"]),
+    create=extend_schema(tags=["Marcas"]),
+    update=extend_schema(tags=["Marcas"]),
+    partial_update=extend_schema(tags=["Marcas"]),
+    destroy=extend_schema(tags=["Marcas"]),
+)
+class MarcaViewSet(viewsets.ModelViewSet):
+    queryset = Marca.objects.all()
+    serializer_class = MarcaSerializer
     permission_classes = [ProdutoPermission]
 
     def perform_create(self, serializer):
@@ -2109,16 +2117,16 @@ class VendaViewSet(viewsets.ModelViewSet):
 
                 entrada_base = None
                 totais_parcelamento = {}
-                if produto_base:
+                if produto_base and produto_base.valor:
                     entrada_base = produto_base.entrada_cliente * quantidade_base
-                    totais_parcelamento = {
-                        4: produto_base.valor_4_vezes * quantidade_base,
-                        6: produto_base.valor_6_vezes * quantidade_base,
-                        8: produto_base.valor_8_vezes * quantidade_base,
-                        10: produto_base.valor_10_vezes * quantidade_base,
-                        12: produto_base.valor_12_vezes * quantidade_base,
-                        14: produto_base.valor_14_vezes * quantidade_base,
+                    marca = produto_base.marca
+                    parcelamentos_marca = {
+                        p.qtd_vezes: p.porcentagem_juros
+                        for p in Parcelamento.objects.filter(marca=marca)
                     }
+                    valor_financiado_base = (produto_base.valor - produto_base.entrada_cliente) * quantidade_base
+                    for qtd, juros in parcelamentos_marca.items():
+                        totais_parcelamento[qtd] = valor_financiado_base + (valor_financiado_base * juros / 100)
 
                 for pagamento in pagamento_formset.save(commit=False):
                     pagamento.venda = venda

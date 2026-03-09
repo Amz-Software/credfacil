@@ -20,38 +20,18 @@ class ProdutoForms(forms.ModelForm):
         labels = {
             'codigo': 'Código',
             'nome': 'Nome',
-            'valor': 'Valor base (iPhone)',
-            'valor_repasse_logista': 'Valor Repasse Logista',
-            'entrada_cliente': 'Entrada Cliente',
-            'valor_8_vezes': 'Valor total 8X',
-            'valor_6_vezes': 'Valor total 6X',
-            'valor_4_vezes': 'Valor total 4X',
-            'valor_10_vezes': 'Valor total 10X',
-            'valor_12_vezes': 'Valor total 12X',
-            'valor_14_vezes': 'Valor total 14X',
+            'valor': 'Valor Base',
+            'entrada_cliente': 'Entrada Mínima',
             'tipo': 'Tipo',
-            'fabricante': 'Fabricante',
-            'cor': 'Cor',
-            'memoria': 'Memória',
-            'estado': 'Estado',
+            'marca': 'Marca',
         }
         widgets = {
             'codigo': forms.TextInput(attrs={'class': 'form-control', 'disabled': 'disabled'}),
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
             'valor': forms.TextInput(attrs={'class': 'form-control'}),
-            'valor_repasse_logista': forms.TextInput(attrs={'class': 'form-control'}),
             'entrada_cliente': forms.TextInput(attrs={'class': 'form-control'}),
-            'valor_8_vezes': forms.TextInput(attrs={'class': 'form-control', 'oninput': 'updateValues()'}),
-            'valor_6_vezes': forms.TextInput(attrs={'class': 'form-control', 'oninput': 'updateValues()'}),
-            'valor_4_vezes': forms.TextInput(attrs={'class': 'form-control', 'oninput': 'updateValues()'}),
-            'valor_10_vezes': forms.TextInput(attrs={'class': 'form-control', 'oninput': 'updateValues()'}),
-            'valor_12_vezes': forms.TextInput(attrs={'class': 'form-control', 'oninput': 'updateValues()'}),
-            'valor_14_vezes': forms.TextInput(attrs={'class': 'form-control', 'oninput': 'updateValues()'}),
             'tipo': forms.Select(attrs={'class': 'form-control'}),
-            'fabricante': forms.Select(attrs={'class': 'form-control'}),
-            'cor': forms.Select(attrs={'class': 'form-control'}),
-            'memoria': forms.Select(attrs={'class': 'form-control'}),
-            'estado': forms.Select(attrs={'class': 'form-control'}),
+            'marca': forms.Select(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, disabled=False, **kwargs):
@@ -224,16 +204,48 @@ class EstadoProdutoForms(forms.ModelForm):
         return instance
 
 
+class MarcaForms(forms.ModelForm):
+    class Meta:
+        model = Marca
+        fields = '__all__'
+        exclude = ['loja', 'criado_por', 'modificado_por']
+        labels = {
+            'nome': 'Nome',
+        }
+        widgets = {
+            'nome': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, disabled=False, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if disabled:
+            for field in self.fields.values():
+                field.widget.attrs['disabled'] = True
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.user:
+            if not instance.pk:
+                instance.criado_por = self.user
+            instance.modificado_por = self.user
+        if commit:
+            instance.save()
+        return instance
+
+
 class ParcelamentoForms(forms.ModelForm):
     class Meta:
         model = Parcelamento
         fields = '__all__'
         exclude = ['loja', 'criado_por', 'modificado_por']
         labels = {
+            'marca': 'Marca',
             'qtd_vezes': 'Quantidade de Vezes',
             'porcentagem_juros': 'Porcentagem de Juros (%)',
         }
         widgets = {
+            'marca': forms.Select(attrs={'class': 'form-control'}),
             'qtd_vezes': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'porcentagem_juros': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': 0}),
         }
@@ -244,6 +256,20 @@ class ParcelamentoForms(forms.ModelForm):
         if disabled:
             for field in self.fields.values():
                 field.widget.attrs['disabled'] = True
+
+    def clean(self):
+        cleaned_data = super().clean()
+        marca = cleaned_data.get('marca')
+        qtd_vezes = cleaned_data.get('qtd_vezes')
+        if marca and qtd_vezes is not None:
+            qs = Parcelamento.objects.filter(marca=marca, qtd_vezes=qtd_vezes)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(
+                    f"Já existe um parcelamento de {qtd_vezes}x cadastrado para a marca {marca}."
+                )
+        return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)

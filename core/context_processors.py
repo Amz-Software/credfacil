@@ -169,7 +169,12 @@ def menu_items(request):
                     "permission": "produtos.view_produto",
                 },
                 {
-                    "label": "Parcelamentos (iPhone)",
+                    "label": "Marcas",
+                    "url_name": "produtos:marcas",
+                    "permission": "produtos.view_marca",
+                },
+                {
+                    "label": "Parcelamentos",
                     "url_name": "produtos:parcelamentos",
                     "permission": "produtos.view_parcelamento",
                 },

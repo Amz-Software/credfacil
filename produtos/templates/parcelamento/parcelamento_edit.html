@@ -24,6 +24,13 @@ Editar Parcelamento
               <div class="card-body">
                 <form method="post">
                   {% csrf_token %}
+                  {% if form.non_field_errors %}
+                  <div class="alert alert-danger py-2">
+                    {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
                   {% for field in form %}
                   <div class="mb-3">
                     <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>

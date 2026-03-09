@@ -1,20 +1,25 @@
 from django.db import models
 from vendas.models import Base
 
+class Marca(Base):
+    nome = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.nome
+
+    class Meta:
+        ordering = ['nome']
+        verbose_name = 'Marca'
+        verbose_name_plural = 'Marcas'
+
+
 class Produto(Base):
     codigo = models.IntegerField(unique=True, blank=True, null=True)
     nome = models.CharField(max_length=100)
-    valor = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Valor base (iPhone)')
-    valor_repasse_logista = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    entrada_cliente = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    valor_8_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    valor_6_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    valor_4_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    valor_10_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    valor_12_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    valor_14_vezes = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Valor Base')
+    entrada_cliente = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Entrada Mínima')
     tipo = models.ForeignKey('produtos.TipoProduto', on_delete=models.PROTECT, related_name='produtos_tipo', null=True, blank=True)
-    fabricante = models.ForeignKey('produtos.Fabricante', on_delete=models.PROTECT, related_name='produtos_fabricante')
+    marca = models.ForeignKey('produtos.Marca', on_delete=models.PROTECT, related_name='produtos_marca', null=True, blank=True)
     ativo = models.BooleanField(default=True)
     is_iphone = models.BooleanField(default=False, verbose_name='É iPhone?')
     
@@ -57,16 +62,19 @@ class Produto(Base):
 
 
 class Parcelamento(Base):
-    qtd_vezes = models.IntegerField(unique=True, verbose_name='Quantidade de vezes')
+    marca = models.ForeignKey('produtos.Marca', on_delete=models.CASCADE, related_name='parcelamentos', null=True, blank=True)
+    qtd_vezes = models.IntegerField(verbose_name='Quantidade de vezes')
     porcentagem_juros = models.DecimalField(max_digits=5, decimal_places=2, verbose_name='Porcentagem de juros (%)')
 
     def __str__(self):
-        return f"{self.qtd_vezes}x — {self.porcentagem_juros}%"
+        marca_nome = self.marca.nome if self.marca else '—'
+        return f"{marca_nome} — {self.qtd_vezes}x — {self.porcentagem_juros}%"
 
     class Meta:
-        ordering = ['qtd_vezes']
+        ordering = ['marca', 'qtd_vezes']
         verbose_name = 'Parcelamento'
         verbose_name_plural = 'Parcelamentos'
+        unique_together = [('marca', 'qtd_vezes')]
 
 
 class TipoProduto(Base):

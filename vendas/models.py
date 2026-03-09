@@ -471,7 +471,7 @@ class Venda(Base):
 
     @cached_property
     def valor_repasse(self):
-        return sum(produto.produto.valor_repasse_logista * produto.quantidade for produto in self.itens_venda.all())
+        return self.repasse_logista or 0
     
     @cached_property
     def valor_entrada_cliente(self):
@@ -561,14 +561,7 @@ class AnaliseCreditoCliente(Base):
         ('10', 'Dia 10'),
         ('20', 'Dia 20'),
     ), verbose_name='Data de pagamento')
-    numero_parcelas = models.CharField(max_length=20, choices=(
-        ('4', '4x'),
-        ('6', '6x'),
-        ('8', '8x'),
-        ('10', '10x'),
-        ('12', '12x'),
-        ('14', '14x'),
-    ))
+    numero_parcelas = models.CharField(max_length=20, blank=True, null=True)
     produto = models.ForeignKey('produtos.Produto', on_delete=models.CASCADE, related_name='analises_credito')
     imei = models.ForeignKey('estoque.EstoqueImei', on_delete=models.CASCADE, related_name='analises_credito_imei', null=True, blank=True)
     imei_informado = models.CharField(max_length=20, null=True, blank=True, verbose_name='IMEI Informado')

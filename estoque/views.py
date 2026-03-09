@@ -528,8 +528,8 @@ def inventario_estoque_imei_excel(request):
         if imei.produto_entrada and imei.produto_entrada.custo_unitario:
             custo_unitario = imei.produto_entrada.custo_unitario
         
-        if imei.produto.valor_repasse_logista:
-            preco_venda = imei.produto.valor_repasse_logista
+        if imei.produto.valor:
+            preco_venda = imei.produto.valor
         
         margem = preco_venda - custo_unitario if preco_venda > 0 and custo_unitario > 0 else Decimal('0.00')
         

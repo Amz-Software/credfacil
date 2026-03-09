@@ -168,15 +168,10 @@
       <tr>
         <th>Código</th>
         <th>Nome</th>
+        <th>Marca</th>
         <th>Tipo</th>
-        <th class="right">Rep. Logista</th>
-        <th class="right">Entrada</th>
-        <th class="right">4x</th>
-        <th class="right">6x</th>
-        <th class="right">8x</th>
-        <th class="right">10x</th>
-        <th class="right">12x</th>
-        <th class="right">14x</th>
+        <th class="right">Valor Base</th>
+        <th class="right">Entrada Mínima</th>
         <th>Status</th>
       </tr>
     </thead>
@@ -184,42 +179,17 @@
       {% for produto in produtos %}
       <tr>
         <td>{{ produto.codigo|default:"—" }}</td>
-        <td>{{ produto.nome }}</td>
         <td>
-          {% if produto.is_iphone %}
-            <span class="badge-iphone">iPhone</span>
-          {% else %}
-            <span class="badge-android">Android</span>
-          {% endif %}
-          {% if produto.tipo %}({{ produto.tipo }}){% endif %}
+          {{ produto.nome }}
+          {% if produto.is_iphone %}<span class="badge-iphone"> iPhone</span>{% endif %}
+        </td>
+        <td>{{ produto.marca|default:"—" }}</td>
+        <td>{% if produto.tipo %}{{ produto.tipo }}{% else %}—{% endif %}</td>
+        <td class="right">
+          {% if produto.valor %}R$ {{ produto.valor|floatformat:2 }}{% else %}—{% endif %}
         </td>
         <td class="right">
-          {% if produto.valor_repasse_logista %}
-            R$ {{ produto.valor_repasse_logista|floatformat:2 }}
-          {% else %}—{% endif %}
-        </td>
-        <td class="right">
-          {% if produto.entrada_cliente %}
-            R$ {{ produto.entrada_cliente|floatformat:2 }}
-          {% else %}—{% endif %}
-        </td>
-        <td class="right">
-          {% if produto.valor_4_vezes %}R$ {{ produto.valor_4_vezes|floatformat:2 }}{% else %}—{% endif %}
-        </td>
-        <td class="right">
-          {% if produto.valor_6_vezes %}R$ {{ produto.valor_6_vezes|floatformat:2 }}{% else %}—{% endif %}
-        </td>
-        <td class="right">
-          {% if produto.valor_8_vezes %}R$ {{ produto.valor_8_vezes|floatformat:2 }}{% else %}—{% endif %}
-        </td>
-        <td class="right">
-          {% if produto.valor_10_vezes %}R$ {{ produto.valor_10_vezes|floatformat:2 }}{% else %}—{% endif %}
-        </td>
-        <td class="right">
-          {% if produto.valor_12_vezes %}R$ {{ produto.valor_12_vezes|floatformat:2 }}{% else %}—{% endif %}
-        </td>
-        <td class="right">
-          {% if produto.valor_14_vezes %}R$ {{ produto.valor_14_vezes|floatformat:2 }}{% else %}—{% endif %}
+          R$ {{ produto.entrada_cliente|floatformat:2 }}
         </td>
         <td>
           {% if produto.ativo %}

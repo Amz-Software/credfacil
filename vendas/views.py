@@ -593,10 +593,7 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
         context['can_view_consulta_serasa'] = self.request.user.has_perm('vendas.view_consulta_serasa')
         
         produtos = Produto.objects.filter(ativo=True).values(
-            'id', 'nome', 'is_iphone', 'valor',
-            'valor_4_vezes', 'valor_6_vezes', 'valor_8_vezes',
-            'valor_10_vezes', 'valor_12_vezes', 'valor_14_vezes',
-            'entrada_cliente'
+            'id', 'nome', 'is_iphone', 'valor', 'entrada_cliente', 'marca_id'
         )
         produtos_list = [
             {
@@ -604,21 +601,21 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
                 'nome': p['nome'],
                 'is_iphone': p['is_iphone'],
                 'valor': float(p['valor'] or 0),
-                'valor4': float(p['valor_4_vezes']),
-                'valor6': float(p['valor_6_vezes']),
-                'valor8': float(p['valor_8_vezes']),
-                'valor10': float(p['valor_10_vezes']),
-                'valor12': float(p['valor_12_vezes']),
-                'valor14': float(p['valor_14_vezes']),
-                'entrada': float(p['entrada_cliente']),
+                'entrada': float(p['entrada_cliente'] or 0),
+                'marca_id': p['marca_id'],
             }
             for p in produtos
         ]
         context['produtos_json'] = json.dumps(produtos_list)
 
-        parcelamentos = list(Parcelamento.objects.values('qtd_vezes', 'porcentagem_juros'))
+        parcelamentos = list(Parcelamento.objects.values('id', 'marca_id', 'qtd_vezes', 'porcentagem_juros'))
         context['parcelamentos_json'] = json.dumps([
-            {'qtd_vezes': p['qtd_vezes'], 'porcentagem_juros': float(p['porcentagem_juros'])}
+            {
+                'id': p['id'],
+                'marca_id': p['marca_id'],
+                'qtd_vezes': p['qtd_vezes'],
+                'porcentagem_juros': float(p['porcentagem_juros']),
+            }
             for p in parcelamentos
         ])
 
@@ -781,10 +778,7 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
         context['status_app_choices'] = AnaliseCreditoCliente.STATUS_APP_CHOICES
 
         produtos = Produto.objects.all().values(
-            'id', 'nome', 'is_iphone', 'valor',
-            'valor_4_vezes', 'valor_6_vezes', 'valor_8_vezes',
-            'valor_10_vezes', 'valor_12_vezes', 'valor_14_vezes',
-            'entrada_cliente'
+            'id', 'nome', 'is_iphone', 'valor', 'entrada_cliente', 'marca_id'
         )
         produtos_list = [
             {
@@ -792,21 +786,21 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
                 'nome': p['nome'],
                 'is_iphone': p['is_iphone'],
                 'valor': float(p['valor'] or 0),
-                'valor4': float(p['valor_4_vezes']),
-                'valor6': float(p['valor_6_vezes']),
-                'valor8': float(p['valor_8_vezes']),
-                'valor10': float(p['valor_10_vezes']),
-                'valor12': float(p['valor_12_vezes']),
-                'valor14': float(p['valor_14_vezes']),
-                'entrada': float(p['entrada_cliente']),
+                'entrada': float(p['entrada_cliente'] or 0),
+                'marca_id': p['marca_id'],
             }
             for p in produtos
         ]
         context['produtos_json'] = json.dumps(produtos_list)
 
-        parcelamentos = list(Parcelamento.objects.values('qtd_vezes', 'porcentagem_juros'))
+        parcelamentos = list(Parcelamento.objects.values('id', 'marca_id', 'qtd_vezes', 'porcentagem_juros'))
         context['parcelamentos_json'] = json.dumps([
-            {'qtd_vezes': p['qtd_vezes'], 'porcentagem_juros': float(p['porcentagem_juros'])}
+            {
+                'id': p['id'],
+                'marca_id': p['marca_id'],
+                'qtd_vezes': p['qtd_vezes'],
+                'porcentagem_juros': float(p['porcentagem_juros']),
+            }
             for p in parcelamentos
         ])
 
@@ -1231,57 +1225,35 @@ def gerar_venda(request, cliente_id):
         messages.error(request, "❌ Data de pagamento não informada. Informe o dia de pagamento (1, 10 ou 20) antes de gerar a venda.")
         return redirect('vendas:cliente_update', pk=cliente.pk)
 
-    # Define valores e número de parcelas — bifurcação iPhone / não-iPhone
-    porcentagem_desconto = 0
     parcelas = int(analise.numero_parcelas)
+    porcentagem_desconto = 0
 
-    if getattr(produto, 'is_iphone', False):
-        # --- Fluxo iPhone ---
-        if not produto.valor:
-            messages.error(request, "❌ Produto iPhone sem valor base cadastrado.")
-            return redirect('vendas:cliente_update', pk=cliente.pk)
+    # --- Lógica unificada para todos os produtos ---
+    if not produto.valor:
+        messages.error(request, "❌ Produto sem valor base cadastrado.")
+        return redirect('vendas:cliente_update', pk=cliente.pk)
 
-        entrada_informada = analise.entrada_informada
-        if entrada_informada is None:
-            entrada_informada = produto.entrada_cliente
-        if entrada_informada < produto.entrada_cliente:
-            messages.error(
-                request,
-                f"❌ Entrada informada (R$ {entrada_informada}) não pode ser menor que a entrada mínima do produto (R$ {produto.entrada_cliente})."
-            )
-            return redirect('vendas:cliente_update', pk=cliente.pk)
+    entrada_informada = analise.entrada_informada
+    if entrada_informada is None:
+        entrada_informada = produto.entrada_cliente
+    if entrada_informada < produto.entrada_cliente:
+        messages.error(
+            request,
+            f"❌ Entrada informada (R$ {entrada_informada}) não pode ser menor que a entrada mínima do produto (R$ {produto.entrada_cliente})."
+        )
+        return redirect('vendas:cliente_update', pk=cliente.pk)
 
-        parcelamento = Parcelamento.objects.filter(qtd_vezes=parcelas).first()
-        if not parcelamento:
-            messages.error(request, f"❌ Nenhum parcelamento cadastrado para {parcelas}x.")
-            return redirect('vendas:cliente_update', pk=cliente.pk)
+    marca = produto.marca
+    parcelamento = Parcelamento.objects.filter(marca=marca, qtd_vezes=parcelas).first()
+    if not parcelamento:
+        marca_nome = marca.nome if marca else "sem marca"
+        messages.error(request, f"❌ Nenhum parcelamento cadastrado para {parcelas}x na marca '{marca_nome}'.")
+        return redirect('vendas:cliente_update', pk=cliente.pk)
 
-        valor_financiado = produto.valor - entrada_informada
-        valor_credfacil = valor_financiado + (valor_financiado * parcelamento.porcentagem_juros / 100)
-        repasse_logista = produto.valor - entrada_informada
-        valor_entrada = entrada_informada
-    else:
-        # --- Fluxo padrão (não iPhone) ---
-        num_parcelas_str = str(analise.numero_parcelas)
-        if num_parcelas_str == '4':
-            valor_credfacil = produto.valor_4_vezes
-            porcentagem_desconto = credfacil.porcentagem_desconto_4
-        elif num_parcelas_str == '6':
-            valor_credfacil = produto.valor_6_vezes
-            porcentagem_desconto = credfacil.porcentagem_desconto_6
-        elif num_parcelas_str == '8':
-            valor_credfacil = produto.valor_8_vezes
-            porcentagem_desconto = credfacil.porcentagem_desconto_8
-        elif num_parcelas_str == '10':
-            valor_credfacil = produto.valor_10_vezes
-            porcentagem_desconto = credfacil.porcentagem_desconto_10
-        elif num_parcelas_str == '12':
-            valor_credfacil = produto.valor_12_vezes
-        else:
-            valor_credfacil = produto.valor_14_vezes
-
-        repasse_logista = produto.valor_repasse_logista
-        valor_entrada = produto.entrada_cliente
+    valor_financiado = produto.valor - entrada_informada
+    valor_credfacil = valor_financiado + (valor_financiado * parcelamento.porcentagem_juros / 100)
+    repasse_logista = produto.valor - entrada_informada
+    valor_entrada = entrada_informada
 
     # Cria venda
     venda = Venda.objects.create(
@@ -1766,16 +1738,16 @@ class VendaEdicaoEspecialView(PermissionRequiredMixin, UpdateView):
 
         entrada_base = None
         totais_parcelamento = {}
-        if produto_base:
+        if produto_base and produto_base.valor:
             entrada_base = produto_base.entrada_cliente * quantidade_base
-            totais_parcelamento = {
-                4: produto_base.valor_4_vezes * quantidade_base,
-                6: produto_base.valor_6_vezes * quantidade_base,
-                8: produto_base.valor_8_vezes * quantidade_base,
-                10: produto_base.valor_10_vezes * quantidade_base,
-                12: produto_base.valor_12_vezes * quantidade_base,
-                14: produto_base.valor_14_vezes * quantidade_base,
+            marca = produto_base.marca
+            parcelamentos_marca = {
+                p.qtd_vezes: p.porcentagem_juros
+                for p in Parcelamento.objects.filter(marca=marca)
             }
+            valor_financiado_base = (produto_base.valor - produto_base.entrada_cliente) * quantidade_base
+            for qtd, juros in parcelamentos_marca.items():
+                totais_parcelamento[qtd] = valor_financiado_base + (valor_financiado_base * juros / 100)
 
         for pagamento in pagamentos_modificados:
             pagamento.venda = self.object
@@ -2321,7 +2293,7 @@ class FolhaProdutoPDFView(PermissionRequiredMixin, View):
                         'vendedor': venda.vendedor.get_full_name() if venda.vendedor else 'N/A',
                         'preco': produto.valor_unitario,
                         'entrada_cliente': produto.produto.entrada_cliente,
-                        'repasse_logista': produto.produto.valor_repasse_logista,
+                        'repasse_logista': produto.venda.repasse_logista,
                         'quantidade': produto.quantidade,
                         'custo': produto.custo(),
                         'total': venda.pagamentos_valor_total,
@@ -3329,7 +3301,7 @@ class GraficoTemplateView(TemplateView):
         ).select_related('produto', 'venda__loja')
         
         for produto_venda in produtos_vendidos:
-            valor_repasse = produto_venda.produto.valor_repasse_logista or 0
+            valor_repasse = produto_venda.venda.repasse_logista or 0
             total_repasses += valor_repasse
             loja_nome = produto_venda.venda.loja.nome if produto_venda.venda.loja else 'Desconhecida'
             repasses_por_loja[loja_nome] += valor_repasse
@@ -3751,7 +3723,7 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
 
             # Calcular repasses para esta loja
             produtos_vendidos = ProdutoVenda.objects.filter(venda__in=vendas_loja)
-            total_repasses = sum(pv.produto.valor_repasse_logista or 0 for pv in produtos_vendidos)
+            total_repasses = sum(pv.venda.repasse_logista or 0 for pv in produtos_vendidos)
 
             # Valor total das parcelas
             valor_total_parcelas = total_pagas + total_vencidas + total_a_vencer + total_desativados_vencidas + total_desativados_a_vencer

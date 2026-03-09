@@ -25,14 +25,15 @@ def normalize_loja(loja):
 
 class ProdutoChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
+        marca_str = f" ({obj.marca.nome})" if obj.marca_id else ""
         if obj.is_iphone:
             if obj.tipo:
-                return f"{obj.nome} - {obj.tipo}"
-            return obj.nome
+                return f"{obj.nome}{marca_str} - {obj.tipo}"
+            return f"{obj.nome}{marca_str}"
         else:
             entrada = obj.entrada_cliente or 0
             entrada_fmt = f"R$ {entrada:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            return f"{obj.nome} - Entrada: {entrada_fmt}"
+            return f"{obj.nome}{marca_str} - Entrada: {entrada_fmt}"
 
 class EstoqueImeiSelectWidgetEdit(HeavySelect2Widget):
     data_view = 'estoque:estoque-imei-search-edit'
@@ -470,7 +471,7 @@ class InformacaoPessoalEditForm(forms.ModelForm):
 
 class AnaliseCreditoClienteForm(forms.ModelForm):
     produto = ProdutoChoiceField(
-        queryset=Produto.objects.filter(ativo=True),
+        queryset=Produto.objects.filter(ativo=True).select_related('marca'),
         widget=Select2Widget(attrs={'class': 'form-control'}),
         label='Produto'
     )
@@ -512,7 +513,7 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         fields = ['produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada', 'analise_online', 'email_icloud', 'senha_icloud']
         widgets = {
             'data_pagamento': forms.Select(attrs={'class': 'form-control'}),
-            'numero_parcelas': forms.Select(attrs={'class': 'form-control'}),
+            'numero_parcelas': forms.Select(attrs={'class': 'form-control', 'id': 'id_numero_parcelas'}),
         }
 
     def __init__(self, *args, **kwargs):

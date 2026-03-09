@@ -37,15 +37,10 @@ Produtos
           <tr>
           <th scope="col">Código</th>
           <th scope="col">Nome</th>
+          <th scope="col">Marca</th>
           <th scope="col">Tipo</th>
-          <th scope="col">Valor Repasse Logista</th>
-          <th scope="col">Entrada Cliente</th>
-          <th scope="col">Valor 14 Vezes</th>
-          <th scope="col">Valor 12 Vezes</th>
-          <th scope="col">Valor 10 Vezes</th>
-          <th scope="col">Valor 8 Vezes</th>
-          <th scope="col">Valor 6 Vezes</th>
-          <th scope="col">Valor 4 Vezes</th>
+          <th scope="col">Valor Base</th>
+          <th scope="col">Entrada Mínima</th>
           <th scope="col">Status</th>
           <th scope="col">Ações</th>
           </tr>
@@ -58,46 +53,14 @@ Produtos
           </td>
           <td>
             {{ produto.nome }}
-          </td>
-          <td>
             {% if produto.is_iphone %}
-              <span class="badge bg-label-primary"><i class="bx bxl-apple"></i> iPhone</span>
-            {% else %}
-              <span class="badge bg-label-success"><i class="bx bxl-android"></i> Android</span>
+              <span class="badge bg-label-primary ms-1"><i class="bx bxl-apple"></i> iPhone</span>
             {% endif %}
           </td>
-          <td>{{ produto.valor_repasse_logista|floatformat:2 }}</td>
-          <td>{{ produto.entrada_cliente|floatformat:2 }}</td>
-          <td>
-            {{ produto.valor_14_vezes|floatformat:2 }}
-            <br>
-            <small class="text-muted per-parcela" data-total="{{ produto.valor_14_vezes }}" data-n="14"></small>
-          </td>
-          <td>
-            {{ produto.valor_12_vezes|floatformat:2 }}
-            <br>
-            <small class="text-muted per-parcela" data-total="{{ produto.valor_12_vezes }}" data-n="12"></small>
-          </td>
-          <td>
-            {{ produto.valor_10_vezes|floatformat:2 }}
-            <br>
-            <small class="text-muted per-parcela" data-total="{{ produto.valor_10_vezes }}" data-n="10"></small>
-          </td>
-          <td>
-            {{ produto.valor_8_vezes|floatformat:2 }}
-            <br>
-            <small class="text-muted per-parcela" data-total="{{ produto.valor_8_vezes }}" data-n="8"></small>
-          </td>
-          <td>
-            {{ produto.valor_6_vezes|floatformat:2 }}
-            <br>
-            <small class="text-muted per-parcela" data-total="{{ produto.valor_6_vezes }}" data-n="6"></small>
-          </td>
-          <td>
-            {{ produto.valor_4_vezes|floatformat:2 }}
-            <br>
-            <small class="text-muted per-parcela" data-total="{{ produto.valor_4_vezes }}" data-n="4"></small>
-          </td>
+          <td>{{ produto.marca|default:"—" }}</td>
+          <td>{{ produto.tipo|default:"—" }}</td>
+          <td>R$ {{ produto.valor|floatformat:2|default:"—" }}</td>
+          <td>R$ {{ produto.entrada_cliente|floatformat:2 }}</td>
           <td>
             {% if produto.ativo %}
               <span class="text-success">Ativo</span>
@@ -155,25 +118,4 @@ Produtos
   </div>
 </div>
 
-{% endblock %}
-
-{% block extra_scripts %}
-<script>
-  document.addEventListener('DOMContentLoaded', function(){
-    document.querySelectorAll('.per-parcela').forEach(function(el){
-      var total = parseFloat(el.getAttribute('data-total')) || 0;
-      var n = parseInt(el.getAttribute('data-n')) || 0;
-      if (total > 0 && n > 0) {
-        var per = total / n;
-        try {
-          el.textContent = n + 'x de ' + per.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        } catch (e) {
-          el.textContent = n + 'x de R$ ' + per.toFixed(2);
-        }
-      } else {
-        el.textContent = '';
-      }
-    });
-  });
-  </script>
 {% endblock %}

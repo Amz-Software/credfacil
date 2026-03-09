@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static iam_tags %}
 {% block title %}
-Parcelamentos (iPhone)
+Parcelamentos
 {% endblock title %}
 
 {% block content %}
@@ -12,7 +12,7 @@ Parcelamentos (iPhone)
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
           <div>
-            <h4 class="card-title mb-0">Parcelamentos (iPhone)</h4>
+            <h4 class="card-title mb-0">Parcelamentos</h4>
             <small class="text-muted">Juros aplicados por quantidade de parcelas no financiamento iPhone</small>
           </div>
           <div class="d-flex align-items-center gap-2">
@@ -31,6 +31,7 @@ Parcelamentos (iPhone)
             <table class="table table-hover">
               <thead>
                 <tr>
+                  <th scope="col">Marca</th>
                   <th scope="col">Qtd. Vezes</th>
                   <th scope="col">Juros (%)</th>
                   <th scope="col">Ações</th>
@@ -39,6 +40,7 @@ Parcelamentos (iPhone)
               <tbody>
                 {% for parcelamento in items %}
                 <tr>
+                  <td>{{ parcelamento.marca|default:"—" }}</td>
                   <td><span class="badge bg-label-primary fs-6">{{ parcelamento.qtd_vezes }}x</span></td>
                   <td>{{ parcelamento.porcentagem_juros }}%</td>
                   <td>
@@ -94,7 +96,7 @@ Parcelamentos (iPhone)
                 </tr>
                 {% empty %}
                 <tr>
-                  <td colspan="3" class="text-center text-muted py-4">Nenhum parcelamento cadastrado</td>
+                  <td colspan="4" class="text-center text-muted py-4">Nenhum parcelamento cadastrado</td>
                 </tr>
                 {% endfor %}
               </tbody>

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}
+Detalhes Marca
+{% endblock title %}
+
+{% block content %}
+
+<div class="container-xxl mt-4">
+  <div class="row">
+    <div class="col-12">
+    <div class="card">
+        <div class="container-xxl flex-grow-1 container-p-y">
+            <h4 class="py-3 mb-4"><span class="text-muted fw-light">Marca/</span> Detalhes</h4>
+            <div class="row">
+              <div class="col-xl">
+                <div class="card mb-4">
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Marca</h5>
+                  </div>
+                  <div class="card-body">
+                        {{ form.as_p }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+    </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

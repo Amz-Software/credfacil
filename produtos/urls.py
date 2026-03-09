@@ -11,6 +11,7 @@ produtoViews = generate_views(Produto, ProdutoForms, 10, 'produtos')
 corProdutoViews = generate_views(CorProduto, CorProdutoForms, 10, 'cor')
 tipoViews = generate_views(TipoProduto, TipoForms, 10, 'tipo')
 fabricanteViews = generate_views(Fabricante, FabricanteForms, 10, 'fabricante')
+marcaViews = generate_views(Marca, MarcaForms, 10, 'marca')
 estadoViews = generate_views(EstadoProduto, EstadoProdutoForms, 10, 'estado')
 memoriaViews = generate_views(MemoriaProduto, MemoriaForms, 10, 'memoria')
 parcelamentoViews = generate_views(Parcelamento, ParcelamentoForms, 20, 'parcelamento')
@@ -42,6 +43,12 @@ urlpatterns = [
     path('fabricante/detalhe/<int:pk>/', fabricanteViews['detail_view'].as_view(), name='fabricante_detail'),
     path('fabricante/editar/<int:pk>/', fabricanteViews['update_view'].as_view(), name='fabricante_update'),
     path('fabricante/deletar/<int:pk>/', fabricanteViews['delete_view'].as_view(), name='fabricante_delete'),
+
+    path('marca/', marcaViews['list_view'].as_view(), name='marcas'),
+    path('marca/novo/', marcaViews['create_view'].as_view(), name='marca_create'),
+    path('marca/detalhe/<int:pk>/', marcaViews['detail_view'].as_view(), name='marca_detail'),
+    path('marca/editar/<int:pk>/', marcaViews['update_view'].as_view(), name='marca_update'),
+    path('marca/deletar/<int:pk>/', marcaViews['delete_view'].as_view(), name='marca_delete'),
 
     path('estadoproduto/', estadoViews['list_view'].as_view(), name='estados'),
     path('estado/novo/', estadoViews['create_view'].as_view(), name='estado_create'),

@@ -10,7 +10,7 @@ from vendas.models import (
     Loja,
     Venda,
 )
-from produtos.models import Parcelamento, Produto, TipoProduto, Fabricante
+from produtos.models import Parcelamento, Produto, TipoProduto, Fabricante, Marca
 from vendas.models import ProdutoVenda, Pagamento
 
 
@@ -227,10 +227,18 @@ class ClienteSolicitacaoSerializer(serializers.ModelSerializer):
         ]
 
 
+class MarcaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Marca
+        fields = ["id", "nome"]
+
+
 class ParcelamentoSerializer(serializers.ModelSerializer):
+    marca_nome = serializers.CharField(source="marca.nome", read_only=True)
+
     class Meta:
         model = Parcelamento
-        fields = ["id", "qtd_vezes", "porcentagem_juros"]
+        fields = ["id", "marca", "marca_nome", "qtd_vezes", "porcentagem_juros"]
 
 
 class TipoProdutoSerializer(serializers.ModelSerializer):
@@ -247,8 +255,8 @@ class FabricanteSerializer(serializers.ModelSerializer):
 
 class ProdutoSerializer(serializers.ModelSerializer):
     tipo = TipoProdutoSerializer(read_only=True)
-    fabricante = FabricanteSerializer(read_only=True)
-    
+    marca = MarcaSerializer(read_only=True)
+
     class Meta:
         model = Produto
         fields = "__all__"
