@@ -211,9 +211,17 @@ class MarcaForms(forms.ModelForm):
         exclude = ['loja', 'criado_por', 'modificado_por']
         labels = {
             'nome': 'Nome',
+            'cor': 'Cor de Destaque',
+            'icone': 'Ícone',
         }
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
+            'cor': forms.TextInput(attrs={
+                'type': 'color', 
+                'class': 'form-control form-control-color p-1', 
+                'style': 'height: 40px; cursor: pointer;'
+            }),
+            'icone': forms.Select(attrs={'class': 'form-select'}),
         }
 
     def __init__(self, *args, disabled=False, **kwargs):

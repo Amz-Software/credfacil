@@ -46,6 +46,7 @@ from .models import (
     AnaliseCreditoCliente, Caixa, Cliente, Loja, Pagamento, Parcela, ProdutoVenda, TipoPagamento, Venda,
     LancamentoCaixa, LancamentoCaixaTotal, StatusPagamento
 )
+from produtos.models import Marca
 from pypix import Pix
 #import q
 
@@ -619,6 +620,18 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
             for p in parcelamentos
         ])
 
+        marcas = Marca.objects.all().values('id', 'nome', 'cor', 'icone')
+        marcas_list = [
+            {
+                'id': m['id'],
+                'nome': m['nome'],
+                'cor': m['cor'] or '#007bff',
+                'icone': m['icone'] or 'bx bx-mobile'
+            }
+            for m in marcas
+        ]
+        context['marcas_json'] = json.dumps(marcas_list)
+
         return context
 
     def post(self, request, *args, **kwargs):
@@ -803,6 +816,18 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             }
             for p in parcelamentos
         ])
+
+        marcas = Marca.objects.all().values('id', 'nome', 'cor', 'icone')
+        marcas_list = [
+            {
+                'id': m['id'],
+                'nome': m['nome'],
+                'cor': m['cor'] or '#007bff',
+                'icone': m['icone'] or 'bx bx-mobile'
+            }
+            for m in marcas
+        ]
+        context['marcas_json'] = json.dumps(marcas_list)
 
         return context
 

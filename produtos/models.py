@@ -2,7 +2,18 @@ from django.db import models
 from vendas.models import Base
 
 class Marca(Base):
+    ICONE_CHOICES = (
+        ('bi bi-apple', 'Apple'),
+        ('bx bx-mobile', 'Celular (Padrão/Samsung)'),
+        ('bx bx-mobile-alt', 'Celular 2 (Xiaomi/Outros)'),
+        ('bi bi-phone', 'Celular 3 (Motorola)'),
+        ('bx bx-laptop', 'Notebook / Tablet'),
+        ('bx bx-devices', 'Múltiplos Dispositivos'),
+    )
+    
     nome = models.CharField(max_length=100)
+    cor = models.CharField(max_length=20, default='#007bff', help_text='Código HEX ou nome da cor (Ex: #ff0000, primary, etc)')
+    icone = models.CharField(max_length=50, choices=ICONE_CHOICES, default='bx bx-mobile', help_text='Selecione o ícone da marca que aparecerá no sistema')
 
     def __str__(self):
         return self.nome

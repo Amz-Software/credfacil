@@ -766,7 +766,55 @@
                 {% endif %}
               </div>
 
-              <div class="row">
+              <!-- Seleção de Marca (Visual) -->
+              <style>
+                  .marca-card {
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      justify-content: center;
+                      width: 100px;
+                      height: 85px;
+                      border: 2px solid #eef2f6;
+                      border-radius: 12px;
+                      background: white;
+                      cursor: pointer;
+                      transition: all 0.2s ease;
+                      color: #444;
+                  }
+                  .marca-card:hover {
+                      border-color: #c9ccd0;
+                      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+                  }
+                  .marca-card.active {
+                      border-color: var(--marca-cor);
+                      background-color: var(--marca-cor-light);
+                      color: var(--marca-cor);
+                      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                  }
+                  .marca-card i {
+                      font-size: 28px;
+                      margin-bottom: 6px;
+                      color: inherit;
+                  }
+                  .marca-card span {
+                      font-size: 13px;
+                      font-weight: 600;
+                  }
+              </style>
+              <div class="row mb-4" id="secao-marcas">
+                  <div class="col-12">
+                      <label class="form-label mb-3 d-block">
+                          Escolha a Marca <span class="text-danger">*</span>
+                          <i class="bx bx-help-circle tooltip-icon" data-bs-toggle="tooltip" title="Selecione a marca para filtrar os produtos disponíveis"></i>
+                      </label>
+                      <div class="d-flex flex-wrap gap-3" id="marcas-container">
+                          <!-- Marcas renderizadas via JS -->
+                      </div>
+                  </div>
+              </div>
+
+              <div class="row" id="div-campos-produto" style="display:none;">
                 {% for field in form_analise_credito %}
                   {# entrada_informada: visível apenas para iPhone (JS controla) #}
                   {% if field.html_name == 'entrada_informada' %}
@@ -1312,6 +1360,102 @@
         console.error('Erro ao parsear parcelamentos:', e);
       }
 
+      let marcas = [];
+      try {
+        marcas = JSON.parse('{{ marcas_json|escapejs }}');
+      } catch (e) {
+        console.warn('Variável marcas_json indisponível ou erro no parse:', e);
+      }
+
+      let marcasInicializadas = false;
+      let optionsProdutoOriginais = [];
+
+      function initMarcas() {
+        if (!marcas || marcas.length === 0) {
+          // Fallback caso não tenha marcas, exibe os campos de produto normalmente
+          $('#div-campos-produto').show();
+          return;
+        }
+
+        const container = $('#marcas-container');
+        container.empty();
+        $('#secao-marcas').show();
+
+        // Salvar as opções originais do form select
+        const $selectProduto = $('#id_produto');
+        if (optionsProdutoOriginais.length === 0) {
+           $selectProduto.find('option').each(function() {
+               optionsProdutoOriginais.push({
+                   value: $(this).val(),
+                   text: $(this).text()
+               });
+           });
+        }
+
+        marcas.forEach(marca => {
+          let card = $('<div>')
+            .addClass('marca-card')
+            .css('--marca-cor', marca.cor || '#007bff')
+            .css('--marca-cor-light', (marca.cor || '#007bff') + '15')
+            .attr('data-id', marca.id)
+            .on('click', function() {
+              $('.marca-card').removeClass('active');
+              $(this).addClass('active');
+              selecionarMarca(marca.id);
+            });
+            
+          let icone = $('<i>').addClass(marca.icone || 'bx bx-mobile');
+          let text = $('<span>').text(marca.nome);
+          
+          card.append(icone).append(text);
+          container.append(card);
+        });
+
+        // Caso já haja um produto selecionado via backend (edição)
+        const valAtual = $selectProduto.val();
+        if (valAtual) {
+           const p = produtos.find(x => x.id == valAtual);
+           if (p && p.marca_id) {
+               $(`.marca-card[data-id="${p.marca_id}"]`).addClass('active');
+               selecionarMarca(p.marca_id, true);
+           } else {
+               $('#div-campos-produto').show();
+           }
+        }
+      }
+
+      function selecionarMarca(marcaId, preserveSelect) {
+        const $selectProduto = $('#id_produto');
+        const valAtual = $selectProduto.val();
+        
+        // Pega todos os produtos dessa marca para usar como filter das options
+        const produtosAtivos = produtos.filter(p => !marcaId || p.marca_id == marcaId);
+        const activeIds = produtosAtivos.map(p => p.id.toString());
+        
+        $selectProduto.empty();
+        $selectProduto.append('<option value="">---------</option>');
+        
+        optionsProdutoOriginais.forEach(opt => {
+            if (!opt.value || activeIds.includes(opt.value)) {
+                if (opt.value) { // ignora empty text default fallback repetido
+                    $selectProduto.append($('<option>').val(opt.value).text(opt.text));
+                }
+            }
+        });
+        
+        // Se preserva e se o novo select ainda contém a options mantida
+        if (preserveSelect && $selectProduto.find(`option[value="${valAtual}"]`).length > 0) {
+            $selectProduto.val(valAtual);
+        } else {
+            $selectProduto.val('').trigger('change');
+            if ($selectProduto.hasClass('select2-hidden-accessible')) {
+                $selectProduto.trigger('change.select2');
+            }
+        }
+
+        $('#div-campos-produto').slideDown(300);
+      }
+
       let currentEntradaMinima = 0;
 
       function formatBRL(v) {
@@ -1530,6 +1674,8 @@
 
       // Inicializa cards ao carregar a página (600ms para garantir init do Select2)
       setTimeout(function() {
+        initMarcas(); // Construir grid de marcas antes e captar options do Select2
+        
         const prodId = $('#id_produto').val();
         console.log('[Init] Inicialização após 600ms | prodId no campo:', prodId);
         console.log('[Init] Total produtos carregados:', produtos.length);
