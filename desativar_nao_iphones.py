@@ -3,7 +3,7 @@ import django
 
 # Certifique-se de usar o mesmo caminho de configurações que sua produção utiliza
 # Caso seu settings seja local.py ou producao.py, ajuste aqui, exemplo 'credfacil.settings.producao'
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'credfacil.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
 from produtos.models import Produto
