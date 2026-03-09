@@ -1475,13 +1475,10 @@
       function toggleIphoneFields(isIphone) {
         if (isIphone) {
           $('#iphone-alert').show();
-          $('#wrapper-entrada-informada').show();
           $('.icloud-field').show();
         } else {
           $('#iphone-alert').hide();
-          $('#wrapper-entrada-informada').hide();
           $('.icloud-field').hide();
-          $('#id_entrada_informada').val('');
         }
       }
 
@@ -1550,6 +1547,8 @@
         // Se não tem produto, zera tudo e oculta campos iPhone
         if (!prodId) {
           toggleIphoneFields(false);
+          $('#wrapper-entrada-informada').hide();
+          $('#id_entrada_informada').val('');
           $('#info-entrada').text('—');
           $('#info-total').text('—');
           $('#info-parcela').text('—');
@@ -1570,29 +1569,29 @@
         const entradaMinima = produto.entrada || 0;
         currentEntradaMinima = entradaMinima;
 
+        $('#wrapper-entrada-informada').show();
         // Atualiza hint de entrada mínima
         $('#entrada-minima-hint').text('Entrada mínima: ' + formatBRL(entradaMinima));
         validaEntrada();
 
-        // Entrada: para iPhone usa campo digitado, para demais usa a entrada mínima
+        // Entrada: usa campo digitado para qualquer produto; se vazio ou menor, usa a mínima ou proíbe
         let entradaUsada = entradaMinima;
-        if (isIphone) {
-          const rawEntrada = $('#id_entrada_informada').val().trim();
-          const entradaDigitada = parseFloat(rawEntrada);
-          const campoVazio = rawEntrada === '' || isNaN(entradaDigitada);
+        
+        const rawEntrada = $('#id_entrada_informada').val().trim();
+        const entradaDigitada = parseFloat(rawEntrada);
+        const campoVazio = rawEntrada === '' || isNaN(entradaDigitada);
 
-          if (!campoVazio) {
-            if (entradaDigitada < entradaMinima) {
-              $('#info-entrada').text(formatBRL(entradaDigitada));
-              $('#info-total').text('—');
-              $('#info-parcela-label').text('Parcelas');
-              $('#info-parcela').text('—');
-              $('#card-preco-venda').show();
-              $('#info-preco-venda').text(formatBRL(valorBase));
-              return;
-            }
-            entradaUsada = entradaDigitada;
+        if (!campoVazio) {
+          if (entradaDigitada < entradaMinima) {
+            $('#info-entrada').text(formatBRL(entradaDigitada));
+            $('#info-total').text('—');
+            $('#info-parcela-label').text('Parcelas');
+            $('#info-parcela').text('—');
+            $('#card-preco-venda').show();
+            $('#info-preco-venda').text(formatBRL(valorBase));
+            return;
           }
+          entradaUsada = entradaDigitada;
         }
 
         $('#info-entrada').text(formatBRL(entradaUsada));
