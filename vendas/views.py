@@ -620,7 +620,7 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
             for p in parcelamentos
         ])
 
-        marcas = Marca.objects.all().values('id', 'nome', 'cor', 'icone')
+        marcas = Marca.objects.filter(ativo=True).values('id', 'nome', 'cor', 'icone')
         marcas_list = [
             {
                 'id': m['id'],
@@ -817,7 +817,7 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             for p in parcelamentos
         ])
 
-        marcas = Marca.objects.all().values('id', 'nome', 'cor', 'icone')
+        marcas = Marca.objects.filter(ativo=True).values('id', 'nome', 'cor', 'icone')
         marcas_list = [
             {
                 'id': m['id'],

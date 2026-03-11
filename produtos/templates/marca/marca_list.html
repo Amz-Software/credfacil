@@ -29,6 +29,7 @@ Marcas
         <thead>
           <tr>
           <th scope="col">Nome</th>
+          <th scope="col">Status</th>
           <th scope="col">Ações</th>
           </tr>
         </thead>
@@ -36,6 +37,13 @@ Marcas
           {% for marca in items %}
           <tr>
           <td>{{ marca.nome }}</td>
+          <td>
+            {% if marca.ativo %}
+              <span class="text-success">Ativo</span>
+            {% else %}
+              <span class="badge bg-danger">Desativada</span>
+            {% endif %}
+          </td>
           <td>
             <div class="dropdown">
             <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
@@ -51,12 +59,27 @@ Marcas
               <a class="dropdown-item" href="{% url 'produtos:marca_update' marca.id %}">
               <i class="bx bx-edit-alt me-1"></i> Editar
               </a>
+                {% if marca.ativo %}
+                <form method="post" action="{% url 'produtos:marca_deactivate' marca.id %}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja desativar esta marca?');">
+                  {% csrf_token %}
+                  <button type="submit" class="dropdown-item text-danger" style="border: none; background: none; width: 100%; text-align: left;">
+                    <i class="bx bx-trash me-1"></i> Desativar
+                  </button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'produtos:marca_activate' marca.id %}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja ativar esta marca?');">
+                  {% csrf_token %}
+                  <button type="submit" class="dropdown-item text-success" style="border: none; background: none; width: 100%; text-align: left;">
+                    <i class="bx bx-check-circle me-1"></i> Ativar
+                  </button>
+                </form>
+                {% endif %}
               {% endif %}
-              {% if user|has_perm:"produtos.delete_marca" %}
+              <!-- {% if user|has_perm:"produtos.delete_marca" %}
               <a class="dropdown-item text-danger" href="{% url 'produtos:marca_delete' marca.id %}">
-              <i class="bx bx-trash me-1"></i> Excluir
+              <i class="bx bx-trash me-1"></i> Excluir (Definitivo)
               </a>
-              {% endif %}
+              {% endif %} -->
             </div>
             </div>
           </td>
