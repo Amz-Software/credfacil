@@ -151,6 +151,8 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
     status_app_display = serializers.CharField(source="get_status_aplicativo_display", read_only=True)
     produto_nome = serializers.CharField(source="produto.nome", read_only=True)
     produto_is_iphone = serializers.BooleanField(source="produto.is_iphone", read_only=True)
+    marca = serializers.IntegerField(source="produto.marca_id", read_only=True)
+    marca_nome = serializers.CharField(source="produto.marca.nome", read_only=True)
     imei_value = serializers.CharField(source="imei.imei", read_only=True)
     venda_gerada = serializers.SerializerMethodField()
 
@@ -175,6 +177,8 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
             "produto",
             "produto_nome",
             "produto_is_iphone",
+            "marca",
+            "marca_nome",
             "imei",
             "imei_value",
             "imei_informado",
@@ -230,7 +234,7 @@ class ClienteSolicitacaoSerializer(serializers.ModelSerializer):
 class MarcaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Marca
-        fields = ["id", "nome"]
+        fields = ["id", "nome", "cor", "icone"]
 
 
 class ParcelamentoSerializer(serializers.ModelSerializer):
@@ -256,6 +260,20 @@ class FabricanteSerializer(serializers.ModelSerializer):
 class ProdutoSerializer(serializers.ModelSerializer):
     tipo = TipoProdutoSerializer(read_only=True)
     marca = MarcaSerializer(read_only=True)
+    tipo_id = serializers.PrimaryKeyRelatedField(
+        source="tipo",
+        queryset=TipoProduto.objects.all(),
+        required=False,
+        allow_null=True,
+        write_only=True,
+    )
+    marca_id = serializers.PrimaryKeyRelatedField(
+        source="marca",
+        queryset=Marca.objects.all(),
+        required=False,
+        allow_null=True,
+        write_only=True,
+    )
 
     class Meta:
         model = Produto
@@ -437,6 +455,7 @@ class SolicitacaoCreditoInputSerializer(serializers.Serializer):
     foto_cliente = serializers.FileField()
     restricao = serializers.BooleanField(required=False)
 
+    marca = serializers.IntegerField()
     produto = serializers.IntegerField()
     data_pagamento = serializers.CharField()
     numero_parcelas = serializers.CharField()
@@ -448,6 +467,7 @@ class SolicitacaoCreditoInputSerializer(serializers.Serializer):
 
 class SolicitacaoImeiTelefoneInputSerializer(serializers.Serializer):
     telefone = serializers.CharField()
+    marca = serializers.IntegerField()
     produto = serializers.IntegerField()
     data_pagamento = serializers.CharField()
     numero_parcelas = serializers.CharField()

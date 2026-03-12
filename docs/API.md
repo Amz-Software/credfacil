@@ -425,6 +425,8 @@ Payload: vazio.
 
 Rotas baseadas em `SolicitacaoCreditoViewSet`.
 
+Guia da interface (etapas e campos do fluxo novo): `docs/SOLICITACOES_INTERFACE.md`.
+
 ### `GET /api/solicitacoes/`
 
 Lista solicitacoes (clientes com analise), com KPIs no retorno paginado.
@@ -597,6 +599,21 @@ Cria solicitacao completa (cliente + contato + informacao pessoal + comprovantes
 
 Content-Type recomendado: `multipart/form-data` (por causa dos arquivos).
 
+### Novo fluxo oficial (AGR): Marca -> Produto -> Solicitacao
+
+Para novas integrações, o fluxo de tela/API deve seguir esta ordem:
+
+1. Buscar marcas em `GET /api/marcas/`
+2. Com a marca escolhida, buscar produtos filtrados por marca (ver plano de ação abaixo)
+3. Com o produto escolhido, criar/editar a solicitacao
+
+Observação importante sobre o estado atual da API:
+
+- O modelo `Produto` já possui `marca`
+- O modelo `Parcelamento` já é por `marca` (`unique_together`: `marca`, `qtd_vezes`)
+- O endpoint de solicitação exige `marca` e valida compatibilidade com `produto`
+- A validação de parcelamento para iPhone considera marca + número de parcelas
+
 Campos obrigatorios do payload:
 
 - Cliente:
@@ -610,6 +627,14 @@ Campos obrigatorios do payload:
 - Analise de credito:
 - `produto`, `data_pagamento`, `numero_parcelas`
 
+Campos recomendados no novo fluxo:
+
+- `marca` (id da marca selecionada)
+- `produto` (id do produto pertencente à marca)
+- `data_pagamento`, `numero_parcelas`
+
+**Status atual:** `marca` já é aceita no input de solicitação (`SolicitacaoCreditoInputSerializer`) e validada no backend.
+
 Campos opcionais:
 
 - `obteve_contato`, `obteve_contato_pessoal`
@@ -621,6 +646,7 @@ Exemplo (multipart simplificado):
 
 ```json
 {
+  "marca": 2,
   "nome": "Fulano",
   "telefone": "11999999999",
   "cpf": "12345678900",
@@ -791,44 +817,96 @@ Itens do dropdown enviado no front correspondem aos seguintes endpoints da API:
 - `Confirmar Instalacao (Analista)` → `POST /api/solicitacoes/{cliente_id}/analista-confirmar-instalacao/`
 - `Gerar Venda (Vendedor)` → `POST /api/solicitacoes/{cliente_id}/gerar-venda/`
 
+## Marcas
+
+Rotas baseadas em `MarcaViewSet`.
+
+### `GET /api/marcas/`
+
+Lista marcas cadastradas.
+
+Resposta atual (`MarcaSerializer`):
+
+```json
+[
+  {
+    "id": 1,
+    "nome": "Apple",
+    "cor": "#007bff",
+    "icone": "bi bi-apple"
+  },
+  {
+    "id": 2,
+    "nome": "Samsung",
+    "cor": "#007bff",
+    "icone": "bx bx-mobile"
+  }
+]
+```
+
+### `POST /api/marcas/`
+
+Cria marca. Exige permissão de produto (via `ProdutoPermission`).
+
+Payload atual:
+
+```json
+{
+  "nome": "Xiaomi",
+  "cor": "#34a853",
+  "icone": "bx bx-mobile-alt"
+}
+```
+
+### `GET /api/marcas/{id}/`
+
+Detalhe de uma marca.
+
+### `PUT/PATCH /api/marcas/{id}/`
+
+Atualiza marca.
+
+### `DELETE /api/marcas/{id}/`
+
+Remove marca.
+
+Observação: o serializer de marca expõe `id`, `nome`, `cor` e `icone`.
+
 ## Parcelamentos
 
 Rotas baseadas em `ParcelamentoViewSet`.
 
 ### `GET /api/parcelamentos/`
 
-Lista todos os parcelamentos cadastrados.
+Lista parcelamentos cadastrados por marca.
 
-Resposta:
+Query params:
+
+- `marca` (opcional): filtra parcelamentos por id da marca
+
+Resposta atual (`ParcelamentoSerializer`):
 
 ```json
 [
   {
     "id": 1,
+    "marca": 1,
+    "marca_nome": "Apple",
     "qtd_vezes": 4,
     "porcentagem_juros": "5.00"
-  },
-  {
-    "id": 2,
-    "qtd_vezes": 6,
-    "porcentagem_juros": "7.50"
-  },
-  {
-    "id": 3,
-    "qtd_vezes": 8,
-    "porcentagem_juros": "10.00"
   }
 ]
 ```
 
 ### `POST /api/parcelamentos/`
 
-Cria novo parcelamento. Exige permissão `produtos.add_produto` (via `ProdutoPermission`).
+Cria novo parcelamento para uma marca.
 
 Payload:
 
 ```json
 {
+  "marca": 1,
   "qtd_vezes": 10,
   "porcentagem_juros": "12.50"
 }
@@ -836,8 +914,13 @@ Payload:
 
 Campos:
 
-- `qtd_vezes` (obrigatório, único): número de parcelas
-- `porcentagem_juros` (obrigatório): percentual de juros aplicado
+- `marca` (obrigatório para o novo fluxo)
+- `qtd_vezes` (obrigatório)
+- `porcentagem_juros` (obrigatório)
+
+Regra de modelo:
+
+- combinação única por marca e quantidade de parcelas: (`marca`, `qtd_vezes`)
 
 ### `GET /api/parcelamentos/{id}/`
 
@@ -845,15 +928,11 @@ Detalhe de um parcelamento específico.
 
 ### `PUT/PATCH /api/parcelamentos/{id}/`
 
-Atualiza parcelamento (exige permissão `produtos.change_produto`).
-
-Payload: mesmos campos de criação.
+Atualiza parcelamento.
 
 ### `DELETE /api/parcelamentos/{id}/`
 
-Remove parcelamento (exige permissão `produtos.delete_produto`).
-
-**Atenção:** Apenas remova parcelamentos que não estejam sendo utilizados em vendas.
+Remove parcelamento.
 
 ## Repasses
 
@@ -1141,51 +1220,58 @@ Query params:
 
 - `search` (opcional): nome do produto
 
-Observacao:
+Observações do estado atual:
 
-- usuarios com `produtos.view_all_produtos` veem ativos e inativos
-- demais veem apenas `ativo=True`
+- usuários com `produtos.view_all_produtos` veem ativos e inativos
+- demais usuários veem apenas `ativo=True`
+- retorno traz `tipo` e `marca` como objetos (`{id, nome}`)
 
-**Retorno:** Cada produto retorna `tipo` e `fabricante` como objetos completos `{id, nome}` ao invés de apenas o ID.
+Exemplo de resposta:
+
+```json
+[
+  {
+    "id": 10,
+    "codigo": 1010,
+    "nome": "iPhone 14",
+    "valor": "3500.00",
+    "entrada_cliente": "500.00",
+    "tipo": {"id": 2, "nome": "Smartphone"},
+    "marca": {"id": 1, "nome": "Apple"},
+    "ativo": true,
+    "is_iphone": true
+  }
+]
+```
 
 ### `POST /api/produtos/`
 
 Cria produto. Exige permissão `produtos.add_produto`.
 
-Payload: campos do modelo `Produto`.
+Campos de domínio relevantes:
 
-Campos principais:
+- `nome`
+- `valor`
+- `entrada_cliente`
+- `tipo`
+- `marca`
+- `is_iphone`
+- `ativo`
 
-- `nome` (obrigatório): nome do produto;
-- `fabricante` (obrigatório): ID do fabricante (inteiro);
-- `tipo` (opcional): ID do tipo de produto (inteiro);
-- `codigo` (opcional): código único do produto (gerado automaticamente se não fornecido);
-- `entrada_cliente` (decimal, padrão 0): valor da entrada à vista;
-- `valor_4_vezes` (decimal, padrão 0): valor total se parcelado em 4 vezes;
-- `valor_6_vezes` (decimal, padrão 0): valor total se parcelado em 6 vezes;
-- `valor_8_vezes` (decimal, padrão 0): valor total se parcelado em 8 vezes;
-- `valor_10_vezes` (decimal, padrão 0): valor total se parcelado em 10 vezes;
-- `valor_12_vezes` (decimal, padrão 0): valor total se parcelado em 12 vezes;
-- `valor_14_vezes` (decimal, padrão 0): valor total se parcelado em 14 vezes;
-- `valor_repasse_logista` (decimal, padrão 0): valor de repasse para a loja;
-- `is_iphone` (boolean, padrão False): marca se é produto iPhone;
-- `ativo` (boolean, padrão True): ativa/desativa produto.
+Observação importante:
+
+- O retorno mantém `marca` e `tipo` como objetos (somente leitura).
+- Para escrita via API, use `marca_id` e `tipo_id` no payload.
 
 Exemplo de payload:
 
 ```json
 {
   "nome": "iPhone 12 Pro",
-  "fabricante": 1,
-  "tipo": 2,
+  "tipo_id": 2,
+  "marca_id": 1,
+  "valor": "3200.00",
   "entrada_cliente": "300.00",
-  "valor_4_vezes": "1200.00",
-  "valor_6_vezes": "1220.00",
-  "valor_8_vezes": "1240.00",
-  "valor_10_vezes": "1260.00",
-  "valor_12_vezes": "1280.00",
-  "valor_14_vezes": "1300.00",
-  "valor_repasse_logista": "100.00",
   "is_iphone": true,
   "ativo": true
 }
@@ -1193,17 +1279,14 @@ Exemplo de payload:
 
 ### `GET /api/produtos/{id}/`
 
-Detalhe de produto, incluindo todos os campos de opções de parcelamento.
+Detalhe do produto.
 
 Resposta inclui:
 
-- Dados cadastrais (nome, código, tipo, fabricante, etc.)
-  - **`tipo`**: objeto com `{id, nome}` ao invés de apenas ID
-  - **`fabricante`**: objeto com `{id, nome}` ao invés de apenas ID
-- Opções de parcelamento (entrada_cliente, valor_4_vezes até valor_14_vezes)
-- Valor de repasse (valor_repasse_logista)
-- Status (ativo, is_iphone)
-- Timestamps (criado_em, atualizado_em)
+- Dados cadastrais (`codigo`, `nome`, `valor`, `entrada_cliente`)
+- Relacionamentos (`tipo`, `marca`)
+- Status (`ativo`, `is_iphone`)
+- Metadados (`criado_em`, `modificado_em`)
 
 Exemplo de resposta:
 
@@ -1212,26 +1295,20 @@ Exemplo de resposta:
   "id": 1,
   "codigo": 1001,
   "nome": "iPhone 14 Pro Max",
+  "valor": "4500.00",
   "tipo": {
     "id": 2,
     "nome": "Smartphone"
   },
-  "fabricante": {
+  "marca": {
     "id": 1,
     "nome": "Apple"
   },
   "entrada_cliente": "500.00",
-  "valor_4_vezes": "1200.00",
-  "valor_6_vezes": "1250.00",
-  "valor_8_vezes": "1300.00",
-  "valor_10_vezes": "1350.00",
-  "valor_12_vezes": "1400.00",
-  "valor_14_vezes": "1450.00",
-  "valor_repasse_logista": "150.00",
   "is_iphone": true,
   "ativo": true,
   "criado_em": "2026-01-15T10:30:00Z",
-  "atualizado_em": "2026-02-20T14:45:00Z"
+  "modificado_em": "2026-02-20T14:45:00Z"
 }
 ```
 
@@ -1241,12 +1318,7 @@ Atualiza produto (exige permissão `produtos.change_produto`).
 
 Payload: mesmos campos de criação.
 
-Observação: É possível ajustar qualquer valor de parcelamento individualmente ou em conjunto. Útil para:
-
-- Alterar tabela de preços por número de parcelas
-- Atualizar valores de entrada ou repasse
-- Marcar/desmarcar como iPhone
-- Mudar tipo ou fabricante associado
+Observação: o serializer de produto já aceita escrita explícita com `marca_id` e `tipo_id`.
 
 ### `POST /api/produtos/{id}/ativar/`
 
@@ -1777,6 +1849,38 @@ Cada endpoint usa as classes de permissao do modulo `api/permissions.py` e as me
 - A especificacao OpenAPI JSON e `/api/schema/`.
 - Alguns endpoints aceitam tanto JSON quanto `multipart/form-data`, mas uploads de arquivo exigem `multipart/form-data`.
 
+## Plano de acao: ajustar modulo API para fluxo por marca
+
+### Fase 1 - Contrato de dados (input/output)
+
+1. Adicionar `marca` em `SolicitacaoCreditoInputSerializer` e `SolicitacaoImeiTelefoneInputSerializer`.
+2. Incluir `marca` (id + nome) no `AnaliseCreditoClienteSerializer` para facilitar renderização de telas sem chamadas extras.
+3. Evoluir `MarcaSerializer` para expor `cor` e `icone` (compatível com app/web).
+
+### Fase 2 - Regras de validação
+
+1. Validar que `produto.marca_id == marca` na criação e edição de solicitação.
+2. Ajustar `_validar_parcelamento_iphone` para validar por marca + parcelas (`Parcelamento.objects.filter(marca=produto.marca, qtd_vezes=...)`).
+3. Retornar mensagens de erro específicas quando faltar tabela de parcelamento da marca.
+
+### Fase 3 - Endpoints de consulta para o front
+
+1. Adicionar filtro por marca em `GET /api/produtos/` (`?marca=<id>`).
+2. Opcional recomendado: endpoint dedicado `GET /api/marcas/{id}/produtos/` para simplificar o frontend.
+3. Manter `GET /api/parcelamentos/?marca=<id>` como fonte de parcelas/juros por marca.
+
+### Fase 4 - Compatibilidade e migração
+
+1. Em transição, aceitar payload antigo sem `marca` e inferir por `produto.marca`.
+2. Registrar depreciação do payload antigo e data de corte.
+3. Atualizar testes de API (create/update de solicitação, filtros de produto e validação de parcelamento por marca).
+
+### Fase 5 - Entrega e governança
+
+1. Publicar versão da API (changelog) com breaking changes.
+2. Atualizar coleção Postman e exemplos de integração do app.
+3. Monitorar erros de validação por marca nas primeiras semanas após rollout.
+
 ## Guia Rápido: Query Params por Endpoint
 
 **Nota sobre filtro de loja:** Para usuários não-admin, o backend valida se o usuário tem acesso à loja especificada no parâmetro `?loja=X` via `user.lojas_acesso`. Se não tiver acesso, usa a loja da sessão automaticamente.
@@ -1900,6 +2004,29 @@ GET /api/produtos/
 
 # Buscar por nome
 GET /api/produtos/?search=iPhone
+
+# Filtrar por marca
+GET /api/produtos/?marca=1
+```
+
+### Marcas (`/api/marcas/`)
+
+```bash
+# Listar marcas
+GET /api/marcas/
+
+# Detalhar marca
+GET /api/marcas/1/
+```
+
+### Parcelamentos (`/api/parcelamentos/`)
+
+```bash
+# Listar todos os parcelamentos
+GET /api/parcelamentos/
+
+# Parcelamentos por marca
+GET /api/parcelamentos/?marca=1
 ```
 
 ### Usuários (`/api/usuarios/` ou `/api/users/`)

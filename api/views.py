@@ -194,21 +194,69 @@ def _validar_parcelamento_iphone(form_analise_credito):
     if not produto or not getattr(produto, "is_iphone", False):
         return None
 
-    numero_parcelas = form_analise_credito.cleaned_data.get("numero_parcelas")
-
-    if not Parcelamento.objects.exists():
+    marca = getattr(produto, "marca", None)
+    if not marca:
         return {
-            "numero_parcelas": [
-                "Nenhum parcelamento cadastrado no sistema. "
-                "Solicite ao administrador que cadastre os parcelamentos antes de criar uma solicitacao de iPhone."
+            "produto": [
+                "Produto iPhone sem marca vinculada. Configure a marca do produto antes de criar a solicitacao."
             ]
         }
 
-    if numero_parcelas and not Parcelamento.objects.filter(qtd_vezes=int(numero_parcelas)).exists():
+    numero_parcelas = form_analise_credito.cleaned_data.get("numero_parcelas")
+
+    parcelamentos_marca = Parcelamento.objects.filter(marca=marca)
+
+    if not parcelamentos_marca.exists():
         return {
             "numero_parcelas": [
-                f"Parcelamento de {numero_parcelas}x nao cadastrado. "
+                f"Nenhum parcelamento cadastrado para a marca '{marca.nome}'. "
+                "Solicite ao administrador que cadastre os parcelamentos da marca antes de criar uma solicitacao de iPhone."
+            ]
+        }
+
+    if numero_parcelas:
+        try:
+            numero_parcelas_int = int(numero_parcelas)
+        except (TypeError, ValueError):
+            return {"numero_parcelas": ["Numero de parcelas invalido."]}
+
+        if parcelamentos_marca.filter(qtd_vezes=numero_parcelas_int).exists():
+            return None
+
+        return {
+            "numero_parcelas": [
+                f"Parcelamento de {numero_parcelas}x nao cadastrado para a marca '{marca.nome}'. "
                 "Solicite ao administrador que cadastre o parcelamento correspondente."
+            ]
+        }
+
+    return None
+
+
+def _validar_marca_produto_solicitacao(request_data, produto):
+    marca_id_raw = request_data.get("marca")
+
+    if marca_id_raw in (None, ""):
+        return {"marca": ["Este campo e obrigatorio."]}
+
+    try:
+        marca_id = int(marca_id_raw)
+    except (TypeError, ValueError):
+        return {"marca": ["Informe um id de marca valido."]}
+
+    if not Marca.objects.filter(id=marca_id).exists():
+        return {"marca": ["Marca informada nao encontrada."]}
+
+    if not produto:
+        return None
+
+    if not produto.marca_id:
+        return {"produto": ["O produto informado nao possui marca vinculada."]}
+
+    if produto.marca_id != marca_id:
+        return {
+            "produto": [
+                "O produto informado nao pertence a marca selecionada."
             ]
         }
 
@@ -690,6 +738,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             OpenApiExample(
                 "Exemplo",
                 value={
+                    "marca": 1,
                     "nome": "Fulano",
                     "telefone": "11999999999",
                     "cpf": "12345678900",
@@ -787,6 +836,16 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             )
 
         # Validação de parcelamento para produto iPhone
+        erro_marca = _validar_marca_produto_solicitacao(
+            request.data,
+            form_analise_credito.cleaned_data.get("produto"),
+        )
+        if erro_marca:
+            return Response(
+                {"detail": "Erros de validacao.", "errors": {"analise_credito": erro_marca}},
+                status=400,
+            )
+
         erro_parcelamento = _validar_parcelamento_iphone(form_analise_credito)
         if erro_parcelamento:
             return Response(
@@ -831,6 +890,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             OpenApiExample(
                 "Exemplo update",
                 value={
+                    "marca": 1,
                     "nome": "Fulano",
                     "telefone": "11999999999",
                     "cpf": "12345678900",
@@ -949,6 +1009,16 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             )
 
         # Validação de parcelamento para produto iPhone
+        erro_marca = _validar_marca_produto_solicitacao(
+            request.data,
+            form_analise_credito.cleaned_data.get("produto"),
+        )
+        if erro_marca:
+            return Response(
+                {"detail": "Erros de validacao.", "errors": {"analise_credito": erro_marca}},
+                status=400,
+            )
+
         erro_parcelamento = _validar_parcelamento_iphone(form_analise_credito)
         if erro_parcelamento:
             return Response(
@@ -980,6 +1050,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                 "Exemplo imei",
                 value={
                     "telefone": "11999999999",
+                    "marca": 1,
                     "produto": 1,
                     "data_pagamento": "10",
                     "numero_parcelas": "6",
@@ -998,6 +1069,16 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         )
 
         if form_cliente.is_valid() and form_analise_credito.is_valid():
+            erro_marca = _validar_marca_produto_solicitacao(
+                request.data,
+                form_analise_credito.cleaned_data.get("produto"),
+            )
+            if erro_marca:
+                return Response(
+                    {"detail": "Erros de validacao.", "errors": {"analise_credito": erro_marca}},
+                    status=400,
+                )
+
             form_analise_credito.save()
             cliente_obj = form_cliente.save(commit=False)
             cliente_obj.save(user=user)
@@ -1659,13 +1740,19 @@ class ProdutoViewSet(viewsets.ModelViewSet):
             queryset = Produto.objects.filter(ativo=True)
 
         search = self.request.query_params.get("search")
+        marca = self.request.query_params.get("marca")
         if search:
             queryset = queryset.filter(nome__icontains=search)
+        if marca:
+            queryset = queryset.filter(marca_id=marca)
 
         return queryset.order_by("nome")
 
     @extend_schema(
-        parameters=[OpenApiParameter("search", OpenApiTypes.STR, required=False)],
+        parameters=[
+            OpenApiParameter("search", OpenApiTypes.STR, required=False),
+            OpenApiParameter("marca", OpenApiTypes.INT, required=False),
+        ],
         responses=ProdutoSerializer,
     )
     def list(self, request, *args, **kwargs):
@@ -1737,6 +1824,22 @@ class MarcaViewSet(viewsets.ModelViewSet):
         if not loja_id:
             raise ValidationError({"detail": "Loja nao encontrada na sessao."})
         serializer.save(loja_id=loja_id)
+
+    @action(detail=True, methods=["get"], url_path="produtos")
+    def produtos(self, request, pk=None):
+        marca = self.get_object()
+
+        if request.user.has_perm("produtos.view_all_produtos"):
+            queryset = Produto.objects.filter(marca=marca)
+        else:
+            queryset = Produto.objects.filter(marca=marca, ativo=True)
+
+        search = request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(nome__icontains=search)
+
+        serializer = ProdutoSerializer(queryset.order_by("nome"), many=True)
+        return Response(serializer.data)
 
 
 def _build_formset_data(formset_cls, items, initial_forms=0):
