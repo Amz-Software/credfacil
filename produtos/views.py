@@ -59,6 +59,28 @@ class ProdutoActivateView(PermissionRequiredMixin, View):
         messages.success(request, f'Produto "{produto.nome}" foi ativado com sucesso.')
         return redirect('produtos:produtos')
 
+class MarcaDeactivateView(PermissionRequiredMixin, View):
+    permission_required = 'produtos.change_marca'
+    
+    def post(self, request, pk):
+        from .models import Marca
+        marca = get_object_or_404(Marca, pk=pk)
+        marca.ativo = False
+        marca.save()
+        messages.success(request, f'Marca "{marca.nome}" foi desativada com sucesso.')
+        return redirect('produtos:marcas')
+
+class MarcaActivateView(PermissionRequiredMixin, View):
+    permission_required = 'produtos.change_marca'
+    
+    def post(self, request, pk):
+        from .models import Marca
+        marca = get_object_or_404(Marca, pk=pk)
+        marca.ativo = True
+        marca.save()
+        messages.success(request, f'Marca "{marca.nome}" foi ativada com sucesso.')
+        return redirect('produtos:marcas')
+
 
 class ProdutoPDFView(PermissionRequiredMixin, View):
     permission_required = 'produtos.view_produto'

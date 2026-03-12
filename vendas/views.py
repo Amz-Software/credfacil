@@ -620,7 +620,7 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
             for p in parcelamentos
         ])
 
-        marcas = Marca.objects.all().values('id', 'nome', 'cor', 'icone')
+        marcas = Marca.objects.filter(ativo=True).values('id', 'nome', 'cor', 'icone')
         marcas_list = [
             {
                 'id': m['id'],
@@ -817,7 +817,7 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             for p in parcelamentos
         ])
 
-        marcas = Marca.objects.all().values('id', 'nome', 'cor', 'icone')
+        marcas = Marca.objects.filter(ativo=True).values('id', 'nome', 'cor', 'icone')
         marcas_list = [
             {
                 'id': m['id'],
@@ -3127,6 +3127,13 @@ class GraficoTemplateView(TemplateView):
         loja = Loja.objects.filter(id=loja_get) if loja_get else Loja.objects.all()
 
         vendas = Venda.objects.filter(is_deleted=False, loja__in=loja)
+        
+        data_inicio = self.request.GET.get('data_inicio')
+        data_fim = self.request.GET.get('data_fim')
+        if data_inicio:
+            vendas = vendas.filter(data_venda__gte=data_inicio)
+        if data_fim:
+            vendas = vendas.filter(data_venda__lte=data_fim + ' 23:59:59')
         parcelas_qs = Parcela.objects.filter(
             pagamento__venda__in=vendas,
             pagamento__tipo_pagamento__nome='IPX'
@@ -3332,6 +3339,8 @@ class GraficoTemplateView(TemplateView):
             repasses_por_loja[loja_nome] += valor_repasse
 
         context.update({
+            'data_inicio_get': data_inicio,
+            'data_fim_get': data_fim,
             'loja_get': int(loja_get) if loja_get else None,
             'lojas': Loja.objects.all(),
             'total_vendas_loja': total_vendas,
@@ -3690,10 +3699,20 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
     
     def get_dashboard_data(self):
         """Reutiliza a lógica da GraficoTemplateView para calcular os dados"""
-        # Buscar todas as lojas
-        lojas = Loja.objects.all()
-        
-        vendas = Venda.objects.filter(is_deleted=False)
+        loja_get = self.request.GET.get('loja')
+        data_inicio = self.request.GET.get('data_inicio')
+        data_fim = self.request.GET.get('data_fim')
+
+        if loja_get:
+            lojas = Loja.objects.filter(id=loja_get)
+        else:
+            lojas = Loja.objects.all()
+
+        vendas = Venda.objects.filter(is_deleted=False, loja__in=lojas)
+        if data_inicio:
+            vendas = vendas.filter(data_venda__gte=data_inicio)
+        if data_fim:
+            vendas = vendas.filter(data_venda__lte=data_fim + ' 23:59:59')
         parcelas_qs = Parcela.objects.filter(
             pagamento__venda__in=vendas,
             pagamento__tipo_pagamento__nome='IPX'

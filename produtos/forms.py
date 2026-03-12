@@ -213,6 +213,7 @@ class MarcaForms(forms.ModelForm):
             'nome': 'Nome',
             'cor': 'Cor de Destaque',
             'icone': 'Ícone',
+            'ativo': 'Ativo no painel',
         }
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
@@ -222,6 +223,7 @@ class MarcaForms(forms.ModelForm):
                 'style': 'height: 40px; cursor: pointer;'
             }),
             'icone': forms.Select(attrs={'class': 'form-select'}),
+            'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
     def __init__(self, *args, disabled=False, **kwargs):

@@ -3,7 +3,7 @@ from django.urls import path
 
 from produtos.forms import *
 from produtos.models import *
-from .views import generate_views, ProdutoListView, ProdutoDeleteView, ProdutoActivateView, ParcelamentoDeleteView, ProdutoPDFView
+from .views import generate_views, ProdutoListView, ProdutoDeleteView, ProdutoActivateView, ParcelamentoDeleteView, ProdutoPDFView, MarcaActivateView, MarcaDeactivateView
 
 app_name = 'produtos'
 
@@ -49,6 +49,8 @@ urlpatterns = [
     path('marca/detalhe/<int:pk>/', marcaViews['detail_view'].as_view(), name='marca_detail'),
     path('marca/editar/<int:pk>/', marcaViews['update_view'].as_view(), name='marca_update'),
     path('marca/deletar/<int:pk>/', marcaViews['delete_view'].as_view(), name='marca_delete'),
+    path('marca/desativar/<int:pk>/', MarcaDeactivateView.as_view(), name='marca_deactivate'),
+    path('marca/ativar/<int:pk>/', MarcaActivateView.as_view(), name='marca_activate'),
 
     path('estadoproduto/', estadoViews['list_view'].as_view(), name='estados'),
     path('estado/novo/', estadoViews['create_view'].as_view(), name='estado_create'),

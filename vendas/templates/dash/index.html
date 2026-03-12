@@ -120,22 +120,35 @@
       <div class="card border-0 shadow-sm">
         <div class="card-body">
           <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
-            <form method="get" class="d-flex align-items-center gap-2 flex-grow-1">
-              <label for="loja-select" class="form-label mb-0 fw-semibold">Filtrar por loja:</label>
-              <select id="loja-select" name="loja" class="form-select" style="max-width: 300px;">
-                <option value="">Todas as lojas</option>
-                {% for loja in lojas %}
-                  <option value="{{ loja.id }}"{% if loja.id == loja_get %} selected{% endif %}>{{ loja.nome|title }}</option>
-                {% endfor %}
-              </select>
+            <form method="get" class="d-flex align-items-center gap-2 flex-grow-1 flex-wrap">
+              <div class="d-flex align-items-center gap-2">
+                <label for="loja-select" class="form-label mb-0 fw-semibold text-nowrap">Filtrar por loja:</label>
+                <select id="loja-select" name="loja" class="form-select" style="min-width: 150px; max-width: 250px;">
+                  <option value="">Todas as lojas</option>
+                  {% for loja in lojas %}
+                    <option value="{{ loja.id }}"{% if loja.id == loja_get %} selected{% endif %}>{{ loja.nome|title }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="d-flex align-items-center gap-2">
+                <label for="data_inicio" class="form-label mb-0 fw-semibold text-nowrap">Início:</label>
+                <input type="date" id="data_inicio" name="data_inicio" class="form-control" value="{{ data_inicio_get|default:'' }}">
+              </div>
+
+              <div class="d-flex align-items-center gap-2">
+                <label for="data_fim" class="form-label mb-0 fw-semibold text-nowrap">Fim:</label>
+                <input type="date" id="data_fim" name="data_fim" class="form-control" value="{{ data_fim_get|default:'' }}">
+              </div>
+
               <button type="submit" class="btn btn-primary">
                 <i class="bx bx-filter me-1"></i>Filtrar
               </button>
             </form>
             
             {% if user|has_perm:"vendas.can_generate_dashboard_report" %}
-            <div>
-              <a href="{% url 'vendas:dashboard_report_pdf' %}" class="btn btn-success">
+            <div class="mt-2 mt-md-0">
+              <a href="{% url 'vendas:dashboard_report_pdf' %}?loja={{ loja_get|default:'' }}&data_inicio={{ data_inicio_get|default:'' }}&data_fim={{ data_fim_get|default:'' }}" class="btn btn-success">
                 <i class="bx bx-file-pdf me-1"></i>
                 Gerar Relatório PDF
               </a>
