@@ -234,7 +234,7 @@ class ClienteSolicitacaoSerializer(serializers.ModelSerializer):
 class MarcaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Marca
-        fields = ["id", "nome", "cor", "icone"]
+        fields = ["id", "nome", "cor", "icone", "ativo"]
 
 
 class ParcelamentoSerializer(serializers.ModelSerializer):
