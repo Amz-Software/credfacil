@@ -1566,6 +1566,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                     )
 
                 porcentagem_juros = parcelamento.porcentagem_juros
+                porcentagem_desconto = parcelamento.porcentagem_desconto
                 valor_financiado = produto.valor - entrada_informada
                 valor_credfacil = valor_financiado + (valor_financiado * porcentagem_juros / 100)
                 repasse_logista = produto.valor - entrada_informada

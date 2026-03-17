@@ -242,7 +242,7 @@ class ParcelamentoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Parcelamento
-        fields = ["id", "marca", "marca_nome", "qtd_vezes", "porcentagem_juros"]
+        fields = ["id", "marca", "marca_nome", "qtd_vezes", "porcentagem_juros", "porcentagem_desconto"]
 
 
 class TipoProdutoSerializer(serializers.ModelSerializer):

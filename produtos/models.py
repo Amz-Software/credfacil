@@ -77,6 +77,7 @@ class Parcelamento(Base):
     marca = models.ForeignKey('produtos.Marca', on_delete=models.CASCADE, related_name='parcelamentos', null=True, blank=True)
     qtd_vezes = models.IntegerField(verbose_name='Quantidade de vezes')
     porcentagem_juros = models.DecimalField(max_digits=5, decimal_places=2, verbose_name='Porcentagem de juros (%)')
+    porcentagem_desconto = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name='Porcentagem de desconto (%)')
 
     def __str__(self):
         marca_nome = self.marca.nome if self.marca else '—'

@@ -1251,7 +1251,6 @@ def gerar_venda(request, cliente_id):
         return redirect('vendas:cliente_update', pk=cliente.pk)
 
     parcelas = int(analise.numero_parcelas)
-    porcentagem_desconto = 0
 
     # --- Lógica unificada para todos os produtos ---
     if not produto.valor:
@@ -1275,6 +1274,7 @@ def gerar_venda(request, cliente_id):
         messages.error(request, f"❌ Nenhum parcelamento cadastrado para {parcelas}x na marca '{marca_nome}'.")
         return redirect('vendas:cliente_update', pk=cliente.pk)
 
+    porcentagem_desconto = parcelamento.porcentagem_desconto
     valor_financiado = produto.valor - entrada_informada
     valor_credfacil = valor_financiado + (valor_financiado * parcelamento.porcentagem_juros / 100)
     repasse_logista = produto.valor - entrada_informada
@@ -3130,10 +3130,19 @@ class GraficoTemplateView(TemplateView):
         
         data_inicio = self.request.GET.get('data_inicio')
         data_fim = self.request.GET.get('data_fim')
+        
+        # Filtro de Total de Vendas separadamente (Baseado na Data da Venda)
+        vendas_periodo = vendas
         if data_inicio:
-            vendas = vendas.filter(data_venda__gte=data_inicio)
+            vendas_periodo = vendas_periodo.filter(data_venda__gte=data_inicio)
         if data_fim:
-            vendas = vendas.filter(data_venda__lte=data_fim + ' 23:59:59')
+            vendas_periodo = vendas_periodo.filter(data_venda__lte=data_fim + ' 23:59:59')
+        total_vendas = vendas_periodo.count()
+        
+        # Parse dates
+        from datetime import datetime
+        dt_inicio = datetime.strptime(data_inicio, "%Y-%m-%d").date() if data_inicio else None
+        dt_fim = datetime.strptime(data_fim, "%Y-%m-%d").date() if data_fim else None
         parcelas_qs = Parcela.objects.filter(
             pagamento__venda__in=vendas,
             pagamento__tipo_pagamento__nome='IPX'
@@ -3141,10 +3150,20 @@ class GraficoTemplateView(TemplateView):
 
         parcelas_por_venda = defaultdict(list)
 
+        vendas_ids_validas = set()
         for parcela in parcelas_qs:
+            dt_base = parcela.data_pagamento if (parcela.pago and parcela.data_pagamento) else parcela.data_vencimento
+            if dt_base:
+                if dt_inicio and dt_base < dt_inicio: continue
+                if dt_fim and dt_base > dt_fim: continue
+            
             parcelas_por_venda[parcela.pagamento.venda_id].append(parcela)
+            vendas_ids_validas.add(parcela.pagamento.venda_id)
+            
+        # Otimizar laço de Vendas para iterar apenas as que tem parcelas no período
+        vendas = vendas.filter(id__in=vendas_ids_validas)
 
-        total_vendas = vendas.count()
+
         total_de_parcelas_vencidas = total_de_parcelas_pagas = total_de_parcelas_a_vencer = 0
         total_pagas = total_vencidas = total_a_vencer = total_geral_parcelas = 0
 
@@ -3198,13 +3217,17 @@ class GraficoTemplateView(TemplateView):
             valores_por_loja[loja_nome]['total_vencidas'] += valor_vencidas
             valores_por_loja[loja_nome]['total_pagas'] += valor_pagas
 
-            # Calcular desativados por loja
+            # Calcular desativados por loja Filtrado
             parcelas_desativadas_loja = Parcela.objects.filter(
                 pagamento__venda=venda,
                 pagamento__tipo_pagamento__nome='IPX',
                 pagamento__desativado=True,
                 pago=False
             )
+            if dt_inicio:
+                parcelas_desativadas_loja = parcelas_desativadas_loja.filter(data_vencimento__gte=dt_inicio)
+            if dt_fim:
+                parcelas_desativadas_loja = parcelas_desativadas_loja.filter(data_vencimento__lte=dt_fim)
 
             for parcela_desativada in parcelas_desativadas_loja:
                 if parcela_desativada.data_vencimento < timezone.now().date():
@@ -3212,13 +3235,17 @@ class GraficoTemplateView(TemplateView):
                 else:
                     valores_por_loja[loja_nome]['total_desativados_a_vencer'] += parcela_desativada.valor
 
-            # Calcular cobrança por loja
+            # Calcular cobrança por loja Filtrado
             parcelas_cobranca_loja = Parcela.objects.filter(
                 pagamento__venda=venda,
                 pagamento__tipo_pagamento__nome='IPX',
                 pagamento__flag_atrasado=True,
                 pago=False
             )
+            if dt_inicio:
+                parcelas_cobranca_loja = parcelas_cobranca_loja.filter(data_vencimento__gte=dt_inicio)
+            if dt_fim:
+                parcelas_cobranca_loja = parcelas_cobranca_loja.filter(data_vencimento__lte=dt_fim)
 
             for parcela_cobranca in parcelas_cobranca_loja:
                 if parcela_cobranca.data_vencimento < timezone.now().date():
@@ -3278,6 +3305,10 @@ class GraficoTemplateView(TemplateView):
             pagamento__desativado=True,
             pago=False  # Apenas parcelas não pagas
         )
+        if dt_inicio:
+            parcelas_desativadas = parcelas_desativadas.filter(data_vencimento__gte=dt_inicio)
+        if dt_fim:
+            parcelas_desativadas = parcelas_desativadas.filter(data_vencimento__lte=dt_fim)
 
         for parcela in parcelas_desativadas:
             if parcela.data_vencimento < timezone.now().date():
@@ -3709,10 +3740,17 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
             lojas = Loja.objects.all()
 
         vendas = Venda.objects.filter(is_deleted=False, loja__in=lojas)
+        
+        vendas_periodo = vendas
         if data_inicio:
-            vendas = vendas.filter(data_venda__gte=data_inicio)
+            vendas_periodo = vendas_periodo.filter(data_venda__gte=data_inicio)
         if data_fim:
-            vendas = vendas.filter(data_venda__lte=data_fim + ' 23:59:59')
+            vendas_periodo = vendas_periodo.filter(data_venda__lte=data_fim + ' 23:59:59')
+            
+        from datetime import datetime
+        dt_inicio = datetime.strptime(data_inicio, "%Y-%m-%d").date() if data_inicio else None
+        dt_fim = datetime.strptime(data_fim, "%Y-%m-%d").date() if data_fim else None
+
         parcelas_qs = Parcela.objects.filter(
             pagamento__venda__in=vendas,
             pagamento__tipo_pagamento__nome='IPX'
@@ -3720,25 +3758,30 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
 
         parcelas_por_venda = defaultdict(list)
         for parcela in parcelas_qs:
+            dt_base = parcela.data_pagamento if (parcela.pago and parcela.data_pagamento) else parcela.data_vencimento
+            if dt_base:
+                if dt_inicio and dt_base < dt_inicio: continue
+                if dt_fim and dt_base > dt_fim: continue
             parcelas_por_venda[parcela.pagamento.venda_id].append(parcela)
 
         # Dados por loja
         dados_por_loja = {}
         
         for loja in lojas:
-            vendas_loja = vendas.filter(loja=loja)
-            parcelas_loja = Parcela.objects.filter(
-                pagamento__venda__in=vendas_loja,
-                pagamento__tipo_pagamento__nome='IPX'
-            ).select_related('pagamento', 'pagamento__venda')
+            # Repasses and vendas counts rely on the period's sales (not installments)
+            vendas_loja_periodo = vendas_periodo.filter(loja=loja)
+            total_vendas_loja = vendas_loja_periodo.count()
+            
+            # Pegar vendas que tem parcelas no periodo
+            vendas_ativas_IDs = [vid for vid, parcs in parcelas_por_venda.items() if parcs and parcs[0].pagamento.venda.loja_id == loja.id]
+            vendas_loja_ativos = Venda.objects.filter(id__in=vendas_ativas_IDs)
 
             # Calcular KPIs para esta loja
-            total_vendas_loja = vendas_loja.count()
             total_de_parcelas_vencidas = total_de_parcelas_pagas = total_de_parcelas_a_vencer = 0
             total_pagas = total_vencidas = total_a_vencer = 0
 
-            for venda in vendas_loja:
-                parcelas = parcelas_por_venda.get(venda.id, [])
+            for venda_id in vendas_ativas_IDs:
+                parcelas = parcelas_por_venda.get(venda_id, [])
                 
                 parcelas_vencidas = [p for p in parcelas if p.data_vencimento < timezone.now().date() and not p.pago and not p.pagamento_efetuado]
                 parcelas_pagas = [p for p in parcelas if p.pago and not p.pagamento_efetuado]
@@ -3754,19 +3797,24 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
 
             # Calcular desativados para esta loja
             parcelas_desativadas = Parcela.objects.filter(
-                pagamento__venda__in=vendas_loja,
+                pagamento__venda__loja=loja,
+                pagamento__venda__is_deleted=False,
                 pagamento__tipo_pagamento__nome='IPX',
                 pagamento__desativado=True,
                 pago=False
             )
+            if dt_inicio:
+                parcelas_desativadas = parcelas_desativadas.filter(data_vencimento__gte=dt_inicio)
+            if dt_fim:
+                parcelas_desativadas = parcelas_desativadas.filter(data_vencimento__lte=dt_fim)
             
             total_desativados_vencidas = sum(p.valor for p in parcelas_desativadas if p.data_vencimento < timezone.now().date())
             total_desativados_a_vencer = sum(p.valor for p in parcelas_desativadas if p.data_vencimento >= timezone.now().date())
             qtd_desativados_vencidas = sum(1 for p in parcelas_desativadas if p.data_vencimento < timezone.now().date())
             qtd_desativados_a_vencer = sum(1 for p in parcelas_desativadas if p.data_vencimento >= timezone.now().date())
 
-            # Calcular repasses para esta loja
-            produtos_vendidos = ProdutoVenda.objects.filter(venda__in=vendas_loja)
+            # Calcular repasses para esta loja (por periodo da venda)
+            produtos_vendidos = ProdutoVenda.objects.filter(venda__in=vendas_loja_periodo)
             total_repasses = sum(pv.venda.repasse_logista or 0 for pv in produtos_vendidos)
 
             # Valor total das parcelas
