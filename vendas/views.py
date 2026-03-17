@@ -1249,6 +1249,10 @@ def gerar_venda(request, cliente_id):
     if not analise.data_pagamento:
         messages.error(request, "❌ Data de pagamento não informada. Informe o dia de pagamento (1, 10 ou 20) antes de gerar a venda.")
         return redirect('vendas:cliente_update', pk=cliente.pk)
+    
+    if not analise.numero_parcelas:
+        messages.error(request, "❌ Número de parcelas não informado. Informe o número de parcelas antes de gerar a venda.")
+        return redirect('vendas:cliente_update', pk=cliente.pk)
 
     parcelas = int(analise.numero_parcelas)
 
