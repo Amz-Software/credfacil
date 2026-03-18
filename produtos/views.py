@@ -169,6 +169,16 @@ def generate_views(modelo, form=None, paginacao=10, template_dir=''):
                     Q(lojas_permitidas__id=loja_id)
                 ).distinct()
 
+            # Filtro por ativo (somente se o modelo tiver o campo)
+            if hasattr(modelo, 'ativo'):
+                ativo = self.request.GET.get('ativo', 'true')
+                if ativo == 'false':
+                    qs = qs.filter(ativo=False)
+                elif ativo == 'all':
+                    pass
+                else:
+                    qs = qs.filter(ativo=True)
+
             search = self.request.GET.get('search')
             if search:
                 qs = qs.filter(nome__icontains=search)
