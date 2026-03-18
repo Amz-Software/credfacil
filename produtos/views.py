@@ -7,6 +7,7 @@ from django.views import View
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.db.models import Q
 from vendas.models import Loja
 from vendas.views import BaseView
 from .models import Parcelamento, Produto
@@ -30,6 +31,14 @@ class ProdutoListView(PermissionRequiredMixin, ListView):
                 queryset = loja.produtos_permitidos_qs()
             else:
                 queryset = Produto.objects.filter(ativo=True)
+
+            # Exclui produtos cuja marca tem lojas_permitidas definidas e a loja atual não está incluída
+            if loja_id:
+                queryset = queryset.filter(
+                    Q(marca__isnull=True) |
+                    Q(marca__lojas_permitidas__isnull=True) |
+                    Q(marca__lojas_permitidas__id=loja_id)
+                ).distinct()
 
         search = self.request.GET.get('search')
         if search:
@@ -147,11 +156,23 @@ def generate_views(modelo, form=None, paginacao=10, template_dir=''):
 
         def get_queryset(self):
             loja_id = self.request.session.get('loja_id')
+            qs = modelo.objects.all()
+
+            # Filtra por lojas_permitidas se o modelo suportar e o usuário não tiver permissão global
+            if (
+                loja_id
+                and hasattr(modelo, 'lojas_permitidas')
+                and not self.request.user.has_perm(f'{modelo._meta.app_label}.view_all_{modelo._meta.model_name}')
+            ):
+                qs = qs.filter(
+                    Q(lojas_permitidas__isnull=True) |
+                    Q(lojas_permitidas__id=loja_id)
+                ).distinct()
 
             search = self.request.GET.get('search')
             if search:
-                return modelo.objects.filter(nome__icontains=search)
-            return modelo.objects.all()
+                qs = qs.filter(nome__icontains=search)
+            return qs
 
     class GeneratedCreateView(PermissionRequiredMixin, CreateView):
         model = modelo

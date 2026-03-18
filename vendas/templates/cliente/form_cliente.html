@@ -380,6 +380,17 @@
       {% endif %}
     </div>
 
+    {% if not tem_marcas %}
+    <div class="card-body">
+      <div class="alert alert-warning d-flex align-items-center gap-3 mb-0" role="alert">
+        <i class="bx bx-error-circle fs-3 flex-shrink-0"></i>
+        <div>
+          <strong>Nenhuma marca disponível para sua loja.</strong><br>
+          Sua loja ainda não possui marcas configuradas. Entre em contato com a administração para liberar o acesso.
+        </div>
+      </div>
+    </div>
+    {% else %}
     <form method="post" enctype="multipart/form-data" id="clienteForm">
       {% csrf_token %}
       <div class="card-body">
@@ -937,8 +948,9 @@
           </a>
         </div>
       </div>
-      
+
     </form>
+    {% endif %}
   </div>
 </div>
 {% endblock content %}

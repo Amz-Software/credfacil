@@ -620,7 +620,14 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
             for p in parcelamentos
         ])
 
-        marcas = Marca.objects.filter(ativo=True).values('id', 'nome', 'cor', 'icone')
+        loja_id_ctx = self.request.session.get('loja_id')
+        marcas_qs = Marca.objects.filter(ativo=True)
+        if loja_id_ctx:
+            marcas_qs = marcas_qs.filter(
+                Q(lojas_permitidas__isnull=True) |
+                Q(lojas_permitidas__id=loja_id_ctx)
+            ).distinct()
+        marcas = marcas_qs.values('id', 'nome', 'cor', 'icone')
         marcas_list = [
             {
                 'id': m['id'],
@@ -631,6 +638,7 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
             for m in marcas
         ]
         context['marcas_json'] = json.dumps(marcas_list)
+        context['tem_marcas'] = len(marcas_list) > 0
 
         return context
 
@@ -817,7 +825,14 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             for p in parcelamentos
         ])
 
-        marcas = Marca.objects.filter(ativo=True).values('id', 'nome', 'cor', 'icone')
+        loja_id_ctx = self.request.session.get('loja_id')
+        marcas_qs = Marca.objects.filter(ativo=True)
+        if loja_id_ctx:
+            marcas_qs = marcas_qs.filter(
+                Q(lojas_permitidas__isnull=True) |
+                Q(lojas_permitidas__id=loja_id_ctx)
+            ).distinct()
+        marcas = marcas_qs.values('id', 'nome', 'cor', 'icone')
         marcas_list = [
             {
                 'id': m['id'],
@@ -828,6 +843,7 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             for m in marcas
         ]
         context['marcas_json'] = json.dumps(marcas_list)
+        context['tem_marcas'] = len(marcas_list) > 0
 
         return context
 

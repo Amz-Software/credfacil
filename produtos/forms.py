@@ -1,5 +1,6 @@
 from typing import Any
 from django import forms
+from django_select2.forms import Select2MultipleWidget
 
 from produtos.models import *
 
@@ -214,16 +215,18 @@ class MarcaForms(forms.ModelForm):
             'cor': 'Cor de Destaque',
             'icone': 'Ícone',
             'ativo': 'Ativo no painel',
+            'lojas_permitidas': 'Lojas Permitidas',
         }
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
             'cor': forms.TextInput(attrs={
-                'type': 'color', 
-                'class': 'form-control form-control-color p-1', 
+                'type': 'color',
+                'class': 'form-control form-control-color p-1',
                 'style': 'height: 40px; cursor: pointer;'
             }),
             'icone': forms.Select(attrs={'class': 'form-select'}),
             'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'lojas_permitidas': Select2MultipleWidget(),
         }
 
     def __init__(self, *args, disabled=False, **kwargs):
@@ -241,6 +244,7 @@ class MarcaForms(forms.ModelForm):
             instance.modificado_por = self.user
         if commit:
             instance.save()
+            self.save_m2m()
         return instance
 
 

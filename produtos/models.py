@@ -15,6 +15,13 @@ class Marca(Base):
     cor = models.CharField(max_length=20, default='#007bff', help_text='Código HEX ou nome da cor (Ex: #ff0000, primary, etc)')
     icone = models.CharField(max_length=50, choices=ICONE_CHOICES, default='bx bx-mobile', help_text='Selecione o ícone da marca que aparecerá no sistema')
     ativo = models.BooleanField(default=True, verbose_name='Ativo', help_text='Desmarcar irá esconder a marca no painel de solicitação.')
+    lojas_permitidas = models.ManyToManyField(
+        'vendas.Loja',
+        blank=True,
+        related_name='marcas_permitidas',
+        verbose_name='Lojas Permitidas',
+        help_text='Selecione as lojas que podem ver esta marca. Se nenhuma for selecionada, a marca ficará visível para todas as lojas.'
+    )
 
     def __str__(self):
         return self.nome

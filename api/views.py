@@ -1738,7 +1738,16 @@ class ProdutoViewSet(viewsets.ModelViewSet):
         if self.request.user.has_perm("produtos.view_all_produtos"):
             queryset = Produto.objects.all()
         else:
+            loja_id = self.request.session.get("loja_id")
             queryset = Produto.objects.filter(ativo=True)
+
+            # Exclui produtos cuja marca tem lojas_permitidas definidas e a loja atual não está incluída
+            if loja_id:
+                queryset = queryset.filter(
+                    Q(marca__isnull=True) |
+                    Q(marca__lojas_permitidas__isnull=True) |
+                    Q(marca__lojas_permitidas__id=loja_id)
+                ).distinct()
 
         search = self.request.query_params.get("search")
         marca = self.request.query_params.get("marca")
@@ -1816,9 +1825,20 @@ class ParcelamentoViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=["Marcas"]),
 )
 class MarcaViewSet(viewsets.ModelViewSet):
-    queryset = Marca.objects.all()
     serializer_class = MarcaSerializer
     permission_classes = [ProdutoPermission]
+
+    def get_queryset(self):
+        loja_id = self.request.session.get("loja_id")
+        qs = Marca.objects.all()
+        # Se não for listagem (detail, update, etc.) retorna tudo
+        if self.action == "list" and loja_id:
+            # Exibe marcas sem restrição de loja OU que incluam a loja atual
+            qs = qs.filter(
+                Q(lojas_permitidas__isnull=True) |
+                Q(lojas_permitidas__id=loja_id)
+            ).distinct()
+        return qs
 
     def perform_create(self, serializer):
         loja_id = self.request.session.get("loja_id")

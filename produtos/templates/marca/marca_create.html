@@ -21,7 +21,29 @@ Criar Marca
                   <div class="card-body">
                     <form method="post">
                         {% csrf_token %}
-                        {{ form.as_p }}
+                        <div class="mb-3">
+                          <label for="id_nome" class="form-label">Nome</label>
+                          {{ form.nome }}
+                        </div>
+                        <div class="mb-3">
+                          <label for="id_cor" class="form-label">Cor de Destaque</label>
+                          {{ form.cor }}
+                        </div>
+                        <div class="mb-3">
+                          <label for="id_icone" class="form-label">Ícone</label>
+                          {{ form.icone }}
+                        </div>
+                        <div class="mb-3">
+                          <div class="form-check">
+                            {{ form.ativo }}
+                            <label class="form-check-label" for="id_ativo">Ativo no painel</label>
+                          </div>
+                        </div>
+                        <div class="mb-3">
+                          <label for="id_lojas_permitidas" class="form-label">Lojas Permitidas</label>
+                          {{ form.lojas_permitidas }}
+                          <small class="text-muted d-block mt-1">{{ form.lojas_permitidas.help_text }}</small>
+                        </div>
                         {% if user|has_perm:"produtos.add_marca" %}
                         <button type="submit" class="btn btn-primary">Salvar</button>
                         {% endif %}
@@ -36,4 +58,7 @@ Criar Marca
   </div>
 </div>
 
+{% endblock %}
+{% block extra_scripts %}
+{{ form.media.js }}
 {% endblock %}

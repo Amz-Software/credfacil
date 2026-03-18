@@ -232,9 +232,15 @@ class ClienteSolicitacaoSerializer(serializers.ModelSerializer):
 
 
 class MarcaSerializer(serializers.ModelSerializer):
+    lojas_permitidas = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Loja.objects.all(),
+        required=False,
+    )
+
     class Meta:
         model = Marca
-        fields = ["id", "nome", "cor", "icone", "ativo"]
+        fields = ["id", "nome", "cor", "icone", "ativo", "lojas_permitidas"]
 
 
 class ParcelamentoSerializer(serializers.ModelSerializer):
