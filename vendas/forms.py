@@ -560,6 +560,7 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         # que precisarem registrar observação devem utilizar a interface de aprovação.
 
         self.fields['data_pagamento'].required = True
+        self.fields['numero_parcelas'].required = True
 
         if self.instance and self.instance.pk:
             # Verifica se o usuário é analista
