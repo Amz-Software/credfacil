@@ -268,7 +268,14 @@ def _normalizar_campos_opcionais_solicitacao(request_data):
     Normaliza aliases de campos opcionais aceitos no payload de solicitacao.
     Isso evita erro de validacao quando o frontend envia nomes por bloco.
     """
-    data = request_data.copy()
+    # Nao usar request_data.copy() em multipart, pois QueryDict.copy()
+    # faz deepcopy e pode falhar com arquivos abertos (InMemory/TemporaryUploadedFile).
+    if hasattr(request_data, "dict"):
+        data = request_data.dict()
+    elif isinstance(request_data, dict):
+        data = request_data.copy()
+    else:
+        data = dict(request_data)
 
     aliases = {
         "obteve_contato_adicional": "obteve_contato",
