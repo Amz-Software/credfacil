@@ -289,6 +289,31 @@ def _normalizar_campos_opcionais_solicitacao(request_data):
         if alias_value not in (None, "") and target_value in (None, ""):
             data[target_key] = alias_value
 
+    def _to_bool_choice_str(value):
+        if isinstance(value, bool):
+            return "True" if value else "False"
+        if value is None:
+            return None
+
+        value_str = str(value).strip().lower()
+        if value_str in ("1", "true"):
+            return "True"
+        if value_str in ("0", "false"):
+            return "False"
+        return value
+
+    bool_fields = [
+        "recebe_auxilio",
+        "analise_online",
+        "restricao",
+        "obteve_contato",
+        "obteve_contato_pessoal",
+    ]
+
+    for field_name in bool_fields:
+        if field_name in data:
+            data[field_name] = _to_bool_choice_str(data.get(field_name))
+
     return data
 
 
