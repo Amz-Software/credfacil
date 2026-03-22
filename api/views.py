@@ -317,6 +317,66 @@ def _normalizar_campos_opcionais_solicitacao(request_data):
     return data
 
 
+def _resolver_loja_solicitacao(request, payload_data):
+    """
+    Resolve a loja para criacao de solicitacao com prioridade:
+    1) sessao (loja_id)
+    2) payload/query param `loja`
+    3) fallback do usuario autenticado
+    """
+    user = request.user
+
+    session_loja_id = request.session.get("loja_id")
+    if session_loja_id:
+        loja = Loja.objects.filter(id=session_loja_id).first()
+        if loja:
+            return loja, None
+
+    loja_raw = payload_data.get("loja")
+    if loja_raw in (None, ""):
+        loja_raw = request.query_params.get("loja")
+
+    if loja_raw not in (None, ""):
+        try:
+            loja_id = int(loja_raw)
+        except (TypeError, ValueError):
+            return None, "Parametro loja invalido."
+
+        loja = Loja.objects.filter(id=loja_id).first()
+        if not loja:
+            return None, "Loja informada nao encontrada."
+
+        if user.has_perm("vendas.can_view_all_stores"):
+            return loja, None
+
+        user_lojas = getattr(user, "lojas", None)
+        has_access = False
+        if user_lojas is not None and user_lojas.filter(id=loja_id).exists():
+            has_access = True
+        if getattr(user, "loja_id", None) == loja_id:
+            has_access = True
+
+        if not has_access:
+            return None, "Sem acesso a loja informada."
+
+        return loja, None
+
+    if getattr(user, "loja_id", None):
+        loja = Loja.objects.filter(id=user.loja_id).first()
+        if loja:
+            return loja, None
+
+    user_lojas = getattr(user, "lojas", None)
+    if user_lojas is not None:
+        lojas_ids = list(user_lojas.values_list("id", flat=True))
+        if len(lojas_ids) == 1:
+            loja = Loja.objects.filter(id=lojas_ids[0]).first()
+            if loja:
+                return loja, None
+
+    return None, "Loja nao encontrada na sessao."
+
+
 @extend_schema_view(
     list=extend_schema(tags=["Lojas"]),
     retrieve=extend_schema(tags=["Lojas"]),
@@ -825,10 +885,17 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         ],
     )
     def create(self, request):
-        loja_id = request.session.get("loja_id")
-        loja = Loja.objects.filter(id=loja_id).first() if loja_id else None
-
         payload_data = _normalizar_campos_opcionais_solicitacao(request.data)
+        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
+
+        if loja_error:
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {"loja": [loja_error]},
+                },
+                status=400,
+            )
 
         form_cliente = ClienteForm(payload_data, user=request.user)
         form_adicional = ContatoAdicionalForm(payload_data, user=request.user)
@@ -913,25 +980,15 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         contato_adicional = form_adicional.save()
         informacao = form_informacao.save()
 
-        if not loja_id:
-            return Response(
-                {
-                    "detail": "Erros de validacao.",
-                    "errors": {"loja": ["Loja nao encontrada na sessao."]},
-                },
-                status=400,
-            )
-
         cliente = form_cliente.save(commit=False)
         cliente.criado_por = request.user
         cliente.modificado_por = request.user
-        cliente.loja = Loja.objects.get(id=loja_id)
+        cliente.loja = loja
         cliente.contato_adicional = contato_adicional
         cliente.informacao_pessoal = informacao
         cliente.comprovantes = comprovantes
         cliente.save()
 
-        loja = Loja.objects.get(id=loja_id)
         analise = form_analise_credito.save(commit=False)
         analise.cliente = cliente
         analise.loja = loja
