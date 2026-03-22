@@ -263,6 +263,28 @@ def _validar_marca_produto_solicitacao(request_data, produto):
     return None
 
 
+def _normalizar_campos_opcionais_solicitacao(request_data):
+    """
+    Normaliza aliases de campos opcionais aceitos no payload de solicitacao.
+    Isso evita erro de validacao quando o frontend envia nomes por bloco.
+    """
+    data = request_data.copy()
+
+    aliases = {
+        "obteve_contato_adicional": "obteve_contato",
+        "contato_adicional.obteve_contato_adicional": "obteve_contato",
+        "informacao_pessoal.obteve_contato_pessoal": "obteve_contato_pessoal",
+    }
+
+    for alias_key, target_key in aliases.items():
+        alias_value = data.get(alias_key)
+        target_value = data.get(target_key)
+        if alias_value not in (None, "") and target_value in (None, ""):
+            data[target_key] = alias_value
+
+    return data
+
+
 @extend_schema_view(
     list=extend_schema(tags=["Lojas"]),
     retrieve=extend_schema(tags=["Lojas"]),
@@ -774,12 +796,14 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         loja_id = request.session.get("loja_id")
         loja = Loja.objects.filter(id=loja_id).first() if loja_id else None
 
-        form_cliente = ClienteForm(request.data, user=request.user)
-        form_adicional = ContatoAdicionalForm(request.data, user=request.user)
-        form_informacao = InformacaoPessoalForm(request.data, user=request.user)
-        form_comprovantes = ComprovantesClienteForm(request.data, request.FILES, user=request.user)
+        payload_data = _normalizar_campos_opcionais_solicitacao(request.data)
+
+        form_cliente = ClienteForm(payload_data, user=request.user)
+        form_adicional = ContatoAdicionalForm(payload_data, user=request.user)
+        form_informacao = InformacaoPessoalForm(payload_data, user=request.user)
+        form_comprovantes = ComprovantesClienteForm(payload_data, request.FILES, user=request.user)
         form_analise_credito = AnaliseCreditoClienteForm(
-            request.data, user=request.user, loja=loja
+            payload_data, user=request.user, loja=loja
         )
 
         if not all(
@@ -837,7 +861,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
         # Validação de parcelamento para produto iPhone
         erro_marca = _validar_marca_produto_solicitacao(
-            request.data,
+            payload_data,
             form_analise_credito.cleaned_data.get("produto"),
         )
         if erro_marca:
@@ -858,7 +882,13 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         informacao = form_informacao.save()
 
         if not loja_id:
-            return Response({"detail": "Loja nao encontrada na sessao."}, status=400)
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {"loja": ["Loja nao encontrada na sessao."]},
+                },
+                status=400,
+            )
 
         cliente = form_cliente.save(commit=False)
         cliente.criado_por = request.user
@@ -944,14 +974,16 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         loja_id = request.session.get("loja_id")
         loja = Loja.objects.filter(id=loja_id).first() if loja_id else None
 
-        form_cliente = ClienteForm(request.data, instance=cliente, user=user)
-        form_adicional = ContatoAdicionalForm(request.data, instance=cliente.contato_adicional, user=user)
-        form_informacao = InformacaoPessoalForm(request.data, instance=cliente.informacao_pessoal, user=user)
+        payload_data = _normalizar_campos_opcionais_solicitacao(request.data)
+
+        form_cliente = ClienteForm(payload_data, instance=cliente, user=user)
+        form_adicional = ContatoAdicionalForm(payload_data, instance=cliente.contato_adicional, user=user)
+        form_informacao = InformacaoPessoalForm(payload_data, instance=cliente.informacao_pessoal, user=user)
         form_comprovantes = ComprovantesClienteForm(
-            request.data, request.FILES, instance=cliente.comprovantes, user=user
+            payload_data, request.FILES, instance=cliente.comprovantes, user=user
         )
         form_analise_credito = AnaliseCreditoClienteForm(
-            request.data, instance=cliente.analise_credito, user=user, loja=loja
+            payload_data, instance=cliente.analise_credito, user=user, loja=loja
         )
 
         if not all(
@@ -1010,7 +1042,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
         # Validação de parcelamento para produto iPhone
         erro_marca = _validar_marca_produto_solicitacao(
-            request.data,
+            payload_data,
             form_analise_credito.cleaned_data.get("produto"),
         )
         if erro_marca:
