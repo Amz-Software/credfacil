@@ -1257,12 +1257,10 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         analise_credito.save()
         return Response({"detail": "Status alterado para Confirmacao Pendente."})
 
-    @action(detail=True, methods=["post"], url_path="confirmar-app")
-    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
-    def confirmar_app(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
+    def _confirmar_leitura_qrcode(self, request, cliente):
         analise_credito = cliente.analise_credito
 
+        # Confirmacao da leitura do QR code leva o app para confirmacao pendente.
         analise_credito.status_aplicativo = "C"
         analise_credito.save()
 
@@ -1297,7 +1295,19 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                     type_notification="analise_credito_cliente",
                 )
 
-        return Response({"detail": "Instalacao confirmada. Aguardando analista informar IMEI."})
+        return Response({"detail": "Leitura do QR code confirmada. Aguardando analista informar IMEI."})
+
+    @action(detail=True, methods=["post"], url_path="confirmar-app")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
+    def confirmar_app(self, request, pk=None):
+        cliente = Cliente.objects.get(pk=pk)
+        return self._confirmar_leitura_qrcode(request, cliente)
+
+    @action(detail=True, methods=["post"], url_path="confirmar-leitura-qrcode")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
+    def confirmar_leitura_qrcode(self, request, pk=None):
+        cliente = Cliente.objects.get(pk=pk)
+        return self._confirmar_leitura_qrcode(request, cliente)
 
     @action(detail=True, methods=["post"], url_path="configurar-icloud")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
