@@ -1366,8 +1366,12 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             }
         })
 
-    def _confirmar_leitura_qrcode(self, request, cliente):
+    def _confirmar_leitura_qrcode(self, request, cliente, loja=None):
         analise_credito = cliente.analise_credito
+        
+        # Validar loja se fornecida
+        if loja and cliente.loja_id != loja.id:
+            return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
         # Confirmacao da leitura do QR code leva o app para confirmacao pendente.
         analise_credito.status_aplicativo = "C"
@@ -1410,19 +1414,63 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def confirmar_app(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
-        return self._confirmar_leitura_qrcode(request, cliente)
+        
+        # Resolver loja com suporte a JWT
+        payload_data = {"loja": request.query_params.get("loja")}
+        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
+        
+        if loja_error:
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {"loja": [loja_error]},
+                },
+                status=400,
+            )
+        
+        return self._confirmar_leitura_qrcode(request, cliente, loja)
 
     @action(detail=True, methods=["post"], url_path="confirmar-leitura-qrcode")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def confirmar_leitura_qrcode(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
-        return self._confirmar_leitura_qrcode(request, cliente)
+        
+        # Resolver loja com suporte a JWT
+        payload_data = {"loja": request.query_params.get("loja")}
+        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
+        
+        if loja_error:
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {"loja": [loja_error]},
+                },
+                status=400,
+            )
+        
+        return self._confirmar_leitura_qrcode(request, cliente, loja)
 
     @action(detail=True, methods=["post"], url_path="configurar-icloud")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def configurar_icloud(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         analise = cliente.analise_credito
+        
+        # Resolver loja com suporte a JWT
+        payload_data = {"loja": request.query_params.get("loja")}
+        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
+        
+        if loja_error:
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {"loja": [loja_error]},
+                },
+                status=400,
+            )
+        
+        if cliente.loja_id != loja.id:
+            return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
         if not analise.email_icloud or not analise.senha_icloud:
             return Response({"detail": "Email e senha iCloud nao configurados na analise."}, status=400)
@@ -1469,6 +1517,11 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
         if not request.user.groups.filter(name="ANALISTA").exists():
             return Response({"detail": "Apenas analistas podem confirmar o iCloud."}, status=403)
+        
+        # Validar acesso à loja do cliente
+        if hasattr(request.user, 'loja_id') and request.user.loja_id:
+            if cliente.loja_id != request.user.loja_id:
+                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
         if not analise.icloud_configurado_vendedor:
             return Response({"detail": "Vendedor ainda nao confirmou a configuracao do iCloud."}, status=400)
@@ -1515,6 +1568,11 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
         if not request.user.groups.filter(name="ANALISTA").exists():
             return Response({"detail": "Apenas analistas podem confirmar a instalacao."}, status=403)
+        
+        # Validar acesso à loja do cliente
+        if hasattr(request.user, 'loja_id') and request.user.loja_id:
+            if cliente.loja_id != request.user.loja_id:
+                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
         if not analise_credito.imei:
             return Response({"detail": "IMEI deve estar informado para confirmar a instalacao."}, status=400)
