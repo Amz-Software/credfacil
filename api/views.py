@@ -1238,8 +1238,19 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         cliente = Cliente.objects.get(pk=pk)
         analise_credito = cliente.analise_credito
 
-        loja_id = request.session.get("loja_id")
-        if cliente.loja_id != loja_id:
+        payload_data = {"loja": request.query_params.get("loja")}
+        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
+
+        if loja_error:
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {"loja": [loja_error]},
+                },
+                status=400,
+            )
+
+        if cliente.loja_id != loja.id:
             return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
         analise_credito.status_aplicativo = "C"
@@ -1457,9 +1468,9 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if not imei_informado:
             return Response({"detail": "IMEI e obrigatorio."}, status=400)
 
-        loja = Loja.objects.filter(id=request.session.get("loja_id")).first()
+        loja = analise.loja
         if not loja:
-            return Response({"detail": "Loja nao encontrada na sessao."}, status=400)
+            return Response({"detail": "Loja nao encontrada para a analise."}, status=400)
 
         estoque_imei_existente = EstoqueImei.objects.filter(
             imei=imei_informado,
