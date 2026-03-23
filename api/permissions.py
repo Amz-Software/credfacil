@@ -42,6 +42,7 @@ class SolicitacaoCreditoPermission(BasePermission):
             "status_app",
             "confirmar_app",
             "confirmar_leitura_qrcode",
+            "gerar_qrcode_instalacao",
             "instalar_app",
             "analista_confirm_icloud",
             "analista_confirm_installed",

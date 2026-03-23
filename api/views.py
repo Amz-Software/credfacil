@@ -2,6 +2,12 @@ from datetime import date
 import re
 import calendar
 import json
+import base64
+import qrcode
+import uuid
+import secrets
+import string
+from io import BytesIO
 
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -121,6 +127,55 @@ def calcular_data_primeira_parcela(data_pagamento_str):
                 maior_diferenca = dias_ate_parcela
 
     return melhor_data
+
+
+def gerar_qrcode_instalacao(cliente_id, loja_id=None, device_id=None):
+    """
+    Gera um QR code contendo dados de instalação do app.
+    
+    Args:
+        cliente_id: ID do cliente
+        loja_id: ID da loja (opcional)
+        device_id: ID do dispositivo (opcional)
+    
+    Returns:
+        Tuple: (qr_base64, codigo_instalacao)
+    """
+    from django.utils import timezone
+    
+    # Gerar código de instalação (token aleatório, 16 caracteres)
+    caracteres = string.ascii_uppercase + string.digits
+    codigo_instalacao = ''.join(secrets.choice(caracteres) for _ in range(16))
+    
+    # Montar dados para o QR code
+    qr_data = {
+        'cliente_id': cliente_id,
+        'timestamp': timezone.now().isoformat(),
+        'device_id': device_id or '',
+        'loja_id': loja_id or '',
+        'codigo_instalacao': codigo_instalacao
+    }
+    
+    # Converter para JSON string
+    qr_string = json.dumps(qr_data, ensure_ascii=False)
+    
+    # Gerar QR code (mesmo formato do web)
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=4
+    )
+    qr.add_data(qr_string)
+    qr.make(fit=True)
+    img = qr.make_image()
+    
+    # Converter para base64
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    qr_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    
+    return qr_base64, codigo_instalacao
 
 
 def criar_parcelas(pagamento, loja):
@@ -1256,6 +1311,60 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         analise_credito.status_aplicativo = "C"
         analise_credito.save()
         return Response({"detail": "Status alterado para Confirmacao Pendente."})
+
+    @action(detail=True, methods=["get"], url_path="gerar-qrcode-instalacao")
+    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
+    def gerar_qrcode_instalacao_endpoint(self, request, pk=None):
+        """
+        Gera QR code de instalação do app.
+        
+        Retorna um JSON contendo:
+        - qr_code_base64: Imagem PNG do QR code em base64
+        - codigo_instalacao: Token alfanumérico de 16 caracteres
+        - dados_qr: Dados codificados no QR code
+        
+        Parâmetros opcionais:
+        - loja: ID da loja (obrigatório se não houver sessão web)
+        - device_id: ID do dispositivo (opcional)
+        """
+        cliente = Cliente.objects.get(pk=pk)
+        
+        # Resolver loja
+        payload_data = {"loja": request.query_params.get("loja")}
+        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
+        
+        if loja_error:
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {"loja": [loja_error]},
+                },
+                status=400,
+            )
+        
+        if cliente.loja_id != loja.id:
+            return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
+        
+        # Gerar QR code + código de instalação
+        device_id = request.query_params.get("device_id", "")
+        qr_base64, codigo_instalacao = gerar_qrcode_instalacao(
+            cliente_id=cliente.id,
+            loja_id=loja.id,
+            device_id=device_id
+        )
+        
+        return Response({
+            "detail": "QR code gerado com sucesso.",
+            "qr_code_base64": qr_base64,
+            "codigo_instalacao": codigo_instalacao,
+            "dados_qr": {
+                "cliente_id": cliente.id,
+                "loja_id": loja.id,
+                "timestamp": timezone.now().isoformat(),
+                "device_id": device_id,
+                "codigo_instalacao": codigo_instalacao
+            }
+        })
 
     def _confirmar_leitura_qrcode(self, request, cliente):
         analise_credito = cliente.analise_credito
