@@ -1706,11 +1706,28 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
     @extend_schema(request=None, responses=VendaSerializer)
     def gerar_venda(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
-        loja = Loja.objects.filter(id=request.session.get("loja_id")).first()
+        
+        # Resolver loja com suporte a JWT
+        payload_data = {"loja": request.query_params.get("loja")}
+        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
+        
+        if loja_error:
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {"loja": [loja_error]},
+                },
+                status=400,
+            )
+        
+        # Validar que cliente pertence à loja
+        if cliente.loja_id != loja.id:
+            return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
+        
         credfacil = Loja.objects.filter(credfacil=True).first()
-
-        if not credfacil or not loja or not cliente:
-            return Response({"detail": "Loja ou cliente nao encontrado."}, status=400)
+        
+        if not credfacil:
+            return Response({"detail": "Loja Credfacil nao encontrada."}, status=400)
 
         cpf_limpo = re.sub(r"\D", "", cliente.cpf or "")
         vendas_com_poucas_parcelas = (
