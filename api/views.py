@@ -2257,21 +2257,36 @@ class VendaViewSet(viewsets.ModelViewSet):
 
         # Aplicar filtro de loja baseado em permissões
         if not self.request.user.has_perm("vendas.can_view_all_sales"):
-            # Se loja foi especificada na query string, verificar se usuário tem acesso
+            # Lojas vinculadas ao usuário (JWT-friendly)
+            lojas_usuario = set(self.request.user.lojas.values_list('id', flat=True))
+
+            # Inclui loja principal, quando existir
+            if hasattr(self.request.user, "loja_id") and self.request.user.loja_id:
+                lojas_usuario.add(self.request.user.loja_id)
+
+            # Se loja veio na query e o usuário tem acesso, usa filtro explícito
             if loja:
-                # Verificar se usuário tem acesso à loja solicitada
-                lojas_usuario = self.request.user.lojas.values_list('id', flat=True)
-                if int(loja) in lojas_usuario:
-                    # Usuário tem acesso: usar filtro da query string
-                    query = query.filter(loja__id=loja)
+                try:
+                    loja_id_query = int(loja)
+                except (TypeError, ValueError):
+                    loja_id_query = None
+
+                if loja_id_query and loja_id_query in lojas_usuario:
+                    query = query.filter(loja_id=loja_id_query)
+                elif lojas_usuario:
+                    # Fallback seguro: restringe às lojas do usuário
+                    query = query.filter(loja_id__in=lojas_usuario)
                 else:
-                    # Usuário não tem acesso: usar loja da sessão
-                    loja_id = self.request.session.get("loja_id")
-                    query = query.filter(loja_id=loja_id)
+                    # Último fallback para contexto web legado
+                    loja_id_sessao = self.request.session.get("loja_id")
+                    query = query.filter(loja_id=loja_id_sessao)
             else:
-                # Sem filtro específico: usar loja da sessão
-                loja_id = self.request.session.get("loja_id")
-                query = query.filter(loja_id=loja_id)
+                # Sem loja na query: restringe às lojas do usuário, sem depender de sessão
+                if lojas_usuario:
+                    query = query.filter(loja_id__in=lojas_usuario)
+                else:
+                    loja_id_sessao = self.request.session.get("loja_id")
+                    query = query.filter(loja_id=loja_id_sessao)
         else:
             # Admin: respeitar filtro da query string se fornecido
             if loja:
@@ -2479,10 +2494,31 @@ class VendaViewSet(viewsets.ModelViewSet):
     @extend_schema(request=VendaDocumentosSerializer, responses=VendaSerializer)
     def documentos(self, request, pk=None):
         venda = self.get_object()
-        form = VendaDocumentosForm(request.data, request.FILES, instance=venda)
-        if not form.is_valid():
-            return Response({"detail": "Erros de validacao.", "errors": form.errors}, status=400)
-        form.save()
+
+        # API upload parcial: aceita qualquer subconjunto dos arquivos.
+        campos_arquivos = ("documento_assinado", "foto_cliente", "imagem_imei")
+        updated_fields = []
+
+        for campo in campos_arquivos:
+            arquivo = request.FILES.get(campo)
+            if arquivo:
+                setattr(venda, campo, arquivo)
+                updated_fields.append(campo)
+
+        if not updated_fields:
+            return Response(
+                {
+                    "detail": "Erros de validacao.",
+                    "errors": {
+                        "files": [
+                            "Envie ao menos um arquivo: documento_assinado, foto_cliente ou imagem_imei."
+                        ]
+                    },
+                },
+                status=400,
+            )
+
+        venda.save(update_fields=updated_fields)
         return Response(VendaSerializer(venda).data)
 
     @action(detail=True, methods=["post"], url_path="edicao-especial")
