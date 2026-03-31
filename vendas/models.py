@@ -192,7 +192,6 @@ class Loja(Base):
 
     def produtos_permitidos_qs(self, require_stock=False):
         Produto = apps.get_model('produtos', 'Produto')
-        # Em analise de credito, a loja deve enxergar todos os modelos ativos.
         qs = Produto.objects.filter(ativo=True)
 
         if not self.pode_vender_iphone:
@@ -201,6 +200,13 @@ class Loja(Base):
         blocked_ids = list(self.produtos_bloqueados.values_list('id', flat=True))
         if blocked_ids:
             qs = qs.exclude(id__in=blocked_ids)
+
+        # Exclui produtos cuja marca tem lojas_permitidas definidas e esta loja não está incluída
+        qs = qs.filter(
+            Q(marca__isnull=True) |
+            Q(marca__lojas_permitidas__isnull=True) |
+            Q(marca__lojas_permitidas=self)
+        )
 
         if require_stock:
             Estoque = apps.get_model('estoque', 'Estoque')

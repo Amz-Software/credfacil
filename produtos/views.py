@@ -32,14 +32,6 @@ class ProdutoListView(PermissionRequiredMixin, ListView):
             else:
                 queryset = Produto.objects.filter(ativo=True)
 
-            # Exclui produtos cuja marca tem lojas_permitidas definidas e a loja atual não está incluída
-            if loja_id:
-                queryset = queryset.filter(
-                    Q(marca__isnull=True) |
-                    Q(marca__lojas_permitidas__isnull=True) |
-                    Q(marca__lojas_permitidas__id=loja_id)
-                ).distinct()
-
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(nome__icontains=search)

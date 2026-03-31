@@ -2065,15 +2065,11 @@ class ProdutoViewSet(viewsets.ModelViewSet):
             queryset = Produto.objects.all()
         else:
             loja_id = self.request.session.get("loja_id")
-            queryset = Produto.objects.filter(ativo=True)
-
-            # Exclui produtos cuja marca tem lojas_permitidas definidas e a loja atual não está incluída
-            if loja_id:
-                queryset = queryset.filter(
-                    Q(marca__isnull=True) |
-                    Q(marca__lojas_permitidas__isnull=True) |
-                    Q(marca__lojas_permitidas__id=loja_id)
-                ).distinct()
+            loja = Loja.objects.filter(id=loja_id).first() if loja_id else None
+            if loja:
+                queryset = loja.produtos_permitidos_qs()
+            else:
+                queryset = Produto.objects.filter(ativo=True)
 
         search = self.request.query_params.get("search")
         marca = self.request.query_params.get("marca")

@@ -856,7 +856,7 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
         
         # Verifica se a venda já foi gerada
         venda_gerada = self.object.analise_credito.venda is not None
-
+        
         # Se não é analista e não tem permissão de mudar status, só pode editar se estiver em análise
         if not is_analista and not user.has_perm('vendas.change_status_analise') and not self.object.analise_credito.status == 'EA':
             messages.warning(request, "❌ Somente Solicitacao em análise de crédito em andamento podem ser editados.")
