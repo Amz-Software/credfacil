@@ -118,6 +118,11 @@ class ClienteForm(forms.ModelForm):
         for name, field in self.fields.items():
             if name not in ['email']:
                 field.required = True
+        # RG e CEP nao sao obrigatorios no fluxo de solicitacao via API.
+        if 'rg' in self.fields:
+            self.fields['rg'].required = False
+        if 'cep' in self.fields:
+            self.fields['cep'].required = False
         # Garante que a escolha vazia force seleção
         self.fields['recebe_auxilio'].choices = [('', '---------'), ('True', 'Sim'), ('False', 'Não')]
                 
