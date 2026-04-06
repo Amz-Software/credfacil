@@ -3047,7 +3047,6 @@ from api.models import FotoSession  # noqa: E402
 
 
 FOTO_MAX_SIZE = 10 * 1024 * 1024  # 10 MB
-FOTO_ALLOWED_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
 
 
 @api_view(['POST'])
@@ -3089,8 +3088,8 @@ def foto_session_upload(request, session_id):
     if arquivo.size > FOTO_MAX_SIZE:
         return JsonResponse({'erro': 'Arquivo muito grande. Máximo: 10 MB.'}, status=400)
 
-    if arquivo.content_type not in FOTO_ALLOWED_TYPES:
-        return JsonResponse({'erro': 'Formato inválido. Use JPG, PNG ou WebP.'}, status=400)
+    if not arquivo.content_type.startswith('image/'):
+        return JsonResponse({'erro': 'Arquivo inválido. Envie uma imagem.'}, status=400)
 
     if session.foto:
         session.foto.delete(save=False)
