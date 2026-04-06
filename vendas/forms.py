@@ -414,7 +414,7 @@ class InformacaoPessoalForm(forms.ModelForm):
         self.instance.endereco = self.cleaned_data.get('endereco_pessoal')
         if 'obteve_contato_pessoal' in self.cleaned_data:
             novo_status = self.cleaned_data.get('obteve_contato_pessoal')
-            if novo_status is not None:
+            if novo_status not in (None, ""):
                 self.instance.obteve_contato = novo_status
         return super().save(commit=commit)
 
@@ -458,7 +458,7 @@ class InformacaoPessoalEditForm(forms.ModelForm):
         self.instance.endereco = self.cleaned_data.get('endereco_pessoal')
         if 'obteve_contato_pessoal' in self.cleaned_data:
             novo_status = self.cleaned_data.get('obteve_contato_pessoal')
-            if novo_status is not None:
+            if novo_status not in (None, ""):
                 self.instance.obteve_contato = novo_status
         return super().save(commit=commit)
 
@@ -597,9 +597,6 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         produto = cleaned_data.get('produto')
-        email_icloud = cleaned_data.get('email_icloud')
-        senha_icloud = cleaned_data.get('senha_icloud')
-        status = cleaned_data.get('status')
         loja = getattr(self, '_loja', None)
 
         if loja and produto:
@@ -610,14 +607,7 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                 allowed_qs = Produto.objects.filter(pk__in=set(allowed_ids))
             if not allowed_qs.filter(pk=produto.pk).exists():
                 self.add_error('produto', 'Este modelo nao esta liberado para esta loja.')
-        
-        # Validação condicional: se for iPhone E status aprovado, email e senha são obrigatórios
-        if produto and produto.is_iphone and status == 'AP':
-            if not email_icloud:
-                self.add_error('email_icloud', 'Email iCloud é obrigatório para produtos iPhone.')
-            if not senha_icloud:
-                self.add_error('senha_icloud', 'Senha iCloud é obrigatória para produtos iPhone.')
-        
+
         return cleaned_data
 class AnaliseCreditoClienteImeiForm(forms.ModelForm):
     produto = ProdutoChoiceField(

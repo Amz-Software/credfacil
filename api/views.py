@@ -354,6 +354,8 @@ def _normalizar_campos_opcionais_solicitacao(request_data):
             return None
 
         value_str = str(value).strip().lower()
+        if value_str == "":
+            return None
         if value_str in ("1", "true"):
             return "True"
         if value_str in ("0", "false"):
@@ -2067,7 +2069,7 @@ class ProdutoViewSet(viewsets.ModelViewSet):
         if self.request.user.has_perm("produtos.view_all_produtos"):
             queryset = Produto.objects.all()
         else:
-            loja_id = self.request.session.get("loja_id")
+            loja_id = self.request.session.get("loja_id") or self.request.query_params.get("loja")
             loja = Loja.objects.filter(id=loja_id).first() if loja_id else None
             if loja:
                 queryset = loja.produtos_permitidos_qs()
@@ -2154,15 +2156,21 @@ class MarcaViewSet(viewsets.ModelViewSet):
     permission_classes = [ProdutoPermission]
 
     def get_queryset(self):
-        loja_id = self.request.session.get("loja_id")
-        qs = Marca.objects.all()
-        # Se não for listagem (detail, update, etc.) retorna tudo
+        loja_id = self.request.session.get("loja_id") or self.request.query_params.get("loja")
+
+        # Somente marcas ativas na listagem para o React; detail/update retornam todas
+        qs = Marca.objects.filter(ativo=True) if self.action == "list" else Marca.objects.all()
+
         if self.action == "list" and loja_id:
-            # Exibe marcas sem restrição de loja OU que incluam a loja atual
-            qs = qs.filter(
-                Q(lojas_permitidas__isnull=True) |
-                Q(lojas_permitidas__id=loja_id)
+            # Usando annotate para evitar ambiguidade do LEFT JOIN com M2M:
+            # - marcas sem nenhuma loja configurada (visíveis para todas as lojas)
+            # - marcas que incluem especificamente esta loja
+            qs = qs.annotate(
+                _n_lojas_perm=Count("lojas_permitidas", distinct=True)
+            ).filter(
+                Q(_n_lojas_perm=0) | Q(lojas_permitidas__id=loja_id)
             ).distinct()
+
         return qs
 
     def perform_create(self, serializer):
@@ -3054,7 +3062,7 @@ def foto_session_status(request, session_id):
     foto_url = request.build_absolute_uri(session.foto.url) if session.foto else None
     return Response({
         'pronta': bool(session.foto),
-        'url': foto_url,
+        'foto_url': foto_url,
         'expirada': session.expirada(),
     })
 

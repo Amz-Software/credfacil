@@ -7,6 +7,14 @@ from .models import Parcela
 from notificacao.utils import enviar_ws_para_usuario
 from django.contrib.auth import get_user_model
 from dateutil.relativedelta import relativedelta
+from django.db.models.signals import pre_save
+from django.core.files.uploadedfile import UploadedFile
+from django.core.files.base import ContentFile
+from django.db import models
+from PIL import Image
+import io
+import os
+
 User = get_user_model()
 
 @receiver(post_save, sender=Pagamento)
@@ -89,3 +97,47 @@ def notificar_pagamento_parcela(sender, instance, created, **kwargs):
                     description=descricao,
                     target_url=pagamento.get_absolute_url()
                 )
+
+@receiver(pre_save)
+def convert_images_to_webp(sender, instance, **kwargs):
+    if sender._meta.app_label not in ['vendas', 'api', 'produtos', 'estoque', 'financeiro', 'cadastro', 'accounts', 'core']:
+        return
+
+    for field in sender._meta.get_fields():
+        if isinstance(field, (models.ImageField, models.FileField)):
+            file_field = getattr(instance, field.name, None)
+            
+            if not file_field or not file_field.name:
+                continue
+                
+            try:
+                underlying_file = file_field.file
+            except (ValueError, Exception):
+                continue
+                
+            if isinstance(underlying_file, UploadedFile):
+                try:
+                    if file_field.name.lower().endswith('.webp'):
+                        continue
+                    
+                    underlying_file.seek(0)
+                    img = Image.open(underlying_file)
+                    
+                    if img.mode in ("RGBA", "P"):
+                        img = img.convert("RGB")
+                    elif img.mode != "RGB":
+                        img = img.convert("RGB")
+                        
+                    output = io.BytesIO()
+                    img.save(output, format='WEBP', quality=85)
+                    output.seek(0)
+                    
+                    name_without_ext = os.path.splitext(file_field.name)[0]
+                    new_name = f"{name_without_ext}.webp"
+                    
+                    new_file = ContentFile(output.read(), name=os.path.basename(new_name))
+                    setattr(instance, field.name, new_file)
+                    
+                except Exception as e:
+                    pass
+
