@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static iam_tags %}
+
+{% block title %}Números Autenticadores{% endblock %}
+
+{% block content %}
+<div class="container-xxl mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h4 class="card-title mb-0">Números Autenticadores</h4>
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+            <form action="" method="get" class="d-inline-block" id="searchForm">
+              <input type="text" name="search" value="{{ request.GET.search }}"
+                     class="form-control" placeholder="Pesquisar número ou descrição"
+                     onchange="document.getElementById('searchForm').submit()">
+            </form>
+            <a href="{% url 'vendas:numeroautenticador_create' %}" class="btn btn-primary">
+              <i class="bx bx-plus me-1"></i> Novo Número
+            </a>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>Número</th>
+                  <th>Descrição</th>
+                  <th>Status</th>
+                  <th class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in items %}
+                <tr>
+                  <td>
+                    <i class="bx bx-phone me-1 text-primary"></i>
+                    <strong>{{ item.numero }}</strong>
+                  </td>
+                  <td>{{ item.descricao|default:"—" }}</td>
+                  <td>
+                    {% if item.ativo %}
+                      <span class="badge bg-label-success">Ativo</span>
+                    {% else %}
+                      <span class="badge bg-label-secondary">Inativo</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <div class="dropdown">
+                      <button type="button" class="btn p-0 dropdown-toggle hide-arrow"
+                              data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bx bx-dots-vertical-rounded"></i>
+                      </button>
+                      <div class="dropdown-menu dropdown-menu-end">
+                        <a class="dropdown-item" href="{% url 'vendas:numeroautenticador_update' item.pk %}">
+                          <i class="bx bx-edit-alt me-1"></i> Editar
+                        </a>
+                        <a class="dropdown-item text-danger"
+                           href="{% url 'vendas:numeroautenticador_delete' item.pk %}"
+                           onclick="return confirm('Confirma a exclusão deste número?')">
+                          <i class="bx bx-trash me-1"></i> Excluir
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="4" class="text-center py-4 text-muted">
+                    <i class="bx bx-phone-off fs-4 d-block mb-2"></i>
+                    Nenhum número autenticador cadastrado.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% include "snippets/pagination.html" %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

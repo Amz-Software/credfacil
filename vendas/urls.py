@@ -174,6 +174,12 @@ urlpatterns = [
         name='analista_confirm_installed'
     ),
 
+    # Números Autenticadores
+    path('numeros-autenticadores/', NumeroAutenticadorListView.as_view(), name='numeroautenticador_list'),
+    path('numeros-autenticadores/novo/', NumeroAutenticadorCreateView.as_view(), name='numeroautenticador_create'),
+    path('numeros-autenticadores/editar/<int:pk>/', NumeroAutenticadorUpdateView.as_view(), name='numeroautenticador_update'),
+    path('numeros-autenticadores/excluir/<int:pk>/', NumeroAutenticadorDeleteView.as_view(), name='numeroautenticador_delete'),
+
     path('graficos/', GraficoTemplateView.as_view(), name='grafico'),
     path('graficos/relatorio-pdf/', DashboardReportPDFView.as_view(), name='dashboard_report_pdf'),
     

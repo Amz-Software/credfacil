@@ -577,6 +577,16 @@ class AnaliseCreditoCliente(Base):
     # Entrada informada pelo operador (editável no fluxo iPhone; mínimo = produto.entrada_cliente)
     entrada_informada = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Entrada informada pelo operador')
 
+    # Número autenticador (visível/editável apenas por ANALISTA e ADMINISTRADOR)
+    numero_autenticador = models.ForeignKey(
+        'vendas.NumeroAutenticador',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='analises_credito',
+        verbose_name='Número Autenticador',
+    )
+
     # Campos para fluxo iPhone
     email_icloud = models.EmailField(max_length=200, null=True, blank=True, verbose_name='Email iCloud')
     senha_icloud = models.CharField(max_length=100, null=True, blank=True, verbose_name='Senha iCloud')
@@ -620,6 +630,20 @@ class AnaliseCreditoCliente(Base):
         )
     
     
+
+class NumeroAutenticador(Base):
+    numero = models.CharField(max_length=20, verbose_name='Número de Telefone')
+    descricao = models.CharField(max_length=100, null=True, blank=True, verbose_name='Descrição')
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+
+    def __str__(self):
+        return f"{self.numero}{' — ' + self.descricao if self.descricao else ''}"
+
+    class Meta:
+        verbose_name = 'Número Autenticador'
+        verbose_name_plural = 'Números Autenticadores'
+        ordering = ['numero']
+
 
 class ContatoAdicional(Base):
     nome_adicional = models.CharField(max_length=100, null=True, blank=True)

@@ -8,6 +8,7 @@ from vendas.models import (
     InformacaoPessoal,
     ComprovantesCliente,
     Loja,
+    NumeroAutenticador,
     Venda,
 )
 from produtos.models import Parcelamento, Produto, TipoProduto, Fabricante, Marca
@@ -146,6 +147,12 @@ class ComprovantesClienteSerializer(serializers.ModelSerializer):
         ]
 
 
+class NumeroAutenticadorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NumeroAutenticador
+        fields = ['id', 'numero', 'descricao', 'ativo', 'loja']
+
+
 class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     status_app_display = serializers.CharField(source="get_status_aplicativo_display", read_only=True)
@@ -155,6 +162,7 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
     marca_nome = serializers.CharField(source="produto.marca.nome", read_only=True)
     imei_value = serializers.CharField(source="imei.imei", read_only=True)
     venda_gerada = serializers.SerializerMethodField()
+    numero_autenticador_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = AnaliseCreditoCliente
@@ -190,10 +198,45 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
             "icloud_configurado_vendedor",
             "icloud_confirmado_analista",
             "venda_gerada",
+            "numero_autenticador",
+            "numero_autenticador_detail",
         ]
 
     def get_venda_gerada(self, obj):
         return bool(obj.venda_id)
+
+    def get_numero_autenticador_detail(self, obj):
+        request = self.context.get("request")
+        if not request:
+            return None
+        user = request.user
+        pode_ver = (
+            user.is_superuser
+            or user.groups.filter(name__in=["ANALISTA", "ADMINISTRADOR"]).exists()
+        )
+        if not pode_ver:
+            return None
+        if obj.numero_autenticador_id:
+            return {
+                "id": obj.numero_autenticador.id,
+                "numero": obj.numero_autenticador.numero,
+                "descricao": obj.numero_autenticador.descricao,
+            }
+        return None
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if request:
+            user = request.user
+            pode_ver = (
+                user.is_superuser
+                or user.groups.filter(name__in=["ANALISTA", "ADMINISTRADOR"]).exists()
+            )
+            if not pode_ver:
+                data.pop("numero_autenticador", None)
+                data.pop("numero_autenticador_detail", None)
+        return data
 
 
 class ClienteSolicitacaoSerializer(serializers.ModelSerializer):

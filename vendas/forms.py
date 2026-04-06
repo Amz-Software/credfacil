@@ -515,23 +515,43 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
     class Meta:
         model = AnaliseCreditoCliente
         # removido 'observacao' do formulário para não ser preenchido pelo vendedor
-        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada', 'analise_online', 'email_icloud', 'senha_icloud']
+        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada', 'analise_online', 'email_icloud', 'senha_icloud', 'numero_autenticador']
         widgets = {
             'data_pagamento': forms.Select(attrs={'class': 'form-control'}),
             'numero_parcelas': forms.Select(attrs={'class': 'form-control', 'id': 'id_numero_parcelas'}),
+            'numero_autenticador': Select2Widget(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         loja = kwargs.pop('loja', None)
         super().__init__(*args, **kwargs)
-        
+
         # Determinar a loja: pode vir como parâmetro ou do user.loja
         if not loja and user and hasattr(user, 'loja'):
             loja = user.loja
         loja = normalize_loja(loja)
         self._loja = loja
-        
+
+        # Verificar se o usuário é analista ou administrador
+        is_analista_or_admin = False
+        if user:
+            is_analista_or_admin = (
+                user.is_superuser
+                or user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR']).exists()
+            )
+
+        # Campo numero_autenticador: visível e editável somente para ANALISTA/ADMINISTRADOR
+        if not is_analista_or_admin:
+            del self.fields['numero_autenticador']
+        else:
+            qs = NumeroAutenticador.objects.filter(ativo=True)
+            if loja:
+                qs = qs.filter(loja=loja)
+            self.fields['numero_autenticador'].queryset = qs
+            self.fields['numero_autenticador'].required = False
+            self.fields['numero_autenticador'].label = 'Número Autenticador'
+
         # Filtrar produtos baseado na loja
         if loja:
             produtos_qs = loja.produtos_permitidos_qs(require_stock=False)
@@ -540,7 +560,7 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                 allowed_ids.append(self.instance.produto_id)
                 produtos_qs = Produto.objects.filter(pk__in=set(allowed_ids))
             self.fields['produto'].queryset = produtos_qs
-        
+
         # Verificar se o usuário pode ver campos iCloud
         can_manage_icloud = False
         if user:
@@ -560,7 +580,7 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         # entrada_informada: ocultar via atributo CSS (JS controla visibilidade por produto)
         if 'entrada_informada' in self.fields:
             self.fields['entrada_informada'].widget.attrs['data-iphone-only'] = 'true'
-        
+
         # O campo 'observacao' foi removido do formulário de vendedor; analistas
         # que precisarem registrar observação devem utilizar a interface de aprovação.
 
@@ -570,16 +590,16 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             # Verifica se o usuário é analista
             is_analista = user and user.groups.filter(name='ANALISTA').exists()
-            
+
             # Verifica se a venda já foi gerada
             venda_gerada = self.instance.venda is not None
-            
+
             if user and not user.has_perm('vendas.change_status_analise') and not is_analista:
                 # if self.instance.status == 'EA':
                 self.fields['produto'].disabled = True
                 self.fields['numero_parcelas'].disabled = True
                 self.fields['analise_online'].disabled = True
-            
+
             # Se a venda foi gerada, apenas usuários com permissão específica podem editar
             if venda_gerada:
                 if not user.has_perm('vendas.can_edit_finished_sale'):
@@ -854,6 +874,52 @@ class EnderecoForm(forms.ModelForm):
             'complemento': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
+
+
+class NumeroAutenticadorForm(forms.ModelForm):
+    class Meta:
+        model = NumeroAutenticador
+        fields = ['numero', 'descricao', 'ativo']
+        widgets = {
+            'numero': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '(00) 00000-0000',
+                'maxlength': '16',
+                'id': 'id_numero_autenticador_tel',
+            }),
+            'descricao': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: WhatsApp principal'}),
+            'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'numero': 'Número de Telefone',
+            'descricao': 'Descrição',
+            'ativo': 'Ativo',
+        }
+
+    def __init__(self, *args, disabled=False, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if disabled:
+            for field in self.fields.values():
+                field.widget.attrs['disabled'] = True
+
+    def clean_numero(self):
+        numero = self.cleaned_data.get('numero', '')
+        # Remove máscara, mantém somente dígitos
+        digits = ''.join(filter(str.isdigit, numero))
+        if len(digits) < 10 or len(digits) > 11:
+            raise forms.ValidationError('Informe um número de telefone válido com DDD (10 ou 11 dígitos).')
+        return numero
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.user:
+            if not instance.pk:
+                instance.criado_por = self.user
+            instance.modificado_por = self.user
+        if commit:
+            instance.save()
+        return instance
 
 
 class TipoPagamentoForm(forms.ModelForm):

@@ -37,14 +37,15 @@ from produtos.models import Parcelamento, Produto
 from vendas.forms import (
     AnaliseCreditoClienteForm, ClienteConsultaForm, ClienteForm, ComprovantesClienteEditForm,
     ComprovantesClienteForm, ContatoAdicionalEditForm, ContatoAdicionalForm, FormaPagamentoEditFormSet,
-    InformacaoPessoalEditForm, InformacaoPessoalForm, LojaForm, ProdutoVendaEditFormSet, RelatorioSolicitacoesForm,
-    RelatorioVendasForm, VendaForm, VendaDocumentosForm, ProdutoVendaFormSet, FormaPagamentoFormSet, LancamentoForm,
-    LancamentoCaixaTotalForm, ClienteTelefoneForm, AnaliseCreditoClienteImeiForm, VendaEdicaoEspecialForm,
+    InformacaoPessoalEditForm, InformacaoPessoalForm, LojaForm, NumeroAutenticadorForm, ProdutoVendaEditFormSet,
+    RelatorioSolicitacoesForm, RelatorioVendasForm, VendaForm, VendaDocumentosForm, ProdutoVendaFormSet,
+    FormaPagamentoFormSet, LancamentoForm, LancamentoCaixaTotalForm, ClienteTelefoneForm,
+    AnaliseCreditoClienteImeiForm, VendaEdicaoEspecialForm,
     ProdutoVendaEdicaoEspecialFormSet, FormaPagamentoEdicaoEspecialFormSet
 )
 from .models import (
-    AnaliseCreditoCliente, Caixa, Cliente, Loja, Pagamento, Parcela, ProdutoVenda, TipoPagamento, Venda,
-    LancamentoCaixa, LancamentoCaixaTotal, StatusPagamento
+    AnaliseCreditoCliente, Caixa, Cliente, Loja, NumeroAutenticador, Pagamento, Parcela, ProdutoVenda,
+    TipoPagamento, Venda, LancamentoCaixa, LancamentoCaixaTotal, StatusPagamento
 )
 from produtos.models import Marca
 from pypix import Pix
@@ -3863,3 +3864,81 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
             'data_geracao': timezone.now(),
             'usuario': self.request.user,
         }
+
+
+# ── Números Autenticadores ────────────────────────────────────────────────────
+
+class NumeroAutenticadorMixin:
+    """Restringe acesso a ANALISTA e ADMINISTRADOR."""
+    def dispatch(self, request, *args, **kwargs):
+        is_allowed = (
+            request.user.is_superuser
+            or request.user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR']).exists()
+        )
+        if not is_allowed:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+    def _get_loja(self):
+        loja_id = self.request.session.get('loja_id')
+        return get_object_or_404(Loja, pk=loja_id) if loja_id else None
+
+
+class NumeroAutenticadorListView(LoginRequiredMixin, NumeroAutenticadorMixin, ListView):
+    model = NumeroAutenticador
+    template_name = 'numeroautenticador/numeroautenticador_list.html'
+    context_object_name = 'items'
+    paginate_by = 15
+
+    def get_queryset(self):
+        loja = self._get_loja()
+        qs = NumeroAutenticador.objects.filter(loja=loja) if loja else NumeroAutenticador.objects.all()
+        search = self.request.GET.get('search')
+        if search:
+            qs = qs.filter(numero__icontains=search) | qs.filter(descricao__icontains=search)
+        return qs.order_by('numero')
+
+
+class NumeroAutenticadorCreateView(LoginRequiredMixin, NumeroAutenticadorMixin, CreateView):
+    model = NumeroAutenticador
+    form_class = NumeroAutenticadorForm
+    template_name = 'numeroautenticador/numeroautenticador_form.html'
+    success_url = reverse_lazy('vendas:numeroautenticador_list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        loja = self._get_loja()
+        form.instance.loja = loja
+        messages.success(self.request, 'Número autenticador criado com sucesso.')
+        return super().form_valid(form)
+
+
+class NumeroAutenticadorUpdateView(LoginRequiredMixin, NumeroAutenticadorMixin, UpdateView):
+    model = NumeroAutenticador
+    form_class = NumeroAutenticadorForm
+    template_name = 'numeroautenticador/numeroautenticador_form.html'
+    success_url = reverse_lazy('vendas:numeroautenticador_list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Número autenticador atualizado com sucesso.')
+        return super().form_valid(form)
+
+
+class NumeroAutenticadorDeleteView(LoginRequiredMixin, NumeroAutenticadorMixin, DeleteView):
+    model = NumeroAutenticador
+    template_name = 'numeroautenticador/numeroautenticador_confirm_delete.html'
+    success_url = reverse_lazy('vendas:numeroautenticador_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Número autenticador removido.')
+        return super().form_valid(form)

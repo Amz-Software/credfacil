@@ -229,6 +229,13 @@ def menu_items(request):
             "section": "Configurações",
         },
         {
+            "label": "Números Autenticadores",
+            "url_name": "vendas:numeroautenticador_list",
+            "icon": "bx bx-phone",
+            "permission": "vendas.view_numeroautenticador",
+            "section": "Configurações",
+        },
+        {
             "label": "Meu Perfil",
             "url_name": "accounts:my_profile_update",
             "icon": "bx bx-user",

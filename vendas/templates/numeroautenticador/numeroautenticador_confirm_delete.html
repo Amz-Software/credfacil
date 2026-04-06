@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Excluir Número Autenticador{% endblock %}
+
+{% block content %}
+<div class="container-xxl mt-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-5 col-md-7">
+
+      <h4 class="py-3 mb-4">
+        <span class="text-muted fw-light">
+          <a href="{% url 'vendas:numeroautenticador_list' %}">Números Autenticadores</a> /
+        </span>
+        Excluir
+      </h4>
+
+      <div class="card border-danger">
+        <div class="card-header bg-label-danger">
+          <h5 class="mb-0 text-danger">
+            <i class="bx bx-trash me-2"></i> Confirmar Exclusão
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="mb-1">Tem certeza que deseja excluir o número autenticador:</p>
+          <p class="fs-5 fw-bold text-dark mb-1">
+            <i class="bx bx-phone me-1 text-primary"></i>{{ object.numero }}
+          </p>
+          {% if object.descricao %}
+            <p class="text-muted small mb-3">{{ object.descricao }}</p>
+          {% endif %}
+          <div class="alert alert-warning py-2 small">
+            <i class="bx bx-error-circle me-1"></i>
+            Solicitações vinculadas a este número perderão a referência.
+          </div>
+
+          <form method="post" class="d-flex gap-2 mt-3">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+              <i class="bx bx-trash me-1"></i> Excluir
+            </button>
+            <a href="{% url 'vendas:numeroautenticador_list' %}" class="btn btn-outline-secondary">
+              Cancelar
+            </a>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

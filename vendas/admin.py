@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from .models import *
 
@@ -104,3 +105,31 @@ class StatusPagamentoAdmin(AdminBase):
     list_display = ('nome', 'slug', 'cor_hex')
     search_fields = ('nome',)
     list_editable = ('cor_hex',)
+
+
+class NumeroAutenticadorForm(forms.ModelForm):
+    numero = forms.CharField(
+        max_length=20,
+        widget=forms.TextInput(attrs={
+            'class': 'vTextField',
+            'placeholder': '(00) 00000-0000',
+            'data-mask': '(00) 00000-0000',
+        }),
+        label='Número de Telefone',
+    )
+
+    class Meta:
+        model = NumeroAutenticador
+        fields = '__all__'
+
+
+@admin.register(NumeroAutenticador)
+class NumeroAutenticadorAdmin(AdminBase):
+    form = NumeroAutenticadorForm
+    list_display = ('numero', 'descricao', 'ativo', 'loja')
+    list_filter = ('ativo', 'loja')
+    search_fields = ('numero', 'descricao')
+    list_editable = ('ativo',)
+
+    class Media:
+        js = ('admin/js/numero_autenticador_mask.js',)
