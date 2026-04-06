@@ -3103,5 +3103,5 @@ def foto_celular_view(request, session_id):
     return render(request, 'foto_celular.html', {
         'session_id': str(session_id),
         'expirada': session.expirada(),
-        'upload_url': request.build_absolute_uri(f'/api/foto-upload/{session_id}/'),
+        'upload_url': f'/api/foto-upload/{session_id}/',
     })
