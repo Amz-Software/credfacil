@@ -26,5 +26,8 @@ router.register("permissoes", views.PermissionViewSet, basename="permissao")
 
 urlpatterns = [
     path("health/", views.health, name="api-health"),
+    path("foto-session/", views.foto_session_criar, name="foto-session-criar"),
+    path("foto-status/<uuid:session_id>/", views.foto_session_status, name="foto-session-status"),
+    path("foto-upload/<uuid:session_id>/", views.foto_session_upload, name="foto-session-upload"),
     path("", include(router.urls)),
 ]
