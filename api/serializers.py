@@ -492,9 +492,9 @@ class SolicitacaoCreditoInputSerializer(serializers.Serializer):
     endereco_adicional = serializers.CharField()
     obteve_contato = serializers.BooleanField(required=False)
 
-    nome_pessoal = serializers.CharField()
-    contato_pessoal = serializers.CharField()
-    endereco_pessoal = serializers.CharField()
+    nome_pessoal = serializers.CharField(required=False, allow_blank=True)
+    contato_pessoal = serializers.CharField(required=False, allow_blank=True)
+    endereco_pessoal = serializers.CharField(required=False, allow_blank=True)
     obteve_contato_pessoal = serializers.BooleanField(required=False)
 
     documento_identificacao_frente = serializers.FileField()

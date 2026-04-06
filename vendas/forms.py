@@ -337,9 +337,9 @@ class ContatoAdicionalEditForm(forms.ModelForm):
         return contato
 
 class InformacaoPessoalForm(forms.ModelForm):
-    nome_pessoal = forms.CharField(label='Nome', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    contato_pessoal = forms.CharField(label='Contato', widget=forms.TextInput(attrs={'class': 'form-control tel'}))
-    endereco_pessoal = forms.CharField(label='Endereço', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    nome_pessoal = forms.CharField(label='Nome', required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    contato_pessoal = forms.CharField(label='Contato', required=False, widget=forms.TextInput(attrs={'class': 'form-control tel'}))
+    endereco_pessoal = forms.CharField(label='Endereço', required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
     obteve_contato_pessoal = forms.TypedChoiceField(
         label='Obteve Contato',
         required=False,
@@ -419,9 +419,9 @@ class InformacaoPessoalForm(forms.ModelForm):
         return super().save(commit=commit)
 
 class InformacaoPessoalEditForm(forms.ModelForm):
-    nome_pessoal = forms.CharField(label='Nome', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    contato_pessoal = forms.CharField(label='Contato', widget=forms.TextInput(attrs={'class': 'form-control tel'}))
-    endereco_pessoal = forms.CharField(label='Endereço', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    nome_pessoal = forms.CharField(label='Nome', required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    contato_pessoal = forms.CharField(label='Contato', required=False, widget=forms.TextInput(attrs={'class': 'form-control tel'}))
+    endereco_pessoal = forms.CharField(label='Endereço', required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
     obteve_contato_pessoal = forms.TypedChoiceField(
         label='Obteve Contato',
         required=False,
