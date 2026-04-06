@@ -47,7 +47,8 @@
       margin-bottom: 16px;
       display: none;
       max-height: 320px;
-      object-fit: cover;
+      object-fit: contain;
+      image-orientation: from-image;
     }
     #status {
       font-size: .9rem;
@@ -72,12 +73,12 @@
     {% else %}
       <div class="icon">📷</div>
       <h1>Enviar foto</h1>
-      <p>Toque no botão abaixo para abrir a câmera e tirar a foto.</p>
+      <p>Toque no botão abaixo para escolher uma foto da galeria ou abrir a câmera.</p>
 
       <img id="preview" alt="Pré-visualização">
-      <input type="file" id="fileInput" accept="image/*" capture="environment">
+      <input type="file" id="fileInput" accept="image/*">
       <button class="btn btn-primary" id="btnCamera" onclick="document.getElementById('fileInput').click()">
-        Abrir câmera
+        Tirar foto ou abrir galeria
       </button>
       <div id="status"></div>
     {% endif %}

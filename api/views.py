@@ -8,6 +8,8 @@ import uuid
 import secrets
 import string
 from io import BytesIO
+from PIL import Image, ImageOps
+from django.core.files.base import ContentFile
 
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -3090,6 +3092,21 @@ def foto_session_upload(request, session_id):
 
     if session.foto:
         session.foto.delete(save=False)
+
+    # Corrigir orientação baseada no EXIF
+    try:
+        img = Image.open(arquivo)
+        formato = img.format
+        img = ImageOps.exif_transpose(img)
+        
+        buffer = BytesIO()
+        img.save(buffer, format=formato if formato else 'JPEG', quality=90)
+        arquivo_corrigido = ContentFile(buffer.getvalue(), name=arquivo.name)
+        arquivo = arquivo_corrigido
+    except Exception:
+        if hasattr(arquivo, 'seek'):
+            arquivo.seek(0)
+        pass
 
     session.foto = arquivo
     session.save()
