@@ -1302,20 +1302,10 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         cliente = Cliente.objects.get(pk=pk)
         analise_credito = cliente.analise_credito
 
-        payload_data = {"loja": request.query_params.get("loja")}
-        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
-
-        if loja_error:
-            return Response(
-                {
-                    "detail": "Erros de validacao.",
-                    "errors": {"loja": [loja_error]},
-                },
-                status=400,
-            )
-
-        if cliente.loja_id != loja.id:
-            return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
+        if not request.user.has_perm("vendas.view_all_analise_credito"):
+            lojas_usuario = self._lojas_usuario_ids(request)
+            if cliente.loja_id not in lojas_usuario:
+                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
         analise_credito.status_aplicativo = "C"
         analise_credito.save()
@@ -1338,27 +1328,18 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         """
         cliente = Cliente.objects.get(pk=pk)
         
-        # Resolver loja
-        payload_data = {"loja": request.query_params.get("loja")}
-        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
+        if not request.user.has_perm("vendas.view_all_analise_credito"):
+            lojas_usuario = self._lojas_usuario_ids(request)
+            if cliente.loja_id not in lojas_usuario:
+                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
         
-        if loja_error:
-            return Response(
-                {
-                    "detail": "Erros de validacao.",
-                    "errors": {"loja": [loja_error]},
-                },
-                status=400,
-            )
-        
-        if cliente.loja_id != loja.id:
-            return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
+        loja_id = cliente.loja_id
         
         # Gerar QR code + código de instalação
         device_id = request.query_params.get("device_id", "")
         qr_base64, codigo_instalacao = gerar_qrcode_instalacao(
             cliente_id=cliente.id,
-            loja_id=loja.id,
+            loja_id=loja_id,
             device_id=device_id
         )
         
@@ -1368,19 +1349,20 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             "codigo_instalacao": codigo_instalacao,
             "dados_qr": {
                 "cliente_id": cliente.id,
-                "loja_id": loja.id,
+                "loja_id": loja_id,
                 "timestamp": timezone.now().isoformat(),
                 "device_id": device_id,
                 "codigo_instalacao": codigo_instalacao
             }
         })
 
-    def _confirmar_leitura_qrcode(self, request, cliente, loja=None):
+    def _confirmar_leitura_qrcode(self, request, cliente):
         analise_credito = cliente.analise_credito
         
-        # Validar loja se fornecida
-        if loja and cliente.loja_id != loja.id:
-            return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
+        if not request.user.has_perm("vendas.view_all_analise_credito"):
+            lojas_usuario = self._lojas_usuario_ids(request)
+            if cliente.loja_id not in lojas_usuario:
+                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
         # Confirmacao da leitura do QR code leva o app para confirmacao pendente.
         analise_credito.status_aplicativo = "C"
@@ -1424,40 +1406,14 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
     def confirmar_app(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         
-        # Resolver loja com suporte a JWT
-        payload_data = {"loja": request.query_params.get("loja")}
-        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
-        
-        if loja_error:
-            return Response(
-                {
-                    "detail": "Erros de validacao.",
-                    "errors": {"loja": [loja_error]},
-                },
-                status=400,
-            )
-        
-        return self._confirmar_leitura_qrcode(request, cliente, loja)
+        return self._confirmar_leitura_qrcode(request, cliente)
 
     @action(detail=True, methods=["post"], url_path="confirmar-leitura-qrcode")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def confirmar_leitura_qrcode(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         
-        # Resolver loja com suporte a JWT
-        payload_data = {"loja": request.query_params.get("loja")}
-        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
-        
-        if loja_error:
-            return Response(
-                {
-                    "detail": "Erros de validacao.",
-                    "errors": {"loja": [loja_error]},
-                },
-                status=400,
-            )
-        
-        return self._confirmar_leitura_qrcode(request, cliente, loja)
+        return self._confirmar_leitura_qrcode(request, cliente)
 
     @action(detail=True, methods=["post"], url_path="configurar-icloud")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
@@ -1465,21 +1421,10 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         cliente = Cliente.objects.get(pk=pk)
         analise = cliente.analise_credito
         
-        # Resolver loja com suporte a JWT
-        payload_data = {"loja": request.query_params.get("loja")}
-        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
-        
-        if loja_error:
-            return Response(
-                {
-                    "detail": "Erros de validacao.",
-                    "errors": {"loja": [loja_error]},
-                },
-                status=400,
-            )
-        
-        if cliente.loja_id != loja.id:
-            return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
+        if not request.user.has_perm("vendas.view_all_analise_credito"):
+            lojas_usuario = self._lojas_usuario_ids(request)
+            if cliente.loja_id not in lojas_usuario:
+                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
         if not analise.email_icloud or not analise.senha_icloud:
             return Response({"detail": "Email e senha iCloud nao configurados na analise."}, status=400)
@@ -1774,22 +1719,10 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
     def gerar_venda(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         
-        # Resolver loja com suporte a JWT
-        payload_data = {"loja": request.query_params.get("loja")}
-        loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
-        
-        if loja_error:
-            return Response(
-                {
-                    "detail": "Erros de validacao.",
-                    "errors": {"loja": [loja_error]},
-                },
-                status=400,
-            )
-        
-        # Validar que cliente pertence à loja
-        if cliente.loja_id != loja.id:
-            return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
+        if not request.user.has_perm("vendas.view_all_analise_credito"):
+            lojas_usuario = self._lojas_usuario_ids(request)
+            if cliente.loja_id not in lojas_usuario:
+                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
         
         credfacil = Loja.objects.filter(credfacil=True).first()
         
@@ -2074,11 +2007,18 @@ class ProdutoViewSet(viewsets.ModelViewSet):
             queryset = Produto.objects.all()
         else:
             loja_id = self.request.session.get("loja_id") or self.request.query_params.get("loja")
+            
+            if not loja_id and hasattr(self.request.user, "loja_id") and self.request.user.loja_id:
+                loja_id = self.request.user.loja_id
+            
             loja = Loja.objects.filter(id=loja_id).first() if loja_id else None
             if loja:
                 queryset = loja.produtos_permitidos_qs()
             else:
-                queryset = Produto.objects.filter(ativo=True)
+                queryset = Produto.objects.filter(ativo=True).filter(
+                    Q(marca__isnull=True) |
+                    Q(marca__lojas_permitidas__isnull=True)
+                ).distinct()
 
         search = self.request.query_params.get("search")
         marca = self.request.query_params.get("marca")
@@ -2100,9 +2040,12 @@ class ProdutoViewSet(viewsets.ModelViewSet):
         return super().list(request, *args, **kwargs)
 
     def perform_create(self, serializer):
-        loja_id = self.request.session.get("loja_id")
+        loja_id = self.request.session.get("loja_id") or self.request.query_params.get("loja") or self.request.data.get("loja")
+        if not loja_id and hasattr(self.request.user, "loja_id"):
+            loja_id = self.request.user.loja_id
+            
         if not loja_id:
-            raise ValidationError({"detail": "Loja nao encontrada na sessao."})
+            raise ValidationError({"detail": "Loja nao informada para vincular o produto."})
         serializer.save(loja_id=loja_id)
 
     @action(detail=True, methods=["post"], url_path="ativar")
@@ -2141,9 +2084,12 @@ class ParcelamentoViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        loja_id = self.request.session.get("loja_id")
+        loja_id = self.request.session.get("loja_id") or self.request.query_params.get("loja") or self.request.data.get("loja")
+        if not loja_id and hasattr(self.request.user, "loja_id"):
+            loja_id = self.request.user.loja_id
+            
         if not loja_id:
-            raise ValidationError({"detail": "Loja nao encontrada na sessao."})
+            raise ValidationError({"detail": "Loja nao informada para vincular o parcelamento."})
         serializer.save(loja_id=loja_id)
 
 
@@ -2178,9 +2124,12 @@ class MarcaViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        loja_id = self.request.session.get("loja_id")
+        loja_id = self.request.session.get("loja_id") or self.request.query_params.get("loja") or self.request.data.get("loja")
+        if not loja_id and hasattr(self.request.user, "loja_id"):
+            loja_id = self.request.user.loja_id
+            
         if not loja_id:
-            raise ValidationError({"detail": "Loja nao encontrada na sessao."})
+            raise ValidationError({"detail": "Loja nao informada para vincular a marca."})
         serializer.save(loja_id=loja_id)
 
     @action(detail=True, methods=["get"], url_path="produtos")
