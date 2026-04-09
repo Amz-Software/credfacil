@@ -2800,6 +2800,68 @@ class VendaViewSet(viewsets.ModelViewSet):
             'ultima_parcela': ultima_parcela,
         })
 
+    @action(detail=True, methods=["get"], url_path="recibo")
+    @extend_schema(
+        description="Retorna dados da nota de venda (recibo) para geração de PDF no frontend",
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def recibo(self, request, pk=None):
+        """
+        Retorna dados detalhados para o recibo de venda.
+        O frontend é responsável por gerar o PDF usando esses dados.
+        """
+        venda = self.get_object()
+        cliente = venda.cliente
+        loja = venda.loja
+        
+        itens = []
+        for item in venda.itens_venda.all():
+            itens.append({
+                'codigo': item.produto.codigo if item.produto else '',
+                'nome': item.produto.nome if item.produto else 'Item sem nome',
+                'imei': item.imei or '',
+                'quantidade': item.quantidade,
+                'valor_unitario': str(item.valor_unitario),
+                'valor_desconto': str(item.valor_desconto),
+                'valor_total': str(item.calcular_valor_total())
+            })
+            
+        pagamentos = []
+        for p in venda.pagamentos.all():
+            pagamentos.append({
+                'tipo_pagamento': p.tipo_pagamento.nome if p.tipo_pagamento else 'N/A',
+                'detalhes': p.detalhes or '',
+                'valor': str(p.valor),
+                'parcelas': p.parcelas,
+                'data_primeira_parcela': p.data_primeira_parcela.strftime('%d/%m/%Y') if p.data_primeira_parcela else None
+            })
+            
+        return Response({
+            'venda_id': venda.id,
+            'data_venda': venda.data_venda.strftime('%d/%m/%Y %H:%M'),
+            'vendedor': venda.get_vendedor_nome(),
+            'loja': {
+                'nome': loja.nome,
+                'endereco': loja.endereco,
+                'cnpj': loja.cnpj,
+                'logo': request.build_absolute_uri(loja.logo_loja.url) if loja.logo_loja else None,
+                'mensagem_garantia': loja.mensagem_garantia,
+            },
+            'cliente': {
+                'nome': cliente.nome,
+                'telefone': cliente.telefone,
+                'cpf': cliente.cpf,
+                'email': cliente.email,
+                'endereco': cliente.endereco,
+                'cep': cliente.cep,
+                'cidade': cliente.cidade,
+                'uf': cliente.uf,
+            },
+            'itens': itens,
+            'pagamentos': pagamentos,
+            'valor_total': str(venda.calcular_valor_total()),
+        })
+
 
 
 class RepasseViewSet(viewsets.ModelViewSet):
