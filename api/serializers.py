@@ -246,12 +246,17 @@ class ClienteSolicitacaoSerializer(serializers.ModelSerializer):
     comprovantes = ComprovantesClienteSerializer(read_only=True)
     analise_credito = AnaliseCreditoClienteSerializer(read_only=True)
 
+    qr_code_aplicativo = serializers.ImageField(source="loja.qr_code_aplicativo", read_only=True)
+    codigo_aplicativo = serializers.CharField(source="loja.codigo_aplicativo", read_only=True)
+
     class Meta:
         model = Cliente
         fields = [
             "id",
             "loja",
             "loja_nome",
+            "qr_code_aplicativo",
+            "codigo_aplicativo",
             "nome",
             "email",
             "telefone",
