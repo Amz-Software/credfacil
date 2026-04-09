@@ -2830,7 +2830,6 @@ class VendaViewSet(viewsets.ModelViewSet):
         for p in venda.pagamentos.all():
             pagamentos.append({
                 'tipo_pagamento': p.tipo_pagamento.nome if p.tipo_pagamento else 'N/A',
-                'detalhes': p.detalhes or '',
                 'valor': str(p.valor),
                 'parcelas': p.parcelas,
                 'data_primeira_parcela': p.data_primeira_parcela.strftime('%d/%m/%Y') if p.data_primeira_parcela else None
