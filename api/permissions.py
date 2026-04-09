@@ -83,7 +83,7 @@ class VendaPermission(BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        if action in ("list", "retrieve", "carne", "contrato"):
+        if action in ("list", "retrieve", "carne", "contrato", "recibo"):
             return user.has_perm("vendas.view_venda")
         if action == "create":
             return user.has_perm("vendas.add_venda")

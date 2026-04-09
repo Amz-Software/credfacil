@@ -2839,7 +2839,7 @@ class VendaViewSet(viewsets.ModelViewSet):
         return Response({
             'venda_id': venda.id,
             'data_venda': venda.data_venda.strftime('%d/%m/%Y %H:%M'),
-            'vendedor': venda.get_vendedor_nome(),
+            'vendedor': venda.vendedor.get_full_name() or venda.vendedor.username,
             'loja': {
                 'nome': loja.nome,
                 'endereco': loja.endereco,
