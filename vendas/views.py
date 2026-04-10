@@ -2510,8 +2510,9 @@ class FolhaRelatorioSolicitacoesView(PermissionRequiredMixin, TemplateView):
         elif vr in ('false', '0'):
             filtros['analise_credito__venda__isnull'] = True
             
-        if analise_online in ('true', 'false', 'true', 'false'):
-            filtros['analise_credito__is_online'] = analise_online == 'true'
+        analise_online_normalizada = (analise_online or '').strip().lower()
+        if analise_online_normalizada in ('true', 'false', '1', '0'):
+            filtros['analise_credito__analise_online'] = analise_online_normalizada in ('true', '1')
 
         # datas
         if data_inicial and data_final:
@@ -2671,8 +2672,9 @@ class FolhaRelatorioVendasView(PermissionRequiredMixin, TemplateView):
             else:
                 self.loja = None
         
-        if analise_online in ('true', 'false', 'true', 'false'):
-            filtros['analises_credito_venda__is_online'] = analise_online == 'true'
+        analise_online_normalizada = (analise_online or '').strip().lower()
+        if analise_online_normalizada in ('true', 'false', '1', '0'):
+            filtros['analises_credito_venda__analise_online'] = analise_online_normalizada in ('true', '1')
 
         # faz a query
         self.vendas = Venda.objects.filter(**filtros).distinct()
