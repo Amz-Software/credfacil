@@ -197,6 +197,7 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
             "senha_icloud",
             "icloud_configurado_vendedor",
             "icloud_confirmado_analista",
+            "codigo_reserva",
             "venda_gerada",
             "numero_autenticador",
             "numero_autenticador_detail",

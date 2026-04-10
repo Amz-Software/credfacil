@@ -592,6 +592,7 @@ class AnaliseCreditoCliente(Base):
     senha_icloud = models.CharField(max_length=100, null=True, blank=True, verbose_name='Senha iCloud')
     icloud_configurado_vendedor = models.BooleanField(default=False, verbose_name='iCloud configurado pelo vendedor')
     icloud_confirmado_analista = models.BooleanField(default=False, verbose_name='iCloud confirmado pelo analista')
+    codigo_reserva = models.CharField(max_length=100, null=True, blank=True, verbose_name='Código de Reserva')
     
     def venda_gerada(self):
         if self.venda:

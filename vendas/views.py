@@ -3624,7 +3624,13 @@ class ClienteConfigurarIcloudView(PermissionRequiredMixin, View):
         if not analise.email_icloud or not analise.senha_icloud:
             messages.error(request, '❌ Email e senha iCloud não configurados pela análise.')
             return redirect('vendas:cliente_list')
-        
+
+        codigo_reserva = request.POST.get('codigo_reserva', '').strip()
+        if not codigo_reserva:
+            messages.error(request, '❌ O código de reserva é obrigatório para confirmar o iCloud.')
+            return redirect('vendas:cliente_list')
+
+        analise.codigo_reserva = codigo_reserva
         analise.icloud_configurado_vendedor = True
         analise.save()
         
@@ -3685,7 +3691,7 @@ class AnalistaConfirmIcloudView(PermissionRequiredMixin, View):
         if not analise.icloud_configurado_vendedor:
             messages.error(request, '❌ Vendedor ainda não confirmou a configuração do iCloud.')
             return redirect('vendas:cliente_list')
-        
+
         analise.icloud_confirmado_analista = True
         analise.save()
         
