@@ -2854,7 +2854,7 @@ class VendaViewSet(viewsets.ModelViewSet):
                 'endereco': cliente.endereco,
                 'cep': cliente.cep,
                 'cidade': cliente.cidade,
-                'uf': cliente.uf,
+                'uf': getattr(cliente, 'uf', '') or '',
             },
             'itens': itens,
             'pagamentos': pagamentos,
