@@ -955,10 +955,27 @@ Clientes
                     </ol>
                   </div>
 
-                  <!-- Botão de Confirmação -->
+                  <!-- Código de Reserva -->
                   <form method="post" action="{% url 'vendas:cliente_configurar_icloud' cliente.pk %}" class="w-100">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fw-bold shadow-sm">
+                    <div class="mb-4">
+                      <label for="codigoReserva{{ cliente.pk }}" class="form-label fw-semibold">
+                        <i class="bx bx-key me-1"></i>Código de Reserva
+                      </label>
+                      <input type="text"
+                             id="codigoReserva{{ cliente.pk }}"
+                             name="codigo_reserva"
+                             class="form-control form-control-lg"
+                             placeholder="Digite o código de reserva"
+                             autocomplete="off">
+                      <div class="form-text text-muted">Preencha o código para liberar a confirmação.</div>
+                    </div>
+
+                    <!-- Botão de Confirmação -->
+                    <button type="submit"
+                            id="btnConfirmarIcloud{{ cliente.pk }}"
+                            class="btn btn-success btn-lg w-100 py-3 fw-bold shadow-sm"
+                            disabled>
                       <i class="bx bx-check-circle me-2"></i>
                       ✅ Confirmar Configuração iCloud
                     </button>
@@ -1149,6 +1166,16 @@ Clientes
         });
       });
       
+      // Habilitar botão de confirmar iCloud do vendedor ao preencher código de reserva
+      document.querySelectorAll('[id^="codigoReserva"]').forEach(input => {
+        const suffix = input.id.replace('codigoReserva', '');
+        const btn = document.getElementById('btnConfirmarIcloud' + suffix);
+        if (!btn) return;
+        input.addEventListener('input', function() {
+          btn.disabled = this.value.trim() === '';
+        });
+      });
+
       // Toggle de senha iCloud
       document.querySelectorAll('.toggle-password').forEach(btn => {
         btn.addEventListener('click', function() {

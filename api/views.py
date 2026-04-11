@@ -32,7 +32,9 @@ from drf_spectacular.utils import (
     OpenApiTypes,
     extend_schema,
     extend_schema_view,
+    inline_serializer,
 )
+from rest_framework import serializers as drf_serializers
 
 from financeiro.models import Repasse
 from notifications.signals import notify
@@ -1416,11 +1418,14 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         return self._confirmar_leitura_qrcode(request, cliente)
 
     @action(detail=True, methods=["post"], url_path="configurar-icloud")
-    @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
+    @extend_schema(
+        request=inline_serializer("ConfigurarIcloudInput", fields={"codigo_reserva": drf_serializers.CharField()}),
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def configurar_icloud(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         analise = cliente.analise_credito
-        
+
         if not request.user.has_perm("vendas.view_all_analise_credito"):
             lojas_usuario = self._lojas_usuario_ids(request)
             if cliente.loja_id not in lojas_usuario:
@@ -1429,6 +1434,11 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if not analise.email_icloud or not analise.senha_icloud:
             return Response({"detail": "Email e senha iCloud nao configurados na analise."}, status=400)
 
+        codigo_reserva = request.data.get("codigo_reserva", "").strip()
+        if not codigo_reserva:
+            return Response({"detail": "O codigo de reserva e obrigatorio para confirmar o iCloud."}, status=400)
+
+        analise.codigo_reserva = codigo_reserva
         analise.icloud_configurado_vendedor = True
         analise.save()
 
@@ -1471,7 +1481,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
         if not request.user.groups.filter(name="ANALISTA").exists():
             return Response({"detail": "Apenas analistas podem confirmar o iCloud."}, status=403)
-        
+
         # Validar acesso à loja do cliente
         if hasattr(request.user, 'loja_id') and request.user.loja_id:
             if cliente.loja_id != request.user.loja_id:
