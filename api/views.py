@@ -1419,7 +1419,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=["post"], url_path="configurar-icloud")
     @extend_schema(
-        request=inline_serializer("ConfigurarIcloudInput", fields={"codigo_reserva": drf_serializers.CharField()}),
+        request=inline_serializer("ConfigurarIcloudInput", fields={"codigo_reserva": drf_serializers.ImageField()}),
         responses={200: OpenApiTypes.OBJECT},
     )
     def configurar_icloud(self, request, pk=None):
@@ -1434,9 +1434,9 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if not analise.email_icloud or not analise.senha_icloud:
             return Response({"detail": "Email e senha iCloud nao configurados na analise."}, status=400)
 
-        codigo_reserva = request.data.get("codigo_reserva", "").strip()
+        codigo_reserva = request.FILES.get("codigo_reserva")
         if not codigo_reserva:
-            return Response({"detail": "O codigo de reserva e obrigatorio para confirmar o iCloud."}, status=400)
+            return Response({"detail": "O codigo de reserva (imagem) e obrigatorio para confirmar o iCloud."}, status=400)
 
         analise.codigo_reserva = codigo_reserva
         analise.icloud_configurado_vendedor = True

@@ -956,19 +956,19 @@ Clientes
                   </div>
 
                   <!-- Código de Reserva -->
-                  <form method="post" action="{% url 'vendas:cliente_configurar_icloud' cliente.pk %}" class="w-100">
+                  <form method="post" action="{% url 'vendas:cliente_configurar_icloud' cliente.pk %}" class="w-100" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="mb-4">
                       <label for="codigoReserva{{ cliente.pk }}" class="form-label fw-semibold">
-                        <i class="bx bx-key me-1"></i>Código de Reserva
+                        <i class="bx bx-image me-1"></i>Imagem do Código de Reserva
                       </label>
-                      <input type="text"
+                      <input type="file"
                              id="codigoReserva{{ cliente.pk }}"
                              name="codigo_reserva"
                              class="form-control form-control-lg"
-                             placeholder="Digite o código de reserva"
-                             autocomplete="off">
-                      <div class="form-text text-muted">Preencha o código para liberar a confirmação.</div>
+                             accept="image/*"
+                             capture="environment">
+                      <div class="form-text text-muted">Tire uma foto ou selecione a imagem do código de reserva.</div>
                     </div>
 
                     <!-- Botão de Confirmação -->
@@ -1166,13 +1166,13 @@ Clientes
         });
       });
       
-      // Habilitar botão de confirmar iCloud do vendedor ao preencher código de reserva
+      // Habilitar botão de confirmar iCloud do vendedor ao selecionar imagem do código de reserva
       document.querySelectorAll('[id^="codigoReserva"]').forEach(input => {
         const suffix = input.id.replace('codigoReserva', '');
         const btn = document.getElementById('btnConfirmarIcloud' + suffix);
         if (!btn) return;
-        input.addEventListener('input', function() {
-          btn.disabled = this.value.trim() === '';
+        input.addEventListener('change', function() {
+          btn.disabled = !this.files || this.files.length === 0;
         });
       });
 

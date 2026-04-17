@@ -3625,9 +3625,9 @@ class ClienteConfigurarIcloudView(PermissionRequiredMixin, View):
             messages.error(request, '❌ Email e senha iCloud não configurados pela análise.')
             return redirect('vendas:cliente_list')
 
-        codigo_reserva = request.POST.get('codigo_reserva', '').strip()
+        codigo_reserva = request.FILES.get('codigo_reserva')
         if not codigo_reserva:
-            messages.error(request, '❌ O código de reserva é obrigatório para confirmar o iCloud.')
+            messages.error(request, '❌ A imagem do código de reserva é obrigatória para confirmar o iCloud.')
             return redirect('vendas:cliente_list')
 
         analise.codigo_reserva = codigo_reserva

@@ -505,10 +505,18 @@ class SolicitacaoCreditoInputSerializer(serializers.Serializer):
 
     documento_identificacao_frente = serializers.FileField()
     documento_identificacao_verso = serializers.FileField()
-    comprovante_residencia = serializers.FileField()
+    comprovante_residencia = serializers.FileField(required=False, allow_null=True)
     consulta_serasa = serializers.FileField(required=False)
     foto_cliente = serializers.FileField()
     restricao = serializers.BooleanField(required=False)
+
+    def validate(self, attrs):
+        analise_online = attrs.get("analise_online", False)
+        if analise_online and not attrs.get("comprovante_residencia"):
+            raise serializers.ValidationError(
+                {"comprovante_residencia": ["Comprovante de residência é obrigatório para análise online."]}
+            )
+        return attrs
 
     marca = serializers.IntegerField()
     produto = serializers.IntegerField()
