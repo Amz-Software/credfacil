@@ -110,6 +110,22 @@ def health(request):
     return Response({"status": "ok"})
 
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def buscar_lojas_by_username(request):
+    username = request.query_params.get("username")
+    if not username:
+        return Response({"error": "Username não fornecido"}, status=400)
+    try:
+        from accounts.models import User
+        user = User.objects.get(username=username)
+        lojas = list(user.lojas.all().values("id", "nome"))
+        return Response({"lojas": lojas})
+    except User.DoesNotExist:
+        return Response({"error": "Usuário não encontrado"}, status=404)
+
+
+
 def calcular_data_primeira_parcela(data_pagamento_str):
     hoje = timezone.now().date()
     dia_escolhido = int(data_pagamento_str)

@@ -27,6 +27,7 @@ router.register("numeros-autenticadores", views.NumeroAutenticadorViewSet, basen
 
 urlpatterns = [
     path("health/", views.health, name="api-health"),
+    path("buscar-lojas/", views.buscar_lojas_by_username, name="api-buscar-lojas"),
     path("foto-session/", views.foto_session_criar, name="foto-session-criar"),
     path("foto-status/<uuid:session_id>/", views.foto_session_status, name="foto-session-status"),
     path("foto-upload/<uuid:session_id>/", views.foto_session_upload, name="foto-session-upload"),

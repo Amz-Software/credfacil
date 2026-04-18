@@ -67,7 +67,7 @@
       }
       const username = usernameField.value;
       try {
-        const response = await fetch(`/buscar-lojas/?username=${username}`);
+        const response = await fetch(`/buscar-lojas/?username=${encodeURIComponent(username)}`);
         const data = await response.json();
   
         const selectLoja = document.getElementById('id_loja');

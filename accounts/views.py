@@ -207,11 +207,21 @@ def get_lojas_by_username(request):
         return http.JsonResponse({'error': 'Username não fornecido'}, status=400)
 
     try:
-        user = User.objects.get(username=username)
-        lojas = list(user.lojas.all().values())
-        return http.JsonResponse({'lojas': lojas})
+        user = User.objects.get(Q(username__iexact=username) | Q(email__iexact=username))
     except ObjectDoesNotExist:
         return http.JsonResponse({'error': 'Usuário não encontrado'}, status=404)
+    except Exception:
+        return http.JsonResponse({'error': 'Usuário não encontrado'}, status=404)
+
+    lojas_qs = user.lojas.all()
+    if lojas_qs.exists():
+        lojas = [{'id': l.id, 'nome': l.nome} for l in lojas_qs]
+    elif user.loja:
+        lojas = [{'id': user.loja.id, 'nome': user.loja.nome}]
+    else:
+        lojas = []
+
+    return http.JsonResponse({'lojas': lojas})
     
 def get_autorizacao_user(request):
     if request.method == 'POST':
