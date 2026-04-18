@@ -117,12 +117,21 @@ def buscar_lojas_by_username(request):
     if not username:
         return Response({"error": "Username não fornecido"}, status=400)
     try:
-        from accounts.models import User
-        user = User.objects.get(username=username)
-        lojas = list(user.lojas.all().values("id", "nome"))
-        return Response({"lojas": lojas})
+        user = User.objects.get(Q(username__iexact=username) | Q(email__iexact=username))
     except User.DoesNotExist:
         return Response({"error": "Usuário não encontrado"}, status=404)
+    except User.MultipleObjectsReturned:
+        user = User.objects.filter(Q(username__iexact=username) | Q(email__iexact=username)).first()
+
+    lojas_qs = user.lojas.all()
+    if lojas_qs.exists():
+        lojas = [{"id": l.id, "nome": l.nome} for l in lojas_qs]
+    elif user.loja:
+        lojas = [{"id": user.loja.id, "nome": user.loja.nome}]
+    else:
+        lojas = []
+
+    return Response({"lojas": lojas})
 
 
 
