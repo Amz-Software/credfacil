@@ -842,10 +842,10 @@ Clientes
                 <div class="modal-body p-4">
                   
                   <!-- QR Code Section -->
-                  {% if loja.qr_code_aplicativo %}
+                  {% if loja_credfacil.qr_code_aplicativo %}
                     <div class="qr-section text-center mb-4">
                       <div class="qr-container p-3 mb-3">
-                        <img src="{{ loja.qr_code_aplicativo.url }}"
+                        <img src="{{ loja_credfacil.qr_code_aplicativo.url }}"
                               alt="QR Code para instalação"
                               class="img-fluid qr-image"
                               style="max-width: 280px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
@@ -856,7 +856,7 @@ Clientes
                       </p>
                     </div>
                   {% endif %}
-                  
+
                   <!-- Código Section -->
                   <div class="code-section text-center mb-4">
                     <label class="form-label text-muted mb-2">
@@ -865,7 +865,7 @@ Clientes
                     </label>
                     <div class="code-display p-3 bg-light rounded-3 border">
                       <span class="fs-1 fw-bold text-primary font-monospace">
-                        {{ loja.codigo_aplicativo|default:"Código não disponível" }}
+                        {{ loja_credfacil.codigo_aplicativo|default:"Código não disponível" }}
                       </span>
                     </div>
                     <p class="text-muted small mt-2 mb-0">

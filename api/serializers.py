@@ -247,8 +247,25 @@ class ClienteSolicitacaoSerializer(serializers.ModelSerializer):
     comprovantes = ComprovantesClienteSerializer(read_only=True)
     analise_credito = AnaliseCreditoClienteSerializer(read_only=True)
 
-    qr_code_aplicativo = serializers.ImageField(source="loja.qr_code_aplicativo", read_only=True)
-    codigo_aplicativo = serializers.CharField(source="loja.codigo_aplicativo", read_only=True)
+    qr_code_aplicativo = serializers.SerializerMethodField()
+    codigo_aplicativo = serializers.SerializerMethodField()
+
+    def _get_loja_credfacil(self):
+        if not hasattr(self, "_loja_credfacil_cache"):
+            self._loja_credfacil_cache = Loja.objects.filter(credfacil=True).first()
+        return self._loja_credfacil_cache
+
+    def get_qr_code_aplicativo(self, obj):
+        loja = self._get_loja_credfacil()
+        if not loja or not loja.qr_code_aplicativo:
+            return None
+        request = self.context.get("request")
+        url = loja.qr_code_aplicativo.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_codigo_aplicativo(self, obj):
+        loja = self._get_loja_credfacil()
+        return loja.codigo_aplicativo if loja else None
 
     class Meta:
         model = Cliente

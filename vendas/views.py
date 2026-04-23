@@ -487,6 +487,7 @@ class ClienteListView(BaseView, PermissionRequiredMixin, ListView):
         
         context['loja'] = Loja.objects.get(id=loja_id)
         context['lojas'] = Loja.objects.all()
+        context['loja_credfacil'] = Loja.objects.filter(credfacil=True).first()
 
         if self.request.user.has_perm('vendas.view_all_analise_credito'):
             analises = AnaliseCreditoCliente.objects.all()
