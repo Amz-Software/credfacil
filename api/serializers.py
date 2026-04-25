@@ -442,6 +442,8 @@ class VendaSerializer(serializers.ModelSerializer):
             "documento_assinado",
             "foto_cliente",
             "imagem_imei",
+            "contrato_publico_uuid",
+            "status_contrato",
             "is_deleted",
             "is_trocado",
             "itens_venda",

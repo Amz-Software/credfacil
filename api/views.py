@@ -18,6 +18,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from rest_framework import status, viewsets
@@ -108,6 +109,112 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 @api_view(["GET"])
 def health(request):
     return Response({"status": "ok"})
+
+
+def _montar_payload_contrato(venda, loja):
+    valor_total = venda.pagamentos_valor_total
+    pagamento_carne = Pagamento.objects.filter(venda=venda, tipo_pagamento__carne=True).first()
+    aparelho = venda.itens_venda.first()
+    imei = aparelho.imei if aparelho else None
+
+    cliente = venda.cliente
+    contrato = loja.contrato
+
+    primeira_parcela = pagamento_carne.data_primeira_parcela if pagamento_carne else None
+    parcelas = pagamento_carne.parcelas if pagamento_carne else 0
+    parcelas_meses = []
+
+    if primeira_parcela and parcelas:
+        for i in range(parcelas):
+            mes = primeira_parcela.month + i
+            ano = primeira_parcela.year
+            if mes > 12:
+                mes -= 12
+                ano += 1
+            data_vencimento = primeira_parcela.replace(month=mes, year=ano)
+            parcelas_meses.append(data_vencimento.strftime('%d/%m/%Y'))
+
+    ultima_parcela = parcelas_meses[-1] if parcelas_meses else None
+
+    return {
+        'venda_id': venda.id,
+        'status_contrato': venda.status_contrato,
+        'valor_total': str(valor_total),
+        'tipo_pagamento': 'Carnê' if pagamento_carne else 'À vista',
+        'cliente': {
+            'nome': cliente.nome,
+            'cpf': cliente.cpf,
+            'rg': cliente.rg,
+            'endereco': cliente.endereco,
+            'telefone': cliente.telefone,
+        },
+        'data_atual': timezone.now().date().isoformat(),
+        'loja': {
+            'nome': loja.nome,
+            'cnpj': loja.cnpj,
+            'endereco': loja.endereco,
+            'contrato': contrato,
+        },
+        'aparelho': {
+            'nome': aparelho.produto.nome if aparelho else None,
+            'imei': imei,
+        },
+        'valor_parcela': str(pagamento_carne.valor_parcela) if pagamento_carne else None,
+        'quantidade_parcelas': parcelas,
+        'parcelas_meses': parcelas_meses,
+        'primeira_parcela': primeira_parcela.strftime('%d/%m/%Y') if primeira_parcela else None,
+        'ultima_parcela': ultima_parcela,
+        'documento_assinado_url': (
+            venda.documento_assinado.url if venda.documento_assinado else None
+        ),
+    }
+
+
+def _validar_arquivo_contrato_assinado(arquivo):
+    if not arquivo:
+        return False, 'Envie um arquivo no campo "arquivo" ou "documento_assinado".'
+
+    content_type = (getattr(arquivo, 'content_type', '') or '').lower()
+    nome = (getattr(arquivo, 'name', '') or '').lower()
+
+    if content_type == 'application/pdf' or nome.endswith('.pdf'):
+        return True, None
+
+    if content_type.startswith('image/'):
+        return True, None
+
+    extensoes_imagem = ('.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif', '.tif', '.tiff')
+    if nome.endswith(extensoes_imagem):
+        return True, None
+
+    return False, 'Formato invalido. Envie PDF ou imagem.'
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+def contrato_publico(request, token):
+    venda = get_object_or_404(Venda, contrato_publico_uuid=token)
+
+    if request.method == "GET":
+        payload = _montar_payload_contrato(venda, venda.loja)
+        return Response(payload)
+
+    arquivo = request.FILES.get("arquivo") or request.FILES.get("documento_assinado")
+    arquivo_valido, erro = _validar_arquivo_contrato_assinado(arquivo)
+    if not arquivo_valido:
+        return Response({"detail": erro}, status=400)
+
+    venda.documento_assinado = arquivo
+    venda.status_contrato = Venda.CONTRATO_STATUS_ENVIADO_AGUARDANDO_ANALISE
+    venda.save(update_fields=["documento_assinado", "status_contrato"])
+
+    return Response(
+        {
+            "detail": "Contrato assinado recebido com sucesso.",
+            "status_contrato": venda.status_contrato,
+        },
+        status=201,
+    )
 
 
 @api_view(["GET"])
@@ -2213,6 +2320,7 @@ def _build_formset_data(formset_cls, items, initial_forms=0):
     edicao_especial=extend_schema(tags=["Vendas"]),
     trocar_produto=extend_schema(tags=["Vendas"]),
     cancelar=extend_schema(tags=["Vendas"]),
+    gerar_link_contrato=extend_schema(tags=["Vendas"]),
 )
 class VendaViewSet(viewsets.ModelViewSet):
     queryset = Venda.objects.all()
@@ -2766,6 +2874,27 @@ class VendaViewSet(viewsets.ModelViewSet):
             },
         })
 
+    @action(detail=True, methods=["post"], url_path="gerar-link-contrato")
+    @extend_schema(
+        description="Gera (ou reutiliza) link publico do contrato da venda.",
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def gerar_link_contrato(self, request, pk=None):
+        venda = self.get_object()
+
+        if not venda.contrato_publico_uuid:
+            venda.contrato_publico_uuid = uuid.uuid4()
+
+        if venda.status_contrato != Venda.CONTRATO_STATUS_ENVIADO_AGUARDANDO_ANALISE:
+            venda.status_contrato = Venda.CONTRATO_STATUS_AGUARDANDO_ASSINATURA
+
+        venda.save(update_fields=["contrato_publico_uuid", "status_contrato"])
+
+        url = request.build_absolute_uri(
+            reverse("api-contrato-publico", kwargs={"token": venda.contrato_publico_uuid})
+        )
+        return Response({"url": url})
+
     @action(detail=True, methods=["get"], url_path="contrato")
     @extend_schema(
         description="Retorna dados do contrato para geração de PDF no frontend",
@@ -2777,63 +2906,12 @@ class VendaViewSet(viewsets.ModelViewSet):
         O frontend é responsável por gerar o PDF.
         """
         venda = self.get_object()
-        
-        valor_total = venda.pagamentos_valor_total
-        pagamento_carne = Pagamento.objects.filter(venda=venda, tipo_pagamento__carne=True).first()
-        aparelho = venda.itens_venda.first()
-        imei = aparelho.imei if aparelho else None
-        
+
         # Tentar obter loja da sessão ou usar a loja da venda
         loja_id = request.session.get('loja_id') or venda.loja.id
         loja = get_object_or_404(Loja, id=loja_id)
-        
-        cliente = venda.cliente
-        contrato = loja.contrato
-        
-        primeira_parcela = pagamento_carne.data_primeira_parcela if pagamento_carne else None
-        parcelas = pagamento_carne.parcelas if pagamento_carne else 0
-        parcelas_meses = []
-        
-        if primeira_parcela and parcelas:
-            for i in range(parcelas):
-                mes = primeira_parcela.month + i
-                ano = primeira_parcela.year
-                if mes > 12:
-                    mes -= 12
-                    ano += 1
-                data_vencimento = primeira_parcela.replace(month=mes, year=ano)
-                parcelas_meses.append(data_vencimento.strftime('%d/%m/%Y'))
-        
-        ultima_parcela = parcelas_meses[-1] if parcelas_meses else None
-        
-        return Response({
-            'venda_id': venda.id,
-            'valor_total': str(valor_total),
-            'tipo_pagamento': 'Carnê' if pagamento_carne else 'À vista',
-            'cliente': {
-                'nome': cliente.nome,
-                'cpf': cliente.cpf,
-                'rg': cliente.rg,
-                'endereco': cliente.endereco,
-                'telefone': cliente.telefone,
-            },
-            'data_atual': timezone.now().date().isoformat(),
-            'loja': {
-                'nome': loja.nome,
-                'cnpj': loja.cnpj,
-                'endereco': loja.endereco,
-                'contrato': contrato,
-            },
-            'aparelho': {
-                'nome': aparelho.produto.nome if aparelho else None,
-                'imei': imei,
-            },
-            'valor_parcela': str(pagamento_carne.valor_parcela) if pagamento_carne else None,
-            'quantidade_parcelas': parcelas,
-            'parcelas_meses': parcelas_meses,
-            'primeira_parcela': primeira_parcela.strftime('%d/%m/%Y') if primeira_parcela else None,
-            'ultima_parcela': ultima_parcela,
-        })
+
+        return Response(_montar_payload_contrato(venda, loja))
 
     @action(detail=True, methods=["get"], url_path="recibo")
     @extend_schema(

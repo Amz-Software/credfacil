@@ -9,6 +9,7 @@ from django.db import models
 from django.utils import timezone
 from django.urls import reverse
 import re
+import uuid
 from django.utils.text import slugify
 import calendar
 import os
@@ -394,6 +395,16 @@ class Cliente(Base):
 
 
 class Venda(Base):
+    CONTRATO_STATUS_ANALISE_CONCLUIDA = 'ANALISE_CONCLUIDA'
+    CONTRATO_STATUS_AGUARDANDO_ASSINATURA = 'AGUARDANDO_ASSINATURA'
+    CONTRATO_STATUS_ENVIADO_AGUARDANDO_ANALISE = 'ENVIADO_AGUARDANDO_ANALISE'
+
+    CONTRATO_STATUS_CHOICES = (
+        (CONTRATO_STATUS_ANALISE_CONCLUIDA, 'Analise concluida'),
+        (CONTRATO_STATUS_AGUARDANDO_ASSINATURA, 'Aguardando assinatura'),
+        (CONTRATO_STATUS_ENVIADO_AGUARDANDO_ANALISE, 'Enviado aguardando analise'),
+    )
+
     data_venda = models.DateTimeField(auto_now_add=True)
     cliente = models.ForeignKey('vendas.cliente', on_delete=models.CASCADE, related_name='vendas')
     vendedor = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='vendas_realizadas')
@@ -404,6 +415,12 @@ class Venda(Base):
     documento_assinado = models.FileField(upload_to=upload_to_venda, null=True, blank=True)
     foto_cliente = models.ImageField(upload_to=upload_to_venda, null=True, blank=True)
     imagem_imei = models.ImageField(upload_to=upload_to_venda, null=True, blank=True)
+    contrato_publico_uuid = models.UUIDField(null=True, blank=True, unique=True, editable=False)
+    status_contrato = models.CharField(
+        max_length=40,
+        choices=CONTRATO_STATUS_CHOICES,
+        default=CONTRATO_STATUS_ANALISE_CONCLUIDA,
+    )
     is_deleted = models.BooleanField(default=False)
     is_trocado = models.BooleanField(default=False)
     

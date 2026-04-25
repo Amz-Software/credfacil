@@ -87,7 +87,7 @@ class VendaPermission(BasePermission):
             return user.has_perm("vendas.view_venda")
         if action == "create":
             return user.has_perm("vendas.add_venda")
-        if action in ("update", "partial_update", "documentos", "trocar_produto"):
+        if action in ("update", "partial_update", "documentos", "trocar_produto", "gerar_link_contrato"):
             return user.has_perm("vendas.change_venda")
         if action in ("edicao_especial",):
             return user.has_perm("vendas.can_edit_imei_valores_venda")
