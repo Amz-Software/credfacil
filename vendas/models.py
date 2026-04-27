@@ -395,14 +395,12 @@ class Cliente(Base):
 
 
 class Venda(Base):
-    CONTRATO_STATUS_ANALISE_CONCLUIDA = 'ANALISE_CONCLUIDA'
     CONTRATO_STATUS_AGUARDANDO_ASSINATURA = 'AGUARDANDO_ASSINATURA'
-    CONTRATO_STATUS_ENVIADO_AGUARDANDO_ANALISE = 'ENVIADO_AGUARDANDO_ANALISE'
+    CONTRATO_STATUS_ASSINADO = 'ASSINADO'
 
     CONTRATO_STATUS_CHOICES = (
-        (CONTRATO_STATUS_ANALISE_CONCLUIDA, 'Analise concluida'),
         (CONTRATO_STATUS_AGUARDANDO_ASSINATURA, 'Aguardando assinatura'),
-        (CONTRATO_STATUS_ENVIADO_AGUARDANDO_ANALISE, 'Enviado aguardando analise'),
+        (CONTRATO_STATUS_ASSINADO, 'Assinado'),
     )
 
     data_venda = models.DateTimeField(auto_now_add=True)
@@ -419,7 +417,7 @@ class Venda(Base):
     status_contrato = models.CharField(
         max_length=40,
         choices=CONTRATO_STATUS_CHOICES,
-        default=CONTRATO_STATUS_ANALISE_CONCLUIDA,
+        default=CONTRATO_STATUS_AGUARDANDO_ASSINATURA,
     )
     is_deleted = models.BooleanField(default=False)
     is_trocado = models.BooleanField(default=False)

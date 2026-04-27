@@ -145,6 +145,7 @@ def _montar_payload_contrato(venda, loja):
             'nome': cliente.nome,
             'cpf': cliente.cpf,
             'rg': cliente.rg,
+            'nascimento': cliente.nascimento.isoformat() if cliente.nascimento else None,
             'endereco': cliente.endereco,
             'telefone': cliente.telefone,
         },
@@ -170,24 +171,48 @@ def _montar_payload_contrato(venda, loja):
     }
 
 
-def _validar_arquivo_contrato_assinado(arquivo):
-    if not arquivo:
-        return False, 'Envie um arquivo no campo "arquivo" ou "documento_assinado".'
+def _normalizar_rg(valor):
+    return re.sub(r'[^0-9A-Za-z]', '', (valor or '')).upper()
 
-    content_type = (getattr(arquivo, 'content_type', '') or '').lower()
-    nome = (getattr(arquivo, 'name', '') or '').lower()
 
-    if content_type == 'application/pdf' or nome.endswith('.pdf'):
-        return True, None
+def _coletar_campo_aceite(dados):
+    for campo in ("concorda_contrato", "aceite_contrato", "aceito", "concorda"):
+        if campo in dados:
+            return dados.get(campo)
+    return None
 
-    if content_type.startswith('image/'):
-        return True, None
 
-    extensoes_imagem = ('.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif', '.tif', '.tiff')
-    if nome.endswith(extensoes_imagem):
-        return True, None
+def _valor_booleano(valor):
+    if isinstance(valor, bool):
+        return valor
+    if valor is None:
+        return False
+    return str(valor).strip().lower() in {"1", "true", "t", "sim", "yes", "on"}
 
-    return False, 'Formato invalido. Envie PDF ou imagem.'
+
+def _validar_confirmacao_contrato(venda, dados):
+    rg = (dados.get("rg") or "").strip()
+    if not rg:
+        return False, 'Informe o RG.'
+
+    nascimento_raw = dados.get("nascimento") or dados.get("data_nascimento")
+    if not nascimento_raw:
+        return False, 'Informe a data de nascimento.'
+
+    nascimento = parse_date(str(nascimento_raw).strip())
+    if not nascimento:
+        return False, 'Data de nascimento invalida. Use o formato YYYY-MM-DD.'
+
+    if _normalizar_rg(rg) != _normalizar_rg(venda.cliente.rg):
+        return False, 'RG informado nao confere com o cadastro.'
+
+    if nascimento != venda.cliente.nascimento:
+        return False, 'Data de nascimento informada nao confere com o cadastro.'
+
+    if not _valor_booleano(_coletar_campo_aceite(dados)):
+        return False, 'Voce precisa concordar com o contrato para concluir.'
+
+    return True, None
 
 
 @api_view(["GET", "POST"])
@@ -199,18 +224,16 @@ def contrato_publico(request, token):
         payload = _montar_payload_contrato(venda, venda.loja)
         return Response(payload)
 
-    arquivo = request.FILES.get("arquivo") or request.FILES.get("documento_assinado")
-    arquivo_valido, erro = _validar_arquivo_contrato_assinado(arquivo)
-    if not arquivo_valido:
+    confirmacao_valida, erro = _validar_confirmacao_contrato(venda, request.data)
+    if not confirmacao_valida:
         return Response({"detail": erro}, status=400)
 
-    venda.documento_assinado = arquivo
-    venda.status_contrato = Venda.CONTRATO_STATUS_ENVIADO_AGUARDANDO_ANALISE
-    venda.save(update_fields=["documento_assinado", "status_contrato"])
+    venda.status_contrato = Venda.CONTRATO_STATUS_ASSINADO
+    venda.save(update_fields=["status_contrato"])
 
     return Response(
         {
-            "detail": "Contrato assinado recebido com sucesso.",
+            "detail": "Concordancia com o contrato registrada com sucesso.",
             "status_contrato": venda.status_contrato,
         },
         status=201,
@@ -2885,7 +2908,7 @@ class VendaViewSet(viewsets.ModelViewSet):
         if not venda.contrato_publico_uuid:
             venda.contrato_publico_uuid = uuid.uuid4()
 
-        if venda.status_contrato != Venda.CONTRATO_STATUS_ENVIADO_AGUARDANDO_ANALISE:
+        if venda.status_contrato != Venda.CONTRATO_STATUS_ASSINADO:
             venda.status_contrato = Venda.CONTRATO_STATUS_AGUARDANDO_ASSINATURA
 
         venda.save(update_fields=["contrato_publico_uuid", "status_contrato"])
