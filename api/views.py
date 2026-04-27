@@ -119,6 +119,8 @@ def _montar_payload_contrato(venda, loja):
 
     cliente = venda.cliente
     contrato = loja.contrato
+    comprovantes = getattr(cliente, "comprovantes", None)
+    foto_cliente_comprovantes = getattr(comprovantes, "foto_cliente", None)
 
     primeira_parcela = pagamento_carne.data_primeira_parcela if pagamento_carne else None
     parcelas = pagamento_carne.parcelas if pagamento_carne else 0
@@ -148,6 +150,11 @@ def _montar_payload_contrato(venda, loja):
             'nascimento': cliente.nascimento.isoformat() if cliente.nascimento else None,
             'endereco': cliente.endereco,
             'telefone': cliente.telefone,
+        },
+        'comprovantes': {
+            'foto_cliente': (
+                foto_cliente_comprovantes.url if foto_cliente_comprovantes else None
+            ),
         },
         'data_atual': timezone.now().date().isoformat(),
         'loja': {
