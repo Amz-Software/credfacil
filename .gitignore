@@ -168,3 +168,7 @@ cython_debug/
 
 pixqrcodegen.png
 .DS_Store
+
+# Scripts soltos de teste manual (não confundir com testes Django)
+/test_pillow.py
+/test_upload.py
