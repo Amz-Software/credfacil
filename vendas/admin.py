@@ -1,5 +1,7 @@
 from django import forms
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 from .models import *
 
 class AdminBase(admin.ModelAdmin):
@@ -32,9 +34,42 @@ class PagamentoInline(admin.TabularInline):
 
 @admin.register(Venda)
 class VendaAdmin(AdminBase):
-    list_display = ('data_venda', 'cliente', 'vendedor', 'calcular_valor_total', 'loja')
+    list_display = ('data_venda', 'cliente', 'vendedor', 'calcular_valor_total', 'status_contrato', 'loja')
     search_fields = ('cliente__nome', 'vendedor__first_name', 'vendedor__last_name', 'loja__nome')
     inlines = [ProdutoVendaInline, PagamentoInline]
+    readonly_fields = AdminBase.readonly_fields + ('contrato_publico_uuid', 'contrato_publico_link')
+    fieldsets = (
+        (None, {
+            'fields': (
+                'cliente',
+                'vendedor',
+                'caixa',
+                'observacao',
+                'repasse_logista',
+                'documento_assinado',
+                'foto_cliente',
+                'imagem_imei',
+                'loja',
+            )
+        }),
+        ('Contrato Publico', {
+            'fields': (
+                'status_contrato',
+                'contrato_publico_uuid',
+                'contrato_publico_link',
+            )
+        }),
+        ('Auditoria', {
+            'fields': ('criado_em', 'modificado_em')
+        }),
+    )
+
+    def contrato_publico_link(self, obj):
+        if not obj.pk or not obj.contrato_publico_uuid:
+            return 'Link ainda nao gerado.'
+        url = reverse("api-contrato-publico", kwargs={"token": obj.contrato_publico_uuid})
+        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">{}</a>', url, url)
+    contrato_publico_link.short_description = 'Link do contrato publico'
 
 @admin.register(Pagamento)
 class PagamentoAdmin(AdminBase):
