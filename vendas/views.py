@@ -1463,9 +1463,11 @@ class VendaListView(BaseView, PermissionRequiredMixin, ListView):
             query = query.filter(cliente__nome__icontains=cliente_nome)
         if vendas_canceladas:
             query = query.filter(is_deleted=True)
+        else:
+            query = query.filter(is_deleted=False)
         if vendas_trocadas:
             query = query.filter(is_trocado=True)
-        
+
         if not self.request.user.has_perm('vendas.can_view_all_sales'):
             loja_id = self.request.session.get('loja_id')
             query = query.filter(loja_id=loja_id)
@@ -2678,7 +2680,7 @@ class FolhaRelatorioVendasView(PermissionRequiredMixin, TemplateView):
             filtros['analises_credito_venda__analise_online'] = analise_online_normalizada in ('true', '1')
 
         # faz a query
-        self.vendas = Venda.objects.filter(**filtros).distinct()
+        self.vendas = Venda.objects.filter(is_deleted=False, **filtros).distinct()
 
         # se não encontrou, redireciona antes de chamar get_context_data
         if not self.vendas.exists():

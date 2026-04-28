@@ -2395,6 +2395,8 @@ class VendaViewSet(viewsets.ModelViewSet):
             query = query.filter(cliente__nome__icontains=cliente_nome)
         if vendas_canceladas:
             query = query.filter(is_deleted=True)
+        else:
+            query = query.filter(is_deleted=False)
         if vendas_trocadas:
             query = query.filter(is_trocado=True)
 
