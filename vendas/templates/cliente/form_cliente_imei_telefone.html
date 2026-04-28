@@ -325,6 +325,39 @@
                     </div>
                   {% endif %}
                 </div>
+
+                <div class="col-md-12 mb-3">
+                  <div class="alert alert-info">
+                    <i class="bx bx-shield-check me-2"></i>
+                    <strong>Consulta Serasa 2</strong> - Documento adicional disponível
+                  </div>
+                  <label for="{{ form_comprovantes.consulta_serasa_2.id_for_label }}">{{ form_comprovantes.consulta_serasa_2.label }}</label>
+                  {% if form_comprovantes.consulta_serasa_2.value %}
+                    {% if form_comprovantes.consulta_serasa_2.value|is_image_file %}
+                      <a href="{{ form_comprovantes.consulta_serasa_2.value.url }}" target="_blank" class="d-block mb-2">
+                        <img src="{{ form_comprovantes.consulta_serasa_2.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                      </a>
+                    {% else %}
+                      <div class="d-block mb-2">
+                        <a href="{{ form_comprovantes.consulta_serasa_2.value.url }}" download="{{ form_comprovantes.consulta_serasa_2.value|get_file_name }}" class="btn btn-outline-primary btn-sm">
+                          <i class="bx bx-download me-1"></i>
+                          Ver arquivo ({{ form_comprovantes.consulta_serasa_2.value|get_file_extension|upper }})
+                        </a>
+                        <small class="text-muted d-block mt-1">{{ form_comprovantes.consulta_serasa_2.value|get_file_name }}</small>
+                      </div>
+                    {% endif %}
+                    <small>Escolha um novo arquivo se quiser substituir.</small>
+                  {% endif %}
+                  {{ form_comprovantes.consulta_serasa_2 }}
+                  {% if form_comprovantes.consulta_serasa_2_analise %}
+                    <div class="form-check mt-2">
+                      {{ form_comprovantes.consulta_serasa_2_analise }}
+                      <label class="form-check-label" for="{{ form_comprovantes.consulta_serasa_2_analise.id_for_label }}">
+                        {{ form_comprovantes.consulta_serasa_2_analise.label }}
+                      </label>
+                    </div>
+                  {% endif %}
+                </div>
               {% else %}
                 <div class="col-md-12 mb-3">
                   <div class="alert alert-warning">

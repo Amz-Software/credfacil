@@ -696,6 +696,8 @@ class ComprovantesClienteForm(forms.ModelForm):
             'comprovante_residencia_analise': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'consulta_serasa': forms.FileInput(attrs={'class': 'form-control'}),
             'consulta_serasa_analise': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'consulta_serasa_2': forms.FileInput(attrs={'class': 'form-control'}),
+            'consulta_serasa_2_analise': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'foto_cliente': forms.FileInput(attrs={'class': 'form-control'}),
         }
         labels = {
@@ -707,6 +709,8 @@ class ComprovantesClienteForm(forms.ModelForm):
             'comprovante_residencia_analise': 'Análise Comprovante de Residência',
             'consulta_serasa': 'Consulta Serasa',
             'consulta_serasa_analise': 'Análise Consulta Serasa',
+            'consulta_serasa_2': 'Consulta Serasa 2',
+            'consulta_serasa_2_analise': 'Análise Consulta Serasa 2',
             'restricao': 'Restrição',
             'foto_cliente': 'Foto do Cliente*',
         }
@@ -714,11 +718,13 @@ class ComprovantesClienteForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
+
         # Se não tiver permissão para alterar status de análise E não tiver permissão para visualizar consulta Serasa
         if not (user and (user.has_perm('vendas.change_status_analise') or user.has_perm('vendas.view_consulta_serasa'))):
             self.fields.pop('consulta_serasa', None)
             self.fields.pop('consulta_serasa_analise', None)
+            self.fields.pop('consulta_serasa_2', None)
+            self.fields.pop('consulta_serasa_2_analise', None)
             self.fields.pop('restricao', None)
 
         # 1) Se não tiver permissão, remove todos os campos que terminam em "_analise"
@@ -733,6 +739,7 @@ class ComprovantesClienteForm(forms.ModelForm):
             'documento_identificacao_verso_analise',
             'comprovante_residencia_analise',
             'consulta_serasa_analise',
+            'consulta_serasa_2_analise',
             'restricao',
         ):
             if analise_field in self.fields:
@@ -742,6 +749,8 @@ class ComprovantesClienteForm(forms.ModelForm):
         exceptions = {
             'consulta_serasa',
             'consulta_serasa_analise',
+            'consulta_serasa_2',
+            'consulta_serasa_2_analise',
             'documento_identificacao_frente_analise',
             'documento_identificacao_verso_analise',
             'comprovante_residencia_analise',
@@ -750,7 +759,7 @@ class ComprovantesClienteForm(forms.ModelForm):
         for name, field in self.fields.items():
             if name not in exceptions:
                 field.required = True
-        
+
         if self.instance and self.instance.pk:
             is_analista = bool(user and user.groups.filter(name='ANALISTA').exists())
             ac = getattr(self.instance.cliente, 'analise_credito', None)
@@ -765,9 +774,9 @@ class ComprovantesClienteForm(forms.ModelForm):
                         self.fields[n].disabled = True
 
             if venda_gerada and not can_edit_finished:
-                _disable('documento_identificacao_frente','documento_identificacao_verso','comprovante_residencia','consulta_serasa','foto_cliente')
+                _disable('documento_identificacao_frente','documento_identificacao_verso','comprovante_residencia','consulta_serasa','consulta_serasa_2','foto_cliente')
             elif not status_em_analise and not (is_analista or can_change_status):
-                _disable('documento_identificacao_frente','documento_identificacao_verso','comprovante_residencia','consulta_serasa','foto_cliente')
+                _disable('documento_identificacao_frente','documento_identificacao_verso','comprovante_residencia','consulta_serasa','consulta_serasa_2','foto_cliente')
                     
                     
 class ComprovantesClienteEditForm(forms.ModelForm):
@@ -789,6 +798,8 @@ class ComprovantesClienteEditForm(forms.ModelForm):
             'comprovante_residencia_analise': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'consulta_serasa': forms.FileInput(attrs={'class': 'form-control'}),
             'consulta_serasa_analise': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'consulta_serasa_2': forms.FileInput(attrs={'class': 'form-control'}),
+            'consulta_serasa_2_analise': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'foto_cliente': forms.FileInput(attrs={'class': 'form-control'}),
         }
         labels = {
@@ -800,6 +811,8 @@ class ComprovantesClienteEditForm(forms.ModelForm):
             'comprovante_residencia_analise': 'Análise Comprovante de Residência',
             'consulta_serasa': 'Consulta Serasa',
             'consulta_serasa_analise': 'Análise Consulta Serasa',
+            'consulta_serasa_2': 'Consulta Serasa 2',
+            'consulta_serasa_2_analise': 'Análise Consulta Serasa 2',
             'restricao': 'Restrição',
             'foto_cliente': 'Foto do Cliente*',
         }
@@ -807,11 +820,13 @@ class ComprovantesClienteEditForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
+
         # Se não tiver permissão para alterar status de análise E não tiver permissão para visualizar consulta Serasa
         if not (user and (user.has_perm('vendas.change_status_analise') or user.has_perm('vendas.view_consulta_serasa'))):
             self.fields.pop('consulta_serasa', None)
             self.fields.pop('consulta_serasa_analise', None)
+            self.fields.pop('consulta_serasa_2', None)
+            self.fields.pop('consulta_serasa_2_analise', None)
             self.fields.pop('restricao', None)
 
         # 1) Se não tiver permissão, remove todos os campos que terminam em "_analise"
@@ -826,6 +841,7 @@ class ComprovantesClienteEditForm(forms.ModelForm):
             'documento_identificacao_verso_analise',
             'comprovante_residencia_analise',
             'consulta_serasa_analise',
+            'consulta_serasa_2_analise',
             'restricao',
         ):
             if analise_field in self.fields:
@@ -835,6 +851,8 @@ class ComprovantesClienteEditForm(forms.ModelForm):
         exceptions = {
             'consulta_serasa',
             'consulta_serasa_analise',
+            'consulta_serasa_2',
+            'consulta_serasa_2_analise',
             'documento_identificacao_frente_analise',
             'documento_identificacao_verso_analise',
             'comprovante_residencia_analise',
@@ -843,20 +861,22 @@ class ComprovantesClienteEditForm(forms.ModelForm):
         for name, field in self.fields.items():
             if name not in exceptions:
                 field.required = True
-        
+
         if self.instance and self.instance.pk:
             if user and not user.has_perm('vendas.change_status_analise'):
                 self.fields['documento_identificacao_frente'].disabled = True
                 self.fields['documento_identificacao_verso'].disabled = True
                 self.fields['comprovante_residencia'].disabled = True
                 self.fields['foto_cliente'].disabled = True
-            
+
             if user and not user.has_perm('vendas.can_edit_finished_sale'):
                 if self.instance.cliente.analise_credito and not self.instance.cliente.analise_credito.status == 'EA':
                     self.fields['documento_identificacao_frente'].disabled = True
                     self.fields['documento_identificacao_verso'].disabled = True
                     self.fields['comprovante_residencia'].disabled = True
                     self.fields['consulta_serasa'].disabled = True
+                    if 'consulta_serasa_2' in self.fields:
+                        self.fields['consulta_serasa_2'].disabled = True
                     self.fields['foto_cliente'].disabled = True
                     
                     

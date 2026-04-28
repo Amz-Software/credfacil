@@ -689,6 +689,41 @@ class Endereco(Base):
     class Meta:
         verbose_name_plural = 'Informacoes Clientes'
 
+class ConsultaSerasaAcesso(models.Model):
+    TIPO_CHOICES = (
+        ("serasa", "Consulta Serasa"),
+        ("serasa_2", "Consulta Serasa 2"),
+    )
+    cliente = models.ForeignKey(
+        'vendas.Cliente',
+        on_delete=models.CASCADE,
+        related_name='consulta_serasa_acessos',
+    )
+    usuario = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='consulta_serasa_acessos',
+    )
+    tipo = models.CharField(max_length=16, choices=TIPO_CHOICES)
+    aberto_em = models.DateTimeField(auto_now_add=True, db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=512, null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Acesso a Consulta Serasa'
+        verbose_name_plural = 'Acessos a Consultas Serasa'
+        ordering = ['-aberto_em']
+        indexes = [
+            models.Index(fields=['cliente', 'tipo']),
+        ]
+
+    def __str__(self):
+        quem = self.usuario.username if self.usuario else 'Anônimo'
+        return f"{quem} abriu {self.get_tipo_display()} em {self.aberto_em:%Y-%m-%d %H:%M}"
+
+
 class ComprovantesCliente(Base):
     documento_identificacao_frente = models.FileField(upload_to='comprovantes_clientes', null=True, blank=True)
     documento_identificacao_frente_analise = models.BooleanField(default=False)
@@ -701,6 +736,10 @@ class ComprovantesCliente(Base):
     
     consulta_serasa = models.FileField(upload_to='comprovantes_clientes', null=True, blank=True)
     consulta_serasa_analise = models.BooleanField(default=False)
+
+    consulta_serasa_2 = models.FileField(upload_to='comprovantes_clientes', null=True, blank=True)
+    consulta_serasa_2_analise = models.BooleanField(default=False)
+
     restricao = models.BooleanField(default=False)
     
     foto_cliente = models.FileField(upload_to='comprovantes_clientes', null=True, blank=True)

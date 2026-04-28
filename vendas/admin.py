@@ -1,6 +1,9 @@
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.http import HttpResponse
+from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import format_html
 from .models import *
 
@@ -102,7 +105,165 @@ class EnderecoAdmin(AdminBase):
 
 @admin.register(ComprovantesCliente)
 class ComprovantesClienteAdmin(AdminBase):
-    pass 
+    pass
+
+
+@admin.register(ConsultaSerasaAcesso)
+class ConsultaSerasaAcessoAdmin(admin.ModelAdmin):
+    list_display = (
+        'aberto_em',
+        'cliente_nome',
+        'cliente_loja',
+        'tipo',
+        'usuario_display',
+        'ip_address',
+    )
+    list_filter = ('tipo', 'aberto_em', 'cliente__loja')
+    search_fields = (
+        'cliente__nome',
+        'cliente__cpf',
+        'usuario__username',
+        'usuario__first_name',
+        'usuario__last_name',
+        'ip_address',
+    )
+    readonly_fields = ('cliente', 'tipo', 'usuario', 'aberto_em', 'ip_address', 'user_agent')
+    date_hierarchy = 'aberto_em'
+    list_select_related = ('cliente', 'cliente__loja', 'usuario')
+    actions = ('exportar_excel', 'exportar_pdf')
+
+    def has_add_permission(self, request):
+        return False
+
+    def cliente_nome(self, obj):
+        return obj.cliente.nome if obj.cliente else '—'
+    cliente_nome.short_description = 'Cliente'
+    cliente_nome.admin_order_field = 'cliente__nome'
+
+    def cliente_loja(self, obj):
+        return obj.cliente.loja.nome if obj.cliente and obj.cliente.loja else '—'
+    cliente_loja.short_description = 'Loja'
+    cliente_loja.admin_order_field = 'cliente__loja__nome'
+
+    def usuario_display(self, obj):
+        if not obj.usuario:
+            return '—'
+        nome = (obj.usuario.first_name or '').strip()
+        sobrenome = (obj.usuario.last_name or '').strip()
+        full = f"{nome} {sobrenome}".strip()
+        return full or obj.usuario.username
+    usuario_display.short_description = 'Usuário'
+    usuario_display.admin_order_field = 'usuario__username'
+
+    def changelist_view(self, request, extra_context=None):
+        response = super().changelist_view(request, extra_context=extra_context)
+        try:
+            qs = response.context_data['cl'].queryset
+        except (AttributeError, KeyError):
+            return response
+        extra = {
+            'total_aberturas': qs.count(),
+            'total_serasa': qs.filter(tipo='serasa').count(),
+            'total_serasa_2': qs.filter(tipo='serasa_2').count(),
+            'usuarios_unicos': qs.exclude(usuario__isnull=True).values('usuario').distinct().count(),
+        }
+        response.context_data.update(extra)
+        return response
+
+    @admin.action(description='📊 Exportar selecionados para Excel')
+    def exportar_excel(self, request, queryset):
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, PatternFill, Alignment
+        except ImportError:
+            self.message_user(request, 'openpyxl não está instalado.', level=messages.ERROR)
+            return
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Acessos Serasa'
+
+        headers = ['Data/Hora', 'Cliente', 'CPF', 'Loja', 'Tipo', 'Usuário', 'Username', 'IP', 'User-Agent']
+        ws.append(headers)
+        header_font = Font(bold=True, color='FFFFFF')
+        header_fill = PatternFill('solid', fgColor='1E3A8A')
+        for col_idx, _ in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+
+        qs = queryset.select_related('cliente', 'cliente__loja', 'usuario')
+        for a in qs:
+            usuario_nome = '—'
+            username = '—'
+            if a.usuario:
+                nome = (a.usuario.first_name or '').strip()
+                sobrenome = (a.usuario.last_name or '').strip()
+                usuario_nome = f"{nome} {sobrenome}".strip() or a.usuario.username
+                username = a.usuario.username
+            ws.append([
+                timezone.localtime(a.aberto_em).strftime('%d/%m/%Y %H:%M:%S'),
+                a.cliente.nome if a.cliente else '—',
+                getattr(a.cliente, 'cpf', '—') or '—',
+                a.cliente.loja.nome if a.cliente and a.cliente.loja else '—',
+                a.get_tipo_display(),
+                usuario_nome,
+                username,
+                a.ip_address or '—',
+                (a.user_agent or '')[:200],
+            ])
+
+        for col in ws.columns:
+            max_len = max((len(str(c.value)) for c in col if c.value is not None), default=10)
+            ws.column_dimensions[col[0].column_letter].width = min(max_len + 2, 60)
+
+        filename = f"acessos_serasa_{timezone.now():%Y%m%d_%H%M%S}.xlsx"
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        wb.save(response)
+        return response
+
+    @admin.action(description='📄 Exportar selecionados para PDF')
+    def exportar_pdf(self, request, queryset):
+        try:
+            from weasyprint import HTML
+        except ImportError:
+            self.message_user(request, 'weasyprint não está instalado.', level=messages.ERROR)
+            return
+
+        qs = queryset.select_related('cliente', 'cliente__loja', 'usuario').order_by('-aberto_em')
+        linhas = []
+        for a in qs:
+            usuario_nome = '—'
+            if a.usuario:
+                nome = (a.usuario.first_name or '').strip()
+                sobrenome = (a.usuario.last_name or '').strip()
+                usuario_nome = f"{nome} {sobrenome}".strip() or a.usuario.username
+            linhas.append({
+                'data': timezone.localtime(a.aberto_em).strftime('%d/%m/%Y %H:%M'),
+                'cliente': a.cliente.nome if a.cliente else '—',
+                'cpf': getattr(a.cliente, 'cpf', '—') or '—',
+                'loja': a.cliente.loja.nome if a.cliente and a.cliente.loja else '—',
+                'tipo': a.get_tipo_display(),
+                'usuario': usuario_nome,
+                'ip': a.ip_address or '—',
+            })
+
+        html_string = render_to_string('vendas/admin/relatorio_serasa_pdf.html', {
+            'linhas': linhas,
+            'total': len(linhas),
+            'total_serasa': sum(1 for l in linhas if 'Consulta Serasa 2' not in l['tipo'] and 'Serasa' in l['tipo']),
+            'total_serasa_2': sum(1 for l in linhas if 'Consulta Serasa 2' in l['tipo']),
+            'gerado_em': timezone.localtime(timezone.now()).strftime('%d/%m/%Y %H:%M'),
+        })
+        pdf_bytes = HTML(string=html_string).write_pdf()
+        filename = f"acessos_serasa_{timezone.now():%Y%m%d_%H%M%S}.pdf"
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 
 
 @admin.register(Loja)

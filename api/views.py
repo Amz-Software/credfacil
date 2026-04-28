@@ -79,6 +79,7 @@ from .pagination import SolicitacaoPagination
 from .permissions import LojaPermission, SolicitacaoCreditoPermission, ProdutoPermission, VendaPermission
 from .serializers import (
     ClienteSolicitacaoSerializer,
+    ConsultaSerasaAcessoSerializer,
     InformarImeiAnaliseInputSerializer,
     LojaListSerializer,
     LojaSerializer,
@@ -1389,6 +1390,43 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if aviso:
             payload["warning"] = aviso
         return Response(payload)
+
+    @action(detail=True, methods=["post"], url_path="log-consulta-serasa")
+    @extend_schema(
+        request=inline_serializer(
+            name="LogConsultaSerasaInput",
+            fields={"tipo": drf_serializers.ChoiceField(choices=["serasa", "serasa_2"])},
+        ),
+        responses=ConsultaSerasaAcessoSerializer,
+        tags=["Solicitacoes"],
+    )
+    def log_consulta_serasa(self, request, pk=None):
+        from vendas.models import ConsultaSerasaAcesso
+
+        tipo = request.data.get("tipo")
+        if tipo not in {"serasa", "serasa_2"}:
+            return Response(
+                {"detail": "Campo 'tipo' deve ser 'serasa' ou 'serasa_2'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cliente = get_object_or_404(Cliente, pk=pk)
+
+        xff = request.META.get("HTTP_X_FORWARDED_FOR")
+        ip = xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR")
+        user_agent = (request.META.get("HTTP_USER_AGENT") or "")[:512]
+
+        acesso = ConsultaSerasaAcesso.objects.create(
+            cliente=cliente,
+            usuario=request.user if request.user.is_authenticated else None,
+            tipo=tipo,
+            ip_address=ip,
+            user_agent=user_agent,
+        )
+        return Response(
+            ConsultaSerasaAcessoSerializer(acesso).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=["post"], url_path="imei-telefone")
     @extend_schema(

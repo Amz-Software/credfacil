@@ -4,6 +4,7 @@ from financeiro.models import Repasse
 from vendas.models import (
     AnaliseCreditoCliente,
     Cliente,
+    ConsultaSerasaAcesso,
     ContatoAdicional,
     InformacaoPessoal,
     ComprovantesCliente,
@@ -142,9 +143,40 @@ class ComprovantesClienteSerializer(serializers.ModelSerializer):
             "comprovante_residencia_analise",
             "consulta_serasa",
             "consulta_serasa_analise",
+            "consulta_serasa_2",
+            "consulta_serasa_2_analise",
             "restricao",
             "foto_cliente",
         ]
+
+
+class ConsultaSerasaAcessoSerializer(serializers.ModelSerializer):
+    usuario_username = serializers.CharField(source="usuario.username", read_only=True, default=None)
+    usuario_nome = serializers.SerializerMethodField()
+    tipo_display = serializers.CharField(source="get_tipo_display", read_only=True)
+
+    class Meta:
+        model = ConsultaSerasaAcesso
+        fields = [
+            "id",
+            "tipo",
+            "tipo_display",
+            "usuario",
+            "usuario_username",
+            "usuario_nome",
+            "aberto_em",
+            "ip_address",
+        ]
+        read_only_fields = fields
+
+    def get_usuario_nome(self, obj):
+        u = obj.usuario
+        if not u:
+            return None
+        nome = (u.first_name or "").strip()
+        sobrenome = (u.last_name or "").strip()
+        full = f"{nome} {sobrenome}".strip()
+        return full or u.username
 
 
 class NumeroAutenticadorSerializer(serializers.ModelSerializer):
@@ -526,6 +558,7 @@ class SolicitacaoCreditoInputSerializer(serializers.Serializer):
     documento_identificacao_verso = serializers.FileField()
     comprovante_residencia = serializers.FileField(required=False, allow_null=True)
     consulta_serasa = serializers.FileField(required=False)
+    consulta_serasa_2 = serializers.FileField(required=False)
     foto_cliente = serializers.FileField()
     restricao = serializers.BooleanField(required=False)
 
