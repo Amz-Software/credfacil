@@ -29,7 +29,7 @@ class SolicitacaoCreditoPermission(BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        if action in ("list", "retrieve", "kpis"):
+        if action in ("list", "retrieve", "kpis", "log_consulta_serasa"):
             return user.has_perm("vendas.view_cliente")
         if action == "create":
             return user.has_perm("vendas.add_cliente")
