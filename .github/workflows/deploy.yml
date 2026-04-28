@@ -4,26 +4,78 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy via SSH
+    name: Deploy via SSH (zero-downtime quando possível)
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout do código
-        uses: actions/checkout@v3
-
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          command_timeout: 15m
+          script_stop: true
           script: |
-            cd /root/dr-smart
-            git pull origin main
-            docker-compose down
-            docker-compose up -d --build
+            set -euo pipefail
 
-            
+            APP_DIR="/root/credfacil"
+            SERVICE="web"
+            HEALTH_URL="http://localhost:8010/"
+
+            cd "$APP_DIR"
+
+            echo "==> Pré-checagem do estado do repo"
+            git status --porcelain
+            CURRENT_SHA="$(git rev-parse HEAD)"
+            git fetch --quiet origin main
+            NEW_SHA="$(git rev-parse origin/main)"
+
+            if [ "$CURRENT_SHA" = "$NEW_SHA" ]; then
+              echo "==> Nada novo em origin/main ($NEW_SHA). Saindo sem mexer no PRD."
+              exit 0
+            fi
+
+            echo "==> Atualizando: $CURRENT_SHA -> $NEW_SHA"
+            CHANGED_FILES="$(git diff --name-only "$CURRENT_SHA" "$NEW_SHA")"
+            echo "$CHANGED_FILES"
+
+            NEEDS_REBUILD=false
+            if echo "$CHANGED_FILES" | grep -qE '^(Dockerfile|requirements\.txt|docker-compose\.ya?ml)$'; then
+              NEEDS_REBUILD=true
+            fi
+
+            git merge --ff-only origin/main
+
+            if [ "$NEEDS_REBUILD" = "true" ]; then
+              echo "==> Rebuild necessário (Dockerfile/requirements/compose mudaram)"
+              docker compose build "$SERVICE"
+              docker compose up -d --no-deps "$SERVICE"
+            else
+              echo "==> Sem rebuild — restart do $SERVICE para recarregar código montado"
+              docker compose restart "$SERVICE"
+            fi
+
+            echo "==> Aguardando o serviço subir"
+            for i in $(seq 1 30); do
+              code="$(curl -s -o /dev/null -w '%{http_code}' "$HEALTH_URL" || true)"
+              if [ "$code" = "200" ] || [ "$code" = "301" ] || [ "$code" = "302" ]; then
+                echo "==> OK ($code) na tentativa $i"
+                docker compose ps "$SERVICE"
+                exit 0
+              fi
+              sleep 2
+            done
+
+            echo "!! Healthcheck falhou — últimos logs:"
+            docker compose logs --tail=80 "$SERVICE"
+            exit 1
