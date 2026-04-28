@@ -1880,10 +1880,20 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
     def cancelar(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
         analise = cliente.analise_credito
-        analise.cancelar()
-        analise.modificado_por = request.user
-        analise.modificado_em = timezone.now()
-        analise.save()
+        with transaction.atomic():
+            analise.cancelar()
+            analise.modificado_por = request.user
+            analise.modificado_em = timezone.now()
+            analise.save()
+
+            venda = getattr(analise, "venda", None)
+            if venda and not venda.is_deleted:
+                venda.is_deleted = True
+                venda.save(user=request.user)
+
+            if analise.imei:
+                analise.imei.vendido = False
+                analise.imei.save(user=request.user)
         return Response({"detail": "Analise de credito cancelada com sucesso."})
 
     @action(detail=True, methods=["post"], url_path="gerar-venda")
@@ -1962,7 +1972,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                     status=400,
                 )
 
-        if ProdutoVenda.objects.filter(imei=imei.imei).exists():
+        if ProdutoVenda.objects.filter(imei=imei.imei, venda__is_deleted=False).exists():
             return Response(
                 {"detail": f"IMEI {imei.imei} ja esta sendo usado em outra venda."}, status=400
             )
@@ -2824,8 +2834,15 @@ class VendaViewSet(viewsets.ModelViewSet):
         if not Caixa.caixa_aberto(timezone.localtime(timezone.now()).date(), venda.loja):
             return Response({"detail": "Nao e possivel cancelar vendas com a loja bloqueada."}, status=400)
 
-        venda.is_deleted = True
-        venda.save(user=request.user)
+        with transaction.atomic():
+            venda.is_deleted = True
+            venda.save(user=request.user)
+
+            imeis = [pv.imei for pv in venda.itens_venda.all() if pv.imei]
+            if imeis:
+                EstoqueImei.objects.filter(
+                    imei__in=imeis, produto__in=[pv.produto for pv in venda.itens_venda.all()]
+                ).update(vendido=False)
         return Response({"detail": "Venda cancelada com sucesso."})
 
     @action(detail=True, methods=["get"], url_path="carne")
