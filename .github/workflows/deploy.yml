@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy via SSH (zero-downtime quando possível)
+    name: Deploy via SSH
     runs-on: ubuntu-latest
 
     steps:
@@ -22,14 +22,16 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          port: 22
           command_timeout: 15m
           script: |
-            set -ex
+            bash -e <<'DEPLOY_EOF'
+            set -e
 
             APP_DIR="/root/credfacil"
             SERVICE="web"
             HEALTH_URL="http://localhost:8010/"
+            HEALTHCHECK_TRIES=180   # 180 * 2s = 6min (collectstatic é lento)
 
             cd "$APP_DIR"
 
@@ -57,7 +59,7 @@ jobs:
 
             echo "==> [5] git merge --ff-only"
             git merge --ff-only origin/main
-            echo "==> [6] merge ok"
+            echo "==> [6] merge ok ($(git rev-parse --short HEAD))"
 
             if [ "$NEEDS_REBUILD" = "true" ]; then
               echo "==> [7a] rebuild da imagem $SERVICE"
@@ -69,14 +71,20 @@ jobs:
             fi
             echo "==> [8] swap de container ok"
 
-            echo "==> [9] Healthcheck"
+            echo "==> [9] Healthcheck (até $((HEALTHCHECK_TRIES * 2))s — boot inclui collectstatic)"
             ok=0
-            for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
-              code=$(curl -s -o /dev/null -w '%{http_code}' "$HEALTH_URL" || echo 000)
+            i=0
+            while [ "$i" -lt "$HEALTHCHECK_TRIES" ]; do
+              i=$((i + 1))
+              code=$(curl -s -o /dev/null --max-time 5 -w '%{http_code}' "$HEALTH_URL" 2>/dev/null || true)
               if [ "$code" = "200" ] || [ "$code" = "301" ] || [ "$code" = "302" ]; then
-                echo "==> [10] OK ($code) na tentativa $i"
+                echo "==> [10] OK ($code) na tentativa $i (~$((i * 2))s)"
                 ok=1
                 break
+              fi
+              # log periódico a cada 30s
+              if [ $((i % 15)) -eq 0 ]; then
+                echo "    ainda subindo... tentativa $i (~$((i * 2))s) último code=${code:-vazio}"
               fi
               sleep 2
             done
@@ -84,7 +92,8 @@ jobs:
             docker compose ps "$SERVICE" || true
 
             if [ "$ok" != "1" ]; then
-              echo "!! Healthcheck falhou — últimos logs:"
-              docker compose logs --tail=80 "$SERVICE" || true
+              echo "!! Healthcheck falhou após $((HEALTHCHECK_TRIES * 2))s — últimos logs:"
+              docker compose logs --tail=120 "$SERVICE" || true
               exit 1
             fi
+            DEPLOY_EOF
