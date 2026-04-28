@@ -24,9 +24,8 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           command_timeout: 15m
-          script_stop: true
           script: |
-            set -euo pipefail
+            set -ex
 
             APP_DIR="/root/credfacil"
             SERVICE="web"
@@ -34,48 +33,58 @@ jobs:
 
             cd "$APP_DIR"
 
-            echo "==> Pré-checagem do estado do repo"
-            git status --porcelain
-            CURRENT_SHA="$(git rev-parse HEAD)"
+            echo "==> [1] Pré-checagem"
+            git status --porcelain || true
+            CURRENT_SHA=$(git rev-parse HEAD)
             git fetch --quiet origin main
-            NEW_SHA="$(git rev-parse origin/main)"
+            NEW_SHA=$(git rev-parse origin/main)
+            echo "==> [2] HEAD=$CURRENT_SHA  REMOTE=$NEW_SHA"
 
             if [ "$CURRENT_SHA" = "$NEW_SHA" ]; then
-              echo "==> Nada novo em origin/main ($NEW_SHA). Saindo sem mexer no PRD."
+              echo "==> Nada novo. Saindo sem tocar no PRD."
               exit 0
             fi
 
-            echo "==> Atualizando: $CURRENT_SHA -> $NEW_SHA"
-            CHANGED_FILES="$(git diff --name-only "$CURRENT_SHA" "$NEW_SHA")"
-            echo "$CHANGED_FILES"
+            echo "==> [3] Diff de arquivos"
+            CHANGED_FILES=$(git diff --name-only "$CURRENT_SHA" "$NEW_SHA")
+            printf '%s\n' "$CHANGED_FILES"
 
             NEEDS_REBUILD=false
-            if echo "$CHANGED_FILES" | grep -qE '^(Dockerfile|requirements\.txt|docker-compose\.ya?ml)$'; then
+            if printf '%s\n' "$CHANGED_FILES" | grep -Eq '^(Dockerfile|requirements\.txt|docker-compose\.ya?ml)$'; then
               NEEDS_REBUILD=true
             fi
+            echo "==> [4] NEEDS_REBUILD=$NEEDS_REBUILD"
 
+            echo "==> [5] git merge --ff-only"
             git merge --ff-only origin/main
+            echo "==> [6] merge ok"
 
             if [ "$NEEDS_REBUILD" = "true" ]; then
-              echo "==> Rebuild necessário (Dockerfile/requirements/compose mudaram)"
+              echo "==> [7a] rebuild da imagem $SERVICE"
               docker compose build "$SERVICE"
               docker compose up -d --no-deps "$SERVICE"
             else
-              echo "==> Sem rebuild — restart do $SERVICE para recarregar código montado"
+              echo "==> [7b] restart do $SERVICE"
               docker compose restart "$SERVICE"
             fi
+            echo "==> [8] swap de container ok"
 
-            echo "==> Aguardando o serviço subir"
-            for i in $(seq 1 30); do
-              code="$(curl -s -o /dev/null -w '%{http_code}' "$HEALTH_URL" || true)"
+            echo "==> [9] Healthcheck"
+            ok=0
+            for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' "$HEALTH_URL" || echo 000)
               if [ "$code" = "200" ] || [ "$code" = "301" ] || [ "$code" = "302" ]; then
-                echo "==> OK ($code) na tentativa $i"
-                docker compose ps "$SERVICE"
-                exit 0
+                echo "==> [10] OK ($code) na tentativa $i"
+                ok=1
+                break
               fi
               sleep 2
             done
 
-            echo "!! Healthcheck falhou — últimos logs:"
-            docker compose logs --tail=80 "$SERVICE"
-            exit 1
+            docker compose ps "$SERVICE" || true
+
+            if [ "$ok" != "1" ]; then
+              echo "!! Healthcheck falhou — últimos logs:"
+              docker compose logs --tail=80 "$SERVICE" || true
+              exit 1
+            fi
