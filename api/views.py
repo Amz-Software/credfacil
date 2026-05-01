@@ -183,6 +183,10 @@ def _normalizar_rg(valor):
     return re.sub(r'[^0-9A-Za-z]', '', (valor or '')).upper()
 
 
+def _normalizar_cpf(valor):
+    return re.sub(r'[^0-9]', '', (valor or ''))
+
+
 def _coletar_campo_aceite(dados):
     for campo in ("concorda_contrato", "aceite_contrato", "aceito", "concorda"):
         if campo in dados:
@@ -199,9 +203,9 @@ def _valor_booleano(valor):
 
 
 def _validar_confirmacao_contrato(venda, dados):
-    rg = (dados.get("rg") or "").strip()
-    if not rg:
-        return False, 'Informe o RG.'
+    cpf = (dados.get("cpf") or "").strip()
+    if not cpf:
+        return False, 'Informe o CPF.'
 
     nascimento_raw = dados.get("nascimento") or dados.get("data_nascimento")
     if not nascimento_raw:
@@ -211,8 +215,8 @@ def _validar_confirmacao_contrato(venda, dados):
     if not nascimento:
         return False, 'Data de nascimento invalida. Use o formato YYYY-MM-DD.'
 
-    if _normalizar_rg(rg) != _normalizar_rg(venda.cliente.rg):
-        return False, 'RG informado nao confere com o cadastro.'
+    if _normalizar_cpf(cpf) != _normalizar_cpf(venda.cliente.cpf):
+        return False, 'CPF informado nao confere com o cadastro.'
 
     if nascimento != venda.cliente.nascimento:
         return False, 'Data de nascimento informada nao confere com o cadastro.'
