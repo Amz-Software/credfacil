@@ -633,21 +633,50 @@ Detalhes da Loja
       formatarTexto(divContrato.getAttribute('data-texto'), divContrato);
     }
 
-    // Ativar aba correspondente ao hash
-    const hash = window.location.hash;
-    if (hash) {
-      const triggerEl = document.querySelector(`#lojaTabs button[data-bs-target="${hash}"]`);
+    // Persistir aba ativa por loja em sessionStorage (não polui a URL/histórico)
+    const tabStorageKey = 'lojaDetailActiveTab_{{ loja.pk }}';
+
+    // Restaurar última aba salva
+    const savedTab = sessionStorage.getItem(tabStorageKey);
+    if (savedTab) {
+      const triggerEl = document.querySelector(`#lojaTabs button[data-bs-target="${savedTab}"]`);
       if (triggerEl) {
         new bootstrap.Tab(triggerEl).show();
       }
     }
 
-    // Atualizar hash ao trocar de aba
+    // Salvar aba ao trocar
     document.querySelectorAll('#lojaTabs button[data-bs-toggle="tab"]').forEach(btn => {
       btn.addEventListener('shown.bs.tab', e => {
-        history.replaceState(null, null, e.target.getAttribute('data-bs-target'));
+        sessionStorage.setItem(tabStorageKey, e.target.getAttribute('data-bs-target'));
       });
     });
+
+    // Reforço: salvar aba ativa imediatamente antes do envio do form de repasse
+    const repasseForm = document.querySelector('#offcanvasRepasse form');
+    if (repasseForm) {
+      repasseForm.addEventListener('submit', () => {
+        const activeBtn = document.querySelector('#lojaTabs button.active');
+        if (activeBtn) {
+          sessionStorage.setItem(tabStorageKey, activeBtn.getAttribute('data-bs-target'));
+        }
+      });
+
+      // Enter envia o form a partir do textarea de observação (Shift+Enter quebra linha)
+      const obsField = repasseForm.querySelector('textarea[name="observacao"]');
+      if (obsField) {
+        obsField.addEventListener('keydown', e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (typeof repasseForm.requestSubmit === 'function') {
+              repasseForm.requestSubmit();
+            } else {
+              repasseForm.submit();
+            }
+          }
+        });
+      }
+    }
   });
 </script>
 

@@ -44,7 +44,7 @@ from vendas.forms import (
     ProdutoVendaEdicaoEspecialFormSet, FormaPagamentoEdicaoEspecialFormSet
 )
 from .models import (
-    AnaliseCreditoCliente, Caixa, Cliente, Loja, NumeroAutenticador, Pagamento, Parcela, ProdutoVenda,
+    AnaliseCreditoCliente, Caixa, Cliente, Loja, NumeroAutenticador, ObservacaoSolicitacao, Pagamento, Parcela, ProdutoVenda,
     TipoPagamento, Venda, LancamentoCaixa, LancamentoCaixaTotal, StatusPagamento
 )
 from produtos.models import Marca
@@ -186,8 +186,8 @@ class IndexView(LoginRequiredMixin, TemplateView):
                 total_de_parcelas_a_vencer += qtd_a_vencer
 
                 valor_vencidas = sum(p.valor for p in parcelas_vencidas)
-                valor_pagas = sum(p.valor for p in parcelas_pagas)
-                valor_a_vencer = sum(p.valor for p in parcelas_a_vencer)    
+                valor_pagas = sum(p.valor_pago_efetivo for p in parcelas_pagas)
+                valor_a_vencer = sum(p.valor for p in parcelas_a_vencer)
 
                 total_pagas += valor_pagas
                 total_vencidas += valor_vencidas
@@ -797,7 +797,14 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
         analise = get_object_or_404(AnaliseCreditoCliente, cliente=self.object)
         # expõe no template
         context['analise_credito'] = analise
-        
+
+        context['observacoes_solicitacao'] = (
+            analise.observacoes
+            .select_related('autor')
+            .order_by('-criado_em')
+        )
+        context['pode_adicionar_observacao'] = _pode_observar_solicitacao(self.request.user)
+
         context['status_app_choices'] = AnaliseCreditoCliente.STATUS_APP_CHOICES
 
         produtos = Produto.objects.all().values(
@@ -2959,6 +2966,7 @@ class PagamentoDetailView(DetailView):
         # cálculo do desconto
         restantes = pagamento.parcelas_pagamento.filter(pago=False)
         total_restante    = sum(p.valor for p in restantes)
+        total_pago        = sum(p.valor_pago_efetivo for p in pagamento.parcelas_pagamento.filter(pago=True))
         discount_pct      = getattr(pagamento, 'porcentagem_desconto', Decimal('0'))
         discount_amount   = (total_restante * discount_pct / Decimal('100')).quantize(Decimal('0.01'))
         total_com_desconto= (total_restante - discount_amount).quantize(Decimal('0.01'))
@@ -3017,6 +3025,7 @@ class PagamentoDetailView(DetailView):
             'qr_items': qr_items,
             'restantes_count': restantes.count(),
             'total_restante': total_restante,
+            'total_pago': total_pago,
             'confirmando_count': confirmando_count,
             'discount_pct': discount_pct,
             'total_com_desconto': total_com_desconto,
@@ -3192,6 +3201,7 @@ class GraficoTemplateView(TemplateView):
 
         total_de_parcelas_vencidas = total_de_parcelas_pagas = total_de_parcelas_a_vencer = 0
         total_pagas = total_vencidas = total_a_vencer = total_geral_parcelas = 0
+        clientes_vencidos_ids = set()
 
         valores_por_loja = defaultdict(lambda: {
             'total_pagas': 0, 'total_vencidas': 0, 'total_a_vencer': 0,
@@ -3231,8 +3241,11 @@ class GraficoTemplateView(TemplateView):
             total_de_parcelas_pagas += qtd_pagas
             total_de_parcelas_a_vencer += qtd_a_vencer
 
+            if qtd_vencidas > 0 and venda.cliente_id:
+                clientes_vencidos_ids.add(venda.cliente_id)
+
             valor_vencidas = sum(p.valor for p in parcelas_vencidas)
-            valor_pagas = sum(p.valor for p in parcelas_pagas)
+            valor_pagas = sum(p.valor_pago_efetivo for p in parcelas_pagas)
             valor_a_vencer = sum(p.valor for p in parcelas_a_vencer)
 
             total_vencidas += valor_vencidas
@@ -3283,7 +3296,7 @@ class GraficoTemplateView(TemplateView):
             for p in parcelas:
                 mes_ano = p.data_vencimento.strftime('%Y-%m')
                 if p.pago and not p.pagamento_efetuado:
-                    dash_mensal_lojas[loja_nome][mes_ano]['pago'] += float(p.valor)
+                    dash_mensal_lojas[loja_nome][mes_ano]['pago'] += float(p.valor_pago_efetivo)
                 elif (
                     p.data_vencimento < timezone.now().date()
                     and not p.pago
@@ -3403,6 +3416,7 @@ class GraficoTemplateView(TemplateView):
             'total_vendas_loja': total_vendas,
             'total_de_parcelas_geral': total_geral_parcelas,
             'parcelas_vencidas': total_de_parcelas_vencidas,
+            'clientes_vencidos': len(clientes_vencidos_ids),
             'parcelas_pagas': total_de_parcelas_pagas,
             'parcelas_a_vencer': total_de_parcelas_a_vencer,
             'valor_total_parcelas': total_pagas + total_vencidas + total_a_vencer,
@@ -3824,7 +3838,7 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
                 total_de_parcelas_a_vencer += len(parcelas_a_vencer)
 
                 total_vencidas += sum(p.valor for p in parcelas_vencidas)
-                total_pagas += sum(p.valor for p in parcelas_pagas)
+                total_pagas += sum(p.valor_pago_efetivo for p in parcelas_pagas)
                 total_a_vencer += sum(p.valor for p in parcelas_a_vencer)
 
             # Calcular desativados para esta loja
@@ -3953,3 +3967,39 @@ class NumeroAutenticadorDeleteView(LoginRequiredMixin, NumeroAutenticadorMixin, 
     def form_valid(self, form):
         messages.success(self.request, 'Número autenticador removido.')
         return super().form_valid(form)
+
+
+GRUPOS_OBSERVACAO_SOLICITACAO = ['ANALISTA', 'ADMINISTRADOR', 'SUPERADMIN']
+
+
+def _pode_observar_solicitacao(user):
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name__in=GRUPOS_OBSERVACAO_SOLICITACAO).exists()
+
+
+@login_required
+def adicionar_observacao_solicitacao(request, pk):
+    analise = get_object_or_404(AnaliseCreditoCliente, pk=pk)
+
+    if not _pode_observar_solicitacao(request.user):
+        messages.error(request, '❌ Você não tem permissão para adicionar observações nesta solicitação.')
+        return redirect('vendas:cliente_update', pk=analise.cliente_id)
+
+    if request.method != 'POST':
+        return redirect('vendas:cliente_update', pk=analise.cliente_id)
+
+    texto = (request.POST.get('texto') or '').strip()
+    if not texto:
+        messages.warning(request, '⚠️ A observação não pode estar vazia.')
+        return redirect(f"{reverse('vendas:cliente_update', kwargs={'pk': analise.cliente_id})}#tab-historico")
+
+    ObservacaoSolicitacao.objects.create(
+        analise_credito=analise,
+        autor=request.user,
+        texto=texto,
+    )
+    messages.success(request, '✅ Observação adicionada ao histórico.')
+    return redirect(f"{reverse('vendas:cliente_update', kwargs={'pk': analise.cliente_id})}#tab-historico")

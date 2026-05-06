@@ -80,6 +80,26 @@
   </div>
   {% endif %}
 
+  <!-- Resumo: Total pago / Falta pagar -->
+  <div class="row mb-4 g-2 justify-content-center">
+    <div class="col-12 col-md-4">
+      <div class="card shadow-sm border-success h-100">
+        <div class="card-body text-center">
+          <small class="text-muted text-uppercase">Total pago</small>
+          <h4 class="text-success mb-0 mt-1">R$ {{ total_pago|default:"0.00"|floatformat:2 }}</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card shadow-sm border-danger h-100">
+        <div class="card-body text-center">
+          <small class="text-muted text-uppercase">Falta pagar</small>
+          <h4 class="text-danger mb-0 mt-1">R$ {{ total_restante|default:"0.00"|floatformat:2 }}</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Título e Tooltip de Cores -->
   <div class="row mb-3">
     <div class="col d-flex justify-content-center align-items-center">

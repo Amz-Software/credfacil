@@ -303,16 +303,127 @@
       .product-info-cards {
         grid-template-columns: 1fr;
       }
-      
+
       .progress-step {
         flex-direction: column;
         text-align: center;
       }
-      
+
       .step-number {
         margin-right: 0;
         margin-bottom: 10px;
       }
+    }
+
+    /* === Timeline / Histórico da Solicitação === */
+    .obs-add-card {
+      background: var(--form-section-bg);
+      border: 1px dashed var(--border-color);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .obs-add-card textarea {
+      resize: vertical;
+      min-height: 70px;
+    }
+
+    .obs-timeline {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      position: relative;
+    }
+    .obs-timeline::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      left: 18px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--border-color), transparent);
+      border-radius: 2px;
+    }
+    .obs-timeline-item {
+      position: relative;
+      padding-left: 56px;
+      margin-bottom: 18px;
+    }
+    .obs-timeline-item:last-child {
+      margin-bottom: 0;
+    }
+    .obs-dot {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+      box-shadow: 0 0 0 4px var(--card-bg);
+      background: #6c757d;
+    }
+    .obs-event--created .obs-dot { background: #0d6efd; }
+    .obs-event--approved .obs-dot { background: #198754; }
+    .obs-event--rejected .obs-dot { background: #dc3545; }
+    .obs-event--cancelled .obs-dot { background: #6c757d; }
+    .obs-event--note .obs-dot { background: #6610f2; }
+    .obs-dot--muted { background: #adb5bd; }
+
+    .obs-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 3px var(--box-shadow);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .obs-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px var(--box-shadow);
+    }
+    .obs-card--muted {
+      background: transparent;
+      border-style: dashed;
+      box-shadow: none;
+    }
+    .obs-card-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .obs-card-title {
+      color: var(--text-color);
+      font-size: 0.95rem;
+    }
+    .obs-card-time {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .obs-card-meta {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .obs-card-body {
+      margin-top: 6px;
+      color: var(--text-color);
+      font-size: 0.92rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    @media (max-width: 576px) {
+      .obs-timeline-item { padding-left: 48px; }
+      .obs-timeline::before { left: 14px; }
+      .obs-dot { left: 0; width: 28px; height: 28px; font-size: 16px; }
     }
   </style>
 {% endblock extra_head %}
@@ -429,6 +540,16 @@
               <i class="bx bx-file me-1"></i>Comprovantes
             </button>
           </li>
+          {% if cliente.pk and cliente.analise_credito and pode_adicionar_observacao %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-historico" type="button">
+              <i class="bx bx-history me-1"></i>Histórico
+              {% if observacoes_solicitacao.count %}
+                <span class="badge bg-label-primary ms-1">{{ observacoes_solicitacao.count }}</span>
+              {% endif %}
+            </button>
+          </li>
+          {% endif %}
         </ul>
 
         <div class="tab-content">
@@ -912,6 +1033,151 @@
               </div>
             </div>
           </div>
+
+          {% if cliente.pk and cliente.analise_credito and pode_adicionar_observacao %}
+          <!-- ABA HISTÓRICO / TIMELINE -->
+          <div class="tab-pane fade" id="tab-historico" role="tabpanel">
+            <div class="form-section">
+              <h5><i class="bx bx-history me-2"></i>Histórico da Solicitação</h5>
+
+              {% if pode_adicionar_observacao %}
+                <div class="obs-add-card mb-4">
+                  <label for="novaObservacaoTexto" class="form-label fw-semibold mb-2">
+                    <i class="bx bx-message-add me-1"></i>Adicionar nova observação
+                  </label>
+                  <textarea
+                    form="formAdicionarObservacao"
+                    name="texto"
+                    id="novaObservacaoTexto"
+                    class="form-control"
+                    rows="3"
+                    maxlength="2000"
+                    placeholder="Escreva uma observação sobre esta solicitação (visível para a equipe de análise)..."
+                    required></textarea>
+                  <div class="d-flex justify-content-between align-items-center mt-2">
+                    <small class="text-muted"><i class="bx bx-info-circle me-1"></i>Disponível para Analistas, Administradores e Superadmins.</small>
+                    <button form="formAdicionarObservacao" type="submit" class="btn btn-primary btn-sm">
+                      <i class="bx bx-send me-1"></i>Publicar
+                    </button>
+                  </div>
+                </div>
+              {% else %}
+                <div class="alert alert-light border d-flex align-items-center gap-2 mb-4">
+                  <i class="bx bx-lock-alt fs-4 text-muted"></i>
+                  <span class="text-muted small mb-0">Apenas Analistas, Administradores e Superadmins podem adicionar observações.</span>
+                </div>
+              {% endif %}
+
+              <ul class="obs-timeline">
+                {# Marco: criação da solicitação #}
+                <li class="obs-timeline-item obs-event obs-event--created">
+                  <span class="obs-dot"><i class="bx bx-flag"></i></span>
+                  <div class="obs-card">
+                    <div class="obs-card-header">
+                      <strong class="obs-card-title">Solicitação criada</strong>
+                      <span class="obs-card-time">
+                        <i class="bx bx-time-five me-1"></i>{{ analise_credito.data_analise|date:"d/m/Y H:i" }}
+                      </span>
+                    </div>
+                    {% if analise_credito.criado_por %}
+                      <div class="obs-card-meta">
+                        <i class="bx bx-user me-1"></i>{{ analise_credito.criado_por.get_full_name|default:analise_credito.criado_por.username }}
+                      </div>
+                    {% endif %}
+                  </div>
+                </li>
+
+                {# Marco: aprovação #}
+                {% if analise_credito.data_aprovacao %}
+                <li class="obs-timeline-item obs-event obs-event--approved">
+                  <span class="obs-dot"><i class="bx bx-check"></i></span>
+                  <div class="obs-card">
+                    <div class="obs-card-header">
+                      <strong class="obs-card-title">Solicitação aprovada</strong>
+                      <span class="obs-card-time">
+                        <i class="bx bx-time-five me-1"></i>{{ analise_credito.data_aprovacao|date:"d/m/Y H:i" }}
+                      </span>
+                    </div>
+                    {% if analise_credito.aprovado_por %}
+                      <div class="obs-card-meta">
+                        <i class="bx bx-user-check me-1"></i>{{ analise_credito.aprovado_por.get_full_name|default:analise_credito.aprovado_por.username }}
+                      </div>
+                    {% endif %}
+                  </div>
+                </li>
+                {% endif %}
+
+                {# Marco: reprovação #}
+                {% if analise_credito.data_reprovacao %}
+                <li class="obs-timeline-item obs-event obs-event--rejected">
+                  <span class="obs-dot"><i class="bx bx-x"></i></span>
+                  <div class="obs-card">
+                    <div class="obs-card-header">
+                      <strong class="obs-card-title">Solicitação reprovada</strong>
+                      <span class="obs-card-time">
+                        <i class="bx bx-time-five me-1"></i>{{ analise_credito.data_reprovacao|date:"d/m/Y H:i" }}
+                      </span>
+                    </div>
+                  </div>
+                </li>
+                {% endif %}
+
+                {# Marco: cancelamento #}
+                {% if analise_credito.data_cancelamento %}
+                <li class="obs-timeline-item obs-event obs-event--cancelled">
+                  <span class="obs-dot"><i class="bx bx-block"></i></span>
+                  <div class="obs-card">
+                    <div class="obs-card-header">
+                      <strong class="obs-card-title">Solicitação cancelada</strong>
+                      <span class="obs-card-time">
+                        <i class="bx bx-time-five me-1"></i>{{ analise_credito.data_cancelamento|date:"d/m/Y H:i" }}
+                      </span>
+                    </div>
+                  </div>
+                </li>
+                {% endif %}
+
+                {# Observações manuais #}
+                {% for obs in observacoes_solicitacao %}
+                <li class="obs-timeline-item obs-event--note">
+                  <span class="obs-dot"><i class="bx bx-message-rounded-detail"></i></span>
+                  <div class="obs-card">
+                    <div class="obs-card-header">
+                      <strong class="obs-card-title">
+                        {% if obs.autor %}
+                          {{ obs.autor.get_full_name|default:obs.autor.username }}
+                        {% else %}
+                          Usuário removido
+                        {% endif %}
+                        {% if obs.autor and obs.autor|has_group:"SUPERADMIN" %}
+                          <span class="badge bg-label-danger ms-1">Superadmin</span>
+                        {% elif obs.autor and obs.autor|has_group:"ADMINISTRADOR" %}
+                          <span class="badge bg-label-warning ms-1">Administrador</span>
+                        {% elif obs.autor and obs.autor|has_group:"ANALISTA" %}
+                          <span class="badge bg-label-info ms-1">Analista</span>
+                        {% endif %}
+                      </strong>
+                      <span class="obs-card-time">
+                        <i class="bx bx-time-five me-1"></i>{{ obs.criado_em|date:"d/m/Y H:i" }}
+                      </span>
+                    </div>
+                    <div class="obs-card-body">{{ obs.texto|linebreaksbr }}</div>
+                  </div>
+                </li>
+                {% endfor %}
+
+                {% if not observacoes_solicitacao and not analise_credito.data_aprovacao and not analise_credito.data_reprovacao and not analise_credito.data_cancelamento %}
+                <li class="obs-timeline-item obs-event--empty">
+                  <span class="obs-dot obs-dot--muted"><i class="bx bx-dots-horizontal-rounded"></i></span>
+                  <div class="obs-card obs-card--muted">
+                    <em class="text-muted">Nenhuma observação registrada ainda.</em>
+                  </div>
+                </li>
+                {% endif %}
+              </ul>
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
 
@@ -950,6 +1216,16 @@
       </div>
 
     </form>
+
+    {% if cliente.pk and cliente.analise_credito and pode_adicionar_observacao %}
+      <form id="formAdicionarObservacao"
+            method="post"
+            action="{% url 'vendas:adicionar_observacao_solicitacao' cliente.analise_credito.pk %}"
+            class="d-none">
+        {% csrf_token %}
+      </form>
+    {% endif %}
+
     {% endif %}
   </div>
 </div>
@@ -1286,8 +1562,8 @@
         updateProgress();
       }
       
-      // Add validation feedback elements
-      $('input[required], select[required], textarea[required]').each(function() {
+      // Add validation feedback elements (exclui o textarea de nova observação na aba Histórico)
+      $('input[required], select[required], textarea[required]').not('#novaObservacaoTexto').each(function() {
         if (!$(this).siblings('.validation-feedback').length) {
           $(this).after('<div class="validation-feedback"></div>');
         }
@@ -1300,8 +1576,8 @@
         $('#id_email').after('<div class="validation-feedback"></div>');
       }
       
-      // Bind validation events
-      $('input, select, textarea').on('blur change', function() {
+      // Bind validation events (exclui o textarea de nova observação na aba Histórico)
+      $('input, select, textarea').not('#novaObservacaoTexto').on('blur change', function() {
         if ($(this).prop('required')) {
           validateField(this);
         }

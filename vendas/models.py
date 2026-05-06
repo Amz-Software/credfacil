@@ -647,6 +647,32 @@ class AnaliseCreditoCliente(Base):
     
     
 
+class ObservacaoSolicitacao(models.Model):
+    analise_credito = models.ForeignKey(
+        'vendas.AnaliseCreditoCliente',
+        on_delete=models.CASCADE,
+        related_name='observacoes',
+    )
+    autor = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='observacoes_solicitacao',
+    )
+    texto = models.TextField(verbose_name='Observação')
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Observação da Solicitação'
+        verbose_name_plural = 'Observações das Solicitações'
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        quem = self.autor.username if self.autor else 'Anônimo'
+        return f"Observação de {quem} em {self.criado_em:%Y-%m-%d %H:%M}"
+
+
 class NumeroAutenticador(Base):
     numero = models.CharField(max_length=20, verbose_name='Número de Telefone')
     descricao = models.CharField(max_length=100, null=True, blank=True, verbose_name='Descrição')
@@ -942,7 +968,7 @@ class Pagamento(Base):
     
     def valor_pago_ultimo(self):
         ultimo = self.parcelas_pagamento.filter(pago=True).order_by('data_pagamento').last()
-        return ultimo.valor if ultimo else 0
+        return ultimo.valor_pago_efetivo if ultimo else 0
     
     def ultimo_pagamento(self):
         ultimo = self.parcelas_pagamento.filter(pago=True).order_by('-data_pagamento').last()
@@ -977,10 +1003,10 @@ class Pagamento(Base):
         return self.parcelas_pagamento.filter(pago=True).count()
     
     def valor_quitado(self):
-        return sum(parcela.valor for parcela in self.parcelas_pagamento.filter(pago=True))
-    
+        return sum(parcela.valor_pago_efetivo for parcela in self.parcelas_pagamento.filter(pago=True))
+
     def valor_pendente(self):
-        return self.valor - sum(parcela.valor for parcela in self.parcelas_pagamento.filter(pago=True))
+        return self.valor - sum(parcela.valor_pago_efetivo for parcela in self.parcelas_pagamento.filter(pago=True))
     
     def parcelas_pendentes(self):
         if self.devolucao:
@@ -998,7 +1024,7 @@ class Pagamento(Base):
         return sum(parcela.valor_restante for parcela in self.parcelas_pagamento.filter(pago=False, data_vencimento__lt=timezone.now()))
     
     def total_pago(self):
-        return sum(parcela.valor for parcela in self.parcelas_pagamento.filter(pago=True))
+        return sum(parcela.valor_pago_efetivo for parcela in self.parcelas_pagamento.filter(pago=True))
     
     def __str__(self):
         return f"Pagamento({self.id}) de R$ {self.valor} via {self.tipo_pagamento.nome}"
@@ -1033,6 +1059,13 @@ class Parcela(Base):
         valor_pago = self.valor_pago or 0
         desconto = self.desconto or 0
         return (self.valor - desconto) - valor_pago
+
+    @property
+    def valor_pago_efetivo(self):
+        # Para parcelas pagas: usa valor_pago quando preenchido; caso contrário, cai no valor original.
+        if self.valor_pago not in (None, 0):
+            return self.valor_pago
+        return self.valor
 
     def __str__(self):
         return f"Parcela {self.numero_parcela} de {self.pagamento}"

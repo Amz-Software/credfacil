@@ -18,7 +18,7 @@ from financeiro.forms import *
 from vendas.models import Pagamento
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.auth.decorators import permission_required
-from django.db.models import OuterRef, Subquery, DateField, Q
+from django.db.models import OuterRef, Subquery, DateField, Q, Sum
 
 
 class CaixaMensalListView(BaseView, PermissionRequiredMixin, ListView):
@@ -472,6 +472,12 @@ class ContasAReceberDetailView(PermissionRequiredMixin, DetailView):
             instance=conta_a_receber,
             form_kwargs={'user': self.request.user}
         )
+        totais_parcelas = conta_a_receber.parcelas_pagamento.aggregate(
+            total_valor=Sum('valor'),
+            total_valor_pago=Sum('valor_pago'),
+        )
+        context['total_valor_original'] = totais_parcelas['total_valor'] or 0
+        context['total_valor_pago'] = totais_parcelas['total_valor_pago'] or 0
         # Form Select2 para editar statuses
         context['status_form'] = PagamentoStatusForm(instance=conta_a_receber)
         cliente = self.get_object().venda.cliente
@@ -599,14 +605,9 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
 
                 parcelas_list = list(parcelas_qs)
 
-                def _valor_pago_parcela(parcela):
-                    desconto = parcela.desconto or 0
-                    # Usa valor_pago quando houver, senão valor - desconto
-                    return (parcela.valor_pago if parcela.valor_pago not in (None, 0) else (parcela.valor - desconto))
-
                 # Anexa valor pago calculado para uso direto no template
                 for p in parcelas_list:
-                    p.paid_amount = _valor_pago_parcela(p)
+                    p.paid_amount = p.valor_pago_efetivo
 
                 total_pago = sum(p.paid_amount for p in parcelas_list)
 

@@ -476,7 +476,8 @@
             <tr>
               <th scope="col">Número da Parcela</th>
               <th scope="col">Data do Pagamento</th>
-              <th scope="col">Valor</th>
+              <th scope="col">Valor Original</th>
+              <th scope="col">Valor Pago</th>
               <th scope="col">
                 Data de Vencimento
                 {% if user|has_perm:"vendas.change_vencimento_parcela" %}
@@ -494,12 +495,21 @@
                 <td>{{ parcela.numero_parcela }}</td>
                 <td>{{ parcela.data_pagamento }}</td>
                 <td>{{ parcela.valor }}</td>
+                <td>{{ parcela.valor_pago }}</td>
                 <td>{{ parcela.data_vencimento }}</td>
                 <td>{{ parcela.pago }}</td>
                 <td>{{ parcela.pagamento_efetuado }}</td>
               </tr>
             {% endfor %}
           </tbody>
+          <tfoot class="table-light fw-bold">
+            <tr>
+              <td colspan="2" class="text-end">Total</td>
+              <td>R$ {{ total_valor_original|floatformat:2 }}</td>
+              <td>R$ {{ total_valor_pago|floatformat:2 }}</td>
+              <td colspan="3"></td>
+            </tr>
+          </tfoot>
               </table>
               <div class="d-flex justify-content-center py-3">
                 <a href="{% url 'financeiro:contas_a_receber_list' %}" class="btn btn-secondary me-3">

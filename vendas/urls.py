@@ -32,6 +32,7 @@ urlpatterns = [
     path('aprovar_analise/<int:id>/', aprovar_analise_credito, name='aprovar_analise'),
     path('reprovar_analise/<int:id>/', reprovar_analise_credito, name='reprovar_analise'),
     path('cancelar_analise/<int:id>/', cancelar_analise_credito, name='cancelar_analise'),
+    path('analise/<int:pk>/observacao/adicionar/', adicionar_observacao_solicitacao, name='adicionar_observacao_solicitacao'),
     
     #tipo de pagamento
     path('tipopagamento/', tipoPagamentoViews['list_view'].as_view(), name='tipos_pagamento'),

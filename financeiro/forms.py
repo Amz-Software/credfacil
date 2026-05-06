@@ -14,14 +14,19 @@ class PagamentoForm(forms.ModelForm):
 class ParcelaForm(forms.ModelForm):
     class Meta:
         model = Parcela
-        exclude = ['desconto', 'tipo_pagamento', 'valor_pago']
+        exclude = ['desconto', 'tipo_pagamento']
         widgets = {
             'data_vencimento': forms.DateInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
             'valor': forms.TextInput(attrs={ 'class': 'form-control', 'readonly': 'readonly'}),
+            'valor_pago': forms.NumberInput(attrs={'class': 'form-control money', 'step': '0.01'}),
             'pago': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'numero_parcela': forms.NumberInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
             'data_pagamento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
             'pagamento_efetuado': forms.CheckboxInput(attrs={'class': 'form-check-input', 'disabled': 'disabled'}),
+        }
+        labels = {
+            'valor': 'Valor Original',
+            'valor_pago': 'Valor Pago',
         }
 
     def __init__(self, *args, user=None, **kwargs):
