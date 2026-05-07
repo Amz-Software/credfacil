@@ -1481,7 +1481,7 @@ class RelatorioVendasForm(forms.Form):
             self.fields['cliente'].queryset = Cliente.objects.filter(loja=loja)
             self.fields['vendedores'].queryset = User.objects.filter(loja=loja)
             if user and not user.has_perm('vendas.can_view_all_stores'):
-                self.fields['lojas'].queryset = Loja.objects.filter(pk=loja)
+                self.fields['lojas'].queryset = Loja.objects.filter(pk=loja.pk)
             else:
                 self.fields['lojas'].queryset = Loja.objects.all()
             self.fields['lojas'].initial = loja
@@ -1590,7 +1590,7 @@ class RelatorioSolicitacoesForm(forms.Form):
             self.fields['cliente'].queryset    = Cliente.objects.filter(loja=loja)
             self.fields['vendedores'].queryset = User.objects.filter(loja=loja)
             if user and not user.has_perm('vendas.can_view_all_stores'):
-                self.fields['lojas'].queryset = Loja.objects.filter(pk=loja)
+                self.fields['lojas'].queryset = Loja.objects.filter(pk=loja.pk)
             self.fields['lojas'].initial       = [loja]
 
         # Carrega escolhas de status diretamente do modelo AnaliseCredito
