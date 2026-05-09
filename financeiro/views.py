@@ -18,7 +18,8 @@ from financeiro.forms import *
 from vendas.models import Pagamento
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.auth.decorators import permission_required
-from django.db.models import OuterRef, Subquery, DateField, Q, Sum
+from django.db.models import OuterRef, Subquery, DateField, Q, Sum, Max
+from decimal import Decimal, ROUND_HALF_UP
 
 
 class CaixaMensalListView(BaseView, PermissionRequiredMixin, ListView):
@@ -478,6 +479,11 @@ class ContasAReceberDetailView(PermissionRequiredMixin, DetailView):
         )
         context['total_valor_original'] = totais_parcelas['total_valor'] or 0
         context['total_valor_pago'] = totais_parcelas['total_valor_pago'] or 0
+        # Total efetivamente pago (usa valor_pago quando preenchido, senão valor)
+        context['total_pago_efetivo'] = sum(
+            (p.valor_pago_efetivo for p in conta_a_receber.parcelas_pagamento.filter(pago=True)),
+            Decimal('0'),
+        )
         # Form Select2 para editar statuses
         context['status_form'] = PagamentoStatusForm(instance=conta_a_receber)
         cliente = self.get_object().venda.cliente
@@ -522,28 +528,92 @@ class ContasAReceberDetailView(PermissionRequiredMixin, DetailView):
             return redirect(request.path)
 
         # 2) Senão, processa o formset de parcelas
-        if not user.has_perm('vendas.change_pagamento'):
-            messages.error(request, "Você não tem permissão para editar parcelas.")
-            return redirect('financeiro:contas_a_receber_list')
-
         parcela_form = ParcelaInlineFormSet(
             request.POST,
             instance=self.object,
             form_kwargs={'user': user}
         )
-        
-        # Verifica se o usuário tentou alterar data de vencimento sem permissão
+
+        # Conta parcelas extras (sem pk e não marcadas como DELETE)
+        extras_forms = []
+        for form in parcela_form.forms:
+            if not form.is_valid():
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+            if form.instance.pk is None and form.has_changed():
+                extras_forms.append(form)
+
+        if extras_forms and not user.has_perm('vendas.add_parcela'):
+            messages.error(request, "Você não tem permissão para adicionar parcelas.")
+            return redirect(request.path)
+
+        if len(extras_forms) > 4:
+            messages.error(request, "É permitido adicionar no máximo 4 parcelas extras por vez.")
+            return redirect(request.path)
+
+        if not extras_forms and not user.has_perm('vendas.change_pagamento'):
+            messages.error(request, "Você não tem permissão para editar parcelas.")
+            return redirect('financeiro:contas_a_receber_list')
+
         if parcela_form.is_valid():
+            # Bloqueia alteração de data de vencimento de parcelas existentes sem permissão
+            for form in parcela_form:
+                if not form.cleaned_data or form.cleaned_data.get('DELETE'):
+                    continue
+                if form.instance.pk:
+                    original_parcela = Parcela.objects.get(pk=form.instance.pk)
+                    if form.cleaned_data.get('data_vencimento') != original_parcela.data_vencimento:
+                        if not user.has_perm('vendas.change_vencimento_parcela'):
+                            messages.error(request, "Você não tem permissão para alterar a data de vencimento das parcelas.")
+                            return redirect(request.path)
+
+            # Quando há parcelas extras, redistribui o saldo (Pagamento.valor − total pago) entre as pendentes
+            if extras_forms:
+                pago_total = Decimal('0')
+                pendentes_forms = []
+                for form in parcela_form:
+                    if not form.cleaned_data or form.cleaned_data.get('DELETE'):
+                        continue
+                    if form.cleaned_data.get('pago'):
+                        valor_pago = form.cleaned_data.get('valor_pago') or Decimal('0')
+                        if not valor_pago:
+                            valor_pago = form.cleaned_data.get('valor') or Decimal('0')
+                        pago_total += Decimal(valor_pago)
+                    else:
+                        pendentes_forms.append(form)
+
+                if pendentes_forms:
+                    saldo = (Decimal(self.object.valor) - pago_total)
+                    if saldo < 0:
+                        saldo = Decimal('0')
+                    base = (saldo / Decimal(len(pendentes_forms))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    soma_arredondada = base * len(pendentes_forms)
+                    diferenca = (saldo - soma_arredondada).quantize(Decimal('0.01'))
+                    for idx, form in enumerate(pendentes_forms):
+                        valor_aplicado = base + (diferenca if idx == len(pendentes_forms) - 1 else Decimal('0'))
+                        form.instance.valor = valor_aplicado
+                        form.cleaned_data['valor'] = valor_aplicado
+
+                # Renumera novas parcelas em sequência ao final e garante o FK
+                max_numero = self.object.parcelas_pagamento.aggregate(m=Max('numero_parcela'))['m'] or 0
+                proxima = max_numero + 1
+                for form in extras_forms:
+                    form.instance.pagamento = self.object
+                    form.instance.numero_parcela = proxima
+                    form.cleaned_data['numero_parcela'] = proxima
+                    # Reset campos de pagamento para parcelas novas
+                    form.instance.pago = False
+                    form.instance.valor_pago = 0
+                    form.instance.pagamento_efetuado = False
+                    form.instance.data_pagamento = None
+                    proxima += 1
+
             for form in parcela_form:
                 if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
-                    # Verifica se a data de vencimento foi alterada
-                    if form.instance.pk:  # Se é uma parcela existente
-                        original_parcela = Parcela.objects.get(pk=form.instance.pk)
-                        if form.cleaned_data.get('data_vencimento') != original_parcela.data_vencimento:
-                            if not user.has_perm('vendas.change_vencimento_parcela'):
-                                messages.error(request, "Você não tem permissão para alterar a data de vencimento das parcelas.")
-                                return redirect(request.path)
-                form.instance.save(user=user)
+                    if form.instance.pk is None:
+                        form.instance.pagamento = self.object
+                    form.instance.save(user=user)
             parcela_form.save()
             messages.success(request, "Parcelas atualizadas com sucesso!")
             return redirect(request.path)

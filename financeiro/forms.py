@@ -31,26 +31,27 @@ class ParcelaForm(forms.ModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        # Verifica se o usuário tem permissão para editar data de vencimento
+
+        is_nova_parcela = self.instance.pk is None
+
         can_edit_vencimento = user and user.has_perm('vendas.change_vencimento_parcela')
-        
-        # Verifica se o usuário tem permissão para editar pagamentos
         can_edit_pagamento = user and user.has_perm('vendas.change_pagamento')
-        
-        if not can_edit_pagamento:
-            # Desabilita todos os campos se não tem permissão de pagamento
+        can_add_parcela = user and user.has_perm('vendas.add_parcela')
+
+        if not can_edit_pagamento and not (is_nova_parcela and can_add_parcela):
             for field in self.fields.values():
                 field.disabled = True
                 field.widget.attrs['disabled'] = 'disabled'
         else:
-            # Se tem permissão de pagamento, verifica permissão específica para vencimento
-            if can_edit_vencimento:
-                # Remove readonly da data de vencimento se o usuário tem permissão
+            if is_nova_parcela and can_add_parcela:
+                # Parcela extra recém-adicionada: libera valor e vencimento para edição.
+                self.fields['valor'].widget.attrs.pop('readonly', None)
+                self.fields['data_vencimento'].widget.attrs.pop('readonly', None)
+                self.fields['data_vencimento'].widget.attrs['type'] = 'date'
+            elif can_edit_vencimento:
                 self.fields['data_vencimento'].widget.attrs.pop('readonly', None)
                 self.fields['data_vencimento'].widget.attrs['type'] = 'date'
             else:
-                # Se não tem permissão para editar vencimento, mantém readonly
                 self.fields['data_vencimento'].widget.attrs['readonly'] = 'readonly'
                 self.fields['data_vencimento'].widget.attrs.pop('type', None)
 
