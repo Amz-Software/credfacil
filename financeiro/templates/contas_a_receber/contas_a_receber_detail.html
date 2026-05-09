@@ -471,7 +471,14 @@
             </div>
           </div>
               {% endif %}
-              <table class="table table-hover mb-0">
+              {% localize off %}
+              <div id="parcelas-data"
+                   data-pagamento-valor="{{ conta_a_receber.valor }}"
+                   data-total-pago-efetivo="{{ total_pago_efetivo }}"
+                   data-max-extras="4"
+                   style="display:none"></div>
+              {% endlocalize %}
+              <table id="parcelas-table" class="table table-hover mb-0">
           <thead class="table-light">
             <tr>
               <th scope="col">Número da Parcela</th>
@@ -490,7 +497,7 @@
           </thead>
           <tbody>
             {% for parcela in parcela_form %}
-              <tr class="{% if parcela.instance.pago %}table-success{% endif %}">
+              <tr class="{% if parcela.instance.pago %}table-success{% endif %}" data-pago="{{ parcela.instance.pago|yesno:'1,0' }}">
                 {{ parcela.id }}
                 <td>{{ parcela.numero_parcela }}</td>
                 <td>{{ parcela.data_pagamento }}</td>
@@ -505,32 +512,33 @@
           <tfoot class="table-light fw-bold">
             <tr>
               <td colspan="2" class="text-end">Total</td>
-              <td>R$ {{ total_valor_original|floatformat:2 }}</td>
+              <td id="total-valor-original-cell">R$ {{ total_valor_original|floatformat:2 }}</td>
               <td>R$ {{ total_valor_pago|floatformat:2 }}</td>
               <td colspan="3"></td>
             </tr>
           </tfoot>
               </table>
-              <div class="d-flex justify-content-center py-3">
-                <a href="{% url 'financeiro:contas_a_receber_list' %}" class="btn btn-secondary me-3">
+              <div class="d-flex justify-content-center py-3 flex-wrap gap-2">
+                <a href="{% url 'financeiro:contas_a_receber_list' %}" class="btn btn-secondary">
                     Voltar
                 </a>
 
+                {% if user|has_perm:"vendas.add_parcela" %}
+                  <button type="button" id="btn-add-parcela" class="btn btn-outline-primary">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Adicionar Parcela
+                    <span class="badge bg-secondary ms-1" id="parcelas-extras-count">0/4</span>
+                  </button>
+                {% endif %}
+
                 {# --- BOTÃO PARA ACIONAR O MODAL DE QUITAÇÃO --- #}
-                {% comment %}
-                  Este botão só aparece se:
-                  1. O usuário tiver a permissão correta.
-                  2. Houver parcelas aguardando confirmação (você precisa passar 'confirmando_count' no contexto da sua view).
-                {% endcomment %}
                 {% if user|has_perm:"vendas.can_confirm_quitacao" %}
-                <button type="button" class="btn btn-success me-3" data-bs-toggle="modal" data-bs-target="#confirmarQuitacaoModal">
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmarQuitacaoModal">
                     Confirmar Quitação
                 </button>
                 {% endif %}
-                {# --- FIM DO BOTÃO --- #}
 
-
-                {% if user|has_perm:"vendas.change_pagamento" %}
+                {% if user|has_perm:"vendas.change_pagamento" or user|has_perm:"vendas.add_parcela" %}
                   <button type="submit" class="btn btn-primary">Salvar</button>
                 {% endif %}
               </div>
@@ -732,6 +740,224 @@
         if (c) el.style.backgroundColor = c;
       });
     });
+    (function setupAddParcela() {
+      const btn = document.getElementById('btn-add-parcela');
+      if (!btn) return;
+
+      const dataEl = document.getElementById('parcelas-data');
+      const table = document.getElementById('parcelas-table');
+      const tbody = table.querySelector('tbody');
+      const totalCell = document.getElementById('total-valor-original-cell');
+      const counterEl = document.getElementById('parcelas-extras-count');
+
+      const pagamentoValor = parseFloat(dataEl.dataset.pagamentoValor) || 0;
+      const totalPagoEfetivo = parseFloat(dataEl.dataset.totalPagoEfetivo) || 0;
+      const maxExtras = parseInt(dataEl.dataset.maxExtras, 10) || 4;
+      let parcelasAdicionadas = 0;
+
+      function detectPrefix() {
+        const totalForms = document.querySelector('input[name$="-TOTAL_FORMS"]');
+        if (!totalForms) return null;
+        return totalForms.name.replace(/-TOTAL_FORMS$/, '');
+      }
+      const prefix = detectPrefix();
+      if (!prefix) return;
+
+      const totalFormsInput = document.querySelector('input[name="' + prefix + '-TOTAL_FORMS"]');
+
+      function isPendentRow(tr) {
+        if (tr.dataset.delete === '1') return false;
+        const pagoCb = tr.querySelector('input[type="checkbox"][name$="-pago"]');
+        return !(pagoCb && pagoCb.checked);
+      }
+
+      function getMaxNumero() {
+        let max = 0;
+        tbody.querySelectorAll('input[name$="-numero_parcela"]').forEach(function (i) {
+          const v = parseInt(i.value, 10);
+          if (!isNaN(v) && v > max) max = v;
+        });
+        return max;
+      }
+
+      function getLastVencimento() {
+        let lastDate = null;
+        let lastNumero = -1;
+        tbody.querySelectorAll('tr').forEach(function (tr) {
+          const numEl = tr.querySelector('input[name$="-numero_parcela"]');
+          const dateEl = tr.querySelector('input[name$="-data_vencimento"]');
+          if (!numEl || !dateEl || !dateEl.value) return;
+          const num = parseInt(numEl.value, 10) || 0;
+          if (num >= lastNumero) {
+            lastNumero = num;
+            lastDate = dateEl.value;
+          }
+        });
+        return lastDate;
+      }
+
+      function addOneMonthISO(iso) {
+        // iso: "YYYY-MM-DD"
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+        if (!m) return iso;
+        const y = parseInt(m[1], 10);
+        const mo = parseInt(m[2], 10);
+        const d = parseInt(m[3], 10);
+        const target = new Date(y, mo, d); // mês +1 porque Date é 0-indexed
+        // Ajusta se "estourou" o mês (ex: 31/jan + 1 = 03/mar)
+        if (target.getMonth() !== mo % 12) {
+          target.setDate(0);
+        }
+        const yy = target.getFullYear();
+        const mm = String(target.getMonth() + 1).padStart(2, '0');
+        const dd = String(target.getDate()).padStart(2, '0');
+        return yy + '-' + mm + '-' + dd;
+      }
+
+      function recalcular() {
+        const saldo = Math.max(pagamentoValor - totalPagoEfetivo, 0);
+        const pendentes = [];
+        tbody.querySelectorAll('tr').forEach(function (tr) {
+          if (!isPendentRow(tr)) return;
+          const valorInput = tr.querySelector('input[name$="-valor"]');
+          if (valorInput) pendentes.push(valorInput);
+        });
+        if (pendentes.length === 0) return;
+        const baseCents = Math.floor((saldo * 100) / pendentes.length);
+        const totalCents = baseCents * pendentes.length;
+        const diffCents = Math.round(saldo * 100) - totalCents;
+        pendentes.forEach(function (input, idx) {
+          const cents = baseCents + (idx === pendentes.length - 1 ? diffCents : 0);
+          input.value = (cents / 100).toFixed(2);
+        });
+        atualizarTotal();
+      }
+
+      function atualizarTotal() {
+        let total = 0;
+        tbody.querySelectorAll('input[name$="-valor"]').forEach(function (i) {
+          total += parseFloat(i.value) || 0;
+        });
+        if (totalCell) totalCell.textContent = 'R$ ' + total.toFixed(2);
+      }
+
+      function renumerarFormset() {
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(function (tr, idx) {
+          tr.querySelectorAll('input, select, textarea').forEach(function (el) {
+            if (el.name) el.name = el.name.replace(/-(\d+)-/, '-' + idx + '-');
+            if (el.id) el.id = el.id.replace(/-(\d+)-/, '-' + idx + '-');
+          });
+        });
+        totalFormsInput.value = String(rows.length);
+      }
+
+      function addRemoveButton(row) {
+        const target = row.querySelector('td:last-child');
+        if (!target) return;
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'btn btn-sm btn-outline-danger ms-2 btn-remove-extra';
+        removeBtn.title = 'Remover esta parcela adicionada';
+        removeBtn.innerHTML = '<i class="bi bi-trash"></i>';
+        removeBtn.addEventListener('click', function () {
+          row.remove();
+          renumerarFormset();
+          parcelasAdicionadas = Math.max(0, parcelasAdicionadas - 1);
+          if (counterEl) counterEl.textContent = parcelasAdicionadas + '/' + maxExtras;
+          btn.disabled = false;
+          recalcular();
+        });
+        target.appendChild(removeBtn);
+      }
+
+      btn.addEventListener('click', function () {
+        if (parcelasAdicionadas >= maxExtras) {
+          alert('Limite de ' + maxExtras + ' parcelas extras atingido.');
+          return;
+        }
+        const lastRow = tbody.querySelector('tr:last-child');
+        if (!lastRow) return;
+
+        const newRow = lastRow.cloneNode(true);
+        const newIndex = parseInt(totalFormsInput.value, 10);
+
+        newRow.classList.remove('table-success');
+        newRow.classList.add('table-warning');
+        newRow.dataset.pago = '0';
+        newRow.dataset.delete = '0';
+
+        const re = new RegExp('^' + prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '-\\d+-');
+        newRow.querySelectorAll('input, select, textarea').forEach(function (el) {
+          if (el.name) el.name = el.name.replace(re, prefix + '-' + newIndex + '-');
+          if (el.id) el.id = el.id.replace(/-\d+-/, '-' + newIndex + '-');
+        });
+
+        newRow.querySelectorAll('input, select, textarea').forEach(function (el) {
+          // Mantém pagamento_efetuado desabilitado (regra original do form)
+          if (el.name && el.name.endsWith('-pagamento_efetuado')) {
+            if (el.type === 'checkbox') el.checked = false;
+            return;
+          }
+          el.disabled = false;
+          el.removeAttribute('disabled');
+        });
+        newRow.querySelectorAll('input').forEach(function (el) {
+          if (!el.name) return;
+          if (el.name.endsWith('-id')) el.value = '';
+          if (el.name.endsWith('-valor_pago')) el.value = '';
+          if (el.name.endsWith('-data_pagamento')) el.value = '';
+          if (el.type === 'checkbox') el.checked = false;
+        });
+
+        const numInput = newRow.querySelector('input[name$="-numero_parcela"]');
+        if (numInput) {
+          numInput.value = String(getMaxNumero() + 1);
+          numInput.removeAttribute('readonly');
+        }
+
+        const dateInput = newRow.querySelector('input[name$="-data_vencimento"]');
+        if (dateInput) {
+          const last = getLastVencimento();
+          if (last) dateInput.value = addOneMonthISO(last);
+          dateInput.removeAttribute('readonly');
+          dateInput.type = 'date';
+        }
+
+        const valorInput = newRow.querySelector('input[name$="-valor"]');
+        if (valorInput) {
+          valorInput.removeAttribute('readonly');
+          valorInput.removeAttribute('disabled');
+          valorInput.type = 'number';
+          valorInput.step = '0.01';
+          valorInput.min = '0';
+          valorInput.value = '0.00';
+        }
+
+        // Remove qualquer botão de remover herdado pelo clone (se houver)
+        newRow.querySelectorAll('.btn-remove-extra').forEach(function (b) { b.remove(); });
+
+        tbody.appendChild(newRow);
+        totalFormsInput.value = String(newIndex + 1);
+        parcelasAdicionadas++;
+        if (counterEl) counterEl.textContent = parcelasAdicionadas + '/' + maxExtras;
+        if (parcelasAdicionadas >= maxExtras) btn.disabled = true;
+
+        addRemoveButton(newRow);
+        recalcular();
+      });
+
+      // Recalcula ao alternar pago/DELETE em qualquer linha (para refletir saldo distribuído)
+      tbody.addEventListener('change', function (e) {
+        const t = e.target;
+        if (!t || !t.name) return;
+        if (parcelasAdicionadas === 0) return;
+        if (t.name.endsWith('-pago') || t.name.endsWith('-DELETE')) {
+          recalcular();
+        }
+      });
+    })();
+
     document.getElementById('download-pdf').addEventListener('click', function() {
       var el = document.getElementById('report-content');
       el.style.display = 'block';
