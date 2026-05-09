@@ -5,14 +5,24 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
+from simple_history.admin import SimpleHistoryAdmin
 from .models import *
 
 class AdminBase(admin.ModelAdmin):
     list_display = ('loja', 'criado_em', 'modificado_em')
     readonly_fields = ('criado_em', 'modificado_em')
-    
+
     def save_model(self, request, obj, form, change):
-        obj.save(user=request.user) 
+        obj.save(user=request.user)
+        super().save_model(request, obj, form, change)
+
+
+class HistoryAdminBase(SimpleHistoryAdmin):
+    list_display = ('loja', 'criado_em', 'modificado_em')
+    readonly_fields = ('criado_em', 'modificado_em')
+
+    def save_model(self, request, obj, form, change):
+        obj.save(user=request.user)
         super().save_model(request, obj, form, change)
 
 class ProdutoVendaInline(admin.TabularInline):
@@ -36,7 +46,7 @@ class PagamentoInline(admin.TabularInline):
         super().save_model(request, obj, form, change)
 
 @admin.register(Venda)
-class VendaAdmin(AdminBase):
+class VendaAdmin(HistoryAdminBase):
     list_display = ('data_venda', 'cliente', 'vendedor', 'calcular_valor_total', 'status_contrato', 'is_deleted', 'is_trocado', 'loja')
     list_filter = (
         'loja',
@@ -104,7 +114,7 @@ class VendaAdmin(AdminBase):
     contrato_publico_link.short_description = 'Link do contrato publico'
 
 @admin.register(Pagamento)
-class PagamentoAdmin(AdminBase):
+class PagamentoAdmin(HistoryAdminBase):
     list_display = (
         'venda',
         'tipo_pagamento',
@@ -198,7 +208,7 @@ class VendaClienteInline(admin.TabularInline):
 
 
 @admin.register(Cliente)
-class ClienteAdmin(AdminBase):
+class ClienteAdmin(HistoryAdminBase):
     list_display = ('nome', 'cpf', 'telefone', 'email', 'cidade', 'profissao', 'recebe_auxilio', 'total_renda', 'loja', 'criado_em')
     list_filter = (
         'loja',
@@ -229,7 +239,7 @@ class EnderecoAdmin(AdminBase):
     list_display = ('numero', 'bairro', 'cidade', 'cep')
 
 @admin.register(ComprovantesCliente)
-class ComprovantesClienteAdmin(AdminBase):
+class ComprovantesClienteAdmin(HistoryAdminBase):
     pass
 
 
@@ -408,7 +418,7 @@ class LojaAdmin(AdminBase):
     
     
 @admin.register(Parcela)
-class ParcelaAdmin(AdminBase):
+class ParcelaAdmin(HistoryAdminBase):
     list_display = (
         'pagamento',
         'numero_parcela',
@@ -448,7 +458,7 @@ class LancamentoCaixaAdmin(AdminBase):
     
     
 @admin.register(AnaliseCreditoCliente)
-class AnaliseCreditoClienteAdmin(AdminBase):
+class AnaliseCreditoClienteAdmin(HistoryAdminBase):
     list_display = (
         'cliente',
         'produto',

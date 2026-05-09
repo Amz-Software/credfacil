@@ -14,6 +14,7 @@ from django.utils.text import slugify
 import calendar
 import os
 from django.core.files.storage import default_storage
+from simple_history.models import HistoricalRecords
 
 def upload_to_venda(instance, filename):
     if instance.pk:
@@ -378,7 +379,8 @@ class Cliente(Base):
     comprovantes = models.OneToOneField('vendas.ComprovantesCliente', on_delete=models.CASCADE, related_name='cliente')
     contato_adicional = models.OneToOneField('vendas.ContatoAdicional', on_delete=models.CASCADE, related_name='cliente', null=True, blank=True)
     informacao_pessoal = models.OneToOneField('vendas.InformacaoPessoal', on_delete=models.CASCADE, related_name='cliente', null=True, blank=True)
-    
+    history = HistoricalRecords()
+
     def __str__(self):
         return self.nome
     
@@ -421,7 +423,8 @@ class Venda(Base):
     )
     is_deleted = models.BooleanField(default=False)
     is_trocado = models.BooleanField(default=False)
-    
+    history = HistoricalRecords()
+
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         
@@ -608,7 +611,8 @@ class AnaliseCreditoCliente(Base):
     icloud_configurado_vendedor = models.BooleanField(default=False, verbose_name='iCloud configurado pelo vendedor')
     icloud_confirmado_analista = models.BooleanField(default=False, verbose_name='iCloud confirmado pelo analista')
     codigo_reserva = models.ImageField(upload_to='codigo_reserva/', null=True, blank=True, verbose_name='Código de Reserva')
-    
+    history = HistoricalRecords()
+
     def venda_gerada(self):
         if self.venda:
             return True
@@ -767,9 +771,10 @@ class ComprovantesCliente(Base):
     consulta_serasa_2_analise = models.BooleanField(default=False)
 
     restricao = models.BooleanField(default=False)
-    
+
     foto_cliente = models.FileField(upload_to='comprovantes_clientes', null=True, blank=True)
-    
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name_plural = 'Comprovantes Clientes'
 
@@ -952,6 +957,7 @@ class Pagamento(Base):
     statuses = models.ManyToManyField('vendas.StatusPagamento', related_name='pagamentos', blank=True)
     objects = PagamentoQuerySet.as_manager()
     data_primeira_parcela = models.DateField()
+    history = HistoricalRecords(m2m_fields=[statuses])
     
     @property
     def valor_parcela(self):
@@ -1055,6 +1061,7 @@ class Parcela(Base):
     pagamento_efetuado = models.BooleanField(default=False)
     pagamento_efetuado_em = models.DateTimeField(null=True, blank=True)
     pago = models.BooleanField(default=False)
+    history = HistoricalRecords()
 
     @property
     def valor_restante(self):

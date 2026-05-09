@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'django_filters',
     'drf_spectacular',
     'corsheaders',
+    'simple_history',
 ]
 
 MIDDLEWARE = [
@@ -73,6 +74,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "accounts.middleware.LojaMiddleware",
+    'simple_history.middleware.HistoryRequestMiddleware',
 ]
 
 CACHES = {
