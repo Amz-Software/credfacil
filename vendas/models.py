@@ -774,7 +774,9 @@ class ComprovantesCliente(Base):
         verbose_name_plural = 'Comprovantes Clientes'
 
     def __str__(self):
-        return f"Comprovantes para {self.cliente.nome if self.cliente else 'Cliente'}"
+        if hasattr(self, 'cliente'):
+            return f"Comprovantes para {self.cliente.nome}"
+        return f"Comprovantes #{self.pk}"
 
 class ProdutoVenda(Base):
     produto = models.ForeignKey('produtos.Produto', on_delete=models.CASCADE, related_name='produto_vendas')

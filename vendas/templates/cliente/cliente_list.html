@@ -588,16 +588,18 @@ Clientes
             
             <td>
               {% if cliente.analise_credito.venda_gerada %}
-                <span class="badge bg-label-success"
-                      data-bs-toggle="tooltip" 
-                      data-bs-html="true"
-                      data-bs-placement="top"
-                      title="<strong>Venda Realizada</strong><br>Venda já foi gerada para este cliente">
-                  Sim
-                </span>
+                <a href="{% url 'vendas:venda_detail' cliente.analise_credito.venda_id %}"
+                   class="badge bg-label-success text-decoration-none"
+                   data-bs-toggle="tooltip"
+                   data-bs-html="true"
+                   data-bs-placement="top"
+                   title="<strong>Ir para a venda #{{ cliente.analise_credito.venda_id }}</strong><br>Clique para abrir o detalhe da venda">
+                  <i class="bx bx-cart me-1"></i>#{{ cliente.analise_credito.venda_id }}
+                  <i class="bx bx-link-external ms-1"></i>
+                </a>
               {% else %}
                 <span class="badge bg-label-danger"
-                      data-bs-toggle="tooltip" 
+                      data-bs-toggle="tooltip"
                       data-bs-html="true"
                       data-bs-placement="top"
                       title="<strong>Venda Não Realizada</strong><br>Aguardando conclusão do fluxo">
@@ -803,11 +805,12 @@ Clientes
                     {% endif %}
                   {% endif %}
                   
-                  {# Venda já gerada #}
+                  {# Venda já gerada — atalho para a venda #}
                   {% if cliente.analise_credito.venda_gerada %}
-                  <span class="dropdown-item text-success disabled">
-                    <i class="bx bx-check-double me-1"></i>✅ Venda já gerada
-                  </span>
+                  <div class="dropdown-divider"></div>
+                  <a href="{% url 'vendas:venda_detail' cliente.analise_credito.venda_id %}" class="dropdown-item text-success">
+                    <i class="bx bx-link-external me-1"></i>🛒 Ir para Venda #{{ cliente.analise_credito.venda_id }}
+                  </a>
                   {% endif %}
                   {% endif %}{# fim if cliente.analise_credito #}
 
