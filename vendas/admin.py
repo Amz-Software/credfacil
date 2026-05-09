@@ -37,10 +37,33 @@ class PagamentoInline(admin.TabularInline):
 
 @admin.register(Venda)
 class VendaAdmin(AdminBase):
-    list_display = ('data_venda', 'cliente', 'vendedor', 'calcular_valor_total', 'status_contrato', 'loja')
-    search_fields = ('cliente__nome', 'vendedor__first_name', 'vendedor__last_name', 'loja__nome')
+    list_display = ('data_venda', 'cliente', 'vendedor', 'calcular_valor_total', 'status_contrato', 'is_deleted', 'is_trocado', 'loja')
+    list_filter = (
+        'loja',
+        'status_contrato',
+        'is_deleted',
+        'is_trocado',
+        'data_venda',
+        'vendedor',
+        'caixa',
+    )
+    search_fields = (
+        'id',
+        'cliente__nome',
+        'cliente__cpf',
+        'cliente__telefone',
+        'vendedor__first_name',
+        'vendedor__last_name',
+        'vendedor__username',
+        'loja__nome',
+    )
+    date_hierarchy = 'data_venda'
+    ordering = ('-data_venda',)
+    autocomplete_fields = ('cliente', 'vendedor', 'caixa', 'loja')
+    list_select_related = ('cliente', 'vendedor', 'loja', 'caixa')
+    list_per_page = 50
     inlines = [ProdutoVendaInline, PagamentoInline]
-    readonly_fields = AdminBase.readonly_fields + ('contrato_publico_uuid', 'contrato_publico_link')
+    readonly_fields = AdminBase.readonly_fields + ('contrato_publico_uuid', 'contrato_publico_link', 'data_venda')
     fieldsets = (
         (None, {
             'fields': (
@@ -55,6 +78,12 @@ class VendaAdmin(AdminBase):
                 'loja',
             )
         }),
+        ('Status', {
+            'fields': (
+                'is_deleted',
+                'is_trocado',
+            )
+        }),
         ('Contrato Publico', {
             'fields': (
                 'status_contrato',
@@ -63,7 +92,7 @@ class VendaAdmin(AdminBase):
             )
         }),
         ('Auditoria', {
-            'fields': ('criado_em', 'modificado_em')
+            'fields': ('data_venda', 'criado_em', 'modificado_em')
         }),
     )
 
@@ -76,16 +105,68 @@ class VendaAdmin(AdminBase):
 
 @admin.register(Pagamento)
 class PagamentoAdmin(AdminBase):
-    list_display = ('venda', 'tipo_pagamento', 'valor', 'parcelas', 'valor_parcela', 'data_primeira_parcela')
-    search_fields = ('venda__cliente__nome', 'venda__vendedor__first_name', 'venda__vendedor__last_name')
+    list_display = (
+        'venda',
+        'tipo_pagamento',
+        'valor',
+        'parcelas',
+        'valor_parcela',
+        'data_primeira_parcela',
+        'quitado',
+        'bloqueado',
+        'flag_atrasado',
+        'devolucao',
+        'loja',
+    )
+    list_filter = (
+        'tipo_pagamento',
+        'loja',
+        'quitado',
+        'bloqueado',
+        'desativado',
+        'devolucao',
+        'flag_atrasado',
+        'sem_contato',
+        'mais_prazo',
+        'bo',
+        'sem_conexao',
+        'roubo',
+        'lembrete',
+        'statuses',
+        'data_primeira_parcela',
+    )
+    search_fields = (
+        'id',
+        'venda__id',
+        'venda__cliente__nome',
+        'venda__cliente__cpf',
+        'venda__vendedor__first_name',
+        'venda__vendedor__last_name',
+        'venda__vendedor__username',
+    )
+    date_hierarchy = 'data_primeira_parcela'
+    ordering = ('-data_primeira_parcela',)
+    autocomplete_fields = ('venda', 'tipo_pagamento', 'loja')
+    list_select_related = ('venda', 'venda__cliente', 'tipo_pagamento', 'loja')
+    list_per_page = 50
+    filter_horizontal = ('statuses',)
 
 @admin.register(TipoPagamento)
 class TipoPagamentoAdmin(AdminBase):
-    list_display = ('nome', 'caixa', 'parcelas', 'financeira')
+    list_display = ('nome', 'caixa', 'parcelas', 'financeira', 'carne', 'nao_contabilizar', 'loja')
+    list_filter = ('caixa', 'parcelas', 'financeira', 'carne', 'nao_contabilizar', 'loja')
+    search_fields = ('nome',)
+    ordering = ('nome',)
     
 @admin.register(Caixa)
 class CaixaAdmin(AdminBase):
-    list_display = ('data_abertura', 'data_fechamento')
+    list_display = ('data_abertura', 'data_fechamento', 'loja', 'caixa_fechado', 'quantidade_vendas')
+    list_filter = ('loja', 'data_abertura', 'data_fechamento')
+    search_fields = ('loja__nome', 'id')
+    date_hierarchy = 'data_abertura'
+    ordering = ('-data_abertura',)
+    autocomplete_fields = ('loja',)
+    list_select_related = ('loja',)
     
 @admin.register(ProdutoVenda)
 class ProdutoVendaAdmin(admin.ModelAdmin):
@@ -94,10 +175,54 @@ class ProdutoVendaAdmin(admin.ModelAdmin):
     search_fields = ('produto__nome',)
 
 
+class VendaClienteInline(admin.TabularInline):
+    model = Venda
+    fk_name = 'cliente'
+    extra = 0
+    can_delete = False
+    show_change_link = True
+    verbose_name = 'Venda vinculada'
+    verbose_name_plural = 'Vendas vinculadas'
+    fields = ('data_venda', 'vendedor', 'status_contrato', 'is_deleted', 'is_trocado', 'repasse_logista', 'loja')
+    readonly_fields = fields
+    ordering = ('-data_venda',)
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('vendedor', 'loja')
+
+
 @admin.register(Cliente)
 class ClienteAdmin(AdminBase):
-    list_display = ('nome', 'email', 'telefone', 'cpf')
-    list_filter = ('loja',)
+    list_display = ('nome', 'cpf', 'telefone', 'email', 'cidade', 'profissao', 'recebe_auxilio', 'total_renda', 'loja', 'criado_em')
+    list_filter = (
+        'loja',
+        'recebe_auxilio',
+        'cidade',
+        'criado_em',
+    )
+    search_fields = (
+        'nome',
+        'cpf',
+        'rg',
+        'telefone',
+        'email',
+        'cidade',
+        'bairro',
+        'cep',
+    )
+    date_hierarchy = 'criado_em'
+    ordering = ('-criado_em',)
+    autocomplete_fields = ('loja',)
+    raw_id_fields = ('comprovantes', 'contato_adicional', 'informacao_pessoal')
+    list_select_related = ('loja',)
+    list_per_page = 50
+    inlines = [VendaClienteInline]
 
 @admin.register(Endereco)
 class EnderecoAdmin(AdminBase):
@@ -268,8 +393,12 @@ class ConsultaSerasaAcessoAdmin(admin.ModelAdmin):
 
 @admin.register(Loja)
 class LojaAdmin(AdminBase):
-    list_display = ('nome', 'cnpj', 'telefone', 'pode_vender_iphone')
-    
+    list_display = ('nome', 'cnpj', 'telefone', 'credfacil', 'pode_vender_iphone')
+    list_filter = ('credfacil', 'pode_vender_iphone')
+    search_fields = ('nome', 'cnpj', 'telefone', 'inscricao_estadual')
+    ordering = ('nome',)
+    list_per_page = 50
+
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = super().get_readonly_fields(request, obj)
         # Apenas ADMINISTRADOR pode editar pode_vender_iphone
@@ -280,7 +409,37 @@ class LojaAdmin(AdminBase):
     
 @admin.register(Parcela)
 class ParcelaAdmin(AdminBase):
-    list_display = ('pagamento', 'valor', 'data_vencimento', 'pago')
+    list_display = (
+        'pagamento',
+        'numero_parcela',
+        'valor',
+        'valor_pago',
+        'desconto',
+        'data_vencimento',
+        'data_pagamento',
+        'pago',
+        'tipo_pagamento',
+        'loja',
+    )
+    list_filter = (
+        'pago',
+        'pagamento_efetuado',
+        'tipo_pagamento',
+        'loja',
+        'data_vencimento',
+        'data_pagamento',
+    )
+    search_fields = (
+        'pagamento__id',
+        'pagamento__venda__id',
+        'pagamento__venda__cliente__nome',
+        'pagamento__venda__cliente__cpf',
+    )
+    date_hierarchy = 'data_vencimento'
+    ordering = ('-data_vencimento',)
+    autocomplete_fields = ('pagamento', 'tipo_pagamento', 'loja')
+    list_select_related = ('pagamento', 'pagamento__venda', 'tipo_pagamento', 'loja')
+    list_per_page = 50
 
 
 @admin.register(LancamentoCaixa)
@@ -290,9 +449,44 @@ class LancamentoCaixaAdmin(AdminBase):
     
 @admin.register(AnaliseCreditoCliente)
 class AnaliseCreditoClienteAdmin(AdminBase):
-    list_display = ('cliente', 'status', 'data_analise', 'loja')
-    list_filter = ('status', 'loja',)
-    search_fields = ('cliente__nome', 'loja__nome')
+    list_display = (
+        'cliente',
+        'produto',
+        'status',
+        'status_aplicativo',
+        'analise_online',
+        'data_analise',
+        'data_aprovacao',
+        'aprovado_por',
+        'venda',
+        'loja',
+    )
+    list_filter = (
+        'status',
+        'status_aplicativo',
+        'analise_online',
+        'loja',
+        'produto',
+        'aprovado_por',
+        'icloud_configurado_vendedor',
+        'icloud_confirmado_analista',
+        'data_analise',
+        'data_aprovacao',
+    )
+    search_fields = (
+        'cliente__nome',
+        'cliente__cpf',
+        'cliente__telefone',
+        'produto__nome',
+        'imei__imei',
+        'imei_informado',
+        'loja__nome',
+    )
+    date_hierarchy = 'data_analise'
+    ordering = ('-data_analise',)
+    autocomplete_fields = ('cliente', 'produto', 'imei', 'venda', 'aprovado_por', 'numero_autenticador', 'loja')
+    list_select_related = ('cliente', 'produto', 'aprovado_por', 'venda', 'loja')
+    list_per_page = 50
     list_editable = ('status',)
 
 
