@@ -3812,6 +3812,7 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
 
         # Dados por loja
         dados_por_loja = {}
+        total_clientes_vencidos_ids = set()
         
         for loja in lojas:
             # Repasses and vendas counts rely on the period's sales (not installments)
@@ -3825,9 +3826,11 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
             # Calcular KPIs para esta loja
             total_de_parcelas_vencidas = total_de_parcelas_pagas = total_de_parcelas_a_vencer = 0
             total_pagas = total_vencidas = total_a_vencer = 0
+            clientes_vencidos_ids = set()
 
             for venda_id in vendas_ativas_IDs:
                 parcelas = parcelas_por_venda.get(venda_id, [])
+                venda = parcelas[0].pagamento.venda if parcelas else None
                 
                 parcelas_vencidas = [p for p in parcelas if p.data_vencimento < timezone.now().date() and not p.pago and not p.pagamento_efetuado]
                 parcelas_pagas = [p for p in parcelas if p.pago and not p.pagamento_efetuado]
@@ -3840,6 +3843,10 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
                 total_vencidas += sum(p.valor for p in parcelas_vencidas)
                 total_pagas += sum(p.valor_pago_efetivo for p in parcelas_pagas)
                 total_a_vencer += sum(p.valor for p in parcelas_a_vencer)
+
+                if parcelas_vencidas and venda and venda.cliente_id:
+                    clientes_vencidos_ids.add(venda.cliente_id)
+                    total_clientes_vencidos_ids.add(venda.cliente_id)
 
             # Calcular desativados para esta loja
             parcelas_desativadas = Parcela.objects.filter(
@@ -3872,6 +3879,7 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
                 'total_parcelas': total_de_parcelas_vencidas + total_de_parcelas_pagas + total_de_parcelas_a_vencer,
                 'parcelas_pagas': total_de_parcelas_pagas,
                 'parcelas_vencidas': total_de_parcelas_vencidas,
+                'clientes_vencidos': len(clientes_vencidos_ids),
                 'parcelas_a_vencer': total_de_parcelas_a_vencer,
                 'total_pagas': total_pagas,
                 'total_vencidas': total_vencidas,
@@ -3886,6 +3894,7 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
 
         return {
             'dados_por_loja': dados_por_loja,
+            'clientes_vencidos': len(total_clientes_vencidos_ids),
             'data_geracao': timezone.now(),
             'usuario': self.request.user,
         }
