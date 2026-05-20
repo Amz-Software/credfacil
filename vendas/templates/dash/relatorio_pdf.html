@@ -162,6 +162,12 @@
         <!-- Resumo Geral -->
         <div class="loja-section">
             <h2 class="loja-title">Resumo Geral</h2>
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <h4>Clientes Inadimplentes</h4>
+                    <div class="value danger">{{ clientes_vencidos|default:"0" }}</div>
+                </div>
+            </div>
             <table class="summary-table">
                 <thead>
                     <tr>
@@ -170,6 +176,7 @@
                         <th>Parcelas</th>
                         <th>Pagas</th>
                         <th>Vencidas</th>
+                        <th>Clientes Inadimplentes</th>
                         <th>A Vencer</th>
                         <th>Valor Total</th>
                         <th>Repasses</th>
@@ -183,6 +190,7 @@
                         <td>{{ dados.total_parcelas }}</td>
                         <td>{{ dados.parcelas_pagas }}<br><small class="currency">R$ {{ dados.total_pagas|floatformat:2 }}</small></td>
                         <td>{{ dados.parcelas_vencidas }}<br><small class="currency">R$ {{ dados.total_vencidas|floatformat:2 }}</small></td>
+                        <td>{{ dados.clientes_vencidos|default:"0" }}</td>
                         <td>{{ dados.parcelas_a_vencer }}<br><small class="currency">R$ {{ dados.total_a_vencer|floatformat:2 }}</small></td>
                         <td class="currency">R$ {{ dados.valor_total_parcelas|floatformat:2 }}</td>
                         <td class="currency">R$ {{ dados.total_repasses|floatformat:2 }}</td>
@@ -226,6 +234,11 @@
                 <div class="kpi-card">
                     <h4>Parcelas Vencidas</h4>
                     <div class="value danger">{{ dados.parcelas_vencidas }}</div>
+                </div>
+
+                <div class="kpi-card">
+                    <h4>Clientes Inadimplentes</h4>
+                    <div class="value danger">{{ dados.clientes_vencidos|default:"0" }}</div>
                 </div>
                 
                 <div class="kpi-card">
