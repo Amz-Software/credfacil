@@ -10,7 +10,7 @@ from vendas.forms import ContatoForm
 from vendas.views import BaseView
 from .models import CaixaMensal, CaixaMensalGastoFixo, CaixaMensalFuncionario, GastosAleatorios
 from financeiro.forms import RelatorioSaidaForm
-from vendas.models import Loja, Parcela, StatusPagamento
+from vendas.models import Contato, Loja, Parcela, StatusPagamento
 from .models import CaixaMensal, CaixaMensalFuncionario, CaixaMensalGastoFixo, GastoFixo, GastosAleatorios
 from datetime import datetime, timedelta
 from django.db import transaction
@@ -18,7 +18,7 @@ from financeiro.forms import *
 from vendas.models import Pagamento
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.auth.decorators import permission_required
-from django.db.models import OuterRef, Subquery, DateField, Q, Sum, Max
+from django.db.models import OuterRef, Subquery, DateField, Q, Sum, Max, Prefetch
 from decimal import Decimal, ROUND_HALF_UP
 
 
@@ -905,10 +905,22 @@ class FolhaRelatorioContasAReceberAvancadoView(BaseView, PermissionRequiredMixin
         pagamentos_qs = pagamentos_qs.annotate(proximo_vencimento=proximo_vencimento_subquery)
 
         # Carrega relacionamentos necessários
-        pagamentos_qs = pagamentos_qs.select_related('venda', 'venda__cliente', 'venda__loja').prefetch_related('venda__cliente__contatos')
+        contatos_qs = Contato.objects.select_related('criado_por').order_by('-criado_em', '-id')
+        pagamentos_qs = pagamentos_qs.select_related(
+            'venda',
+            'venda__cliente',
+            'venda__loja',
+        ).prefetch_related(
+            Prefetch('venda__cliente__contatos', queryset=contatos_qs, to_attr='contatos_ordenados')
+        )
 
         context = super().get_context_data(**kwargs)
-        context['contas'] = list(pagamentos_qs)
+        contas = list(pagamentos_qs)
+        for pagamento in contas:
+            contatos = getattr(pagamento.venda.cliente, 'contatos_ordenados', [])
+            pagamento.ultimo_contato = contatos[0] if contatos else None
+
+        context['contas'] = contas
         context['data_inicio'] = data_inicio
         context['data_fim'] = data_fim
         return context

@@ -34,6 +34,7 @@
         <th>IMEI</th>
         <th>Situações</th>
         <th>Status Pagamentos</th>
+        <th>Analista Último Registro</th>
         <th>Último Contato</th>
       </tr>
     </thead>
@@ -62,10 +63,19 @@
             <span class="badge">{{ s.nome }}</span>
           {% empty %}-{% endfor %}
         </td>
-        <td>{{ p.venda.cliente.contatos.last.criado_em|date:"d/m/Y H:i"|default:"-" }} | {{ p.venda.cliente.contatos.last.observacao|default:"-" }}</td>
+        <td>
+          {% if p.ultimo_contato and p.ultimo_contato.criado_por %}
+            {{ p.ultimo_contato.criado_por.get_full_name|default:p.ultimo_contato.criado_por.username }}
+          {% else %}-{% endif %}
+        </td>
+        <td>
+          {% if p.ultimo_contato %}
+            {{ p.ultimo_contato.criado_em|date:"d/m/Y H:i"|default:"-" }} | {{ p.ultimo_contato.observacao|default:"-" }}
+          {% else %}-{% endif %}
+        </td>
       </tr>
       {% empty %}
-      <tr><td colspan="9" class="center">Sem registros no período/critério informado.</td></tr>
+      <tr><td colspan="10" class="center">Sem registros no período/critério informado.</td></tr>
       {% endfor %}
     </tbody>
   </table>

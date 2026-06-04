@@ -3394,18 +3394,15 @@ class GraficoTemplateView(TemplateView):
         ).count()
 
         # --- CÁLCULO DO VALOR TOTAL DE REPASSES ---
+        # Repasse segue a mesma regra do relatório de vendas: uma soma por venda
+        # filtrada pela data da venda, sem multiplicar pela quantidade de itens.
         total_repasses = 0
         repasses_por_loja = defaultdict(lambda: 0)
-        
-        # Buscar todos os produtos vendidos das vendas filtradas
-        produtos_vendidos = ProdutoVenda.objects.filter(
-            venda__in=vendas
-        ).select_related('produto', 'venda__loja')
-        
-        for produto_venda in produtos_vendidos:
-            valor_repasse = produto_venda.venda.repasse_logista or 0
+
+        for venda in vendas_periodo.select_related('loja'):
+            valor_repasse = venda.repasse_logista or 0
             total_repasses += valor_repasse
-            loja_nome = produto_venda.venda.loja.nome if produto_venda.venda.loja else 'Desconhecida'
+            loja_nome = venda.loja.nome if venda.loja else 'Desconhecida'
             repasses_por_loja[loja_nome] += valor_repasse
 
         context.update({
@@ -3867,8 +3864,8 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
             qtd_desativados_a_vencer = sum(1 for p in parcelas_desativadas if p.data_vencimento >= timezone.now().date())
 
             # Calcular repasses para esta loja (por periodo da venda)
-            produtos_vendidos = ProdutoVenda.objects.filter(venda__in=vendas_loja_periodo)
-            total_repasses = sum(pv.venda.repasse_logista or 0 for pv in produtos_vendidos)
+            # Mantém paridade com o relatório de vendas: uma soma por venda.
+            total_repasses = sum(venda.repasse_logista or 0 for venda in vendas_loja_periodo)
 
             # Valor total das parcelas
             valor_total_parcelas = total_pagas + total_vencidas + total_a_vencer + total_desativados_vencidas + total_desativados_a_vencer

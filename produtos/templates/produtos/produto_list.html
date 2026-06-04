@@ -13,8 +13,14 @@ Produtos
       <div class="card-header d-flex justify-content-between align-items-center">
       <h4 class="card-title">Produtos</h4>
       <div>
-        <form action="" method="get" class="d-inline-block me-2" id="searchForm">
+        <form action="" method="get" class="d-inline-flex gap-2 me-2" id="searchForm">
           <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Pesquisar" onchange="document.getElementById('searchForm').submit()">
+          <select name="marca" class="form-select" onchange="document.getElementById('searchForm').submit()">
+            <option value="">Todas as marcas</option>
+            {% for marca in marcas %}
+              <option value="{{ marca.id }}" {% if marca_selecionada == marca.id|stringformat:"s" %}selected{% endif %}>{{ marca.nome }}</option>
+            {% endfor %}
+          </select>
         </form>
         {% if user|has_perm:"produtos.add_produto" %}
         <a href="{% url 'produtos:produto_create' %}" class="btn btn-primary">
@@ -22,7 +28,7 @@ Produtos
         </a>
         {% endif %}
         {% if user|has_perm:"produtos.view_produto" %}
-        <a href="{% url 'produtos:produto_pdf' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}"
+        <a href="{% url 'produtos:produto_pdf' %}?search={{ request.GET.search|urlencode }}&marca={{ marca_selecionada }}"
            class="btn btn-outline-danger ms-1" target="_blank" title="Exportar listagem em PDF">
           <i class="bx bxs-file-pdf me-1"></i> PDF
         </a>
