@@ -830,6 +830,12 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
     permission_classes = [SolicitacaoCreditoPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     pagination_class = SolicitacaoPagination
+    CAMPOS_FOTO_COMPROVANTES = {
+        "documento_identificacao_frente",
+        "documento_identificacao_verso",
+        "comprovante_residencia",
+        "foto_cliente",
+    }
 
     def _base_queryset(self):
         return (
@@ -849,6 +855,42 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if getattr(request.user, "loja_id", None):
             lojas_ids.add(request.user.loja_id)
         return lojas_ids
+
+    def _usuario_pode_acessar_cliente(self, request, cliente):
+        if request.user.has_perm("vendas.view_all_analise_credito"):
+            return True
+        return cliente.loja_id in self._lojas_usuario_ids(request)
+
+    def _payload_tem_apenas_arquivos_de_fotos_comprovantes(self, request):
+        campos_arquivo = set(request.FILES.keys())
+        return bool(campos_arquivo) and campos_arquivo <= self.CAMPOS_FOTO_COMPROVANTES
+
+    def _atualizar_fotos_comprovantes(self, request, cliente):
+        if not self._usuario_pode_acessar_cliente(request, cliente):
+            return Response({"detail": "Acao nao autorizada para esta loja."}, status=status.HTTP_403_FORBIDDEN)
+
+        if not request.FILES:
+            return Response(
+                {"detail": "Envie ao menos um arquivo para atualizar as fotos."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        comprovantes = cliente.comprovantes
+        campos_atualizados = []
+        for campo in self.CAMPOS_FOTO_COMPROVANTES:
+            arquivo = request.FILES.get(campo)
+            if arquivo:
+                setattr(comprovantes, campo, arquivo)
+                campos_atualizados.append(campo)
+
+        if not campos_atualizados:
+            return Response(
+                {"detail": "Nenhum campo de foto valido foi enviado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        comprovantes.save(user=request.user)
+        return Response(ClienteSolicitacaoSerializer(cliente).data)
 
     def _get_queryset(self, request):
         qs = self._base_queryset()
@@ -1281,6 +1323,14 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         is_analista = user.groups.filter(name="ANALISTA").exists()
         venda_gerada = cliente.analise_credito.venda is not None
 
+        if (
+            cliente.analise_credito.status != "EA"
+            and not is_analista
+            and not user.has_perm("vendas.change_status_analise")
+            and self._payload_tem_apenas_arquivos_de_fotos_comprovantes(request)
+        ):
+            return self._atualizar_fotos_comprovantes(request, cliente)
+
         if not is_analista and not user.has_perm("vendas.change_status_analise") and not cliente.analise_credito.status == "EA":
             return Response(
                 {"detail": "Somente solicitacoes em analise podem ser editadas."},
@@ -1394,6 +1444,9 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if aviso:
             payload["warning"] = aviso
         return Response(payload)
+
+    def partial_update(self, request, pk=None):
+        return self.update(request, pk=pk)
 
     @action(detail=True, methods=["post"], url_path="log-consulta-serasa")
     @extend_schema(

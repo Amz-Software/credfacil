@@ -156,6 +156,9 @@
       {% if search %}
         <span class="search-label">Filtro: "{{ search }}"</span>
       {% endif %}
+      {% if marca %}
+        <span class="search-label">Marca: {{ marca.nome }}</span>
+      {% endif %}
     </div>
     <div class="meta">
       Gerado em: {{ gerado_em|date:"d/m/Y \à\s H:i" }}<br>

@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.db.models import Q
 from vendas.models import Loja
 from vendas.views import BaseView
-from .models import Parcelamento, Produto
+from .models import Marca, Parcelamento, Produto
 
 class ProdutoListView(PermissionRequiredMixin, ListView):
     model = Produto
@@ -36,7 +36,27 @@ class ProdutoListView(PermissionRequiredMixin, ListView):
         if search:
             queryset = queryset.filter(nome__icontains=search)
 
-        return queryset.order_by('nome')
+        marca = self.request.GET.get('marca')
+        if marca:
+            queryset = queryset.filter(marca_id=marca)
+
+        return queryset.select_related('marca', 'tipo').order_by('nome')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        marcas = Marca.objects.filter(ativo=True)
+
+        if not self.request.user.has_perm('produtos.view_all_produtos'):
+            loja_id = self.request.session.get('loja_id')
+            if loja_id:
+                marcas = marcas.filter(
+                    Q(lojas_permitidas__isnull=True) |
+                    Q(lojas_permitidas__id=loja_id)
+                ).distinct()
+
+        context['marcas'] = marcas.order_by('nome')
+        context['marca_selecionada'] = self.request.GET.get('marca', '')
+        return context
 
 
 class ProdutoDeleteView(PermissionRequiredMixin, View):
@@ -103,11 +123,16 @@ class ProdutoPDFView(PermissionRequiredMixin, View):
         if search:
             queryset = queryset.filter(nome__icontains=search)
 
-        produtos = queryset.order_by('nome')
+        marca = request.GET.get('marca')
+        if marca:
+            queryset = queryset.filter(marca_id=marca)
+
+        produtos = queryset.select_related('marca', 'tipo').order_by('nome')
 
         html_str = render_to_string('produtos/produto_pdf.html', {
             'produtos': produtos,
             'search': search,
+            'marca': Marca.objects.filter(pk=marca).first() if marca else None,
             'gerado_em': timezone.localtime(timezone.now()),
         })
 
