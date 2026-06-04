@@ -2152,6 +2152,10 @@
           const form = document.getElementById('clienteForm');
           const aprovarUrl = this.getAttribute('data-url');
           
+          form.querySelectorAll('input[name="aprovar_apos_salvar"]').forEach(function(input) {
+            input.remove();
+          });
+
           // Cria um campo hidden para identificar que é uma aprovação
           const hiddenField = document.createElement('input');
           hiddenField.type = 'hidden';
@@ -2159,8 +2163,15 @@
           hiddenField.value = aprovarUrl;
           form.appendChild(hiddenField);
           
-          // Submete o formulário
-          form.submit();
+          // Usa o fluxo normal de submit para manter validações e handlers ativos.
+          if (form.requestSubmit) {
+            form.requestSubmit();
+          } else {
+            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+            if (form.dispatchEvent(submitEvent) && form.checkValidity()) {
+              form.submit();
+            }
+          }
         });
       }
     });
