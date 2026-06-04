@@ -689,7 +689,7 @@ Clientes
                     {# ===== FLUXO IPHONE ===== #}
                     
                     {# Etapa 1: Configurar iCloud (Vendedor) #}
-                    {% if cliente.analise_credito.status == 'A' and not cliente.analise_credito.icloud_configurado_vendedor or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    {% if cliente.analise_credito.status == 'A' or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
                     <button type="button" 
                             class="dropdown-item {% if cliente.analise_credito.icloud_configurado_vendedor %}etapa-concluida{% else %}etapa-pendente{% endif %}" 
                             data-bs-toggle="modal" 
@@ -726,7 +726,7 @@ Clientes
                     {% endif %}
                     
                     {# Etapa 4: Gerar Venda (Vendedor) - Para iPhone #}
-                    {% if cliente.analise_credito.status == 'A' and user|has_perm:"vendas.add_venda" and not cliente.analise_credito.venda_gerada or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    {% if cliente.analise_credito.status == 'A' and user|has_perm:"vendas.add_venda" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
                     <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}" 
                           onsubmit="return confirm('Gerar venda para {{ cliente.nome }}?');" class="m-0">
                       {% csrf_token %}
@@ -756,7 +756,7 @@ Clientes
                     {% endif %}
                     
                     {# FLUXO DE TRABALHO - Etapa 2: Confirmar Leitura #}
-                    {% if cliente.analise_credito.status == 'A' and cliente.analise_credito.status_aplicativo == 'P' or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    {% if cliente.analise_credito.status == 'A' or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
                     <form method="post" action="{% url 'vendas:cliente_confirm_installed' cliente.pk %}" class="d-inline">
                       {% csrf_token %}
                       <button type="submit" class="dropdown-item {% if cliente.analise_credito.status_aplicativo == 'I' %}etapa-concluida{% else %}etapa-pendente{% endif %}">
@@ -792,7 +792,7 @@ Clientes
                     {% endif %}
                     
                     {# FLUXO DE TRABALHO - Etapa 4: Gerar Venda #}
-                    {% if cliente.analise_credito.status == 'A' and user|has_perm:"vendas.add_venda" and not cliente.analise_credito.venda_gerada or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
+                    {% if cliente.analise_credito.status == 'A' and user|has_perm:"vendas.add_venda" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
                     <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}" onsubmit="return confirm('Gerar venda para {{ cliente.nome }}?');" class="m-0">
                       {% csrf_token %}
                       <button type="submit" class="dropdown-item {% if cliente.analise_credito.venda_gerada %}etapa-concluida{% else %}etapa-pendente{% endif %}">
