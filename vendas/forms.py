@@ -677,7 +677,37 @@ class AnaliseCreditoClienteImeiForm(forms.ModelForm):
 
 
 
-class ComprovantesClienteForm(forms.ModelForm):
+CAMPOS_ARQUIVO_COMPROVANTES = (
+    'documento_identificacao_frente',
+    'documento_identificacao_verso',
+    'comprovante_residencia',
+    'consulta_serasa',
+    'consulta_serasa_2',
+    'foto_cliente',
+)
+
+
+class PreservaArquivosComprovantesMixin:
+    def save(self, commit=True):
+        arquivos_atuais = {}
+        if self.instance and self.instance.pk:
+            for field_name in CAMPOS_ARQUIVO_COMPROVANTES:
+                arquivo_atual = getattr(self.instance, field_name, None)
+                if arquivo_atual and field_name not in self.files:
+                    arquivos_atuais[field_name] = arquivo_atual
+
+        instance = super().save(commit=False)
+        for field_name, arquivo_atual in arquivos_atuais.items():
+            setattr(instance, field_name, arquivo_atual)
+
+        if commit:
+            instance.save()
+            self.save_m2m()
+
+        return instance
+
+
+class ComprovantesClienteForm(PreservaArquivosComprovantesMixin, forms.ModelForm):
     restricao = forms.ChoiceField(
         label='Restrição',
         required=None,
@@ -783,7 +813,7 @@ class ComprovantesClienteForm(forms.ModelForm):
                 _disable('documento_identificacao_frente','documento_identificacao_verso','comprovante_residencia','consulta_serasa','consulta_serasa_2','foto_cliente')
                     
                     
-class ComprovantesClienteEditForm(forms.ModelForm):
+class ComprovantesClienteEditForm(PreservaArquivosComprovantesMixin, forms.ModelForm):
     restricao = forms.ChoiceField(
         label='Restrição',
         required=None,
