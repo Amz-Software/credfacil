@@ -6,123 +6,214 @@
   {{ status_form.media.css }}
   <style>
     .status-color-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
-    .brand-highlight {
-      background: linear-gradient(135deg, rgba(253, 198, 0, 0.15), rgba(13, 110, 253, 0.1));
-      border: 1px solid rgba(0, 0, 0, 0.05);
+
+    /* Campos em modo "leitura" */
+    .cr-field { margin-bottom: .25rem; }
+    .cr-field .cr-label {
+      font-size: .72rem; text-transform: uppercase; letter-spacing: .03em;
+      color: #a1acb8; font-weight: 600; display: block; margin-bottom: .1rem;
     }
-    .brand-highlight img {
-      height: 38px;
-      width: auto;
-      object-fit: contain;
-      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+    .cr-field .cr-value { color: var(--ipix-heading, #384551); font-weight: 500; }
+
+    /* KPIs do topo */
+    .cr-kpi {
+      border: 1px solid var(--ipix-gray-200, #eaeaef);
+      border-radius: var(--ipix-radius, .625rem);
+      padding: 1rem 1.1rem;
+      height: 100%;
+      background: #fff;
     }
-    .brand-card {
-      position: relative;
-      overflow: hidden;
+    .cr-kpi .cr-kpi-label { font-size: .75rem; color: #8592a3; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .cr-kpi .cr-kpi-value { font-size: 1.35rem; font-weight: 700; color: var(--ipix-heading, #384551); margin-top: .15rem; }
+    .cr-kpi .cr-kpi-icon { width: 42px; height: 42px; border-radius: 10px; display:flex; align-items:center; justify-content:center; font-size: 1.4rem; }
+
+    /* Pílula de status no topo */
+    .cr-status-pill {
+      display: inline-flex; align-items: center; gap: .4rem;
+      font-size: .8rem; font-weight: 600; padding: .35rem .75rem; border-radius: 50rem;
     }
-    .brand-floating-stamp {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      opacity: 0.1;
-      pointer-events: none;
+    .cr-status-pill .dot { width: .55rem; height: .55rem; border-radius: 50%; background: currentColor; }
+
+    /* Grade de situações (toggles) */
+    .sit-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: .65rem;
     }
-    .brand-floating-stamp img {
-      max-height: 90px;
-      width: auto;
+    .sit-item {
+      border: 1px solid var(--ipix-gray-200, #eaeaef);
+      border-radius: .6rem;
+      padding: .6rem .8rem;
+      transition: border-color .15s ease, box-shadow .15s ease;
+      background: #fff;
     }
+    .sit-item:hover { border-color: var(--ipix-yellow, #fdc600); box-shadow: var(--ipix-shadow-sm, 0 .125rem .5rem rgba(43,44,64,.08)); }
+    .sit-item form { margin: 0; }
+    .sit-item .form-check-label { font-weight: 600; color: var(--ipix-heading,#384551); cursor: pointer; }
+    .sit-item .sit-hint { font-size: .72rem; color: #a1acb8; display: block; margin-top: .2rem; }
+
+    .sub-heading {
+      font-size: .78rem; text-transform: uppercase; letter-spacing: .04em;
+      color: #8592a3; font-weight: 700; margin-bottom: .6rem;
+    }
+
+    /* Contatos */
+    .contact-row {
+      border: 1px solid var(--ipix-gray-200, #eaeaef);
+      border-radius: .6rem; padding: .75rem .9rem; margin-bottom: .6rem;
+      cursor: pointer; transition: border-color .15s ease, background .15s ease;
+    }
+    .contact-row:hover { border-color: var(--ipix-yellow, #fdc600); background: rgba(253,198,0,.06); }
+    .contact-icon {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(253,198,0,.16); color: #c79b00;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Tabela de parcelas: enxuga os widgets do formset */
+    #parcelas-table td input:not([type="checkbox"]),
+    #parcelas-table td select {
+      padding: .25rem .5rem; font-size: .85rem; height: auto;
+      max-width: 165px; display: inline-block;
+    }
+    #parcelas-table td { white-space: nowrap; }
+
+    /* Dark mode: superfícies personalizadas mantêm contraste */
+    .dark-style .cr-kpi,
+    .dark-style .sit-item { background: #2b2c40; border-color: rgba(255,255,255,.08); }
+    .dark-style .contact-row { border-color: rgba(255,255,255,.08); }
+    .dark-style .contact-row:hover { background: rgba(253,198,0,.10); }
   </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-xxl mt-4">
-  <div class="card brand-highlight border-0 shadow-sm mb-4">
-    <div class="card-body d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between">
-      <div class="text-muted small text-uppercase fw-semibold">
-        Gestão confiável powered by IPIX
-      </div>
-      <div class="d-flex align-items-center gap-2 mt-3 mt-md-0">
-        <img src="{% static 'images/IPIX.png' %}" alt="Marca IPIX" loading="lazy">
-        <img src="{% static 'images/logo.png' %}" alt="Logo IPIX" loading="lazy">
+<div class="container-xxl flex-grow-1 container-p-y mt-2">
+
+  <!-- CABEÇALHO DA PÁGINA -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-3 mb-2">
+    <div>
+      <h4 class="mb-0 d-flex align-items-center fw-bold">
+        <i class="bx bx-wallet me-2 text-primary"></i>
+        <span class="text-muted fw-light">Contas a Receber /&nbsp;</span>{{ conta_a_receber.venda.cliente.nome|title }}
+      </h4>
+      <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+        <span class="text-muted small">Venda #{{ conta_a_receber.venda.id }} · {{ conta_a_receber.venda.itens_venda.first.produto.nome|title }}</span>
+        {% if conta_a_receber.desativado %}
+          <span class="cr-status-pill" style="background:rgba(133,146,163,.16);color:#6c757d"><span class="dot"></span>Desativado</span>
+        {% elif conta_a_receber.devolucao %}
+          <span class="cr-status-pill" style="background:rgba(255,171,0,.16);color:#b97900"><span class="dot"></span>Devolução</span>
+        {% elif conta_a_receber.bloqueado %}
+          <span class="cr-status-pill" style="background:rgba(111,66,193,.14);color:#6f42c1"><span class="dot"></span>Bloqueado</span>
+        {% endif %}
       </div>
     </div>
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'vendas:cliente_update' conta_a_receber.venda.cliente.id %}" class="btn btn-outline-primary" title="Editar informações do cliente">
+        <i class="bi bi-pencil-square me-1"></i> Editar Cliente
+      </a>
+      <button id="download-pdf" class="btn btn-primary">
+        <i class="bi bi-file-earmark-pdf-fill me-1"></i> Gerar PDF
+      </button>
+    </div>
   </div>
+
   {% if conta_a_receber.desativado %}
-    <div class="alert alert-secondary" role="alert">
+    <div class="alert alert-secondary d-flex align-items-center" role="alert">
       <i class="bi bi-exclamation-triangle me-2"></i>
-      <strong>Cliente Desativado:</strong> Este cliente está desativado. As parcelas não aparecem nos gráficos e relatórios de contas a receber.
+      <div><strong>Cliente Desativado:</strong> Este cliente está desativado. As parcelas não aparecem nos gráficos e relatórios de contas a receber.</div>
     </div>
   {% endif %}
   {% if conta_a_receber.devolucao %}
-    <div class="alert alert-warning" role="alert">
+    <div class="alert alert-warning d-flex align-items-center" role="alert">
       <i class="bi bi-arrow-counterclockwise me-2"></i>
-      <strong>Devolução:</strong> Mantém parcelas já pagas; parcelas futuras não são consideradas nos gráficos/relatórios.
+      <div><strong>Devolução:</strong> Mantém parcelas já pagas; parcelas futuras não são consideradas nos gráficos/relatórios.</div>
     </div>
   {% endif %}
-  <div class="row gy-4">
 
+  <!-- KPIs -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="cr-kpi d-flex align-items-center justify-content-between">
+        <div>
+          <div class="cr-kpi-label">Valor Total</div>
+          <div class="cr-kpi-value">R$ {{ conta_a_receber.valor|floatformat:2 }}</div>
+        </div>
+        <div class="cr-kpi-icon" style="background:rgba(253,198,0,.16);color:#c79b00"><i class="bx bx-wallet"></i></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="cr-kpi d-flex align-items-center justify-content-between">
+        <div>
+          <div class="cr-kpi-label">Total Pago</div>
+          <div class="cr-kpi-value text-success">R$ {{ conta_a_receber.total_pago|floatformat:2 }}</div>
+        </div>
+        <div class="cr-kpi-icon" style="background:rgba(40,199,111,.16);color:#28c76f"><i class="bx bx-check-circle"></i></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="cr-kpi d-flex align-items-center justify-content-between">
+        <div>
+          <div class="cr-kpi-label">Saldo Pendente</div>
+          <div class="cr-kpi-value">R$ {{ conta_a_receber.valor_pendente|floatformat:2 }}</div>
+        </div>
+        <div class="cr-kpi-icon" style="background:rgba(255,171,0,.16);color:#b97900"><i class="bx bx-time-five"></i></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="cr-kpi d-flex align-items-center justify-content-between">
+        <div>
+          <div class="cr-kpi-label">Parcelas Pagas</div>
+          <div class="cr-kpi-value">{{ conta_a_receber.parcelas_pagas }}<span class="text-muted fs-6">/{{ conta_a_receber.parcelas_totais }}</span></div>
+        </div>
+        <div class="cr-kpi-icon" style="background:rgba(3,195,236,.16);color:#03c3ec"><i class="bx bx-receipt"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row gy-4">
 
     {# -- CARD: Informações do Cliente -- #}
     <div class="col-12">
-      <div class="card shadow-sm brand-card">
-        <div class="brand-floating-stamp d-none d-md-block" aria-hidden="true">
-          <img src="{% static 'images/IPIX.png' %}" alt="">
-        </div>
-        <div class="card-header d-flex justify-content-beetween align-items-center text-white">
-          <a href="{% url 'vendas:cliente_update' conta_a_receber.venda.cliente.id %}"
-             class="btn btn-light btn-md d-flex align-items-center"
-             title="Clique para editar as informações do cliente">
-            <i class="bi bi-pencil-square me-2"></i>
-            <h5 class="mb-0">Informações do Cliente</h5>
-            <span class="ms-2 text-muted small">(Clique aqui)</span>
-          </a>
-
-          <button id="download-pdf" class="btn btn-outline-secondary">
-            <i class="bi bi-file-earmark-pdf-fill"></i> Gerar PDF
-          </button>
-
+      <div class="card shadow-sm border-0">
+        <div class="card-header card-header-modern">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="section-title mb-0"><i class="bx bx-user me-2"></i>Informações do Cliente</h5>
+            <a href="{% url 'vendas:cliente_update' conta_a_receber.venda.cliente.id %}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-pencil-square me-1"></i> Editar
+            </a>
+          </div>
         </div>
         <div class="card-body">
-          <div class="row gx-3 gy-2">
-            <div class="col-12 col-md-6 col-lg-4">
-              <small class="text-muted">Nome</small>
-              <div>{{ conta_a_receber.venda.cliente.nome }}</div>
+          <div class="row gx-3 gy-3">
+            <div class="col-12 col-md-6 col-lg-4 cr-field">
+              <span class="cr-label">Nome</span><span class="cr-value">{{ conta_a_receber.venda.cliente.nome }}</span>
             </div>
-            <div class="col-12 col-md-6 col-lg-4">
-              <small class="text-muted">E-mail</small>
-              <div>{{ conta_a_receber.venda.cliente.email|default:"—" }}</div>
+            <div class="col-12 col-md-6 col-lg-4 cr-field">
+              <span class="cr-label">E-mail</span><span class="cr-value">{{ conta_a_receber.venda.cliente.email|default:"—" }}</span>
             </div>
-            <div class="col-12 col-md-6 col-lg-4">
-              <small class="text-muted">Telefone</small>
-              <div>{{ conta_a_receber.venda.cliente.telefone }}</div>
+            <div class="col-12 col-md-6 col-lg-4 cr-field">
+              <span class="cr-label">Telefone</span><span class="cr-value">{{ conta_a_receber.venda.cliente.telefone }}</span>
             </div>
-            <div class="col-12 col-md-6 col-lg-4">
-              <small class="text-muted">CPF</small>
-              <div>{{ conta_a_receber.venda.cliente.cpf }}</div>
+            <div class="col-12 col-md-6 col-lg-4 cr-field">
+              <span class="cr-label">CPF</span><span class="cr-value">{{ conta_a_receber.venda.cliente.cpf }}</span>
             </div>
-            <div class="col-12 col-md-6 col-lg-4">
-              <small class="text-muted">Nascimento</small>
-              <div>{{ conta_a_receber.venda.cliente.nascimento }}</div>
+            <div class="col-12 col-md-6 col-lg-4 cr-field">
+              <span class="cr-label">Nascimento</span><span class="cr-value">{{ conta_a_receber.venda.cliente.nascimento }}</span>
             </div>
-            <div class="col-12 col-md-6 col-lg-4">
-              <small class="text-muted">RG</small>
-              <div>{{ conta_a_receber.venda.cliente.rg|default:"—" }}</div>
+            <div class="col-12 col-md-6 col-lg-4 cr-field">
+              <span class="cr-label">RG</span><span class="cr-value">{{ conta_a_receber.venda.cliente.rg|default:"—" }}</span>
             </div>
-            <div class="col-12 col-md-6 col-lg-4">
-              <small class="text-muted">CEP</small>
-              <div>{{ conta_a_receber.venda.cliente.cep }}</div>
+            <div class="col-12 col-md-6 col-lg-4 cr-field">
+              <span class="cr-label">CEP</span><span class="cr-value">{{ conta_a_receber.venda.cliente.cep }}</span>
             </div>
-            <div class="col-12 col-md-12 col-lg-8">
-              <small class="text-muted">Endereço</small>
-              <div>{{ conta_a_receber.venda.cliente.endereco }}</div>
+            <div class="col-12 col-md-12 col-lg-8 cr-field">
+              <span class="cr-label">Endereço</span><span class="cr-value">{{ conta_a_receber.venda.cliente.endereco }}</span>
             </div>
-            <div class="col-12 col-md-6 col-lg-4">
-              <small class="text-muted">Bairro</small>
-              <div>{{ conta_a_receber.venda.cliente.bairro }}</div>
+            <div class="col-12 col-md-6 col-lg-4 cr-field">
+              <span class="cr-label">Bairro</span><span class="cr-value">{{ conta_a_receber.venda.cliente.bairro }}</span>
             </div>
-            <div class="col-12 col-md-6 col-lg-4">
-              <small class="text-muted">Cidade</small>
-              <div>{{ conta_a_receber.venda.cliente.cidade }}</div>
+            <div class="col-12 col-md-6 col-lg-4 cr-field">
+              <span class="cr-label">Cidade</span><span class="cr-value">{{ conta_a_receber.venda.cliente.cidade }}</span>
             </div>
           </div>
         </div>
@@ -131,180 +222,38 @@
 
     {# -- CARD: Detalhes da Conta a Receber -- #}
     <div class="col-12">
-      <div class="card shadow-sm brand-card">
-        <div class="brand-floating-stamp d-none d-md-block" aria-hidden="true">
-          <img src="{% static 'images/logo.png' %}" alt="">
-        </div>
-        <div class="card-header text-white">
-          <h5 class="mb-0">Detalhes da Conta
-            {% if conta_a_receber.devolucao %}
-              <span class="badge bg-warning text-dark ms-2">Devolução</span>
-            {% endif %}
+      <div class="card shadow-sm border-0">
+        <div class="card-header card-header-modern">
+          <h5 class="section-title mb-0">
+            <i class="bx bx-detail me-2"></i>Detalhes da Conta
+            {% if conta_a_receber.devolucao %}<span class="badge bg-warning ms-2">Devolução</span>{% endif %}
           </h5>
         </div>
         <div class="card-body">
-          <div class="row gx-3 gy-2">
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Venda</small>
-              <div>#{{ conta_a_receber.venda.id }}</div>
+          <div class="row gx-3 gy-3">
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Venda</span><span class="cr-value">#{{ conta_a_receber.venda.id }}</span>
             </div>
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Produto</small>
-              <div>{{ conta_a_receber.venda.itens_venda.first.produto.nome|title }}</div>
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Produto</span><span class="cr-value">{{ conta_a_receber.venda.itens_venda.first.produto.nome|title }}</span>
             </div>
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Valor Total</small>
-              <div>R$ {{ conta_a_receber.valor|floatformat:2 }}</div>
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Valor Total</span><span class="cr-value">R$ {{ conta_a_receber.valor|floatformat:2 }}</span>
             </div>
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Tipo Pagamento</small>
-              <div>{{ conta_a_receber.tipo_pagamento }}</div>
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Tipo Pagamento</span><span class="cr-value">{{ conta_a_receber.tipo_pagamento }}</span>
             </div>
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Parcelas</small>
-              <div>{{ conta_a_receber.parcelas }}</div>
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Parcelas</span><span class="cr-value">{{ conta_a_receber.parcelas }}</span>
             </div>
-            <div class="col-12">
-              <h6 class="text-muted mb-2">Situações</h6>
-              <div class="d-flex flex-column gap-2">
-                <form method="post" action="{% url 'vendas:toggle_lembrete_pagamento' conta_a_receber.id %}">
-                  {% csrf_token %}
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="sitLembrete" onchange="this.form.submit()" {% if conta_a_receber.lembrete %}checked{% endif %}>
-                    <label class="form-check-label" for="sitLembrete">
-                      <span class="status-color-dot me-2" style="background-color:#0d6efd;"></span>
-                      Lembrete
-                    </label>
-                  </div>
-                </form>
-                <form method="post" action="{% url 'vendas:toggle_bo_pagamento' conta_a_receber.id %}">
-                  {% csrf_token %}
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="sitBo" onchange="this.form.submit()" {% if conta_a_receber.bo %}checked{% endif %}>
-                    <label class="form-check-label" for="sitBo">
-                      <span class="status-color-dot me-2" style="background-color:#dc3545;"></span>
-                      BO
-                    </label>
-                  </div>
-                </form>
-                <form method="post" action="{% url 'vendas:toggle_atrasado_pagamento' conta_a_receber.id %}">
-                  {% csrf_token %}
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="sitAtrasado" onchange="this.form.submit()" {% if conta_a_receber.flag_atrasado %}checked{% endif %}>
-                    <label class="form-check-label" for="sitAtrasado">
-                      <span class="status-color-dot me-2" style="background-color:#fd7e14;"></span>
-                      Cobrança
-                    </label>
-                  </div>
-                </form>
-                <form method="post" action="{% url 'vendas:toggle_sem_conexao_pagamento' conta_a_receber.id %}">
-                  {% csrf_token %}
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="sitSemConexao" onchange="this.form.submit()" {% if conta_a_receber.sem_conexao %}checked{% endif %}>
-                    <label class="form-check-label" for="sitSemConexao">
-                      <span class="status-color-dot me-2" style="background-color:#6c757d;"></span>
-                      Sem conexão
-                    </label>
-                  </div>
-                </form>
-                <form method="post" action="{% url 'vendas:toggle_roubo_pagamento' conta_a_receber.id %}">
-                  {% csrf_token %}
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="sitRoubo" onchange="this.form.submit()" {% if conta_a_receber.roubo %}checked{% endif %}>
-                    <label class="form-check-label" for="sitRoubo">
-                      <span class="status-color-dot me-2" style="background-color:#000000;"></span>
-                      Roubo
-                    </label>
-                  </div>
-                </form>
-                <form method="post" action="{% url 'vendas:toggle_bloqueio_pagamento' conta_a_receber.id %}">
-                  {% csrf_token %}
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="sitBloqueado" onchange="this.form.submit()" {% if conta_a_receber.bloqueado %}checked{% endif %}>
-                    <label class="form-check-label" for="sitBloqueado">
-                      <span class="status-color-dot me-2" style="background-color:#6f42c1;"></span>
-                      Bloquear Aparelho
-                    </label>
-                  </div>
-                </form>
-                <form method="post" action="{% url 'vendas:toggle_desativar_pagamento' conta_a_receber.id %}">
-                  {% csrf_token %}
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="sitDesativado" onchange="this.form.submit()" {% if conta_a_receber.desativado %}checked{% endif %}>
-                    <label class="form-check-label" for="sitDesativado">
-                      <span class="status-color-dot me-2" style="background-color:#6c757d;"></span>
-                      Desativar Cliente
-                    </label>
-                    <br>
-                    <small class="text-muted">Quando desativado, as parcelas não aparecem nos gráficos e relatórios</small>
-                    {% if conta_a_receber.desativado %}
-                      <span class="badge bg-secondary ms-2 align-middle">Desativado</span>
-                    {% else %}
-                      <span class="badge bg-success ms-2 align-middle">Ativo</span>
-                    {% endif %}
-                  </div>
-                </form>
-                <form method="post" action="{% url 'vendas:toggle_devolucao_pagamento' conta_a_receber.id %}">
-                  {% csrf_token %}
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="sitDevolucao" onchange="this.form.submit()" {% if conta_a_receber.devolucao %}checked{% endif %}>
-                    <label class="form-check-label" for="sitDevolucao">
-                      <span class="status-color-dot me-2" style="background-color:#ffcd39;"></span>
-                      Devolução
-                    </label>
-                    <br>
-                    <small class="text-muted">Mantém parcelas pagas, ignora parcelas futuras em gráficos/relatórios</small>
-                    {% if conta_a_receber.devolucao %}
-                      <span class="badge bg-warning text-dark ms-2 align-middle">Marcado como devolução</span>
-                    {% endif %}
-                  </div>
-                </form>
-                <form method="post" action="{% url 'vendas:toggle_sem_contato_pagamento' conta_a_receber.id %}">
-                  {% csrf_token %}
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="sitSemContato" onchange="this.form.submit()" {% if conta_a_receber.sem_contato %}checked{% endif %}>
-                    <label class="form-check-label" for="sitSemContato">
-                      <span class="status-color-dot me-2" style="background-color:#4f46e5;"></span>
-                      Sem contato
-                    </label>
-                  </div>
-                </form>
-                <form method="post" action="{% url 'vendas:toggle_mais_prazo_pagamento' conta_a_receber.id %}">
-                  {% csrf_token %}
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="sitMaisPrazo" onchange="this.form.submit()" {% if conta_a_receber.mais_prazo %}checked{% endif %}>
-                    <label class="form-check-label" for="sitMaisPrazo">
-                      <span class="status-color-dot me-2" style="background-color:#20c997;"></span>
-                      Mais prazo
-                    </label>
-                  </div>
-                </form>
-              </div>
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Total Pago</span><span class="cr-value">{{ conta_a_receber.total_pago }}</span>
             </div>
-            <div class="col-12 mt-3">
-              <h6 class="text-muted mb-2">Status</h6>
-              {% for s in all_status_pagamento %}
-                <form method="post" action="{% url 'vendas:toggle_status_pagamento' conta_a_receber.id s.id %}" class="mb-2">
-                  {% csrf_token %}
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="statusSwitch-{{ s.id }}" onchange="this.form.submit()" {% if s in conta_a_receber.statuses.all %}checked{% endif %}>
-                    <label class="form-check-label" for="statusSwitch-{{ s.id }}">
-                      <span class="status-color-dot me-2" data-status-color="{{ s.cor_hex }}"></span>
-                      {{ s.nome }}
-                    </label>
-                  </div>
-                </form>
-              {% endfor %}
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">1ª Parcela</span><span class="cr-value">{{ conta_a_receber.data_primeira_parcela }}</span>
             </div>
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Total Pago</small>
-              <div>{{ conta_a_receber.total_pago }}</div>
-            </div>
-            <div class="col-12 col-md-4">
-              <small class="text-muted">1ª Parcela</small>
-              <div>{{ conta_a_receber.data_primeira_parcela }}</div>
-            </div>
-              <small class="text-muted">% Desconto</small>
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">% Desconto</span>
               <form id="descontoForm" method="post">
                 {% csrf_token %}
                 {% localize off %}
@@ -312,114 +261,251 @@
                     type="number"
                     name="porcentagem_desconto"
                     step="0.01"
-                    class="form-control"
+                    class="form-control form-control-sm"
                     value="{{ conta_a_receber.porcentagem_desconto }}"
                     onchange="this.form.submit()"
                     {% if not user|has_perm:"vendas.change_pagamento" %}disabled{% endif %}
                   />
                 {% endlocalize %}
               </form>
+            </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    {# -- CARD: Situações & Status -- #}
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-header card-header-modern">
+          <h5 class="section-title mb-0"><i class="bx bx-flag me-2"></i>Situações &amp; Status</h5>
+        </div>
+        <div class="card-body">
+
+          <div class="sub-heading">Sinalizações</div>
+          <div class="sit-grid mb-4">
+            <div class="sit-item">
+              <form method="post" action="{% url 'vendas:toggle_lembrete_pagamento' conta_a_receber.id %}">
+                {% csrf_token %}
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="sitLembrete" onchange="this.form.submit()" {% if conta_a_receber.lembrete %}checked{% endif %}>
+                  <label class="form-check-label" for="sitLembrete"><span class="status-color-dot me-2" style="background-color:#0d6efd;"></span>Lembrete</label>
+                </div>
+              </form>
+            </div>
+            <div class="sit-item">
+              <form method="post" action="{% url 'vendas:toggle_bo_pagamento' conta_a_receber.id %}">
+                {% csrf_token %}
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="sitBo" onchange="this.form.submit()" {% if conta_a_receber.bo %}checked{% endif %}>
+                  <label class="form-check-label" for="sitBo"><span class="status-color-dot me-2" style="background-color:#dc3545;"></span>BO</label>
+                </div>
+              </form>
+            </div>
+            <div class="sit-item">
+              <form method="post" action="{% url 'vendas:toggle_atrasado_pagamento' conta_a_receber.id %}">
+                {% csrf_token %}
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="sitAtrasado" onchange="this.form.submit()" {% if conta_a_receber.flag_atrasado %}checked{% endif %}>
+                  <label class="form-check-label" for="sitAtrasado"><span class="status-color-dot me-2" style="background-color:#fd7e14;"></span>Cobrança</label>
+                </div>
+              </form>
+            </div>
+            <div class="sit-item">
+              <form method="post" action="{% url 'vendas:toggle_sem_conexao_pagamento' conta_a_receber.id %}">
+                {% csrf_token %}
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="sitSemConexao" onchange="this.form.submit()" {% if conta_a_receber.sem_conexao %}checked{% endif %}>
+                  <label class="form-check-label" for="sitSemConexao"><span class="status-color-dot me-2" style="background-color:#6c757d;"></span>Sem conexão</label>
+                </div>
+              </form>
+            </div>
+            <div class="sit-item">
+              <form method="post" action="{% url 'vendas:toggle_roubo_pagamento' conta_a_receber.id %}">
+                {% csrf_token %}
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="sitRoubo" onchange="this.form.submit()" {% if conta_a_receber.roubo %}checked{% endif %}>
+                  <label class="form-check-label" for="sitRoubo"><span class="status-color-dot me-2" style="background-color:#2b2c40;"></span>Roubo</label>
+                </div>
+              </form>
+            </div>
+            <div class="sit-item">
+              <form method="post" action="{% url 'vendas:toggle_sem_contato_pagamento' conta_a_receber.id %}">
+                {% csrf_token %}
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="sitSemContato" onchange="this.form.submit()" {% if conta_a_receber.sem_contato %}checked{% endif %}>
+                  <label class="form-check-label" for="sitSemContato"><span class="status-color-dot me-2" style="background-color:#2f80ed;"></span>Sem contato</label>
+                </div>
+              </form>
+            </div>
+            <div class="sit-item">
+              <form method="post" action="{% url 'vendas:toggle_mais_prazo_pagamento' conta_a_receber.id %}">
+                {% csrf_token %}
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="sitMaisPrazo" onchange="this.form.submit()" {% if conta_a_receber.mais_prazo %}checked{% endif %}>
+                  <label class="form-check-label" for="sitMaisPrazo"><span class="status-color-dot me-2" style="background-color:#20c997;"></span>Mais prazo</label>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="sub-heading">Ações especiais</div>
+          <div class="sit-grid mb-4">
+            <div class="sit-item">
+              <form method="post" action="{% url 'vendas:toggle_bloqueio_pagamento' conta_a_receber.id %}">
+                {% csrf_token %}
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="sitBloqueado" onchange="this.form.submit()" {% if conta_a_receber.bloqueado %}checked{% endif %}>
+                  <label class="form-check-label" for="sitBloqueado"><span class="status-color-dot me-2" style="background-color:#6f42c1;"></span>Bloquear Aparelho</label>
+                </div>
+              </form>
+            </div>
+            <div class="sit-item">
+              <form method="post" action="{% url 'vendas:toggle_desativar_pagamento' conta_a_receber.id %}">
+                {% csrf_token %}
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="sitDesativado" onchange="this.form.submit()" {% if conta_a_receber.desativado %}checked{% endif %}>
+                  <label class="form-check-label" for="sitDesativado">
+                    <span class="status-color-dot me-2" style="background-color:#6c757d;"></span>Desativar Cliente
+                    {% if conta_a_receber.desativado %}
+                      <span class="badge bg-secondary ms-1 align-middle">Desativado</span>
+                    {% else %}
+                      <span class="badge bg-success ms-1 align-middle">Ativo</span>
+                    {% endif %}
+                  </label>
+                  <small class="sit-hint">Quando desativado, as parcelas não aparecem nos gráficos e relatórios.</small>
+                </div>
+              </form>
+            </div>
+            <div class="sit-item">
+              <form method="post" action="{% url 'vendas:toggle_devolucao_pagamento' conta_a_receber.id %}">
+                {% csrf_token %}
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="sitDevolucao" onchange="this.form.submit()" {% if conta_a_receber.devolucao %}checked{% endif %}>
+                  <label class="form-check-label" for="sitDevolucao">
+                    <span class="status-color-dot me-2" style="background-color:#ffcd39;"></span>Devolução
+                    {% if conta_a_receber.devolucao %}
+                      <span class="badge bg-warning text-dark ms-1 align-middle">Marcado como devolução</span>
+                    {% endif %}
+                  </label>
+                  <small class="sit-hint">Mantém parcelas pagas, ignora parcelas futuras em gráficos/relatórios.</small>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="sub-heading">Status do Pagamento</div>
+          {% if all_status_pagamento %}
+            <div class="sit-grid">
+              {% for s in all_status_pagamento %}
+                <div class="sit-item">
+                  <form method="post" action="{% url 'vendas:toggle_status_pagamento' conta_a_receber.id s.id %}">
+                    {% csrf_token %}
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" id="statusSwitch-{{ s.id }}" onchange="this.form.submit()" {% if s in conta_a_receber.statuses.all %}checked{% endif %}>
+                      <label class="form-check-label" for="statusSwitch-{{ s.id }}">
+                        <span class="status-color-dot me-2" data-status-color="{{ s.cor_hex }}"></span>{{ s.nome }}
+                      </label>
+                    </div>
+                  </form>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted small mb-0">Nenhum status cadastrado.</p>
+          {% endif %}
         </div>
       </div>
     </div>
 
     {# -- CARD: Detalhes de informacoes adicionais e comerciais -- #}
     <div class="col-12">
-      <div class="card shadow-sm">
-        <div class="card-header text-white">
-          <h5 class="mb-0">Informações adicionais e comerciais</h5>
+      <div class="card shadow-sm border-0">
+        <div class="card-header card-header-modern">
+          <h5 class="section-title mb-0"><i class="bx bx-info-circle me-2"></i>Informações adicionais e comerciais</h5>
         </div>
         <div class="card-body">
-          <div class="row gx-3 gy-2">
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Nome (Info. Adicional)</small>
-              <div>{{ conta_a_receber.venda.cliente.informacao_pessoal.nome|title|default:"Não informado" }}</div>
+          <div class="row gx-3 gy-3">
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Nome (Info. Adicional)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.informacao_pessoal.nome|title|default:"Não informado" }}</span>
             </div>
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Telefone (Info. Adicional)</small>
-              <div>{{ conta_a_receber.venda.cliente.informacao_pessoal.contato|default:"Não informado" }}</div>
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Telefone (Info. Adicional)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.informacao_pessoal.contato|default:"Não informado" }}</span>
             </div>
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Endereco (Info. Adicional)</small>
-              <div>{{ conta_a_receber.venda.cliente.informacao_pessoal.endereco|default:"Não informado" }}</div>
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Endereço (Info. Adicional)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.informacao_pessoal.endereco|default:"Não informado" }}</span>
             </div>
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Nome (Info. Comercial)</small>
-              <div>{{ conta_a_receber.venda.cliente.contato_adicional.nome|title|default:"Não informado" }}</div>
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Nome (Info. Comercial)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.contato_adicional.nome|title|default:"Não informado" }}</span>
             </div>
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Telefone (Info. Comercial)</small>
-              <div>{{ conta_a_receber.venda.cliente.contato_adicional.contato|default:"Não informado" }}</div>
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Telefone (Info. Comercial)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.contato_adicional.contato|default:"Não informado" }}</span>
             </div>
-            <div class="col-12 col-md-4">
-              <small class="text-muted">Endereço (Info. Comercial)</small>
-              <div>{{ conta_a_receber.venda.cliente.contato_adicional.endereco|default:"Não informado" }}</div>
+            <div class="col-12 col-md-4 cr-field">
+              <span class="cr-label">Endereço (Info. Comercial)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.contato_adicional.endereco|default:"Não informado" }}</span>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    {# dentro de content, logo após os cards existentes #}
+    {# -- CARD: Contatos com o Cliente -- #}
     <div class="col-12">
-      <div class="card shadow-sm">
-        <div class="card-header text-white">
-          <h5 class="mb-0">Contatos com o Cliente</h5>
+      <div class="card shadow-sm border-0">
+        <div class="card-header card-header-modern">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="section-title mb-0"><i class="bx bx-phone me-2"></i>Contatos com o Cliente</h5>
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#contatoModal">
+              <i class="bi bi-plus-circle me-1"></i> Novo Contato
+            </button>
+          </div>
         </div>
         <div class="card-body">
-          <ul class="list-group list-group-flush mb-3">
-            {% for c in contacts %}
-              <li class="mb-3" 
-                  style="cursor:pointer"
-                  data-bs-toggle="modal"
-                  data-bs-target="#editContatoModal-{{ c.id }}">
-                <span>
-                  <strong>{{ c.data|date:"d/m/Y" }}</strong> – {{ c.observacao }}
-                </span><br>
+          {% for c in contacts %}
+            <div class="contact-row d-flex align-items-start gap-3"
+                 data-bs-toggle="modal"
+                 data-bs-target="#editContatoModal-{{ c.id }}">
+              <div class="contact-icon"><i class="bx bx-message-rounded-dots"></i></div>
+              <div class="flex-grow-1">
+                <div><strong>{{ c.data|date:"d/m/Y" }}</strong> – {{ c.observacao }}</div>
                 <small class="text-muted">
                   Solicitado por {{ c.criado_por.get_full_name|default:c.criado_por.username }}
                   em {{ c.criado_em|date:"d/m/Y H:i" }}
                 </small>
-              </li>
+              </div>
+              <i class="bx bx-pencil text-muted"></i>
+            </div>
 
-              <!-- Modal de edição -->
-              <div class="modal fade" id="editContatoModal-{{ c.id }}" tabindex="-1">
-                <div class="modal-dialog">
-                  <div class="modal-content">
-                    <div class="modal-header">
-                      <h5 class="modal-title">Editar Contato</h5>
-                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <form method="post"
-                          action="{% url 'vendas:pagamento_edit_contato' conta_a_receber.id c.id %}">
-                      {% csrf_token %}
-                      <div class="modal-body">
-                        {{ c.form.as_p }}
-                      </div>
-                      <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary"
-                                data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Salvar</button>
-                      </div>
-                    </form>
+            <!-- Modal de edição -->
+            <div class="modal fade" id="editContatoModal-{{ c.id }}" tabindex="-1">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Editar Contato</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                   </div>
+                  <form method="post"
+                        action="{% url 'vendas:pagamento_edit_contato' conta_a_receber.id c.id %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                      {{ c.form.as_p }}
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                      <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                  </form>
                 </div>
               </div>
-            {% empty %}
-              <li>Nenhum contato registrado.</li>
-            {% endfor %}
-          </ul>
-          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#contatoModal">
-            <i class="bi bi-plus-circle me-1"></i> Novo Contato
-          </button>
+            </div>
+          {% empty %}
+            {% include "components/empty_state.html" with message="Nenhum contato registrado" icon="bx bx-message-rounded-x" %}
+          {% endfor %}
         </div>
       </div>
     </div>
 
     {# -- Modal para adicionar contato -- #}
-
-    <!-- Modal -->
     <div class="modal fade" id="contatoModal" tabindex="-1">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -436,9 +522,7 @@
               {{ contato_form.as_p }}
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                Fechar
-              </button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
               <button type="submit" class="btn btn-primary">Salvar</button>
             </div>
           </form>
@@ -448,9 +532,9 @@
 
     {# -- CARD: Tabela de Parcelas/Editável -- #}
     <div class="col-12">
-      <div class="card shadow-sm">
-        <div class="card-header bg-light text-dark">
-          <h5 class="mb-0">Parcelas</h5>
+      <div class="card shadow-sm border-0">
+        <div class="card-header card-header-modern">
+          <h5 class="section-title mb-0"><i class="bx bx-list-check me-2"></i>Parcelas</h5>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
@@ -458,18 +542,18 @@
               {{ parcela_form.management_form }}
               {% csrf_token %}
               {% if parcela_form.forms %}
-          <div class="alert alert-info mb-3" role="alert">
-            <div class="row">
-              <div class="col-md-6">
-                <small class="text-muted">Última alteração por:</small>
-                <div><strong>{{ parcela_form.forms.0.instance.modificado_por.get_full_name|default:parcela_form.forms.0.instance.modificado_por }}</strong></div>
-              </div>
-              <div class="col-md-6">
-                <small class="text-muted">Data/Hora da última alteração:</small>
-                <div><strong>{{ parcela_form.forms.0.instance.modificado_em|date:"d/m/Y H:i" }}</strong></div>
-              </div>
-            </div>
-          </div>
+                <div class="alert alert-info m-3" role="alert">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <small class="text-muted">Última alteração por:</small>
+                      <div><strong>{{ parcela_form.forms.0.instance.modificado_por.get_full_name|default:parcela_form.forms.0.instance.modificado_por }}</strong></div>
+                    </div>
+                    <div class="col-md-6">
+                      <small class="text-muted">Data/Hora da última alteração:</small>
+                      <div><strong>{{ parcela_form.forms.0.instance.modificado_em|date:"d/m/Y H:i" }}</strong></div>
+                    </div>
+                  </div>
+                </div>
               {% endif %}
               {% localize off %}
               <div id="parcelas-data"
@@ -478,49 +562,49 @@
                    data-max-extras="4"
                    style="display:none"></div>
               {% endlocalize %}
-              <table id="parcelas-table" class="table table-hover mb-0">
-          <thead class="table-light">
-            <tr>
-              <th scope="col">Número da Parcela</th>
-              <th scope="col">Data do Pagamento</th>
-              <th scope="col">Valor Original</th>
-              <th scope="col">Valor Pago</th>
-              <th scope="col">
-                Data de Vencimento
-                {% if user|has_perm:"vendas.change_vencimento_parcela" %}
-            <i class="bi bi-pencil-square text-primary" title="Você pode editar a data de vencimento"></i>
-                {% endif %}
-              </th>
-              <th scope="col">Pago?</th>
-              <th scope="col">Cliente Informou?</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for parcela in parcela_form %}
-              <tr class="{% if parcela.instance.pago %}table-success{% endif %}" data-pago="{{ parcela.instance.pago|yesno:'1,0' }}">
-                {{ parcela.id }}
-                <td>{{ parcela.numero_parcela }}</td>
-                <td>{{ parcela.data_pagamento }}</td>
-                <td>{{ parcela.valor }}</td>
-                <td>{{ parcela.valor_pago }}</td>
-                <td>{{ parcela.data_vencimento }}</td>
-                <td>{{ parcela.pago }}</td>
-                <td>{{ parcela.pagamento_efetuado }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-          <tfoot class="table-light fw-bold">
-            <tr>
-              <td colspan="2" class="text-end">Total</td>
-              <td id="total-valor-original-cell">R$ {{ total_valor_original|floatformat:2 }}</td>
-              <td>R$ {{ total_valor_pago|floatformat:2 }}</td>
-              <td colspan="3"></td>
-            </tr>
-          </tfoot>
+              <table id="parcelas-table" class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Número da Parcela</th>
+                    <th scope="col">Data do Pagamento</th>
+                    <th scope="col">Valor Original</th>
+                    <th scope="col">Valor Pago</th>
+                    <th scope="col">
+                      Data de Vencimento
+                      {% if user|has_perm:"vendas.change_vencimento_parcela" %}
+                        <i class="bi bi-pencil-square text-primary" title="Você pode editar a data de vencimento"></i>
+                      {% endif %}
+                    </th>
+                    <th scope="col">Pago?</th>
+                    <th scope="col">Cliente Informou?</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for parcela in parcela_form %}
+                    <tr class="{% if parcela.instance.pago %}table-success{% endif %}" data-pago="{{ parcela.instance.pago|yesno:'1,0' }}">
+                      {{ parcela.id }}
+                      <td>{{ parcela.numero_parcela }}</td>
+                      <td>{{ parcela.data_pagamento }}</td>
+                      <td>{{ parcela.valor }}</td>
+                      <td>{{ parcela.valor_pago }}</td>
+                      <td>{{ parcela.data_vencimento }}</td>
+                      <td>{{ parcela.pago }}</td>
+                      <td>{{ parcela.pagamento_efetuado }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                  <tr>
+                    <td colspan="2" class="text-end">Total</td>
+                    <td id="total-valor-original-cell">R$ {{ total_valor_original|floatformat:2 }}</td>
+                    <td>R$ {{ total_valor_pago|floatformat:2 }}</td>
+                    <td colspan="3"></td>
+                  </tr>
+                </tfoot>
               </table>
               <div class="d-flex justify-content-center py-3 flex-wrap gap-2">
                 <a href="{% url 'financeiro:contas_a_receber_list' %}" class="btn btn-secondary">
-                    Voltar
+                  <i class="bx bx-arrow-back me-1"></i> Voltar
                 </a>
 
                 {% if user|has_perm:"vendas.add_parcela" %}
@@ -531,15 +615,14 @@
                   </button>
                 {% endif %}
 
-                {# --- BOTÃO PARA ACIONAR O MODAL DE QUITAÇÃO --- #}
                 {% if user|has_perm:"vendas.can_confirm_quitacao" %}
-                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmarQuitacaoModal">
-                    Confirmar Quitação
-                </button>
+                  <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmarQuitacaoModal">
+                    <i class="bx bx-check-double me-1"></i> Confirmar Quitação
+                  </button>
                 {% endif %}
 
                 {% if user|has_perm:"vendas.change_pagamento" or user|has_perm:"vendas.add_parcela" %}
-                  <button type="submit" class="btn btn-primary">Salvar</button>
+                  <button type="submit" class="btn btn-primary"><i class="bx bx-save me-1"></i> Salvar</button>
                 {% endif %}
               </div>
             </form>
@@ -550,45 +633,42 @@
     </div>
 
     {# ================================================================== #}
-{# MODAL DE CONFIRMAÇÃO PARA A QUITAÇÃO DO ANALISTA                   #}
-{# ================================================================== #}
-<div class="modal fade" id="confirmarQuitacaoModal" tabindex="-1" aria-labelledby="confirmarQuitacaoModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title" id="confirmarQuitacaoModalLabel">Confirmar Quitação de Pagamento</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
-      </div>
-      <div class="modal-body">
-        <p>Você está prestes a confirmar a quitação deste pagamento.</p>
-        <p>Esta ação irá:</p>
-        <ul class="list-group">
-          <li class="list-group-item">
-            Ajustar o <strong>valor</strong> de <strong>{{ confirmando_count|default:"várias" }}</strong> parcelas para refletir o desconto.
-          </li>
-          <li class="list-group-item">
-            Marcar todas essas parcelas como <strong>PAGAS</strong>.
-          </li>
-          <li class="list-group-item">
-            Marcar o Pagamento principal como <strong>QUITADO</strong>.
-          </li>
-        </ul>
-        <p class="mt-3 text-danger fw-bold">Atenção: Esta operação não pode ser desfeita.</p>
-        <p>Deseja continuar?</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        
-        <form action="{% url 'vendas:confirmar_quitacao' conta_a_receber.id %}" method="post">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-success">
-            Sim, Confirmar Quitação
-          </button>
-        </form>
+    {# MODAL DE CONFIRMAÇÃO PARA A QUITAÇÃO DO ANALISTA                   #}
+    {# ================================================================== #}
+    <div class="modal fade" id="confirmarQuitacaoModal" tabindex="-1" aria-labelledby="confirmarQuitacaoModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title" id="confirmarQuitacaoModalLabel">Confirmar Quitação de Pagamento</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+          </div>
+          <div class="modal-body">
+            <p>Você está prestes a confirmar a quitação deste pagamento.</p>
+            <p>Esta ação irá:</p>
+            <ul class="list-group">
+              <li class="list-group-item">
+                Ajustar o <strong>valor</strong> de <strong>{{ confirmando_count|default:"várias" }}</strong> parcelas para refletir o desconto.
+              </li>
+              <li class="list-group-item">
+                Marcar todas essas parcelas como <strong>PAGAS</strong>.
+              </li>
+              <li class="list-group-item">
+                Marcar o Pagamento principal como <strong>QUITADO</strong>.
+              </li>
+            </ul>
+            <p class="mt-3 text-danger fw-bold">Atenção: Esta operação não pode ser desfeita.</p>
+            <p>Deseja continuar?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <form action="{% url 'vendas:confirmar_quitacao' conta_a_receber.id %}" method="post">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success">Sim, Confirmar Quitação</button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
     {# relatório escondido fora da tela para o html2pdf capturar #}
     <div id="report-content" style="position:absolute; left:-9999px; top:0; width:210mm;">

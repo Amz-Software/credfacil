@@ -4,393 +4,425 @@
 {% block title %}Contas a Receber{% endblock %}
 
 {% block extra_head %}
+  <link rel="stylesheet" href="{% static 'sneat-template/assets/vendor/libs/select2/select2.css' %}" />
   <style>
-    /* Linha bloqueada em roxo */
-    .table-purple,
-    .table-purple th,
-    .table-purple td {
-      background-color: #6f42c1 !important;
-      color: #fff            !important;
+    /* ====== Contas a Receber — listagem ====== */
+    .cr-table { margin-bottom: 0; }
+    .cr-table > thead > tr > th {
+      font-size: .72rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--ipix-gray-500, #a1acb8);
+      font-weight: 600;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--ipix-gray-200, #eaeaef);
     }
-    /* Linha desativada em cinza */
-    .table-secondary,
-    .table-secondary th,
-    .table-secondary td {
-      background-color: #6c757d !important;
-      color: #fff !important;
-      opacity: 0.8;
+    .cr-table > tbody > tr > td { vertical-align: middle; }
+    /* Barra de acento à esquerda (status da linha) */
+    .cr-row > td:first-child { border-left: 3px solid var(--cr-accent, transparent); }
+    .cr-row.is-desativado { opacity: .72; }
+    .cr-row.is-desativado  { --cr-accent: #8592a3; }
+    .cr-row.is-devolucao   { --cr-accent: #ffab00; }
+    .cr-row.is-bloqueado   { --cr-accent: #6f42c1; }
+    .cr-row.is-semcontato  { --cr-accent: #2f80ed; }
+    .cr-row.is-maisprazo   { --cr-accent: #20c997; }
+    .cr-row.is-atrasado    { --cr-accent: #ea5455; }
+    .cr-row.is-pendente    { --cr-accent: #ffab00; }
+    .cr-row.is-pago        { --cr-accent: #28c76f; }
+    .cr-row.is-quitado     { --cr-accent: #03c3ec; }
+    .cr-row.is-default     { --cr-accent: #eaeaef; }
+
+    /* Pílula de status principal */
+    .cr-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      font-size: .72rem;
+      font-weight: 600;
+      padding: .28rem .6rem;
+      border-radius: 50rem;
+      white-space: nowrap;
+      line-height: 1;
     }
-    /* Sombreamento leve para o card */
-    .card-custom {
-      border: none;
-      border-radius: .75rem;
-      box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,0.05);
+    .cr-pill .cr-dot {
+      width: .5rem; height: .5rem; border-radius: 50%;
+      background: currentColor; flex-shrink: 0;
     }
-    /* Sem contato (indigo suave) */
-    .table-indigo,
-    .table-indigo th,
-    .table-indigo td {
-      background-color: #e0e7ff !important;
-      color: #111827 !important;
+    .cr-pill.is-desativado { background: rgba(133,146,163,.16); color: #6c757d; }
+    .cr-pill.is-devolucao  { background: rgba(255,171,0,.16);  color: #b97900; }
+    .cr-pill.is-bloqueado  { background: rgba(111,66,193,.14); color: #6f42c1; }
+    .cr-pill.is-semcontato { background: rgba(47,128,237,.14); color: #1c5fc0; }
+    .cr-pill.is-maisprazo  { background: rgba(32,201,151,.16); color: #149e78; }
+    .cr-pill.is-atrasado   { background: rgba(234,84,85,.16);  color: #ea5455; }
+    .cr-pill.is-pendente   { background: rgba(255,171,0,.16);  color: #b97900; }
+    .cr-pill.is-pago       { background: rgba(40,199,111,.16); color: #1a9e57; }
+    .cr-pill.is-quitado    { background: rgba(3,195,236,.16);  color: #0a8aa8; }
+    .cr-pill.is-default    { background: var(--ipix-gray-100,#f5f5f9); color: #8592a3; }
+
+    /* Sinalizações (BO, Cobrança, etc.) */
+    .cr-flag {
+      display: inline-flex;
+      align-items: center;
+      gap: .25rem;
+      font-size: .68rem;
+      font-weight: 600;
+      padding: .2rem .45rem;
+      border-radius: .4rem;
+      line-height: 1;
+      border: 1px solid transparent;
     }
-    /* Mais prazo (teal suave) */
-    .table-teal,
-    .table-teal th,
-    .table-teal td {
-      background-color: #d2f4ea !important;
-      color: #0f5132 !important;
+    .cr-flag.f-bo        { background: rgba(234,84,85,.12);  color: #ea5455; }
+    .cr-flag.f-cobranca  { background: rgba(253,126,20,.14); color: #d9650b; }
+    .cr-flag.f-conexao   { background: rgba(133,146,163,.16); color: #6c757d; }
+    .cr-flag.f-roubo     { background: rgba(0,0,0,.08);       color: #2b2c40; }
+
+    /* Status personalizados (StatusPagamento.cor_hex) */
+    .cr-status-tag {
+      display: inline-flex; align-items: center;
+      font-size: .68rem; font-weight: 600;
+      padding: .2rem .5rem; border-radius: 50rem;
+      color: #1f2230; line-height: 1;
     }
-    /* Devolução (âmbar suave) */
-    .table-amber,
-    .table-amber th,
-    .table-amber td {
-      background-color: #fff3cd !important; /* bootstrap warning bg */
-      color: #664d03 !important;            /* bootstrap warning text */
-      border-bottom: 2px dashed #ffcd39 !important;
+
+    /* Cliente / produto */
+    .cr-client-name { font-weight: 600; color: var(--ipix-heading,#384551); }
+    .cr-client-name:hover { color: var(--ipix-yellow-700,#c79b00); }
+    .cr-sub { font-size: .78rem; color: #8592a3; }
+    .cr-sub a { color: #8592a3; }
+    .cr-sub a:hover { color: var(--ipix-yellow-700,#c79b00); }
+
+    /* Valores */
+    .cr-amount { font-weight: 600; white-space: nowrap; }
+    .cr-amount-warn { color: #b97900; }
+    .cr-amount-date { font-size: .72rem; color: #8592a3; white-space: nowrap; }
+    .cr-table > tbody > tr > td.cr-money { min-width: 118px; }
+
+    /* Progresso de parcelas */
+    .cr-progress {
+      height: 6px; width: 90px; border-radius: 50rem;
+      background: var(--ipix-gray-200,#eaeaef); overflow: hidden; margin: 0 auto;
+    }
+    .cr-progress-bar { height: 100%; border-radius: 50rem; background: #28c76f; }
+
+    /* Legenda */
+    .cr-legend { display: flex; flex-wrap: wrap; gap: .5rem .9rem; }
+    .cr-legend .item { display: inline-flex; align-items: center; gap: .35rem; font-size: .75rem; color: #6b7785; }
+    .cr-legend .swatch { width: .8rem; height: .8rem; border-radius: 3px; flex-shrink: 0; }
+
+    /* Filtros: switches em grade */
+    .cr-switch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: .35rem 1rem;
     }
   </style>
 {% endblock %}
 
 
 {% block content %}
-<div class="container-xxl mt-4">
-  <div class="card card-custom">
-    <!-- HEADER -->
-    <div class="card-header border-bottom">
-      <div class="d-flex flex-wrap justify-content-between align-items-center">
-        <h4 class="mb-0">
-          <i class="bi bi-wallet2 me-1"></i>
-          Contas a Receber
-          <button
-            type="button"
-            class="btn btn-link btn-sm text-decoration-none ms-2 p-0 align-middle"
-            data-bs-toggle="tooltip"
-            data-bs-html="true"
-            title="
-              <ul class='mb-0 ps-3'>
-                <li><strong>Cinza:</strong> Desativado</li>
-                <li><strong>Roxo:</strong> Bloqueado</li>
-                <li><strong>Vermelho:</strong> Atrasado</li>
-                <li><strong>Amarelo:</strong> A vencer</li>
-                <li><strong>Verde:</strong> Pago</li>
-                <li><strong>Azul:</strong> Quitado</li>
-                <li><strong>Âmbar tracejado:</strong> Devolução</li>
-              </ul>
-            "
-          >
-            <i class="bi bi-info-circle"></i>
-          </button>
-        </h4>
+<div class="container-xxl flex-grow-1 container-p-y mt-2">
+
+  {% include "components/page_header.html" with title="Contas a Receber" icon="bx bx-wallet" subtitle="Acompanhe pagamentos, atrasos e sinalizações dos clientes" %}
+
+  <!-- LEGENDA -->
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="cr-legend">
+        <span class="item"><span class="swatch" style="background:#28c76f"></span>Pago</span>
+        <span class="item"><span class="swatch" style="background:#03c3ec"></span>Quitado</span>
+        <span class="item"><span class="swatch" style="background:#ffab00"></span>A vencer</span>
+        <span class="item"><span class="swatch" style="background:#ea5455"></span>Atrasado</span>
+        <span class="item"><span class="swatch" style="background:#6f42c1"></span>Bloqueado</span>
+        <span class="item"><span class="swatch" style="background:#2f80ed"></span>Sem contato</span>
+        <span class="item"><span class="swatch" style="background:#20c997"></span>Mais prazo</span>
+        <span class="item"><span class="swatch" style="background:#8592a3"></span>Desativado</span>
+        <span class="item"><span class="swatch" style="background:#ffab00;border:1px dashed #d9a400"></span>Devolução</span>
       </div>
     </div>
+  </div>
 
-    <!-- FILTROS -->
-    <div class="card-body border-bottom mt-3">
-      <form method="get" class="row g-3 align-items-end">
-        <!-- Pesquisa -->
-        <div class="col-md-3">
-          <div class="form-floating">
-            <input
-              type="text"
-              id="searchInput"
-              name="search"
-              value="{{ request.GET.search }}"
-              class="form-control form-control-sm"
-              placeholder="Pesquisar..."
-            >
-            <label for="searchInput">Pesquisar</label>
+  <!-- FILTROS -->
+  <div class="card border-0 shadow-sm filter-card mb-4">
+    <div class="card-header card-header-modern">
+      <h5 class="section-title mb-0"><i class="bx bx-filter me-2"></i>Filtros de Busca</h5>
+    </div>
+    <div class="card-body">
+      <form method="get">
+        <div class="row g-3 align-items-end">
+          <!-- Pesquisa -->
+          <div class="col-md-4">
+            <label for="searchInput" class="form-label fw-semibold"><i class="bx bx-search me-1"></i>Pesquisar</label>
+            <input type="text" id="searchInput" name="search" value="{{ request.GET.search }}"
+                   class="form-control" placeholder="Cliente, CPF, observação ou nº do pagamento">
           </div>
-        </div>
-        <!-- Status -->
-        <div class="col-md-2">
-          <div class="form-floating">
-            <select
-              id="statusSelect"
-              name="status"
-              class="form-select form-select-sm"
-            >
+          <!-- Status -->
+          <div class="col-md-3">
+            <label for="statusSelect" class="form-label fw-semibold"><i class="bx bx-pulse me-1"></i>Status</label>
+            <select id="statusSelect" name="status" class="form-select">
               <option value="" {% if not request.GET.status %}selected{% endif %}>Todos</option>
               <option value="no_prazo" {% if request.GET.status == 'no_prazo' %}selected{% endif %}>PAGO</option>
               <option value="atrasado" {% if request.GET.status == 'atrasado' %}selected{% endif %}>ATRASADO</option>
               <option value="quitado" {% if request.GET.status == 'quitado' %}selected{% endif %}>QUITADO</option>
               <option value="pendente" {% if request.GET.status == 'pendente' %}selected{% endif %}>A VENCER</option>
             </select>
-            <label for="statusSelect">Status</label>
           </div>
-        </div>
-        <!-- Loja -->
-        {% if user|has_perm:"vendas.can_view_all_stores" %}
-          <div class="col-md-3">
-            <div class="form-floating">
-              <select
-                id="lojaSelect"
-                name="loja"
-                class="form-select form-select-sm"
-              >
+          <!-- Loja -->
+          {% if user|has_perm:"vendas.can_view_all_stores" %}
+            <div class="col-md-3">
+              <label for="lojaSelect" class="form-label fw-semibold"><i class="bx bx-store me-1"></i>Loja</label>
+              <select id="lojaSelect" name="loja" class="form-select">
                 <option value="" {% if not request.GET.loja %}selected{% endif %}>Todas as Lojas</option>
                 {% for loja in lojas %}
-                  <option value="{{ loja.id }}" {% if request.GET.loja == loja.id %}selected{% endif %}>
-                    {{ loja.nome|title }}
-                  </option>
+                  <option value="{{ loja.id }}" {% if request.GET.loja == loja.id|stringformat:'s' %}selected{% endif %}>{{ loja.nome|title }}</option>
                 {% endfor %}
               </select>
-              <label for="lojaSelect">Loja</label>
             </div>
+          {% endif %}
+          <!-- Status Pagamento (multi) -->
+          <div class="col-md-{% if user|has_perm:'vendas.can_view_all_stores' %}12{% else %}5{% endif %}">
+            <label for="status_pagamento" class="form-label fw-semibold"><i class="bx bx-purchase-tag me-1"></i>Status do Pagamento</label>
+            <select id="status_pagamento" name="status_pagamento" class="form-select" multiple>
+              {% for s in status_pagamento_all %}
+                <option value="{{ s.id }}" {% if s.id|stringformat:'s' in selected_status_pagamento %}selected{% endif %}>{{ s.nome }}</option>
+              {% endfor %}
+            </select>
+            <small class="text-muted">Seleção múltipla.</small>
           </div>
-        {% endif %}
-        <!-- Status Pagamento (multi) -->
-        <div class="col-md-4">
-          <label for="status_pagamento" class="form-label">Status do Pagamento</label>
-          <select id="status_pagamento" name="status_pagamento" class="form-select" multiple>
-            {% for s in status_pagamento_all %}
-              <option value="{{ s.id }}" {% if s.id|stringformat:'s' in selected_status_pagamento %}selected{% endif %}>{{ s.nome }}</option>
-            {% endfor %}
-          </select>
-          <small class="text-muted">Seleção múltipla (Select2).</small>
         </div>
-        <!-- Bloqueados -->
-        <div class="col-auto">
+
+        <hr class="my-3">
+
+        <!-- Sinalizações -->
+        <label class="form-label fw-semibold d-block mb-2"><i class="bx bx-flag me-1"></i>Sinalizações</label>
+        <div class="cr-switch-grid mb-3">
           <div class="form-check form-switch">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="bloqueado"
-              name="bloqueado"
-              value="1"
-              {% if request.GET.bloqueado %}checked{% endif %}
-            >
+            <input class="form-check-input" type="checkbox" id="bloqueado" name="bloqueado" value="1" {% if request.GET.bloqueado %}checked{% endif %}>
             <label class="form-check-label" for="bloqueado">Somente Bloqueados</label>
           </div>
-        </div>
-        <div class="col-auto">
           <div class="form-check form-switch">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="desativado"
-              name="desativado"
-              value="1"
-              {% if request.GET.desativado %}checked{% endif %}
-            >
+            <input class="form-check-input" type="checkbox" id="desativado" name="desativado" value="1" {% if request.GET.desativado %}checked{% endif %}>
             <label class="form-check-label" for="desativado">Somente Desativados</label>
           </div>
-        </div>
-        <div class="col-auto">
           <div class="form-check form-switch">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="cobranca"
-              name="cobranca"
-              value="1"
-              {% if request.GET.cobranca %}checked{% endif %}
-            >
+            <input class="form-check-input" type="checkbox" id="cobranca" name="cobranca" value="1" {% if request.GET.cobranca %}checked{% endif %}>
             <label class="form-check-label" for="cobranca">Somente Cobrança</label>
           </div>
-        </div>
-        <div class="col-auto">
           <div class="form-check form-switch">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="sem_contato"
-              name="sem_contato"
-              value="1"
-              {% if request.GET.sem_contato %}checked{% endif %}
-            >
+            <input class="form-check-input" type="checkbox" id="sem_contato" name="sem_contato" value="1" {% if request.GET.sem_contato %}checked{% endif %}>
             <label class="form-check-label" for="sem_contato">Sem contato</label>
           </div>
-        </div>
-        <div class="col-auto">
           <div class="form-check form-switch">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="mais_prazo"
-              name="mais_prazo"
-              value="1"
-              {% if request.GET.mais_prazo %}checked{% endif %}
-            >
+            <input class="form-check-input" type="checkbox" id="mais_prazo" name="mais_prazo" value="1" {% if request.GET.mais_prazo %}checked{% endif %}>
             <label class="form-check-label" for="mais_prazo">Mais prazo</label>
           </div>
-        </div>
-        <!-- Pagamento sinalizado -->
-        <div class="col-auto">
           <div class="form-check form-switch">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="pagamento_efetuado"
-              name="pagamento_efetuado"
-              value="1"
-              {% if request.GET.pagamento_efetuado %}checked{% endif %}
-            >
+            <input class="form-check-input" type="checkbox" id="pagamento_efetuado" name="pagamento_efetuado" value="1" {% if request.GET.pagamento_efetuado %}checked{% endif %}>
             <label class="form-check-label" for="pagamento_efetuado">Pagamento Sinalizado</label>
           </div>
         </div>
-        <!-- Botão -->
-        <div class="col-auto">
-          <button type="submit" class="btn btn-primary btn-sm">
-            <i class="bi bi-funnel-fill me-1"></i> Filtrar
-          </button>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary"><i class="bx bx-filter-alt me-1"></i>Filtrar</button>
+          <a href="{% url 'financeiro:contas_a_receber_list' %}" class="btn btn-outline-secondary"><i class="bx bx-x me-1"></i>Limpar</a>
         </div>
       </form>
     </div>
+  </div>
 
-    <!-- TABELA -->
-    <div class="card-body p-4">
+  <!-- TABELA -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header card-header-modern">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="section-title mb-0"><i class="bx bx-list-ul me-2"></i>Lista de Contas</h5>
+        <span class="badge bg-primary">Total: {{ page_obj.paginator.count }} conta{{ page_obj.paginator.count|pluralize }}</span>
+      </div>
+    </div>
+    <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-striped table-hover align-middle mb-0">
-          <thead class="table-light">
+        <table class="table table-hover cr-table align-middle">
+          <thead>
             <tr>
-              <th class="text-center">Lembrete</th>
-              {% if user|has_perm:"vendas.can_view_all_stores" %}
-          <th>Loja</th>
-              {% endif %}
-              <th>Cliente</th>
-              <th>Produto</th>
-              <th class="text-center">IMEI</th>
-              <th class="text-center">Contato do Cliente</th>
-              <th class="text-center">BO</th>
-              <th class="text-center">Cobrança</th>
-              <th class="text-center">Sem conexão</th>
-              <th class="text-center">Roubo</th>
-              <th>Status</th>
-              <th class="text-end">Valor Atrasado</th>
-              <th class="text-end">Primeiro Vencimento</th>
-              <th class="text-end">Valor Pago</th>
-              <th class="text-end">Último Pagamento</th>
-              <th class="text-end">Valor a Vencer</th>
-              <th class="text-end">Próximo Vencimento</th>
-              <th class="text-end">Valor Total</th>
-              <th class="text-center">Parcelas Totais</th>
-              <th class="text-center">Parcelas Pagas</th>
-              <th class="text-end">Valor Quitado</th>
-              <th>Ações</th>
+              <th>Cliente / Produto</th>
+              {% if user|has_perm:"vendas.can_view_all_stores" %}<th>Loja</th>{% endif %}
+              <th>Situação</th>
+              <th class="text-end">Atrasado</th>
+              <th class="text-end">Pago</th>
+              <th class="text-end">A Vencer</th>
+              <th class="text-end">Total</th>
+              <th class="text-center">Parcelas</th>
+              <th class="text-center">Ações</th>
             </tr>
           </thead>
           <tbody>
             {% for conta in contas_a_receber %}
-              <tr class="
-          {% if conta.desativado %}table-secondary
-          {% elif conta.devolucao %}table-amber
-          {% elif conta.bloqueado %}table-purple
-          {% elif conta.sem_contato %}table-indigo
-          {% elif conta.mais_prazo %}table-teal
-          {% elif conta.com_parcela_atrasada %}table-danger
-          {% elif conta.com_pagamento_pendente %}table-warning
-          {% elif conta.pago_dentro_prazo %}table-success
-          {% elif conta.todas_parcelas_pagas %}table-info
-          {% endif %}
-              ">
-          <td class="text-center">
-            {% if conta.lembrete %}
-              <i class="bi bi-envelope-check text-success"></i>
-            {% else %}
-              <i class="bi bi-x-lg text-muted"></i>
-            {% endif %}
-          </td>
-          {% if user|has_perm:"vendas.can_view_all_stores" %}
-            <td>
-              <a href="{% url 'vendas:loja_detail' conta.venda.loja.id %}">
-                {{ conta.venda.loja.nome|title }}
-              </a>
-            </td>
-          {% endif %}
-          <td>
-            <a href="{% url 'vendas:cliente_update' conta.venda.cliente.id %}">
-              {{ conta.venda.cliente.nome|title }}
-            </a>
-            {% if conta.devolucao %}
-              <span class="badge bg-warning text-dark ms-2" title="Devolução – ignora parcelas futuras">
-                Devolução
-              </span>
-            {% endif %}
-          </td>
-          <td>
-            <a href="{% url 'produtos:produto_detail' conta.venda.itens_venda.first.produto.id %}">
-              {{ conta.venda.itens_venda.first.produto.nome|title }}
-            </a>
-          </td>
-          <td class="text-center">
-            {% if conta.venda.itens_venda.first.imei %}
-              {{ conta.venda.itens_venda.first.imei }}
-            {% else %}
-              -
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if conta.venda.cliente.telefone %}
-              {{ conta.venda.cliente.telefone }}
-            {% else %}
-              -
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if conta.bo %}<span class="badge" style="background-color:#dc3545">&nbsp;</span>{% else %}—{% endif %}
-          </td>
-          <td class="text-center">
-            {% if conta.flag_atrasado %}<span class="badge" style="background-color:#fd7e14">&nbsp;</span>{% else %}—{% endif %}
-          </td>
-          <td class="text-center">
-            {% if conta.sem_conexao %}<span class="badge" style="background-color:#6c757d">&nbsp;</span>{% else %}—{% endif %}
-          </td>
-          <td class="text-center">
-            {% if conta.roubo %}<span class="badge" style="background-color:#000">&nbsp;</span>{% else %}—{% endif %}
-          </td>
-          <td>
-            {% for s in conta.statuses.all %}
-              <span class="badge rounded-pill text-dark me-1" style="background-color: {{ s.cor_hex }}">{{ s.nome }}</span>
-            {% empty %}
-              <span class="text-muted">—</span>
-            {% endfor %}
-          </td>
-          <td class="text-end">
-            {{ conta.valor_atrasado|default:"0.00"|floatformat:2 }}
-          </td>
-          <td class="text-end">
-            {{ conta.ultimo_vencimento|default:"-" }}
-          </td>
-          <td class="text-end">
-            {{ conta.valor_pago_ultimo|default:"0.00"|floatformat:2 }}
-          </td>
-          <td class="text-end">
-            {{ conta.ultimo_pagamento|default:"-" }}
-          </td>
-          <td class="text-end">
-            {{ conta.valor_a_vencer|default:"0.00"|floatformat:2 }}
-          </td>
-          <td class="text-end">
-            {{ conta.proximo_vencimento|default:"-" }}
-          </td>
-          <td class="text-end">
-            {{ conta.valor_total_parcelas|floatformat:2 }}
-          </td>
-          <td class="text-center">
-            {{ conta.parcelas_totais }}
-          </td>
-          <td class="text-center">
-            {{ conta.parcelas_pagas }}
-          </td>
-          <td class="text-end">
-            {{ conta.valor_quitado|default:"0.00"|floatformat:2 }}
-          </td>
-          <td>
-            {% if user|has_perm:"vendas.view_pagamento" %}
-              <a
-                href="{% url 'financeiro:contas_a_receber_update' conta.id %}"
-                class="btn btn-outline-primary btn-sm"
-              >
-                <i class="bi bi-eye-fill"></i>
-              </a>
-            {% endif %}
-          </td>
+              <tr class="cr-row
+                {% if conta.desativado %}is-desativado
+                {% elif conta.devolucao %}is-devolucao
+                {% elif conta.bloqueado %}is-bloqueado
+                {% elif conta.sem_contato %}is-semcontato
+                {% elif conta.mais_prazo %}is-maisprazo
+                {% elif conta.com_parcela_atrasada %}is-atrasado
+                {% elif conta.com_pagamento_pendente %}is-pendente
+                {% elif conta.pago_dentro_prazo %}is-pago
+                {% elif conta.todas_parcelas_pagas %}is-quitado
+                {% else %}is-default{% endif %}">
+
+                <!-- CLIENTE / PRODUTO -->
+                <td>
+                  <div class="d-flex align-items-start gap-2">
+                    <span class="mt-1" title="{% if conta.lembrete %}Lembrete ativo{% else %}Sem lembrete{% endif %}">
+                      {% if conta.lembrete %}
+                        <i class="bi bi-bell-fill text-warning"></i>
+                      {% else %}
+                        <i class="bi bi-bell text-muted opacity-50"></i>
+                      {% endif %}
+                    </span>
+                    <div>
+                      <a href="{% url 'vendas:cliente_update' conta.venda.cliente.id %}" class="cr-client-name">
+                        {{ conta.venda.cliente.nome|title }}
+                      </a>
+                      {% if conta.devolucao %}
+                        <span class="cr-flag" style="background:rgba(255,171,0,.16);color:#b97900;border:1px dashed #d9a400" title="Devolução – ignora parcelas futuras">Devolução</span>
+                      {% endif %}
+                      <div class="cr-sub">
+                        <a href="{% url 'produtos:produto_detail' conta.venda.itens_venda.first.produto.id %}">
+                          {{ conta.venda.itens_venda.first.produto.nome|title }}
+                        </a>
+                        {% if conta.venda.itens_venda.first.imei %}
+                          <span class="mx-1">·</span><i class="bx bx-barcode"></i> {{ conta.venda.itens_venda.first.imei }}
+                        {% endif %}
+                      </div>
+                      {% if conta.venda.cliente.telefone %}
+                        <div class="cr-sub"><i class="bx bx-phone"></i> {{ conta.venda.cliente.telefone }}</div>
+                      {% endif %}
+                    </div>
+                  </div>
+                </td>
+
+                <!-- LOJA -->
+                {% if user|has_perm:"vendas.can_view_all_stores" %}
+                  <td>
+                    <a href="{% url 'vendas:loja_detail' conta.venda.loja.id %}" class="d-inline-flex align-items-center">
+                      <i class="bx bx-store me-1 text-muted"></i>{{ conta.venda.loja.nome|title }}
+                    </a>
+                  </td>
+                {% endif %}
+
+                <!-- SITUAÇÃO -->
+                <td style="min-width: 170px;">
+                  {% if conta.desativado %}
+                    <span class="cr-pill is-desativado"><span class="cr-dot"></span>Desativado</span>
+                  {% elif conta.devolucao %}
+                    <span class="cr-pill is-devolucao"><span class="cr-dot"></span>Devolução</span>
+                  {% elif conta.bloqueado %}
+                    <span class="cr-pill is-bloqueado"><span class="cr-dot"></span>Bloqueado</span>
+                  {% elif conta.sem_contato %}
+                    <span class="cr-pill is-semcontato"><span class="cr-dot"></span>Sem contato</span>
+                  {% elif conta.mais_prazo %}
+                    <span class="cr-pill is-maisprazo"><span class="cr-dot"></span>Mais prazo</span>
+                  {% elif conta.com_parcela_atrasada %}
+                    <span class="cr-pill is-atrasado"><span class="cr-dot"></span>Atrasado</span>
+                  {% elif conta.com_pagamento_pendente %}
+                    <span class="cr-pill is-pendente"><span class="cr-dot"></span>A vencer</span>
+                  {% elif conta.pago_dentro_prazo %}
+                    <span class="cr-pill is-pago"><span class="cr-dot"></span>Pago</span>
+                  {% elif conta.todas_parcelas_pagas %}
+                    <span class="cr-pill is-quitado"><span class="cr-dot"></span>Quitado</span>
+                  {% else %}
+                    <span class="cr-pill is-default"><span class="cr-dot"></span>—</span>
+                  {% endif %}
+
+                  <!-- Sinalizações -->
+                  {% if conta.bo or conta.flag_atrasado or conta.sem_conexao or conta.roubo %}
+                    <div class="d-flex flex-wrap gap-1 mt-1">
+                      {% if conta.bo %}<span class="cr-flag f-bo"><i class="bx bx-error-circle"></i>BO</span>{% endif %}
+                      {% if conta.flag_atrasado %}<span class="cr-flag f-cobranca"><i class="bx bx-phone-call"></i>Cobrança</span>{% endif %}
+                      {% if conta.sem_conexao %}<span class="cr-flag f-conexao"><i class="bx bx-wifi-off"></i>Sem conexão</span>{% endif %}
+                      {% if conta.roubo %}<span class="cr-flag f-roubo"><i class="bx bx-shield-x"></i>Roubo</span>{% endif %}
+                    </div>
+                  {% endif %}
+
+                  <!-- Status personalizados -->
+                  {% if conta.statuses.all %}
+                    <div class="d-flex flex-wrap gap-1 mt-1">
+                      {% for s in conta.statuses.all %}
+                        <span class="cr-status-tag" style="background-color: {{ s.cor_hex }}">{{ s.nome }}</span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </td>
+
+                <!-- ATRASADO -->
+                <td class="text-end cr-money">
+                  {% if conta.valor_atrasado %}
+                    <div class="cr-amount text-danger">R$ {{ conta.valor_atrasado|floatformat:2 }}</div>
+                    {% if conta.ultimo_vencimento %}<div class="cr-amount-date"><i class="bx bx-calendar-exclamation text-danger"></i> {{ conta.ultimo_vencimento|date:"d/m/Y" }}</div>{% endif %}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+
+                <!-- PAGO -->
+                <td class="text-end cr-money">
+                  {% if conta.valor_pago_ultimo %}
+                    <div class="cr-amount text-success">R$ {{ conta.valor_pago_ultimo|floatformat:2 }}</div>
+                    {% if conta.ultimo_pagamento %}<div class="cr-amount-date"><i class="bx bx-calendar-check text-success"></i> {{ conta.ultimo_pagamento|date:"d/m/Y" }}</div>{% endif %}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+
+                <!-- A VENCER -->
+                <td class="text-end cr-money">
+                  {% if conta.valor_a_vencer %}
+                    <div class="cr-amount cr-amount-warn">R$ {{ conta.valor_a_vencer|floatformat:2 }}</div>
+                    {% if conta.proximo_vencimento %}<div class="cr-amount-date"><i class="bx bx-calendar"></i> {{ conta.proximo_vencimento|date:"d/m/Y" }}</div>{% endif %}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+
+                <!-- TOTAL -->
+                <td class="text-end cr-money">
+                  <div class="cr-amount">R$ {{ conta.valor_total_parcelas|floatformat:2 }}</div>
+                  {% if conta.valor_quitado %}
+                    <div class="cr-amount-date text-info"><i class="bx bx-badge-check"></i> Quitado R$ {{ conta.valor_quitado|floatformat:2 }}</div>
+                  {% endif %}
+                </td>
+
+                <!-- PARCELAS -->
+                <td class="text-center">
+                  {% if conta.parcelas_totais %}
+                    <div class="cr-progress" title="{{ conta.parcelas_pagas }} de {{ conta.parcelas_totais }} parcelas pagas">
+                      <div class="cr-progress-bar" style="width: {% widthratio conta.parcelas_pagas conta.parcelas_totais 100 %}%"></div>
+                    </div>
+                    <small class="text-muted">{{ conta.parcelas_pagas }}/{{ conta.parcelas_totais }}</small>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+
+                <!-- AÇÕES -->
+                <td class="text-center">
+                  {% if user|has_perm:"vendas.view_pagamento" %}
+                    <a href="{% url 'financeiro:contas_a_receber_update' conta.id %}"
+                       class="btn btn-sm btn-outline-primary" title="Ver detalhes">
+                      <i class="bx bx-show"></i>
+                    </a>
+                  {% endif %}
+                </td>
               </tr>
             {% empty %}
-              {% include "components/empty_state.html" with colspan=16 message="Nenhum registro encontrado" icon="bx bx-wallet" %}
+              {% if user|has_perm:"vendas.can_view_all_stores" %}
+                {% include "components/empty_state.html" with colspan=9 message="Nenhuma conta a receber encontrada" hint="Tente ajustar os filtros de busca" icon="bx bx-wallet" %}
+              {% else %}
+                {% include "components/empty_state.html" with colspan=8 message="Nenhuma conta a receber encontrada" hint="Tente ajustar os filtros de busca" icon="bx bx-wallet" %}
+              {% endif %}
             {% endfor %}
           </tbody>
         </table>
+      </div>
+      <div class="px-3 pb-3">
         {% include "snippets/pagination.html" %}
       </div>
     </div>
@@ -399,13 +431,18 @@
 {% endblock %}
 
 {% block extra_scripts %}
+  <script src="{% static 'sneat-template/assets/vendor/libs/select2/select2.js' %}"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       document
         .querySelectorAll('[data-bs-toggle="tooltip"]')
         .forEach(el => new bootstrap.Tooltip(el));
       if (window.jQuery && jQuery.fn.select2 && document.getElementById('status_pagamento')) {
-        $('#status_pagamento').select2({width:'100%'});
+        $('#status_pagamento').select2({
+          width: '100%',
+          placeholder: 'Selecione um ou mais status',
+          allowClear: true
+        });
       }
     });
   </script>
