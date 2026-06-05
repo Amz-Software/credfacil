@@ -12,7 +12,7 @@
   <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'imagens/....webp' %}" />
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="600">
-  <meta property="og:title" content="Dr Smart" />
+  <meta property="og:title" content="IPIX" />
   <meta name="description"
     content="O sistema de loja de celular oferece uma plataforma completa para gerenciar vendas, estoque, clientes e serviços de assistência técnica, proporcionando uma experiência de compra eficiente e integrada." />
   <meta property="og:description"
@@ -35,7 +35,7 @@
   <meta name="theme-color" content="#FDC600">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Dr Smart">
+  <meta name="apple-mobile-web-app-title" content="IPIX">
   <meta name="mobile-web-app-capable" content="yes">
 
   <!-- Fonts -->
@@ -74,6 +74,8 @@
   <!-- Page CSS -->
   <!-- Melhorias para modo dark personalizado -->
   <link rel="stylesheet" href="{% static 'css/dark-mode-improvements.css' %}" />
+  <!-- Tema IPIX: recoloração de marca (amarelo) + sidebar escura + tokens. DEVE vir por último. -->
+  <link rel="stylesheet" href="{% static 'css/ipix-theme.css' %}" />
 
   <!-- Helpers -->
   <script src="{% static 'sneat-template/assets/vendor/js/helpers.js' %}"></script>
@@ -223,8 +225,8 @@
             </div>
 
             <div class="navbar-brand-ribbon d-none d-lg-flex align-items-center ms-3 gap-2">
-              <img src="{% static 'images/IPIX.png' %}" alt="Marca IPIX" loading="lazy">
-              <img src="{% static 'images/logo.png' %}" alt="Logo CredFacil" loading="lazy">
+              <img src="{% static 'images/IPIX.png' %}" alt="IPIX" loading="lazy">
+              <img src="{% static 'images/logo.png' %}" alt="IPIX" loading="lazy">
             </div>
 
             <ul class="navbar-nav flex-row align-items-center ms-auto">
@@ -364,12 +366,12 @@
           <footer class="content-footer footer bg-footer-theme">
             <div class="container-xxl d-flex flex-wrap justify-content-between py-2 flex-md-row flex-column">
               <div class="mb-2 mb-md-0">
-                © {% now "Y" %}, made with ❤️ by
+                © {% now "Y" %} IPIX — feito com ❤️ por
                 <a href="" target="_blank" class="footer-link fw-medium">Amz Software</a>
               </div>
               <div class="footer-brand-logos d-flex align-items-center gap-3 mt-2 mt-md-0">
-                <img src="{% static 'images/IPIX.png' %}" alt="Marca IPIX" loading="lazy">
-                <img src="{% static 'images/logo.png' %}" alt="Logo CredFacil" loading="lazy">
+                <img src="{% static 'images/IPIX.png' %}" alt="IPIX" loading="lazy">
+                <img src="{% static 'images/logo.png' %}" alt="IPIX" loading="lazy">
               </div>
               <!-- <div class="d-none d-lg-inline-block">
                   <a

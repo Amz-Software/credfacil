@@ -29,6 +29,7 @@ Relatório de Vendas
       </div>
       <div class="card-body">
         <div id="report-content">
+          {% include "components/report_header_print.html" with titulo="Relatório de Vendas" %}
           <div class="mb-3 text-center">
             <h4 class="mb-0">Relatório de Vendas</h4>
             {% if data_inicial and data_final %}

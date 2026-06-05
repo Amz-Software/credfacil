@@ -9,56 +9,12 @@ Novo Parcelamento
 <div class="container-xxl mt-4">
   <div class="row">
     <div class="col-12">
-      <div class="container-xxl flex-grow-1 container-p-y">
-        <h4 class="py-3 mb-4">
-          <span class="text-muted fw-light">
-            <a href="{% url 'produtos:parcelamentos' %}" class="text-muted">Parcelamentos</a> /
-          </span> Novo
-        </h4>
-        <div class="row">
-          <div class="col-xl-6">
-            <div class="card mb-4">
-              <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Parcelamento (iPhone)</h5>
-                <small class="text-muted">Defina os juros por quantidade de parcelas</small>
-              </div>
-              <div class="card-body">
-                <form method="post">
-                  {% csrf_token %}
-                  {% if form.non_field_errors %}
-                  <div class="alert alert-danger py-2">
-                    {% for error in form.non_field_errors %}
-                    <div>{{ error }}</div>
-                    {% endfor %}
-                  </div>
-                  {% endif %}
-                  {% for field in form %}
-                  <div class="mb-3">
-                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.help_text %}
-                    <small class="form-text text-muted">{{ field.help_text }}</small>
-                    {% endif %}
-                    {% for error in field.errors %}
-                    <div class="text-danger small">{{ error }}</div>
-                    {% endfor %}
-                  </div>
-                  {% endfor %}
-                  <div class="d-flex gap-2 mt-3">
-                    {% if user|has_perm:"produtos.add_parcelamento" %}
-                    <button type="submit" class="btn btn-primary">
-                      <i class="bx bx-save me-1"></i> Salvar
-                    </button>
-                    {% endif %}
-                    <a href="{% url 'produtos:parcelamentos' %}" class="btn btn-outline-secondary">
-                      Cancelar
-                    </a>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
+
+      {% include "components/page_header.html" with title="Novo" icon="bx bx-credit-card" parent="Parcelamentos" subtitle="Defina os juros por quantidade de parcelas" %}
+
+      <div class="col-xl-6">
+        {% url 'produtos:parcelamentos' as cancel_url %}
+        {% include "components/form_card.html" with form=form card_title="Parcelamento (iPhone)" card_icon="bx bx-credit-card" submit_label="Salvar" submit_perm="produtos.add_parcelamento" cancel_url=cancel_url %}
       </div>
     </div>
   </div>

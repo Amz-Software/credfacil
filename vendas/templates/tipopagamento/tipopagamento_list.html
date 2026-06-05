@@ -7,25 +7,22 @@ Tipo de Pagamento
 {% block content %}
 
 <div class="container-xxl mt-4">
+  {% url 'vendas:tipopagamento_create' as tipopag_create_url %}
+  {% include "components/page_header.html" with title="Tipos de Pagamento" icon="bx bx-credit-card" subtitle="Modalidades de pagamento disponíveis" action_url=tipopag_create_url action_label="Adicionar Tipo Pagamento" action_icon="bx bx-plus" action_perm="vendas.add_tipopagamento" %}
   <div class="row">
     <div class="col-12">
-    <div class="card">
+    <div class="card shadow-sm border-0">
       <div class="card-header d-flex justify-content-between align-items-center">
-      <h4 class="card-title">Tipo de Pagamento</h4>
+      <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-credit-card me-2 text-primary"></i>Tipo de Pagamento</h5>
       <div>
         <form action="" method="get" class="d-inline-block me-2" id="searchForm">
           <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Pesquisar" onchange="document.getElementById('searchForm').submit()">
         </form>
-        {% if user|has_perm:"vendas.add_tipopagamento" %}
-        <a href="{% url 'vendas:tipopagamento_create' %}" class="btn btn-primary">
-        <i class="bx bx-plus me-1"></i> Adicionar Tipo Pagamento
-        </a>
-        {% endif %}
       </div>
       </div>
       <div class="card-body">
       <div class="table-responsive">
-        <table class="table table-hover">
+        <table class="table table-hover align-middle">
         <thead>
           <tr>
           <th scope="col">Nome</th>
@@ -53,26 +50,24 @@ Tipo de Pagamento
             <input type="checkbox" disabled {% if item.carne %} checked {% endif %}>
           </td>
           <td>
-            <div class="dropdown">
-            <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-              <i class="bx bx-dots-vertical-rounded"></i>
-            </button>
-            <div class="dropdown-menu">
+            {% include "components/action_menu_open.html" %}
               {% if user|has_perm:"vendas.view_tipopagamento" %}
-              <a class="dropdown-item" href="{% url 'vendas:tipopagamento_detail' item.id %}">
+              <li><a class="dropdown-item" href="{% url 'vendas:tipopagamento_detail' item.id %}">
               <i class="bx bx-show me-1"></i> Detalhes
-              </a>
+              </a></li>
               {% endif %}
               {% if user|has_perm:"vendas.change_tipopagamento" %}
-              <a class="dropdown-item" href="{% url 'vendas:tipopagamento_update' item.id %}">
+              <li><a class="dropdown-item" href="{% url 'vendas:tipopagamento_update' item.id %}">
               <i class="bx bx-edit-alt me-1"></i> Editar
-              </a>
+              </a></li>
               {% endif %}
-            </div>
-            </div>
+            {% include "components/action_menu_close.html" %}
           </td>
           {% empty %}
-          <td colspan="4">Nenhum registro encontrado</td>
+          <td colspan="6" class="text-center text-muted py-5">
+            <i class="bx bx-credit-card" style="font-size:2.5rem;opacity:.35;display:block;margin-bottom:.5rem;"></i>
+            <div class="fw-medium">Nenhum tipo de pagamento encontrado</div>
+          </td>
           </tr>
           {% endfor %}
         </tbody>

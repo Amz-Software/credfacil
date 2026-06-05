@@ -1,97 +1,65 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatório Dashboard - Todas as Lojas</title>
-    <style>
-        @page {
-            size: A4 landscape;
-            margin: 0.8cm;
-        }
-        
-        html, body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            line-height: 1.4;
-            color: #333;
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #007bff;
-            padding-bottom: 15px;
-            page-break-inside: avoid;
-            page-break-after: avoid;
-        }
-        
-        .header h1 {
-            color: #007bff;
-            margin: 0;
-            font-size: 24px;
-        }
-        
-        .header .subtitle {
-            color: #666;
-            margin: 5px 0;
-            font-size: 14px;
-        }
-        
+{% extends "components/report_base.html" %}
+
+{% block report_title %}Relatório Dashboard - Todas as Lojas{% endblock %}
+
+{% block report_page_size %}A4 landscape{% endblock %}
+
+{% block report_head %}
+        body { font-size: 12px; line-height: 1.4; color: #333; }
+
         .loja-section {
             margin-bottom: 25px;
         }
-        
+
         .loja-title {
-            background-color: #007bff;
-            color: white;
+            background-color: #FFF6D6;
+            color: #2B2C40;
+            border-left: 4px solid #FDC600;
             padding: 10px;
             margin: 0;
             font-size: 16px;
             font-weight: bold;
         }
-        
+
         .kpi-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
             margin: 15px 0;
         }
-        
+
         .kpi-card {
-            border: 1px solid #ddd;
+            border: 1px solid #B9BAC8;
             padding: 10px;
             text-align: center;
             background-color: #f8f9fa;
         }
-        
+
         .kpi-card h4 {
             margin: 0 0 5px 0;
             font-size: 12px;
             color: #666;
             text-transform: uppercase;
         }
-        
+
         .kpi-card .value {
             font-size: 16px;
             font-weight: bold;
-            color: #007bff;
+            color: #2B2C40;
         }
-        
+
         .kpi-card .value.currency {
             color: #28a745;
         }
-        
+
         .kpi-card .value.danger {
             color: #dc3545;
         }
-        
+
         .kpi-card .value.warning {
-            color: #ffc107;
+            color: #c98a00;
         }
-        
+
         .summary-table {
             width: 100%;
             border-collapse: collapse;
@@ -105,58 +73,52 @@
         .summary-table tbody tr {
             page-break-inside: avoid;
         }
-        
+
         .summary-table th,
         .summary-table td {
-            border: 1px solid #ddd;
+            border: 1px solid #B9BAC8;
             padding: 8px;
             text-align: center;
         }
-        
+
         .summary-table th {
-            background-color: #f8f9fa;
+            background-color: #FFF6D6;
+            color: #2B2C40;
             font-weight: bold;
         }
-        
+
         .summary-table .loja-name {
             text-align: left;
             font-weight: bold;
         }
-        
+
         .summary-table .loja-name.highlight {
             color: #1d7c32;
         }
-        
+
         .summary-table small {
             font-size: 10px;
             color: #666;
             display: block;
             margin-top: 2px;
         }
-        
-        .footer {
-            margin-top: 30px;
-            text-align: center;
-            font-size: 10px;
-            color: #666;
-            border-top: 1px solid #ddd;
-            padding-top: 10px;
-        }
-        
+
         .no-data {
             text-align: center;
             color: #666;
             font-style: italic;
             padding: 20px;
         }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Relatório Dashboard - Todas as Lojas</h1>
-        <div class="subtitle">Gerado em: {{ data_geracao|date:"d/m/Y H:i" }}</div>
-        <div class="subtitle">Usuário: {{ usuario.username }}</div>
-    </div>
+{% endblock %}
+
+{% block report_header_meta %}
+      <div class="meta">
+        Relatório Dashboard - Todas as Lojas · Gerado em: {{ data_geracao|date:"d/m/Y H:i" }} · Usuário: {{ usuario.username }}
+      </div>
+{% endblock %}
+
+{% block report_content %}
+    <div class="ipix-report-title">Relatório Dashboard - Todas as Lojas</div>
 
     {% if dados_por_loja %}
         <!-- Resumo Geral -->
@@ -204,33 +166,33 @@
         {% for loja_nome, dados in dados_por_loja.items %}
         <div class="loja-section">
             <h2 class="loja-title">{{ loja_nome|title }}</h2>
-            
+
             <div class="kpi-grid">
                 <div class="kpi-card">
                     <h4>Total de Vendas</h4>
                     <div class="value">{{ dados.total_vendas }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Total de Parcelas</h4>
                     <div class="value">{{ dados.total_parcelas }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Valor Total</h4>
                     <div class="value currency">R$ {{ dados.valor_total_parcelas|floatformat:2 }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Parcelas Pagas</h4>
                     <div class="value">{{ dados.parcelas_pagas }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Valor Pago</h4>
                     <div class="value currency">R$ {{ dados.total_pagas|floatformat:2 }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Parcelas Vencidas</h4>
                     <div class="value danger">{{ dados.parcelas_vencidas }}</div>
@@ -240,42 +202,42 @@
                     <h4>Clientes Inadimplentes</h4>
                     <div class="value danger">{{ dados.clientes_vencidos|default:"0" }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Valor Vencido</h4>
                     <div class="value danger">R$ {{ dados.total_vencidas|floatformat:2 }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Parcelas a Vencer</h4>
                     <div class="value warning">{{ dados.parcelas_a_vencer }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Valor a Vencer</h4>
                     <div class="value warning">R$ {{ dados.total_a_vencer|floatformat:2 }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Desativados Vencidos</h4>
                     <div class="value">{{ dados.qtd_desativados_vencidas }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Valor Desativados Vencidos</h4>
                     <div class="value">R$ {{ dados.total_desativados_vencidas|floatformat:2 }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Desativados a Vencer</h4>
                     <div class="value">{{ dados.qtd_desativados_a_vencer }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Valor Desativados a Vencer</h4>
                     <div class="value">R$ {{ dados.total_desativados_a_vencer|floatformat:2 }}</div>
                 </div>
-                
+
                 <div class="kpi-card">
                     <h4>Total Repasses</h4>
                     <div class="value currency">R$ {{ dados.total_repasses|floatformat:2 }}</div>
@@ -288,10 +250,11 @@
             <p>Nenhum dado encontrado para as lojas.</p>
         </div>
     {% endif %}
+{% endblock %}
 
-    <div class="footer">
-        <p>Relatório gerado automaticamente pelo sistema IPIX</p>
-        <p>Data: {{ data_geracao|date:"d/m/Y H:i:s" }} | Usuário: {{ usuario.username }}</p>
+{% block report_footer %}
+    <div class="ipix-report-footer">
+        Relatório gerado automaticamente pelo sistema IPIX ·
+        Data: {{ data_geracao|date:"d/m/Y H:i:s" }} | Usuário: {{ usuario.username }}
     </div>
-</body>
-</html>
+{% endblock %}

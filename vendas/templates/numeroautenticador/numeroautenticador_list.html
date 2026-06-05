@@ -5,20 +5,19 @@
 
 {% block content %}
 <div class="container-xxl mt-4">
+  {% url 'vendas:numeroautenticador_create' as numero_create_url %}
+  {% include "components/page_header.html" with title="Números Autenticadores" icon="bx bx-phone" subtitle="Números usados na autenticação de solicitações" action_url=numero_create_url action_label="Novo Número" action_icon="bx bx-plus" %}
   <div class="row">
     <div class="col-12">
-      <div class="card">
+      <div class="card shadow-sm border-0">
         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <h4 class="card-title mb-0">Números Autenticadores</h4>
+          <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-phone me-2 text-primary"></i>Números Autenticadores</h5>
           <div class="d-flex gap-2 align-items-center flex-wrap">
             <form action="" method="get" class="d-inline-block" id="searchForm">
               <input type="text" name="search" value="{{ request.GET.search }}"
                      class="form-control" placeholder="Pesquisar número ou descrição"
                      onchange="document.getElementById('searchForm').submit()">
             </form>
-            <a href="{% url 'vendas:numeroautenticador_create' %}" class="btn btn-primary">
-              <i class="bx bx-plus me-1"></i> Novo Número
-            </a>
           </div>
         </div>
 
@@ -43,37 +42,26 @@
                   <td>{{ item.descricao|default:"—" }}</td>
                   <td>
                     {% if item.ativo %}
-                      <span class="badge bg-label-success">Ativo</span>
+                      {% include "components/status_badge.html" with state="success" label="Ativo" %}
                     {% else %}
-                      <span class="badge bg-label-secondary">Inativo</span>
+                      {% include "components/status_badge.html" with state="secondary" label="Inativo" %}
                     {% endif %}
                   </td>
                   <td class="text-end">
-                    <div class="dropdown">
-                      <button type="button" class="btn p-0 dropdown-toggle hide-arrow"
-                              data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bx bx-dots-vertical-rounded"></i>
-                      </button>
-                      <div class="dropdown-menu dropdown-menu-end">
-                        <a class="dropdown-item" href="{% url 'vendas:numeroautenticador_update' item.pk %}">
+                    {% include "components/action_menu_open.html" %}
+                        <li><a class="dropdown-item" href="{% url 'vendas:numeroautenticador_update' item.pk %}">
                           <i class="bx bx-edit-alt me-1"></i> Editar
-                        </a>
-                        <a class="dropdown-item text-danger"
+                        </a></li>
+                        <li><a class="dropdown-item text-danger"
                            href="{% url 'vendas:numeroautenticador_delete' item.pk %}"
                            onclick="return confirm('Confirma a exclusão deste número?')">
                           <i class="bx bx-trash me-1"></i> Excluir
-                        </a>
-                      </div>
-                    </div>
+                        </a></li>
+                    {% include "components/action_menu_close.html" %}
                   </td>
                 </tr>
                 {% empty %}
-                <tr>
-                  <td colspan="4" class="text-center py-4 text-muted">
-                    <i class="bx bx-phone-off fs-4 d-block mb-2"></i>
-                    Nenhum número autenticador cadastrado.
-                  </td>
-                </tr>
+                {% include "components/empty_state.html" with colspan=4 message="Nenhum número autenticador cadastrado" icon="bx bx-phone-off" %}
                 {% endfor %}
               </tbody>
             </table>

@@ -1,0 +1,302 @@
+/* ==========================================================================
+   IPIX THEME — camada de recoloração e tokens (sobre o Sneat, sem build)
+   Carregar DEPOIS de theme-default.css / demo.css / dark-mode-improvements.css.
+   Não edita os assets do Sneat; apenas sobrescreve via cascata + !important.
+   Marca: IPIX  |  Primária: amarelo #FDC600 (texto escuro p/ contraste)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Design tokens
+   -------------------------------------------------------------------------- */
+:root {
+  /* Marca */
+  --ipix-yellow: #FDC600;
+  --ipix-yellow-600: #E0AE00;   /* hover  */
+  --ipix-yellow-700: #C79B00;   /* active / texto sobre branco (AA) */
+  --ipix-yellow-soft: #FFF6D6;  /* fundo de "label" */
+  --ipix-on-yellow: #2B2C40;    /* texto escuro sobre amarelo */
+
+  /* Sidebar escura */
+  --ipix-sidebar: #2B2C40;
+  --ipix-sidebar-hover: #34354A;
+  --ipix-sidebar-text: #C7C8D9;
+  --ipix-sidebar-muted: #8A8BA3;
+
+  /* Base neutra */
+  --ipix-body-bg: #F5F5F9;
+  --ipix-text: #566A7F;
+  --ipix-heading: #384551;
+  --ipix-gray-100: #F5F5F9;
+  --ipix-gray-200: #EAEAEF;
+  --ipix-gray-500: #A1ACB8;
+
+  /* Status (paleta escolhida) */
+  --ipix-success: #28C76F;
+  --ipix-danger:  #EA5455;
+  --ipix-warning: #FFAB00;
+  --ipix-info:    #03C3EC;
+  --ipix-secondary: #8592A3;
+
+  /* Superfícies / efeitos */
+  --ipix-hero-grad: linear-gradient(135deg, #FDC600 0%, #E0AE00 100%);
+  --ipix-radius: 0.625rem;
+  --ipix-radius-lg: 1rem;
+  --ipix-shadow-sm: 0 .125rem .5rem rgba(43, 44, 64, .08);
+  --ipix-shadow: 0 .5rem 1.25rem rgba(43, 44, 64, .12);
+
+  /* Sobrescreve variáveis do Bootstrap (afetam componentes que usam var) */
+  --bs-primary: #FDC600;
+  --bs-primary-rgb: 253, 198, 0;
+  --bs-link-color: #C79B00;
+  --bs-link-color-rgb: 199, 155, 0;
+  --bs-link-hover-color: #E0AE00;
+
+  --bs-success: #28C76F;  --bs-success-rgb: 40, 199, 111;
+  --bs-danger:  #EA5455;  --bs-danger-rgb: 234, 84, 85;
+  --bs-warning: #FFAB00;  --bs-warning-rgb: 255, 171, 0;
+  --bs-info:    #03C3EC;  --bs-info-rgb: 3, 195, 236;
+}
+
+/* Fundo geral neutro */
+body { background-color: var(--ipix-body-bg); }
+
+/* --------------------------------------------------------------------------
+   2. Botões / fundos primários (roxo Sneat -> amarelo IPIX, texto escuro)
+   -------------------------------------------------------------------------- */
+.btn-primary {
+  background-color: var(--ipix-yellow) !important;
+  border-color: var(--ipix-yellow) !important;
+  color: var(--ipix-on-yellow) !important;
+  box-shadow: 0 .125rem .25rem rgba(253, 198, 0, .4) !important;
+}
+.btn-primary:hover {
+  background-color: var(--ipix-yellow-600) !important;
+  border-color: var(--ipix-yellow-600) !important;
+  color: var(--ipix-on-yellow) !important;
+}
+.btn-check:focus + .btn-primary,
+.btn-primary:focus,
+.btn-primary.focus,
+.btn-check:checked + .btn-primary,
+.btn-check:active + .btn-primary,
+.btn-primary:active,
+.btn-primary.active,
+.btn-primary.show.dropdown-toggle,
+.show > .btn-primary.dropdown-toggle,
+.btn-primary.disabled,
+.btn-primary:disabled {
+  background-color: var(--ipix-yellow-700) !important;
+  border-color: var(--ipix-yellow-700) !important;
+  color: var(--ipix-on-yellow) !important;
+  box-shadow: none !important;
+}
+
+.btn-outline-primary {
+  color: var(--ipix-yellow-700) !important;
+  border-color: var(--ipix-yellow) !important;
+}
+.btn-outline-primary:hover,
+.btn-outline-primary:active,
+.btn-outline-primary.active,
+.btn-check:checked + .btn-outline-primary {
+  background-color: var(--ipix-yellow) !important;
+  border-color: var(--ipix-yellow) !important;
+  color: var(--ipix-on-yellow) !important;
+}
+
+/* Variantes "label" (suaves) usadas em listas/badges */
+.bg-label-primary,
+.btn-label-primary {
+  background-color: var(--ipix-yellow-soft) !important;
+  color: var(--ipix-yellow-700) !important;
+}
+.btn-label-primary:hover {
+  background-color: var(--ipix-yellow) !important;
+  color: var(--ipix-on-yellow) !important;
+}
+
+/* Fundos / textos / bordas / badges primários */
+.bg-primary,
+.text-bg-primary { background-color: var(--ipix-yellow) !important; color: var(--ipix-on-yellow) !important; }
+.badge.bg-primary { color: var(--ipix-on-yellow) !important; }
+.text-primary { color: var(--ipix-yellow-700) !important; }
+.border-primary { border-color: var(--ipix-yellow) !important; }
+.alert-primary {
+  background-color: var(--ipix-yellow-soft) !important;
+  border-color: rgba(253, 198, 0, .4) !important;
+  color: var(--ipix-yellow-700) !important;
+}
+
+/* Links */
+a { color: var(--bs-link-color); }
+a:hover { color: var(--bs-link-hover-color); }
+.footer-link.fw-medium { color: var(--ipix-yellow-700); }
+
+/* Paginação ativa */
+.page-item.active .page-link {
+  background-color: var(--ipix-yellow) !important;
+  border-color: var(--ipix-yellow) !important;
+  color: var(--ipix-on-yellow) !important;
+}
+.page-link { color: var(--ipix-yellow-700); }
+.page-link:hover { color: var(--ipix-yellow-600); }
+
+/* Formulários: foco e checkboxes/radios no amarelo */
+.form-check-input:checked {
+  background-color: var(--ipix-yellow) !important;
+  border-color: var(--ipix-yellow) !important;
+}
+.form-check-input:focus,
+.form-control:focus,
+.form-select:focus,
+.select2-container--focus .select2-selection {
+  border-color: var(--ipix-yellow) !important;
+  box-shadow: 0 0 .25rem .05rem rgba(253, 198, 0, .35) !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. Alinhamento de status (success / danger / warning / info)
+   -------------------------------------------------------------------------- */
+.btn-success, .bg-success { background-color: var(--ipix-success) !important; border-color: var(--ipix-success) !important; }
+.btn-danger,  .bg-danger  { background-color: var(--ipix-danger)  !important; border-color: var(--ipix-danger)  !important; }
+.btn-info,    .bg-info    { background-color: var(--ipix-info)    !important; border-color: var(--ipix-info)    !important; }
+.btn-warning, .bg-warning { background-color: var(--ipix-warning) !important; border-color: var(--ipix-warning) !important; color: var(--ipix-on-yellow) !important; }
+
+.text-success { color: var(--ipix-success) !important; }
+.text-danger  { color: var(--ipix-danger)  !important; }
+.text-info    { color: var(--ipix-info)    !important; }
+.text-warning { color: var(--ipix-warning) !important; }
+
+.bg-label-success { background-color: rgba(40, 199, 111, .16) !important; color: var(--ipix-success) !important; }
+.bg-label-danger  { background-color: rgba(234, 84, 85, .16)  !important; color: var(--ipix-danger)  !important; }
+.bg-label-warning { background-color: rgba(255, 171, 0, .16)  !important; color: #b97900 !important; }
+.bg-label-info    { background-color: rgba(3, 195, 236, .16)  !important; color: var(--ipix-info)    !important; }
+
+/* --------------------------------------------------------------------------
+   4. Sidebar escura (#2B2C40) — vale em modo claro e escuro
+   -------------------------------------------------------------------------- */
+#layout-menu.bg-menu-theme,
+.bg-menu-theme { background-color: var(--ipix-sidebar) !important; }
+
+/* marca/topo do menu */
+.bg-menu-theme .app-brand-text { color: #fff !important; }
+.bg-menu-theme .app-brand .layout-menu-toggle .menu-link,
+.bg-menu-theme .menu-inner .menu-link i { color: var(--ipix-sidebar-text) !important; }
+
+/* títulos de seção */
+.bg-menu-theme .menu-header,
+.bg-menu-theme .menu-header-text { color: var(--ipix-sidebar-muted) !important; }
+
+/* links e ícones */
+.bg-menu-theme .menu-inner .menu-item .menu-link { color: var(--ipix-sidebar-text) !important; }
+.bg-menu-theme .menu-inner .menu-item .menu-icon { color: var(--ipix-sidebar-text) !important; }
+
+/* hover (itens não ativos) */
+.bg-menu-theme .menu-inner .menu-item:not(.active) > .menu-link:hover {
+  background-color: var(--ipix-sidebar-hover) !important;
+  color: #fff !important;
+}
+.bg-menu-theme .menu-inner .menu-item:not(.active) > .menu-link:hover .menu-icon { color: #fff !important; }
+
+/* item ativo (folha) */
+.bg-menu-theme .menu-item.active > .menu-link:not(.menu-toggle) {
+  background: linear-gradient(90deg, rgba(253, 198, 0, .20), rgba(253, 198, 0, .04)) !important;
+  color: #fff !important;
+}
+.bg-menu-theme .menu-item.active > .menu-link:not(.menu-toggle) .menu-icon {
+  color: var(--ipix-yellow) !important;
+}
+/* barra indicadora à esquerda do item ativo */
+.bg-menu-theme .menu-inner > .menu-item.active:before {
+  background-color: var(--ipix-yellow) !important;
+}
+/* submenu aberto */
+.bg-menu-theme .menu-sub > .menu-item .menu-link { color: var(--ipix-sidebar-muted) !important; }
+.bg-menu-theme .menu-sub > .menu-item .menu-link:hover { color: #fff !important; }
+.bg-menu-theme .menu-sub > .menu-item.active > .menu-link:not(.menu-toggle) { color: #fff !important; }
+.bg-menu-theme .menu-sub > .menu-item.active > .menu-link:not(.menu-toggle):before {
+  background-color: var(--ipix-yellow) !important;
+}
+/* parent com submenu aberto */
+.bg-menu-theme .menu-inner .menu-item.open > .menu-toggle { color: #fff !important; }
+
+/* --------------------------------------------------------------------------
+   5. Classes compartilhadas (antes "órfãs" / definidas só no dashboard)
+   -------------------------------------------------------------------------- */
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ipix-heading);
+  display: flex;
+  align-items: center;
+  padding-bottom: .5rem;
+  border-bottom: 2px solid var(--ipix-gray-200);
+  margin-bottom: 1rem;
+}
+.section-title i { font-size: 1.5rem; }
+
+.card-header-modern {
+  background: transparent;
+  border-bottom: 1px solid var(--ipix-gray-200);
+}
+
+.filter-card {
+  background: #fff;
+  border: 1px solid var(--ipix-gray-200);
+  border-radius: var(--ipix-radius);
+}
+
+.kpi-card, .nav-card { transition: all .3s ease; }
+.kpi-card:hover, .nav-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--ipix-shadow) !important;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: .85rem;
+}
+.status-badge.success { background: rgba(40, 199, 111, .16); color: var(--ipix-success); }
+.status-badge.danger  { background: rgba(234, 84, 85, .16);  color: var(--ipix-danger); }
+.status-badge.warning { background: rgba(255, 171, 0, .16);  color: var(--ipix-warning); }
+.status-badge.info    { background: rgba(3, 195, 236, .16);  color: var(--ipix-info); }
+
+/* Hero/banner padrão IPIX (usa o gradiente de marca) */
+.ipix-hero {
+  background: var(--ipix-hero-grad);
+  border-radius: var(--ipix-radius-lg);
+  color: var(--ipix-on-yellow);
+  overflow: hidden;
+}
+.ipix-hero .ipix-hero-title { color: var(--ipix-on-yellow); font-weight: 700; }
+.ipix-hero .ipix-hero-subtitle { color: rgba(43, 44, 64, .85); }
+
+/* Cantos de cartão levemente mais suaves para um visual mais limpo */
+.card { border-radius: var(--ipix-radius); }
+
+/* --------------------------------------------------------------------------
+   6. Modo escuro (.dark-style) — reafirma o acento amarelo com texto legível
+      (este arquivo carrega depois de dark-mode-improvements.css, então vence)
+   -------------------------------------------------------------------------- */
+.dark-style {
+  --bs-primary: #FDC600;
+  --bs-primary-rgb: 253, 198, 0;
+  --bs-link-color: #FFD84D;
+  --bs-link-hover-color: #FDC600;
+}
+.dark-style .btn-primary,
+.dark-style .btn-primary:hover,
+.dark-style .btn-primary:focus,
+.dark-style .btn-primary:active {
+  background-color: var(--ipix-yellow) !important;
+  border-color: var(--ipix-yellow) !important;
+  color: #1f2230 !important;
+}
+.dark-style .text-primary { color: #FFD84D !important; }
+.dark-style .bg-label-primary { background-color: rgba(253, 198, 0, .18) !important; color: #FFD84D !important; }
+.dark-style .section-title { color: #E6E8F5; border-bottom-color: #3B3F52; }

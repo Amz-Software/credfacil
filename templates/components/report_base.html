@@ -1,0 +1,67 @@
+{% load static %}
+{% comment %} ==========================================================================
+   report_base — base padronizada de relatórios PDF (weasyprint, honra @page).
+   Estenda e preencha os blocos:
+   {% extends "components/report_base.html" %}
+   {% block report_title %}Relatório de Vendas{% endblock %}
+   {% block report_content %} ...tabelas... {% endblock %}
+   Blocos: report_title, report_head, report_header, report_content, report_footer
+   ========================================================================== {% endcomment %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>{% block report_title %}IPIX{% endblock %}</title>
+  <style>
+    @page {
+      size: {% block report_page_size %}A4{% endblock %};
+      margin: 16mm 12mm;
+      @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7pt; color: #888; }
+    }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #222; margin: 0; }
+    h1, h2, h3 { color: #2B2C40; margin: 0 0 6px; }
+    .ipix-report-header {
+      display: flex; align-items: center; gap: 12px;
+      border-bottom: 3px solid #FDC600; padding-bottom: 8px; margin-bottom: 14px;
+    }
+    .ipix-report-header img { height: 44px; width: auto; object-fit: contain; }
+    .ipix-report-header .brand { font-size: 15pt; font-weight: 700; color: #2B2C40; line-height: 1.2; }
+    .ipix-report-header .meta { font-size: 8.5pt; color: #555; }
+    .ipix-report-title { font-size: 12pt; font-weight: 700; color: #2B2C40; margin: 8px 0 12px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; table-layout: fixed; }
+    th, td { border: 1px solid #B9BAC8; padding: 5px 6px; text-align: left; word-wrap: break-word; overflow-wrap: break-word; vertical-align: top; }
+    th { background: #FFF6D6; color: #2B2C40; font-weight: 700; }
+    tfoot td, tfoot td { font-weight: 700; }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .text-muted { color: #777; }
+    .ipix-report-footer { margin-top: 16px; font-size: 7.5pt; color: #888; text-align: right; }
+    tr { page-break-inside: avoid; }
+    {% block report_head %}{% endblock %}
+  </style>
+</head>
+<body>
+  {% block report_header %}
+  <div class="ipix-report-header">
+    <img src="{% static 'images/IPIX.png' %}" alt="IPIX">
+    <div>
+      <div class="brand">IPIX</div>
+      {% block report_header_meta %}
+      <div class="meta">
+        {{ loja.nome|default:'' }}{% if loja.endereco %} — {{ loja.endereco }}{% endif %}{% if loja.cnpj %} · CNPJ: {{ loja.cnpj }}{% endif %}
+      </div>
+      {% endblock %}
+    </div>
+  </div>
+  {% endblock %}
+
+  {% if report_title %}<div class="ipix-report-title">{{ report_title }}</div>{% endif %}
+
+  {% block report_content %}{% endblock %}
+
+  {% block report_footer %}
+  <div class="ipix-report-footer">Emitido em {% now "d/m/Y H:i" %}</div>
+  {% endblock %}
+</body>
+</html>

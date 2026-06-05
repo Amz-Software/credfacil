@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -30,14 +31,14 @@
         }
 
         th, td {
-            border: 1px solid #ddd;
+            border: 1px solid #B9BAC8;
             padding: 8px;
             text-align: left;
         }
 
         th {
-            background-color: #4CAF50;
-            color: white;
+            background-color: #FFF6D6;
+            color: #2B2C40;
             font-weight: bold;
         }
 
@@ -60,6 +61,7 @@
 </head>
 <body>
     <div class="container">
+        {% include "components/report_header_print.html" with titulo="Relatório de Contas a Receber" %}
         <h2>Relatório de Contas a Receber</h2>
         <h3>Período: {{ data_inicio }} a {{ data_fim }}</h3>
         <h3>Lojas: {{ lojas|join:", " }}</h3>

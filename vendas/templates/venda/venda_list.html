@@ -9,30 +9,7 @@ Vendas
 {% block content %}
 
 <div class="container-xxl mt-4">
-  <!-- Welcome Card -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card border-0 shadow-lg" style="border-radius: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow: hidden;">
-        <div class="d-flex align-items-end row">
-          <div class="col-sm-8">
-            <div class="card-body p-4">
-              <h5 class="card-title text-white mb-2" style="font-size: 1.75rem; font-weight: 700;">
-                <i class="bx bx-cart-alt me-2"></i>Vendas
-              </h5>
-              <p class="mb-0 text-white" style="font-size: 1.05rem; opacity: 0.95;">
-                Visualize e gerencie todas as vendas realizadas
-              </p>
-            </div>
-          </div>
-          <div class="col-sm-4 text-center text-sm-end">
-            <div class="card-body pb-0 px-0 px-md-4">
-              <i class="bx bx-shopping-bag text-white" style="font-size: 120px; opacity: 0.3;"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  {% include "components/page_header.html" with title="Vendas" icon="bx bx-cart-alt" subtitle="Visualize e gerencie todas as vendas realizadas" %}
 
   <!-- Filtros -->
   <div class="row mb-4">
@@ -293,15 +270,7 @@ Vendas
                   </td>
                 </tr>
                 {% empty %}
-                <tr>
-                  <td colspan="{% if user|has_perm:'vendas.can_view_all_sales' %}11{% else %}10{% endif %}" class="text-center py-5">
-                    <div class="d-flex flex-column align-items-center">
-                      <i class="bx bx-inbox text-muted" style="font-size: 64px; opacity: 0.5;"></i>
-                      <p class="text-muted mt-3 mb-0">Nenhuma venda encontrada</p>
-                      <small class="text-muted">Tente ajustar os filtros de busca</small>
-                    </div>
-                  </td>
-                </tr>
+                {% include "components/empty_state.html" with colspan=11 message="Nenhuma venda encontrada" hint="Tente ajustar os filtros de busca" %}
                 {% endfor %}
               </tbody>
             </table>

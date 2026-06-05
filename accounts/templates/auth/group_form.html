@@ -8,20 +8,23 @@ Editar Grupo
 
 {% block content %}
 <div class="container-xxl mt-4">
+  {% include "components/page_header.html" with title="Editar Grupo" icon="bx bx-group" parent="Grupos" %}
   <div class="row">
     <div class="col-12">
-      <div class="card">
+      <div class="card shadow-sm border-0">
         <div class="card-header">
-          <h4 class="card-title">Editar Grupo</h4>
+          <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-group me-2 text-primary"></i>Editar Grupo</h5>
         </div>
         <div class="card-body">
           <form method="post">
             {% csrf_token %}
             {{ form|crispy }}
-            {% if user|has_perm:"auth.add_group" or user|has_perm:"auth.change_group" %}
-            <button type="submit" class="btn btn-primary">Salvar</button>
-            {% endif %}
-            <a href="{% url 'accounts:group_list' %}" class="btn btn-secondary">Cancelar</a>
+            <div class="d-flex flex-wrap gap-2 mt-4">
+              {% if user|has_perm:"auth.add_group" or user|has_perm:"auth.change_group" %}
+              <button type="submit" class="btn btn-primary"><i class="bx bx-save me-1"></i>Salvar</button>
+              {% endif %}
+              <a href="{% url 'accounts:group_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
           </form>
         </div>
       </div>

@@ -1,0 +1,27 @@
+{% load static %}
+{% comment %} ==========================================================================
+   hero_card — banner de boas-vindas com a identidade IPIX (gradiente amarelo)
+   Uso:
+   {% include "components/hero_card.html" with title="Olá, Fulano 👋"
+        subtitle="Bem-vindo ao IPIX" icon="bx bx-home-circle" show_logos=True %}
+   ========================================================================== {% endcomment %}
+<div class="card border-0 shadow-sm ipix-hero mb-4">
+  <div class="d-flex align-items-center row">
+    <div class="{% if show_logos %}col-sm-8{% else %}col-12{% endif %}">
+      <div class="card-body p-4">
+        <h5 class="ipix-hero-title mb-2" style="font-size:1.6rem;">
+          {% if icon %}<i class="{{ icon }} me-2"></i>{% endif %}{{ title }}
+        </h5>
+        {% if subtitle %}<p class="ipix-hero-subtitle mb-0" style="font-size:1.02rem;">{{ subtitle }}</p>{% endif %}
+      </div>
+    </div>
+    {% if show_logos %}
+    <div class="col-sm-4 text-center text-sm-end">
+      <div class="card-body pb-0 px-0 px-md-4 d-flex justify-content-center justify-content-sm-end align-items-center">
+        <img src="{% static 'images/IPIX.png' %}" alt="IPIX"
+             style="height:64px;width:auto;object-fit:contain;filter:drop-shadow(0 4px 12px rgba(0,0,0,.18));">
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>

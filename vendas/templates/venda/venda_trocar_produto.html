@@ -1,49 +1,60 @@
 {% extends "base.html" %}
 
+{% block title %}Trocar Produto{% endblock title %}
+
 {% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 {% endblock extra_head %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Trocar Produto da Venda #{{ venda.id }}</h2>
-    <form method="post">
-        {% csrf_token %}
-        <div class="mb-3">
-            <label for="produto_atual" class="form-label">Produto Atual</label>
-            <select class="form-select" id="produto_atual" name="produto_atual" required>
-                <option value="">Selecione o produto vendido</option>
-                {% for item in produtos %}
-                    <option value="{{ item.id }}" data-imei="{{ item.imei }}">{{ item.produto.nome }} (Qtd: {{ item.quantidade }})</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="mb-3">
-            <label for="novo_produto" class="form-label">Novo Produto</label>
-            <select class="form-select" id="novo_produto" name="novo_produto" required>
-                <option value="">Selecione o novo produto</option>
-                {% for produto in produtos_disponiveis %}
-                    <option value="{{ produto.produto.id }}">{{ produto.produto.nome }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="mb-3">
-            <label for="imei" class="form-label">IMEI</label>
-            <br>
-            <select class="form-select select2" id="imei" name="imei" required>
-                <option value="">Selecione o IMEI</option>
-                {% for imei in imeis_disponiveis %}
-                    <option value="{{ imei }}">{{ imei }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="mb-3">
-            <label for="motivo" class="form-label">Motivo</label>
-            <textarea class="form-control" id="motivo" name="motivo" rows="3" required></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary">Trocar Produto</button>
-        <a href="{% url 'vendas:venda_detail' venda.id %}" class="btn btn-secondary">Cancelar</a>
-    </form>
+<div class="container-xxl mt-4">
+    {% include "components/page_header.html" with title="Trocar Produto" icon="bx bx-refresh" parent="Vendas" %}
+    <div class="card shadow-sm border-0">
+      <div class="card-header">
+        <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-transfer me-2 text-primary"></i>Troca de Produto da Venda #{{ venda.id }}</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="produto_atual" class="form-label">Produto Atual</label>
+                <select class="form-select" id="produto_atual" name="produto_atual" required>
+                    <option value="">Selecione o produto vendido</option>
+                    {% for item in produtos %}
+                        <option value="{{ item.id }}" data-imei="{{ item.imei }}">{{ item.produto.nome }} (Qtd: {{ item.quantidade }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="novo_produto" class="form-label">Novo Produto</label>
+                <select class="form-select" id="novo_produto" name="novo_produto" required>
+                    <option value="">Selecione o novo produto</option>
+                    {% for produto in produtos_disponiveis %}
+                        <option value="{{ produto.produto.id }}">{{ produto.produto.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="imei" class="form-label">IMEI</label>
+                <br>
+                <select class="form-select select2" id="imei" name="imei" required>
+                    <option value="">Selecione o IMEI</option>
+                    {% for imei in imeis_disponiveis %}
+                        <option value="{{ imei }}">{{ imei }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="motivo" class="form-label">Motivo</label>
+                <textarea class="form-control" id="motivo" name="motivo" rows="3" required></textarea>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <button type="submit" class="btn btn-primary"><i class="bx bx-refresh me-1"></i>Trocar Produto</button>
+                <a href="{% url 'vendas:venda_detail' venda.id %}" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </form>
+      </div>
+    </div>
 </div>
 {% endblock %}
 

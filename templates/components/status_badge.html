@@ -1,0 +1,8 @@
+{% comment %} ==========================================================================
+   status_badge — badge de status padronizado (usa as cores de status IPIX)
+   Uso:
+   {% include "components/status_badge.html" with state="success" label="Aprovado" icon="bx bx-check" %}
+   state: success | danger | warning | info | primary | secondary
+   Opcionais: icon, tooltip (HTML), pill (True)
+   ========================================================================== {% endcomment %}
+<span class="badge bg-label-{{ state|default:'secondary' }}{% if pill %} rounded-pill{% endif %}"{% if tooltip %} data-bs-toggle="tooltip" data-bs-html="true" title="{{ tooltip }}"{% endif %}>{% if icon %}<i class="{{ icon }} me-1"></i>{% endif %}{{ label }}</span>

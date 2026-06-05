@@ -381,7 +381,7 @@ Clientes
         </div>
         
       <div class="table-responsive">
-        <table class="table table-hover">
+        <table class="table table-hover align-middle">
         <thead>
           <tr>
           <th scope="col" style="width: 120px;">Status</th>
@@ -991,8 +991,7 @@ Clientes
      
           
           {% empty %}
-          <td colspan="{% if user|has_perm:'vendas.change_status_analise' %}9{% else %}8{% endif %}">Nenhum registro encontrado</td>
-          </tr>
+          {% include "components/empty_state.html" with colspan=10 message="Nenhum registro encontrado" hint="Ajuste os filtros ou crie uma nova solicitação" %}
           {% endfor %}
         </tbody>
         </table>

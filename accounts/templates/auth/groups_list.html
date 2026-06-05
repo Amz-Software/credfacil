@@ -7,79 +7,67 @@ Grupos
 {% block content %}
 
 <div class="container-xxl mt-4">
-  <div class="row">
-    <div class="col-12">
-      <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h4 class="card-title">Grupos</h4>
-          <div>
-            <form action="" method="get" class="d-inline-block me-2" id="searchForm">
-              <div class="input-group">
-                <input type="text" name="search" class="form-control" placeholder="Pesquisar grupos" value="{{ request.GET.search }}" onchange="this.form.submit()">
-                <a href="{% url 'accounts:group_list' %}" class="btn btn-outline-secondary">
-                  <i class="bx bx-x"></i>
-                </a>
-              </div>
-            </form>
-            <!-- Button trigger modal -->
-            {% if user|has_perm:"auth.add_group" %}
-            <a href="{% url 'accounts:group_create' %}" class="btn btn-primary">
-              <i class="bx bx-plus me-1"></i>
-              Criar Grupo
-            </a>
-            {% endif %}
-            <!-- Modal -->
-          </div>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-3 mb-2">
+    <h4 class="mb-0 d-flex align-items-center fw-bold">
+      <i class="bx bx-group me-2 text-primary"></i>Grupos
+    </h4>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <form action="" method="get" class="d-inline-block" id="searchForm">
+        <div class="input-group">
+          <input type="text" name="search" class="form-control" placeholder="Pesquisar grupos" value="{{ request.GET.search }}" onchange="this.form.submit()">
+          <a href="{% url 'accounts:group_list' %}" class="btn btn-outline-secondary">
+            <i class="bx bx-x"></i>
+          </a>
         </div>
-        <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-hover">
-              <thead>
-                <tr>
-                  <th scope="col">Nome do Grupo</th>
-                  <th scope="col">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for group in groups %}
-                <tr>
-                  <td>{{ group.name|title }}</td>
-                  <td>
-                    <div class="dropdown">
-                      <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                        <i class="bx bx-dots-vertical-rounded"></i>
-                      </button>
-                      <div class="dropdown-menu">
-                        {% if user|has_perm:"auth.change_group" %}
-                        <a class="dropdown-item" href="{% url 'accounts:group_update' group.pk %}">
-                          <i class="bx bx-edit me-1"></i> Editar
-                        </a>
-                        {% endif %}
-                        {% if user|has_perm:"auth.delete_group" %}
-                        <form method="post" action="" class="d-inline-block">
-                          {% csrf_token %}
-                          <button type="submit" class="dropdown-item text-danger">
-                            <i class="bx bx-trash me-1"></i> Excluir
-                          </button>
-                        </form>
-                        {% endif %}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-                {% empty %}
-                <tr>
-                  <td colspan="2">Nenhum grupo encontrado</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-            {% include "snippets/pagination.html" %}
-          </div>
-        </div>
-      </div>
+      </form>
+      {% if user|has_perm:"auth.add_group" %}
+      <a href="{% url 'accounts:group_create' %}" class="btn btn-primary">
+        <i class="bx bx-plus me-1"></i>
+        Criar Grupo
+      </a>
+      {% endif %}
     </div>
   </div>
+
+  {% include "components/card_table_open.html" %}
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th scope="col">Nome do Grupo</th>
+          <th scope="col">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group in groups %}
+        <tr>
+          <td>{{ group.name|title }}</td>
+          <td>
+            {% include "components/action_menu_open.html" %}
+              {% if user|has_perm:"auth.change_group" %}
+              <li><a class="dropdown-item" href="{% url 'accounts:group_update' group.pk %}">
+                <i class="bx bx-edit me-1"></i> Editar
+              </a></li>
+              {% endif %}
+              {% if user|has_perm:"auth.delete_group" %}
+              <li>
+                <form method="post" action="" class="d-inline-block w-100">
+                  {% csrf_token %}
+                  <button type="submit" class="dropdown-item text-danger w-100">
+                    <i class="bx bx-trash me-1"></i> Excluir
+                  </button>
+                </form>
+              </li>
+              {% endif %}
+            {% include "components/action_menu_close.html" %}
+          </td>
+        </tr>
+        {% empty %}
+        {% include "components/empty_state.html" with colspan=2 message="Nenhum grupo encontrado" icon="bx bx-group" %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% include "snippets/pagination.html" %}
+  {% include "components/card_table_close.html" %}
 </div>
 
 {% endblock %}

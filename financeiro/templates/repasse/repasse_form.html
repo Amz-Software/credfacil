@@ -20,12 +20,18 @@
 
 {% block content %}
 <div class="container-xxl mt-4">
-  <div class="card">
+  {% if repasse.pk %}
+    {% include "components/page_header.html" with title="Editar Repasse" parent="Repasse" icon="bx bx-transfer" %}
+  {% else %}
+    {% include "components/page_header.html" with title="Criar Repasse" parent="Repasse" icon="bx bx-transfer" %}
+  {% endif %}
+  <div class="card shadow-sm border-0">
 
     <div class="card-header d-flex justify-content-between align-items-center p-3">
-      <h4 class="mb-0">
+      <h5 class="mb-0 d-flex align-items-center">
+        <i class="bx bx-transfer me-2 text-primary"></i>
         {% if repasse.pk %}Editar Repasse{% else %}Criar Repasse{% endif %}
-      </h4>
+      </h5>
     </div>
 
     <form method="post" enctype="multipart/form-data">
@@ -44,7 +50,7 @@
               <i class="bx bx-save me-1"></i> Salvar
             </button>
           {% endif %}
-          <a href="{% url 'vendas:loja_detail' loja.pk %}" class="btn btn-secondary">
+          <a href="{% url 'vendas:loja_detail' loja.pk %}" class="btn btn-outline-secondary">
             <i class="bx bx-arrow-back me-1"></i> Voltar
           </a>
         </div>

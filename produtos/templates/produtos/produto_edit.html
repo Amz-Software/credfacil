@@ -9,63 +9,12 @@ Editar Produto
 <div class="container-xxl mt-4">
   <div class="row">
     <div class="col-12">
-      <div class="card">
-        <div class="container-xxl flex-grow-1 container-p-y">
-          <h4 class="py-3 mb-4"><span class="text-muted fw-light">Produtos/</span> Editar</h4>
-          <div class="row">
-            <div class="col-xl">
-              <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                  <h5 class="mb-0">Produto</h5>
-                </div>
-                <div class="card-body">
-                  <form method="post">
-                    {% csrf_token %}
 
-                    <div class="form-group mb-3">
-                      {{ form.is_iphone.label_tag }}
-                      {{ form.is_iphone }}
-                    </div>
+      {% include "components/page_header.html" with title="Editar" icon="bx bx-package" parent="Produtos" %}
 
-                    <div class="form-group mb-3">
-                      {{ form.codigo.label_tag }}
-                      {{ form.codigo }}
-                    </div>
-
-                    <div class="form-group mb-3">
-                      {{ form.nome.label_tag }}
-                      {{ form.nome }}
-                    </div>
-
-                    <div class="form-group mb-3">
-                      {{ form.marca.label_tag }}
-                      {{ form.marca }}
-                    </div>
-
-                    <div class="form-group mb-3">
-                      {{ form.tipo.label_tag }}
-                      {{ form.tipo }}
-                    </div>
-
-                    <div class="form-group mb-3">
-                      {{ form.valor.label_tag }}
-                      {{ form.valor }}
-                    </div>
-
-                    <div class="form-group mb-3">
-                      {{ form.entrada_cliente.label_tag }}
-                      {{ form.entrada_cliente }}
-                    </div>
-
-                    {% if user|has_perm:"produtos.change_produto" %}
-                    <button type="submit" class="btn btn-primary mt-3">Salvar</button>
-                    {% endif %}
-                  </form>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="col-xl">
+        {% url 'produtos:produtos' as cancel_url %}
+        {% include "components/form_card.html" with form=form card_title="Produto" card_icon="bx bx-package" submit_label="Salvar" submit_perm="produtos.change_produto" cancel_url=cancel_url %}
       </div>
     </div>
   </div>

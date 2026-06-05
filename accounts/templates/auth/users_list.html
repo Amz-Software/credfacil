@@ -7,90 +7,75 @@ Usuários
 {% block content %}
 
 <div class="container-xxl mt-4">
-  <div class="row">
-    <div class="col-12">
-      <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h4 class="card-title">Usuários</h4>
-          <div>
-            <form action="" method="get" class="d-inline-block me-2" id="searchForm">
-              <div class="input-group">
-                <input type="text" name="search" class="form-control" placeholder="Pesquisar usuários" value="{{ request.GET.search }}" onchange="this.form.submit()">
-                <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary">
-                  <i class="bx bx-x"></i>
-                </a>
-              </div>
-            </form>
-            {% if user|has_perm:"accounts.add_user" %}
-            <a href="{% url 'accounts:user_create' %}" class="btn btn-primary">
-              <i class="bx bx-plus me-1"></i>
-              Criar Usuário
-            </a>
-            {% endif %}
-          </div>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-3 mb-2">
+    <h4 class="mb-0 d-flex align-items-center fw-bold">
+      <i class="bx bx-user me-2 text-primary"></i>Usuários
+    </h4>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <form action="" method="get" class="d-inline-block" id="searchForm">
+        <div class="input-group">
+          <input type="text" name="search" class="form-control" placeholder="Pesquisar usuários" value="{{ request.GET.search }}" onchange="this.form.submit()">
+          <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary">
+            <i class="bx bx-x"></i>
+          </a>
         </div>
-        <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-hover">
-              <thead>
-                <tr>
-                  <th scope="col">Nome de Usuário</th>
-                  <th scope="col">Email</th>
-                  <th scope="col">Usuário</th>
-                  <th scope="col">Data de Criação</th>
-                  <th scope="col">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for user_object in users %}
-                <tr>
-                  <td>{{ user_object.get_full_name|capfirst|default:'-' }}</td>
-                  <td>{{ user_object.email }}</td>
-                  <td>
-                    {{user_object.username}}
-                  </td>
-                  <td>{{ user_object.date_joined|date:"d/m/Y" }}</td>
-                  <td>
-                    <div class="dropdown">
-                      <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bx bx-dots-vertical-rounded"></i>
-                      </button>
-                      <ul class="dropdown-menu">
-                        <!-- <li><a class="dropdown-item" href="">
-                          <i class="bx bx-show me-1"></i> Detalhes
-                        </a></li> -->
-                        {% if user|has_perm:"accounts.change_user" %}
-                        <li><a class="dropdown-item" href="{% url 'accounts:user_update' user_object.id %}">
-                          <i class="bx bx-edit me-1"></i> Editar
-                        </a></li>
-                        {% endif %}
-                        {% if user|has_perm:"accounts.delete_user" %}
-                        <li>
-                          <form method="post" action="{% url 'accounts:user_delete' user_object.id %}" class="d-inline-block w-100">
-                          {% csrf_token %}
-                          <button type="submit" class="dropdown-item text-danger w-100">
-                            <i class="bx bx-trash me-1"></i> Excluir
-                          </button>
-                          </form>
-                        </li>
-                        {% endif %}
-                      </ul>
-                    </div>
-                  </td>
-                </tr>
-                {% empty %}
-                <tr>
-                  <td colspan="4">Nenhum usuário encontrado</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-            {% include "snippets/pagination.html" %}
-          </div>
-        </div>
-      </div>
+      </form>
+      {% if user|has_perm:"accounts.add_user" %}
+      <a href="{% url 'accounts:user_create' %}" class="btn btn-primary">
+        <i class="bx bx-plus me-1"></i>
+        Criar Usuário
+      </a>
+      {% endif %}
     </div>
   </div>
+
+  {% include "components/card_table_open.html" %}
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th scope="col">Nome de Usuário</th>
+          <th scope="col">Email</th>
+          <th scope="col">Usuário</th>
+          <th scope="col">Data de Criação</th>
+          <th scope="col">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user_object in users %}
+        <tr>
+          <td>{{ user_object.get_full_name|capfirst|default:'-' }}</td>
+          <td>{{ user_object.email }}</td>
+          <td>
+            {{user_object.username}}
+          </td>
+          <td>{{ user_object.date_joined|date:"d/m/Y" }}</td>
+          <td>
+            {% include "components/action_menu_open.html" %}
+              {% if user|has_perm:"accounts.change_user" %}
+              <li><a class="dropdown-item" href="{% url 'accounts:user_update' user_object.id %}">
+                <i class="bx bx-edit me-1"></i> Editar
+              </a></li>
+              {% endif %}
+              {% if user|has_perm:"accounts.delete_user" %}
+              <li>
+                <form method="post" action="{% url 'accounts:user_delete' user_object.id %}" class="d-inline-block w-100">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item text-danger w-100">
+                  <i class="bx bx-trash me-1"></i> Excluir
+                </button>
+                </form>
+              </li>
+              {% endif %}
+            {% include "components/action_menu_close.html" %}
+          </td>
+        </tr>
+        {% empty %}
+        {% include "components/empty_state.html" with colspan=5 message="Nenhum usuário encontrado" icon="bx bx-user" %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% include "snippets/pagination.html" %}
+  {% include "components/card_table_close.html" %}
 </div>
 
 {% endblock content%}

@@ -10,14 +10,9 @@
   <div class="row justify-content-center">
     <div class="col-lg-6 col-md-8">
 
-      <h4 class="py-3 mb-4">
-        <span class="text-muted fw-light">
-          <a href="{% url 'vendas:numeroautenticador_list' %}">Números Autenticadores</a> /
-        </span>
-        {% if object %}Editar{% else %}Novo{% endif %}
-      </h4>
+      {% include "components/page_header.html" with title=object|yesno:"Editar,Novo" parent="Números Autenticadores" icon="bx bx-phone" %}
 
-      <div class="card mb-4">
+      <div class="card mb-4 shadow-sm border-0">
         <div class="card-header">
           <h5 class="mb-0">
             <i class="bx bx-phone me-2"></i>

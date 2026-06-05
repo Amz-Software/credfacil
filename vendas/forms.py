@@ -786,6 +786,10 @@ class ComprovantesClienteForm(PreservaArquivosComprovantesMixin, forms.ModelForm
             'comprovante_residencia_analise',
             'restricao',
         }
+        analise_online_raw = self.data.get('analise_online') if self.data else None
+        analise_online = str(analise_online_raw).strip().lower() in ('true', '1', 'on', 'yes')
+        if not analise_online:
+            exceptions.add('comprovante_residencia')
         for name, field in self.fields.items():
             if name not in exceptions:
                 field.required = True
@@ -888,6 +892,10 @@ class ComprovantesClienteEditForm(PreservaArquivosComprovantesMixin, forms.Model
             'comprovante_residencia_analise',
             'restricao',
         }
+        analise_online_raw = self.data.get('analise_online') if self.data else None
+        analise_online = str(analise_online_raw).strip().lower() in ('true', '1', 'on', 'yes')
+        if not analise_online:
+            exceptions.add('comprovante_residencia')
         for name, field in self.fields.items():
             if name not in exceptions:
                 field.required = True

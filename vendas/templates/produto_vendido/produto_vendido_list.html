@@ -6,11 +6,12 @@ Produtos Vendidos
 
 {% block content %}
 <div class="container-xxl mt-4">
+    {% include "components/page_header.html" with title="Produtos Vendidos" icon="bx bx-package" subtitle="Itens vendidos com filtro por produto, IMEI e cliente" %}
     <div class="row">
-        <div class="col-12"></div>
-            <div class="card">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="card-title">Produtos Vendidos</h4>
+                    <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-package me-2 text-primary"></i>Produtos Vendidos</h5>
                 </div>
                 <div class="card-body">
                     <form action="" method="get" class="mb-4" id="searchForm">
@@ -46,14 +47,14 @@ Produtos Vendidos
                             </div>
                         </div>
                         <div class="row g-3 mt-3">
-                            <div class="col-md-6 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary me-2">Buscar</button>
-                                <a href="{% url 'vendas:produto_vendido_list' %}" class="btn btn-secondary">Limpar</a>
+                            <div class="col-md-6 d-flex align-items-end gap-2">
+                                <button type="submit" class="btn btn-primary"><i class="bx bx-filter-alt me-1"></i>Buscar</button>
+                                <a href="{% url 'vendas:produto_vendido_list' %}" class="btn btn-outline-secondary"><i class="bx bx-x me-1"></i>Limpar</a>
                             </div>
                         </div>
                     </form>
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover align-middle">
                             <thead>
                                 <tr>
                                     <th scope="col">ID</th>
@@ -81,23 +82,16 @@ Produtos Vendidos
                                     {% endif %}
                                     <td>{{ item.venda.vendedor|title }}</td>
                                     <td>
-                                        <div class="dropdown">
-                                            <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                                                <i class="bx bx-dots-vertical-rounded"></i>
-                                            </button>
-                                            <div class="dropdown-menu">
-                                                <a class="dropdown-item" href="{% url 'vendas:venda_detail' item.venda.pk %}" target="_blank">Ir para venda</a>
-                                                {% if user|has_perm:"vendas.change_venda" %}
-                                                <a class="dropdown-item" href="{% url 'vendas:venda_update' item.venda.pk %}" target="_blank">Editar venda</a>
-                                                {% endif %}
-                                            </div>
-                                        </div>
+                                        {% include "components/action_menu_open.html" %}
+                                            <li><a class="dropdown-item" href="{% url 'vendas:venda_detail' item.venda.pk %}" target="_blank"><i class="bx bx-show me-1"></i> Ir para venda</a></li>
+                                            {% if user|has_perm:"vendas.change_venda" %}
+                                            <li><a class="dropdown-item" href="{% url 'vendas:venda_update' item.venda.pk %}" target="_blank"><i class="bx bx-edit-alt me-1"></i> Editar venda</a></li>
+                                            {% endif %}
+                                        {% include "components/action_menu_close.html" %}
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr>
-                                    <td colspan="7" class="text-center">Nenhum registro encontrado</td>
-                                </tr>
+                                {% include "components/empty_state.html" with colspan=8 message="Nenhum produto vendido encontrado" icon="bx bx-package" %}
                                 {% endfor %}
                             </tbody>
                         </table>
