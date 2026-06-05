@@ -7,9 +7,10 @@ Informar IMEI - Análise de Crédito
 
 {% block content %}
 <div class="container-xxl mt-4">
-    <div class="card">
+    {% include "components/page_header.html" with title="Informar IMEI" parent="Análise de Crédito" icon="bx bx-mobile-alt" subtitle="Ação do Analista" %}
+    <div class="card shadow-sm border-0">
         <div class="card-header">
-            <h4 class="mb-0">📱 Informar IMEI - Ação do Analista</h4>
+            <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-mobile-alt me-2 text-primary"></i>Informar IMEI - Ação do Analista</h5>
         </div>
         <div class="card-body">
             <div class="row mb-3">
@@ -107,12 +108,12 @@ Informar IMEI - Análise de Crédito
                     </div>
                 </div>
                 
-                <div class="d-flex justify-content-between">
-                    <a href="{% url 'vendas:cliente_update' cliente.pk %}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Voltar
+                <div class="d-flex flex-wrap justify-content-between gap-2">
+                    <a href="{% url 'vendas:cliente_update' cliente.pk %}" class="btn btn-outline-secondary">
+                        <i class="bx bx-arrow-back me-1"></i> Voltar
                     </a>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Salvar IMEI
+                        <i class="bx bx-save me-1"></i> Salvar IMEI
                     </button>
                 </div>
             </form>

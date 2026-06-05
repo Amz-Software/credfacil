@@ -387,11 +387,7 @@
           </td>
               </tr>
             {% empty %}
-              <tr>
-          <td colspan="16" class="text-center py-4">
-            Nenhum registro encontrado
-          </td>
-              </tr>
+              {% include "components/empty_state.html" with colspan=16 message="Nenhum registro encontrado" icon="bx bx-wallet" %}
             {% endfor %}
           </tbody>
         </table>

@@ -6,11 +6,13 @@ Lojas
 
 {% block content %}
 <div class="container-xxl mt-4">
+  {% url 'vendas:loja_create' as loja_create_url %}
+  {% include "components/page_header.html" with title="Lojas" icon="bx bx-store" subtitle="Lojas parceiras e configurações" action_url=loja_create_url action_label="Criar Loja" action_icon="bx bx-plus" action_perm="vendas.add_loja" %}
   <div class="row">
     <div class="col-12">
-      <div class="card">
+      <div class="card shadow-sm border-0">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h4 class="card-title">Lojas</h4>
+          <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-store me-2 text-primary"></i>Lojas</h5>
           <div>
             <form action="" method="get" class="d-inline-block me-2" id="searchForm">
               <div class="input-group">
@@ -29,16 +31,11 @@ Lojas
                 </select>
               </div>
             </form>             -->
-            {% if user|has_perm:"vendas.add_loja" %}
-            <a href="{% url 'vendas:loja_create' %}" class="btn btn-primary">
-              <i class="bx bx-plus me-1"></i> Criar Loja
-            </a>
-            {% endif %}
           </div>
         </div>
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover align-middle">
               <thead>
                 <tr>
                   <th scope="col">Nome</th>
@@ -63,57 +60,50 @@ Lojas
                     {% if loja.repasses_info %}
                       {% if loja.repasses_info.repasses %}
                         {% if loja.repasses_info.atrasados > 0 %}
-                          <span class="badge bg-danger">Repasse Pendente</span>
+                          {% include "components/status_badge.html" with state="danger" label="Repasse Pendente" %}
                         {% elif loja.repasses_info.repasses.status == 'parcial' %}
-                          <span class="badge bg-warning">Repasse Parcial</span>
+                          {% include "components/status_badge.html" with state="warning" label="Repasse Parcial" %}
                         {% else %}
-                          <span class="badge bg-success">Sem Pendências</span>
+                          {% include "components/status_badge.html" with state="success" label="Sem Pendências" %}
                         {% endif %}
                       {% else %}
-                        <span class="badge bg-secondary">Sem Dados de Repasse</span>
+                        {% include "components/status_badge.html" with state="secondary" label="Sem Dados de Repasse" %}
                       {% endif %}
                     {% else %}
-                      <span class="badge bg-secondary">Sem Dados de Repasse</span>
+                      {% include "components/status_badge.html" with state="secondary" label="Sem Dados de Repasse" %}
                     {% endif %}
                   </td>
                   {% if user.is_superuser or user|has_group:"ADMINISTRADOR" %}
                   <td>
                     {% if loja.pode_vender_iphone %}
-                      <span class="badge bg-success"><i class='bx bx-check'></i> Sim</span>
+                      {% include "components/status_badge.html" with state="success" label="Sim" icon="bx bx-check" %}
                     {% else %}
-                      <span class="badge bg-secondary"><i class='bx bx-x'></i> Não</span>
+                      {% include "components/status_badge.html" with state="secondary" label="Não" icon="bx bx-x" %}
                     {% endif %}
                   </td>
                   {% endif %}
                   <td>
-                    <div class="dropdown">
-                      <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                        <i class="bx bx-dots-vertical-rounded"></i>
-                      </button>
-                      <div class="dropdown-menu">
+                    {% include "components/action_menu_open.html" %}
                         {% if user|has_perm:"vendas.view_loja" %}
-                        <a class="dropdown-item" href="{% url 'vendas:loja_detail' loja.pk %}">
+                        <li><a class="dropdown-item" href="{% url 'vendas:loja_detail' loja.pk %}">
                           <i class="bx bx-show me-1"></i> Detalhes
-                        </a>
+                        </a></li>
                         {% endif %}
                         {% if user|has_perm:"vendas.change_loja" %}
-                        <a class="dropdown-item" href="{% url 'vendas:loja_update' loja.pk %}">
+                        <li><a class="dropdown-item" href="{% url 'vendas:loja_update' loja.pk %}">
                           <i class="bx bx-edit me-1"></i> Editar
-                        </a>
+                        </a></li>
                         {% endif %}
                         {% if user|has_perm:"vendas.change_loja" %}
-                        <a class="dropdown-item" href="{% url 'vendas:loja_replicar' loja.pk %}">
-                            <i class='bx bx-transfer'></i> Replicar Codigo/QrCode
-                        </a>
+                        <li><a class="dropdown-item" href="{% url 'vendas:loja_replicar' loja.pk %}">
+                            <i class='bx bx-transfer me-1'></i> Replicar Codigo/QrCode
+                        </a></li>
                         {% endif %}
-                      </div>
-                    </div>
+                    {% include "components/action_menu_close.html" %}
                   </td>
                 </tr>
                 {% empty %}
-                <tr>
-                  <td colspan="6">Nenhum registro encontrado</td>
-                </tr>
+                {% include "components/empty_state.html" with colspan=7 message="Nenhuma loja encontrada" icon="bx bx-store" %}
                 {% endfor %}
               </tbody>
             </table>

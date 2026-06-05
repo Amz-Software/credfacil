@@ -1,46 +1,28 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <title>Relatório de Acessos — Consulta Serasa</title>
-  <style>
-    @page { size: A4 landscape; margin: 18mm 14mm; }
-    * { box-sizing: border-box; }
-    body { font-family: "Helvetica", Arial, sans-serif; color: #111827; font-size: 10px; }
-    h1 { font-size: 18px; margin: 0 0 4px 0; color: #1e3a8a; }
-    .subtitle { color: #6b7280; font-size: 11px; margin-bottom: 14px; }
+{% extends "components/report_base.html" %}
+
+{% block report_title %}Relatório de Acessos — Consulta Serasa{% endblock %}
+
+{% block report_page_size %}A4 landscape{% endblock %}
+
+{% block report_head %}
+    .subtitle { color: #555; font-size: 9pt; margin-bottom: 10px; }
     .summary { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
     .stat {
       flex: 1 1 0;
       min-width: 120px;
-      border: 1px solid #dbeafe;
-      background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+      border: 1px solid #B9BAC8;
+      background: #FFF6D6;
       padding: 8px 10px;
       border-radius: 6px;
     }
-    .stat .label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: #1e3a8a; font-weight: 700; }
-    .stat .value { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 2px; }
-    table { width: 100%; border-collapse: collapse; }
-    thead th {
-      background: #1e3a8a;
-      color: #ffffff;
-      text-align: left;
-      padding: 6px 8px;
-      font-size: 10px;
-      font-weight: 700;
-    }
-    tbody td {
-      padding: 5px 8px;
-      border-bottom: 1px solid #e5e7eb;
-      vertical-align: top;
-    }
-    tbody tr:nth-child(even) td { background: #f9fafb; }
-    .pill { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 9px; font-weight: 700; background: #dbeafe; color: #1e40af; }
-    .footer { margin-top: 12px; color: #6b7280; font-size: 9px; text-align: right; }
-  </style>
-</head>
-<body>
-  <h1>Relatório de Acessos — Consulta Serasa</h1>
+    .stat .label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.06em; color: #2B2C40; font-weight: 700; }
+    .stat .value { font-size: 16pt; font-weight: 800; color: #2B2C40; margin-top: 2px; }
+    .pill { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 8pt; font-weight: 700; background: #FFF6D6; color: #2B2C40; }
+    .footer-reg { margin-top: 12px; color: #777; font-size: 8pt; text-align: right; }
+{% endblock %}
+
+{% block report_content %}
+  <div class="ipix-report-title">Relatório de Acessos — Consulta Serasa</div>
   <div class="subtitle">Gerado em {{ gerado_em }}</div>
 
   <div class="summary">
@@ -73,11 +55,10 @@
           <td>{{ l.ip }}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="7" style="text-align:center; padding:14px; color:#6b7280;">Sem registros.</td></tr>
+        <tr><td colspan="7" style="text-align:center; padding:14px; color:#777;">Sem registros.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <div class="footer">{{ total }} registro(s)</div>
-</body>
-</html>
+  <div class="footer-reg">{{ total }} registro(s)</div>
+{% endblock %}

@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -24,7 +25,7 @@
         }
 
         th, td {
-            border: 1px solid black;
+            border: 1px solid #B9BAC8;
             padding: 5px;
             text-align: left;
             word-wrap: break-word; /* Quebra o texto para evitar overflow */
@@ -32,7 +33,8 @@
         }
 
         th {
-            background-color: #f9f9f9;
+            background-color: #FFF6D6;
+            color: #2B2C40;
         }
 
         .header, .footer {
@@ -105,8 +107,8 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        Recibo de Locação
+    <div class="header" style="border-top:3px solid #FDC600;">
+        IPIX · Nota de Venda
     </div>
 
     <div class="footer">
@@ -114,6 +116,7 @@
     </div>
 
     <div class="content">
+        {% include "components/report_header_print.html" with loja=venda.loja titulo="Nota de Venda" %}
         <!-- Loja -->
         <table>
             <tr>

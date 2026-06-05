@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -23,30 +24,32 @@
         }
     
         th, td {
-          border: 1px solid black;
+          border: 1px solid #B9BAC8;
           padding: 10px; /* Aumenta o padding */
           text-align: left;
           word-wrap: break-word;
         }
-    
+
         th {
-          background-color: #f9f9f9;
+          background-color: #FFF6D6;
+          color: #2B2C40;
         }
-    
+
         .header, .footer {
           position: fixed;
           width: 100%;
           left: 0;
           right: 0;
         }
-    
+
         .header {
           top: 0;
           height: 60px;
           text-align: center;
           font-size: 12pt;
           font-weight: bold;
-          border-bottom: 1px solid black;
+          border-top: 3px solid #FDC600;
+          border-bottom: 1px solid #B9BAC8;
           background-color: white;
           z-index: 1000;
         }
@@ -109,7 +112,7 @@
 </head>
 <body>
     <div class="header">
-        Relatório de Vendas - {{ caixa.loja.nome }}
+        IPIX · Relatório de Vendas
     </div>
 
     <div class="footer">
@@ -117,6 +120,7 @@
     </div>
 
     <div class="content">
+        {% include "components/report_header_print.html" with loja=caixa.loja titulo="Relatório de Vendas" %}
         <!-- Resumo Caixa-->
         <div class="section-title">Resumo de Vendas de Produto</div>
         <table>

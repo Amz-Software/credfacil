@@ -8,14 +8,9 @@
   <div class="row justify-content-center">
     <div class="col-lg-5 col-md-7">
 
-      <h4 class="py-3 mb-4">
-        <span class="text-muted fw-light">
-          <a href="{% url 'vendas:numeroautenticador_list' %}">Números Autenticadores</a> /
-        </span>
-        Excluir
-      </h4>
+      {% include "components/page_header.html" with title="Excluir" parent="Números Autenticadores" icon="bx bx-trash" %}
 
-      <div class="card border-danger">
+      <div class="card border-danger shadow-sm">
         <div class="card-header bg-label-danger">
           <h5 class="mb-0 text-danger">
             <i class="bx bx-trash me-2"></i> Confirmar Exclusão

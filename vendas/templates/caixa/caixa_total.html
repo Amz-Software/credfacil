@@ -7,6 +7,7 @@ Caixas - Loja
 {% block content %}
 
 <div class="container-xxl mt-4">
+  {% include "components/page_header.html" with title="Caixa da Loja" parent="Caixa" icon="bx bx-store-alt" subtitle="Resumo de vendas, entradas e saídas" %}
   <!-- Store Details -->
   <div class="row mb-4">
     <div class="col-12">
@@ -128,11 +129,11 @@ Caixas - Loja
       </div>
     </div>
 
-    <div class="row mb-4">    
+    <div class="row mb-4">
       <div class="col-12">
-        <div class="card">
+        <div class="card shadow-sm border-0">
           <div class="card-header">
-            <h4 class="card-title">Lançamentos</h4>
+            <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-list-plus me-2 text-primary"></i>Lançamentos</h5>
           </div>
           {% if user|has_perm:"vendas.add_lancamentocaixatotal" %}
           <form method="post">
@@ -180,7 +181,7 @@ Caixas - Loja
                   <td>{{ lançamento.valor }}</td>
                   <td>
                     {% if user|has_perm:"vendas.delete_lancamentocaixatotal" %}
-                    <a href='{% url "vendas:caixa_total_lancamento_delete" lançamento.id %}' class="btn btn-danger">
+                    <a href='{% url "vendas:caixa_total_lancamento_delete" lançamento.id %}' class="btn btn-sm btn-outline-danger">
                       <i class="bx bx-trash"></i>
                     </a>
                     {% endif %}

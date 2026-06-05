@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -9,16 +10,17 @@
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; margin: 0; padding: 16px; }
-    h2, h3 { margin: 8px 0; text-align: center; }
+    h2, h3 { margin: 8px 0; text-align: center; color: #2B2C40; }
     table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; }
-    th { background: #f5f5f5; font-weight: bold; }
+    th, td { border: 1px solid #B9BAC8; padding: 6px; text-align: left; vertical-align: top; }
+    th { background: #FFF6D6; color: #2B2C40; font-weight: bold; }
     .center { text-align: center; }
     .right { text-align: right; }
     .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #eee; margin-right: 4px; }
   </style>
 </head>
 <body>
+  {% include "components/report_header_print.html" with titulo="Relatório Avançado - Contas a Receber" %}
   <h2>Relatório Avançado - Contas a Receber</h2>
   {% if data_inicio and data_fim %}
   <h3>Período: {{ data_inicio }} a {{ data_fim }}</h3>

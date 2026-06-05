@@ -9,13 +9,15 @@ Produtos
 <div class="container-xxl mt-4">
   <div class="row">
     <div class="col-12">
+
+    {% include "components/page_header.html" with title="Produtos" icon="bx bx-package" %}
+
     <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-      <h4 class="card-title">Produtos</h4>
-      <div>
-        <form action="" method="get" class="d-inline-block me-2" id="searchForm">
-          <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Pesquisar" onchange="document.getElementById('searchForm').submit()">
-        </form>
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <form action="" method="get" class="d-inline-block" id="searchForm">
+        <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Pesquisar" onchange="document.getElementById('searchForm').submit()">
+      </form>
+      <div class="d-flex flex-wrap align-items-center gap-2">
         {% if user|has_perm:"produtos.add_produto" %}
         <a href="{% url 'produtos:produto_create' %}" class="btn btn-primary">
         <i class="bx bx-plus me-1"></i> Adicionar Produto
@@ -23,7 +25,7 @@ Produtos
         {% endif %}
         {% if user|has_perm:"produtos.view_produto" %}
         <a href="{% url 'produtos:produto_pdf' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}"
-           class="btn btn-outline-danger ms-1" target="_blank" title="Exportar listagem em PDF">
+           class="btn btn-outline-danger" target="_blank" title="Exportar listagem em PDF">
           <i class="bx bxs-file-pdf me-1"></i> PDF
         </a>
         {% endif %}
@@ -32,7 +34,7 @@ Produtos
       </div>
       <div class="card-body">
       <div class="table-responsive">
-        <table class="table table-hover">
+        <table class="table table-hover align-middle">
         <thead>
           <tr>
           <th scope="col">Código</th>
@@ -63,9 +65,9 @@ Produtos
           <td>R$ {{ produto.entrada_cliente|floatformat:2 }}</td>
           <td>
             {% if produto.ativo %}
-              <span class="text-success">Ativo</span>
+              {% include "components/status_badge.html" with state="success" label="Ativo" icon="bx bx-check-circle" %}
             {% else %}
-              <span class="badge bg-danger">Desativado</span>
+              {% include "components/status_badge.html" with state="danger" label="Desativado" icon="bx bx-x-circle" %}
             {% endif %}
           </td>
           <td>
@@ -104,9 +106,9 @@ Produtos
             </div>
             </div>
           </td>
-          {% empty %}
-          <td colspan="10">Nenhum registro encontrado</td>
           </tr>
+          {% empty %}
+          {% include "components/empty_state.html" with colspan=8 message="Nenhum produto encontrado" icon="bx bx-package" %}
           {% endfor %}
         </tbody>
         </table>

@@ -8,14 +8,15 @@ Caixa {{ caixa.data_abertura|date:"d/m/Y" }}
 {% block content %}
 
 <div class="container-xxl mt-4">
+  {% include "components/page_header.html" with title=caixa.data_abertura|date:"d/m/Y" parent="Caixa" icon="bx bx-money" %}
   <!-- Card with Caixa Information -->
   <div class="row mb-4">
     <div class="col-12">
-      <div class="card">
+      <div class="card shadow-sm border-0">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h4 class="card-title">Caixa {{ caixa.data_abertura|date:"d/m/Y" }}</h4>
+          <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-info-circle me-2 text-primary"></i>Informações do Caixa</h5>
           <div>
-            <a href="{% url "vendas:caixa_list" %}" class="btn btn-primary">
+            <a href="{% url "vendas:caixa_list" %}" class="btn btn-outline-secondary">
               <i class="bx bx-arrow-back me-1"></i> Voltar
             </a>
           </div>
@@ -24,9 +25,9 @@ Caixa {{ caixa.data_abertura|date:"d/m/Y" }}
           <p><strong>Data de Abertura:</strong> {{ caixa.data_abertura|date:"d/m/Y" }}</p>
           {% if caixa.data_fechamento %}
           <p><strong>Data de Fechamento:</strong> {{ caixa.data_fechamento|date:"d/m/Y" }}</p>
-          <p><strong>Status:</strong> <i class="bx bx-lock-alt text-danger"></i> Fechado</p>
+          <p><strong>Status:</strong> {% include "components/status_badge.html" with state="danger" label="Fechado" icon="bx bx-lock-alt" %}</p>
           {% else %}
-          <p><strong>Status:</strong> <i class="bx bx-lock-open-alt text-success"></i> Aberto</p>
+          <p><strong>Status:</strong> {% include "components/status_badge.html" with state="success" label="Aberto" icon="bx bx-lock-open-alt" %}</p>
           {% endif %}
           <p><strong>Total de Vendas:</strong> {{ caixa.quantidade_vendas }}</p>
           <p><strong>Valor Total em Caixa:</strong> R$ {{ caixa.saldo_caixa }}</p>
@@ -35,11 +36,11 @@ Caixa {{ caixa.data_abertura|date:"d/m/Y" }}
     </div>
   </div>
 
-  <div class="row mb-3">    
+  <div class="row mb-3">
     <div class="col-12">
-      <div class="card">
+      <div class="card shadow-sm border-0">
         <div class="card-header">
-          <h4 class="card-title">Lançamentos</h4>
+          <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-list-plus me-2 text-primary"></i>Lançamentos</h5>
         </div>
         {% if user|has_perm:"vendas.add_lancamentocaixa" %}
         <form method="post">
@@ -85,7 +86,7 @@ Caixa {{ caixa.data_abertura|date:"d/m/Y" }}
                 <td>{{ lançamento.valor }}</td>
                 <td>
                   {% if user|has_perm:"vendas.delete_lancamentocaixa" %}
-                  <a href='{% url "vendas:lancamento_delete" lançamento.id %}' class="btn btn-danger">
+                  <a href='{% url "vendas:lancamento_delete" lançamento.id %}' class="btn btn-sm btn-outline-danger">
                     <i class="bx bx-trash"></i>
                   </a>
                   {% endif %}
@@ -101,12 +102,12 @@ Caixa {{ caixa.data_abertura|date:"d/m/Y" }}
   <!-- Card with List of Vendas -->
   <div class="row">
     <div class="col-12">
-      <div class="card">
+      <div class="card shadow-sm border-0">
         <div class="card-header">
-          <h4 class="card-title">Vendas Vinculadas</h4>
+          <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-cart me-2 text-primary"></i>Vendas Vinculadas</h5>
         </div>
         <div class="card-body">
-          <table class="table table-striped">
+          <table class="table table-striped align-middle">
             <thead>
               <tr>
                 <th>Cliente</th>

@@ -119,18 +119,19 @@
     }
 
     td {
-        border: 1px solid #000;
+        border: 1px solid #B9BAC8;
         vertical-align: top;
         padding: 5px;
     }
 
     .header {
-        background-color: #fff000;
+        background-color: #FFF6D6;
+        color: #2B2C40;
         font-weight: bold;
     }
 
     .content {
-        background-color: #fef9c8;
+        background-color: #FFF6D6;
     }
 
     .center {
@@ -142,14 +143,15 @@
     }
 
     .destaque-via {
-        background: #ffe066;
-        color: #222;
+        background: #FFF6D6;
+        color: #2B2C40;
         font-weight: bold;
         text-align: center;
         font-size: 25px;
         padding: 10px 0;
         margin-bottom: 20px;
-        border: 2px solid #ffd700;
+        border: 2px solid #FDC600;
+        border-top: 3px solid #FDC600;
     }
 </style>
 </head>
@@ -157,6 +159,7 @@
 
 <div class="via">
     <div class="destaque-via">VIA DO CLIENTE</div>
+    {% include "components/report_header_print.html" with loja=loja titulo="Contrato de Locação de Celular" %}
     <h2>CONTRATO DE LOCAÇÃO DE CELULAR</h2>
     <p>Este Contrato de Locação de Celular ("Contrato") é celebrado entre: {{loja.nome|title}}, inscrito no CNPJ {{loja.cnpj|default:"-"}}, com endereço registrado em {{loja.endereco}} referido como "Locador", {{cliente.nome|title}}, inscrito no CPF {{cliente.cpf}}, REGISTRO GERAL {{cliente.rg}}, com endereço registrado em {{cliente.endereco}} referido como "Locatário".</p>
     <p><strong>1. Objeto do Contrato</strong></p>
@@ -180,6 +183,7 @@
 
 <div class="via">
     <div class="destaque-via">VIA DO LOJISTA</div>
+    {% include "components/report_header_print.html" with loja=loja titulo="Contrato de Locação de Celular" %}
     <h2>CONTRATO DE LOCAÇÃO DE CELULAR</h2>
     <p>Este Contrato de Locação de Celular ("Contrato") é celebrado entre: {{loja.nome|title}}, inscrito no CNPJ {{loja.cnpj|default:"-"}}, com endereço registrado em {{loja.endereco}} referido como "Locador", {{cliente.nome|title}}, inscrito no CPF {{cliente.cpf}}, REGISTRO GERAL {{cliente.rg}}, com endereço registrado em {{cliente.endereco}} referido como "Locatário".</p>
     <p><strong>1. Objeto do Contrato</strong></p>
