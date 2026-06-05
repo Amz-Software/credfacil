@@ -30,13 +30,14 @@ def menu_items(request):
             "section": "Início",
         },
         # ── VENDAS (operação do dia a dia) ──────────────────────────────
-        {
-            "label": "Caixa",
-            "url_name": "vendas:caixa_list",
-            "icon": "bx bx-money",
-            "permission": "vendas.view_caixa",
-            "section": "Vendas",
-        },
+        # Tela de Caixa ocultada — vendas não dependem mais de caixa aberto.
+        # {
+        #     "label": "Caixa",
+        #     "url_name": "vendas:caixa_list",
+        #     "icon": "bx bx-money",
+        #     "permission": "vendas.view_caixa",
+        #     "section": "Vendas",
+        # },
         {
             "label": "Solicitações de Crédito",
             "url_name": "vendas:cliente_list",

@@ -409,7 +409,7 @@ class Venda(Base):
     cliente = models.ForeignKey('vendas.cliente', on_delete=models.CASCADE, related_name='vendas')
     vendedor = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='vendas_realizadas')
     produtos = models.ManyToManyField('produtos.Produto', through='ProdutoVenda', related_name='vendas')
-    caixa = models.ForeignKey('vendas.Caixa', on_delete=models.CASCADE, related_name='vendas')
+    caixa = models.ForeignKey('vendas.Caixa', on_delete=models.CASCADE, related_name='vendas', null=True, blank=True)
     observacao = models.TextField(null=True, blank=True)
     repasse_logista = models.DecimalField(max_digits=10, decimal_places=2)
     documento_assinado = models.FileField(upload_to=upload_to_venda, null=True, blank=True)
