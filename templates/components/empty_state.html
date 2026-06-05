@@ -1,10 +1,10 @@
-{# ==========================================================================
+{% comment %} ==========================================================================
    empty_state — estado vazio padronizado.
    Em tabela (passe colspan):
      {% include "components/empty_state.html" with colspan=6 message="Nenhuma venda encontrada" %}
    Fora de tabela (sem colspan):
      {% include "components/empty_state.html" with message="Nada por aqui" hint="Crie o primeiro registro" %}
-   ========================================================================== #}
+   ========================================================================== {% endcomment %}
 {% if colspan %}
 <tr>
   <td colspan="{{ colspan }}" class="text-center text-muted py-5">

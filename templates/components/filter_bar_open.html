@@ -1,4 +1,4 @@
-{# ==========================================================================
+{% comment %} ==========================================================================
    filter_bar_open / filter_bar_close — barra de filtros padronizada (GET).
    Uso:
    {% include "components/filter_bar_open.html" %}
@@ -8,7 +8,7 @@
        </div>
        ... outros campos ...
    {% include "components/filter_bar_close.html" with clear_url=request.path %}
-   ========================================================================== #}
+   ========================================================================== {% endcomment %}
 <form method="get" class="card filter-card shadow-sm border-0 mb-3"{% if filter_id %} id="{{ filter_id }}"{% endif %}>
   <div class="card-body">
     <div class="row g-3 align-items-end">

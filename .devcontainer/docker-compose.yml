@@ -8,7 +8,10 @@ services:
     volumes:
       - ..:/workspaces:cached
       - ~/.ssh:/root/.ssh:cached
-      - ~/.vscode-server:/root/.vscode-server:cached
+      # NÃO monte ~/.vscode-server do host: os binários são específicos de SO
+      # (macOS x Linux) e os sockets/IPC não funcionam sobre o bind mount do
+      # Docker no macOS, causando loop de ECONNREFUSED no Extension Host.
+      # O VS Code instala o servidor dentro do container automaticamente.
 
     # Uncomment the next four lines if you will use a ptrace-based debugger like C++, Go, and Rust.
     # cap_add:

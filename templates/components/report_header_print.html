@@ -1,9 +1,9 @@
 {% load static %}
-{# ==========================================================================
+{% comment %} ==========================================================================
    report_header_print — cabeçalho IPIX para relatórios de impressão/PDF
    (engine de impressão do navegador / html2pdf — não usa @page).
    Uso: {% include "components/report_header_print.html" with loja=venda.loja titulo="Nota de Venda" %}
-   ========================================================================== #}
+   ========================================================================== {% endcomment %}
 <div style="display:flex;align-items:center;gap:12px;border-bottom:3px solid #FDC600;padding-bottom:8px;margin-bottom:14px;">
   <img src="{% static 'images/IPIX.png' %}" alt="IPIX" style="height:42px;width:auto;object-fit:contain;">
   <div style="line-height:1.3;">

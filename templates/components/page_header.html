@@ -1,5 +1,5 @@
 {% load iam_tags %}
-{# ==========================================================================
+{% comment %} ==========================================================================
    page_header — cabeçalho padrão de página (título + subtítulo + ação)
    Uso:
    {% include "components/page_header.html" with title="Vendas" icon="bx bx-receipt"
@@ -7,7 +7,7 @@
         action_url=... action_label="Nova venda" action_icon="bx bx-plus"
         action_perm="vendas.add_venda" %}
    Todos os parâmetros (exceto title) são opcionais.
-   ========================================================================== #}
+   ========================================================================== {% endcomment %}
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-3 mb-2">
   <div>
     <h4 class="mb-0 d-flex align-items-center fw-bold">

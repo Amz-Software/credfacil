@@ -1,10 +1,10 @@
 {% load static %}
-{# ==========================================================================
+{% comment %} ==========================================================================
    hero_card — banner de boas-vindas com a identidade IPIX (gradiente amarelo)
    Uso:
    {% include "components/hero_card.html" with title="Olá, Fulano 👋"
         subtitle="Bem-vindo ao IPIX" icon="bx bx-home-circle" show_logos=True %}
-   ========================================================================== #}
+   ========================================================================== {% endcomment %}
 <div class="card border-0 shadow-sm ipix-hero mb-4">
   <div class="d-flex align-items-center row">
     <div class="{% if show_logos %}col-sm-8{% else %}col-12{% endif %}">

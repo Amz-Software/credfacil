@@ -1,12 +1,12 @@
 {% load crispy_forms_tags iam_tags %}
-{# ==========================================================================
+{% comment %} ==========================================================================
    form_card — card de formulário simples (renderiza o form via crispy).
    Use para forms de um único objeto (sem formset / layout manual).
    Uso:
    {% include "components/form_card.html" with form=form card_title="Novo Produto"
         card_icon="bx bx-package" submit_label="Salvar" submit_perm="produtos.add_produto"
         cancel_url=... enctype="multipart/form-data" %}
-   ========================================================================== #}
+   ========================================================================== {% endcomment %}
 <div class="card shadow-sm border-0">
   {% if card_title %}
   <div class="card-header">

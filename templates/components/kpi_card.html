@@ -1,4 +1,4 @@
-{# ==========================================================================
+{% comment %} ==========================================================================
    kpi_card — cartão de indicador (KPI) padronizado
    Uso:
    {% include "components/kpi_card.html" with icon="bx bx-cart-alt"
@@ -7,7 +7,7 @@
         label="Valor Total" value=total_geral|intcomma is_money=True accent="success"
         sub="3 primeiras parcelas" %}
    accent: primary | success | danger | warning | info | secondary
-   ========================================================================== #}
+   ========================================================================== {% endcomment %}
 <div class="card kpi-card shadow-sm h-100 border-0"
      style="border-left:4px solid {% if accent == 'primary' %}var(--ipix-yellow){% elif accent == 'success' %}var(--ipix-success){% elif accent == 'danger' %}var(--ipix-danger){% elif accent == 'warning' %}var(--ipix-warning){% elif accent == 'info' %}var(--ipix-info){% else %}var(--ipix-secondary){% endif %} !important;">
   <div class="card-body d-flex align-items-center p-4">
