@@ -3409,8 +3409,14 @@ class GraficoTemplateView(TemplateView):
             'qtd_cobranca_a_vencer': qtd_cobranca_a_vencer,
             'total_pagamentos_cobranca': total_pagamentos_cobranca,
             'total_repasses': total_repasses,
-            'repasses_por_loja': dict(repasses_por_loja),
-            'dados_lojas': json.dumps(valores_por_loja, default=str),
+            'repasses_por_loja': {
+                nome: repasses_por_loja[nome]
+                for nome in sorted(repasses_por_loja, key=str.lower)
+            },
+            'dados_lojas': json.dumps(
+                {nome: valores_por_loja[nome] for nome in sorted(valores_por_loja, key=str.lower)},
+                default=str,
+            ),
             'dash_mensal_lojas': json.dumps(dash_mensal_json, default=str) if loja_get else None,
         })
 
@@ -3866,6 +3872,12 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
                 'total_repasses': total_repasses,
                 'valor_total_parcelas': valor_total_parcelas,
             }
+
+        # Ordena as lojas em ordem alfabética (case-insensitive) para o relatório
+        dados_por_loja = {
+            nome: dados_por_loja[nome]
+            for nome in sorted(dados_por_loja, key=str.lower)
+        }
 
         return {
             'dados_por_loja': dados_por_loja,

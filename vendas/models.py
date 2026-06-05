@@ -354,6 +354,7 @@ class Loja(Base):
         return self.nome
     
     class Meta:
+        ordering = ['nome']
         verbose_name_plural = 'Lojas'
         permissions = (
             ('can_view_all_stores', 'Pode ver todas as lojas'),
