@@ -31,12 +31,12 @@ def menu_items(request):
             "url_name": "vendas:caixa_list",
             "section": "Vendas"
         },
-        {          
+        {
             "label": "Gráfico",
-            "icon": "bx bx-chart",
+            "icon": "bx bx-line-chart",
             "permission": "vendas.can_view_all_dashboard",
             "url_name": "vendas:grafico",
-            "section": "Gráfico"
+            "section": "Vendas"
         },
         # {
         #     "label": "Estoque",
@@ -73,7 +73,7 @@ def menu_items(request):
         # },   
         {
             "label": "Vendas",
-            "icon": "bx bx-box",
+            "icon": "bx bx-receipt",
             "permission": "vendas.view_venda",
             "section": "Vendas",
             "sub_items": [
@@ -105,11 +105,6 @@ def menu_items(request):
             "permission": "financeiro.view_caixamensal",
             "section": "Financeiro",
             "sub_items": [
-                {
-                    "label": "Caixa",
-                    "url_name": "vendas:caixa_list",
-                    "permission": "auth.view_user"
-                },
                 # {
                 #     "label": "Caixa Total",
                 #     "url_name": "vendas:caixa_total",
@@ -159,7 +154,7 @@ def menu_items(request):
         },
         {
             "label": "Produtos",
-            "icon": "bx bx-box",
+            "icon": "bx bx-package",
             "permission": "produtos.view_produto",
             "section": "Produtos",
             "sub_items": [
@@ -200,7 +195,7 @@ def menu_items(request):
         # },
         {
             "label": "Usuários",
-            "icon": "bx bx-user",
+            "icon": "bx bx-group",
             "permission": "auth.view_user",
             "section": "Configurações",
             "sub_items": [
@@ -238,10 +233,10 @@ def menu_items(request):
         {
             "label": "Meu Perfil",
             "url_name": "accounts:my_profile_update",
-            "icon": "bx bx-user",
+            "icon": "bx bx-user-circle",
             "permission": "accounts.view_own_user",
             "section": "Configurações",
-        }, 
+        },
 
     ]
   

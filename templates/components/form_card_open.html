@@ -1,0 +1,17 @@
+{# ==========================================================================
+   form_card_open / form_card_close — card de formulário com layout manual
+   (preserva campos/formsets/JS exatamente como o template define).
+   Uso:
+   {% include "components/form_card_open.html" with card_title="Nova Venda" enctype="multipart/form-data" form_id="venda-form" %}
+       {{ form.cliente }} ... {{ produto_venda_formset }} ...  (markup intacto)
+   {% include "components/form_card_close.html" with submit_label="Salvar" submit_perm="vendas.add_venda" cancel_url=... %}
+   ========================================================================== #}
+<div class="card shadow-sm border-0">
+  {% if card_title %}
+  <div class="card-header">
+    <h5 class="mb-0 d-flex align-items-center">{% if card_icon %}<i class="{{ card_icon }} me-2 text-primary"></i>{% endif %}{{ card_title }}</h5>
+  </div>
+  {% endif %}
+  <div class="card-body">
+    <form method="{{ method|default:'post' }}"{% if enctype %} enctype="{{ enctype }}"{% endif %}{% if form_id %} id="{{ form_id }}"{% endif %}{% if form_action %} action="{{ form_action }}"{% endif %}>
+      {% csrf_token %}

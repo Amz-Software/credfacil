@@ -1,0 +1,28 @@
+{% load iam_tags %}
+{# ==========================================================================
+   page_header — cabeçalho padrão de página (título + subtítulo + ação)
+   Uso:
+   {% include "components/page_header.html" with title="Vendas" icon="bx bx-receipt"
+        parent="Vendas" subtitle="Lista de vendas"
+        action_url=... action_label="Nova venda" action_icon="bx bx-plus"
+        action_perm="vendas.add_venda" %}
+   Todos os parâmetros (exceto title) são opcionais.
+   ========================================================================== #}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-3 mb-2">
+  <div>
+    <h4 class="mb-0 d-flex align-items-center fw-bold">
+      {% if icon %}<i class="{{ icon }} me-2 text-primary"></i>{% endif %}
+      {% if parent %}<span class="text-muted fw-light">{{ parent }} /&nbsp;</span>{% endif %}{{ title }}
+    </h4>
+    {% if subtitle %}<p class="text-muted mb-0 small mt-1">{{ subtitle }}</p>{% endif %}
+  </div>
+  {% if action_url %}
+    {% if action_perm %}
+      {% if user|has_perm:action_perm %}
+      <a href="{{ action_url }}" class="btn btn-primary"><i class="{{ action_icon|default:'bx bx-plus' }} me-1"></i>{{ action_label|default:'Novo' }}</a>
+      {% endif %}
+    {% else %}
+      <a href="{{ action_url }}" class="btn btn-primary"><i class="{{ action_icon|default:'bx bx-plus' }} me-1"></i>{{ action_label|default:'Novo' }}</a>
+    {% endif %}
+  {% endif %}
+</div>

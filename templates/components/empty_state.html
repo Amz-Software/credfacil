@@ -1,0 +1,22 @@
+{# ==========================================================================
+   empty_state — estado vazio padronizado.
+   Em tabela (passe colspan):
+     {% include "components/empty_state.html" with colspan=6 message="Nenhuma venda encontrada" %}
+   Fora de tabela (sem colspan):
+     {% include "components/empty_state.html" with message="Nada por aqui" hint="Crie o primeiro registro" %}
+   ========================================================================== #}
+{% if colspan %}
+<tr>
+  <td colspan="{{ colspan }}" class="text-center text-muted py-5">
+    <i class="{{ icon|default:'bx bx-inbox' }}" style="font-size:2.5rem;opacity:.35;display:block;margin-bottom:.5rem;"></i>
+    <div class="fw-medium">{{ message|default:'Nenhum registro encontrado' }}</div>
+    {% if hint %}<small class="text-muted">{{ hint }}</small>{% endif %}
+  </td>
+</tr>
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="{{ icon|default:'bx bx-inbox' }}" style="font-size:2.5rem;opacity:.35;display:block;margin-bottom:.5rem;"></i>
+  <div class="fw-medium">{{ message|default:'Nenhum registro encontrado' }}</div>
+  {% if hint %}<small class="text-muted">{{ hint }}</small>{% endif %}
+</div>
+{% endif %}
