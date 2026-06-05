@@ -7,33 +7,9 @@ Criar Gasto Fixo
 {% block content %}
 
 <div class="container-xxl mt-4">
-  <div class="row">
-    <div class="col-12">
-    <div class="card">
-        <div class="container-xxl flex-grow-1 container-p-y">
-            <h4 class="py-3 mb-4"><span class="text-muted fw-light">Gasto Fixo/</span> Criar</h4>
-            <div class="row">
-              <div class="col-xl">
-                <div class="card mb-4">
-                  <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Gasto Fixo</h5>
-                  </div>
-                  <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
-                        {{ form.as_p }}
-                        {% if user|has_perm:"financeiro.add_gastofixo" %}
-                        <button type="submit" class="btn btn-primary">Salvar</button>
-                        {% endif %}
-                    </form>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-    </div>
-    </div>
-  </div>
+  {% include "components/page_header.html" with title="Criar" parent="Gasto Fixo" icon="bx bx-money" %}
+  {% url 'financeiro:gasto_fixo_list' as gasto_fixo_list_url %}
+  {% include "components/form_card.html" with form=form card_title="Gasto Fixo" card_icon="bx bx-money" submit_label="Salvar" submit_perm="financeiro.add_gastofixo" cancel_url=gasto_fixo_list_url %}
 </div>
 
 {% endblock %}

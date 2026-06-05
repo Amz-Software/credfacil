@@ -8,17 +8,20 @@ Editar Perfil
 
 {% block content %}
 <div class="container-xxl mt-4">
+    {% include "components/page_header.html" with title="Editar Perfil" icon="bx bx-user-circle" %}
     <div class="row">
         <div class="col-12">
-            <div class="card">
+            <div class="card shadow-sm border-0">
                 <div class="card-header">
-                    <h4 class="card-title">Editar Perfil</h4>
+                    <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-user-circle me-2 text-primary"></i>Editar Perfil</h5>
                 </div>
                 <div class="card-body">
                     <form method="post" action="{% url 'accounts:my_profile_update' %}">
                         {% csrf_token %}
                         {{ form|crispy }}
-                        <button type="submit" name="save_profile" class="btn btn-primary">Salvar</button>
+                        <div class="d-flex flex-wrap gap-2 mt-4">
+                            <button type="submit" name="save_profile" class="btn btn-primary"><i class="bx bx-save me-1"></i>Salvar</button>
+                        </div>
                     </form>
                     <p class="mt-3"> Redefinir Senha <a href="{% url 'accounts:password_reset_confirm' %}">Clique Aqui</a></p>
                 </div>

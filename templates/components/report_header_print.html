@@ -1,0 +1,13 @@
+{% load static %}
+{% comment %} ==========================================================================
+   report_header_print — cabeçalho IPIX para relatórios de impressão/PDF
+   (engine de impressão do navegador / html2pdf — não usa @page).
+   Uso: {% include "components/report_header_print.html" with loja=venda.loja titulo="Nota de Venda" %}
+   ========================================================================== {% endcomment %}
+<div style="display:flex;align-items:center;gap:12px;border-bottom:3px solid #FDC600;padding-bottom:8px;margin-bottom:14px;">
+  <img src="{% static 'images/IPIX.png' %}" alt="IPIX" style="height:42px;width:auto;object-fit:contain;">
+  <div style="line-height:1.3;">
+    <div style="font-size:14pt;font-weight:700;color:#2B2C40;">IPIX{% if titulo %} <span style="font-weight:400;color:#555;font-size:11pt;">· {{ titulo }}</span>{% endif %}</div>
+    {% if loja %}<div style="font-size:9pt;color:#555;">{{ loja.nome }}{% if loja.endereco %} — {{ loja.endereco }}{% endif %}{% if loja.cnpj %} · CNPJ: {{ loja.cnpj }}{% endif %}</div>{% endif %}
+  </div>
+</div>

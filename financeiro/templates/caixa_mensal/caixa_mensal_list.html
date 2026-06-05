@@ -7,13 +7,14 @@ Caixas Mensais
 {% block content %}
 
 <div class="container-xxl mt-4">
+  {% include "components/page_header.html" with title="Caixas Mensais" icon="bx bx-wallet" %}
   <div class="row">
     <div class="col-12">
-      <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h4 class="card-title">Caixas Mensais</h4>
-          <div>
-            <form action="" method="get" class="d-inline-block me-2" id="searchForm">
+      <div class="card shadow-sm border-0">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-wallet me-2 text-primary"></i>Caixas Mensais</h5>
+          <div class="d-flex align-items-center gap-2">
+            <form action="" method="get" class="d-inline-block" id="searchForm">
               <div class="input-group">
                 <input type="month" name="search" class="form-control" value="{{ request.GET.search }}" onchange="this.form.submit()">
                 <a href="{% url "financeiro:caixa_mensal_list" %}" class="btn btn-outline-secondary">
@@ -47,7 +48,7 @@ Caixas Mensais
                       <input type="month" id="mes" name="mes" class="form-control" required>
                       </div>
                       <div class="d-flex justify-content-end">
-                      <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancelar</button>
+                      <button type="button" class="btn btn-outline-secondary me-2" data-bs-dismiss="modal">Cancelar</button>
                       <button type="submit" class="btn btn-primary">Confirmar</button>
                       </div>
                     </form>
@@ -59,7 +60,7 @@ Caixas Mensais
         </div>
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover align-middle">
               <thead>
                 <tr>
                   <th scope="col">Loja</th>
@@ -89,37 +90,29 @@ Caixas Mensais
                   </td>
                   {% endif %}
                   <td>
-                    <div class="dropdown">
-                      <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                        <i class="bx bx-dots-vertical-rounded"></i>
-                      </button>
-                      <div class="dropdown-menu">
-                        {% if user|has_perm:"financeiro.view_caixamensal" %}
-                        <a class="dropdown-item" href="{% url "financeiro:caixa_mensal_update" caixa.pk %}">
-                          <i class="bx bx-show me-1"></i> Detalhes
-                        </a>
-                        {% endif %}
-                        {% if not caixa.data_fechamento %}
-                        <!-- Button trigger modal -->
-                        {% if user|has_perm:"financeiro.change_caixamensal" %}
-                        <a class="dropdown-item" href="#" data-bs-toggle="modal"
-                          data-bs-target="#fecharModal{{ caixa.id }}">
-                          <i class="bx bx-lock me-1"></i> Fechar
-                        </a>
-                        {% endif %}
-                        {% else %}
-                        <a class="dropdown-item" href="">
-                          <i class="bx bx-file me-1 text-danger"></i> Gerar PDF
-                        </a>
-                        <a class="dropdown-item" href="{% url "financeiro:caixa_mensal_reopen" caixa.pk %}">
-                          <i class="bx bx-refresh me-1">
-                          </i> Reabrir
-                          Reabrir
-                        </a>
-
-                        {% endif %}
-                      </div>
-                    </div>
+                    {% include "components/action_menu_open.html" %}
+                      {% if user|has_perm:"financeiro.view_caixamensal" %}
+                      <li><a class="dropdown-item" href="{% url "financeiro:caixa_mensal_update" caixa.pk %}">
+                        <i class="bx bx-show me-1"></i> Detalhes
+                      </a></li>
+                      {% endif %}
+                      {% if not caixa.data_fechamento %}
+                      <!-- Button trigger modal -->
+                      {% if user|has_perm:"financeiro.change_caixamensal" %}
+                      <li><a class="dropdown-item" href="#" data-bs-toggle="modal"
+                        data-bs-target="#fecharModal{{ caixa.id }}">
+                        <i class="bx bx-lock me-1"></i> Fechar
+                      </a></li>
+                      {% endif %}
+                      {% else %}
+                      <li><a class="dropdown-item" href="">
+                        <i class="bx bx-file me-1 text-danger"></i> Gerar PDF
+                      </a></li>
+                      <li><a class="dropdown-item" href="{% url "financeiro:caixa_mensal_reopen" caixa.pk %}">
+                        <i class="bx bx-refresh me-1"></i> Reabrir
+                      </a></li>
+                      {% endif %}
+                    {% include "components/action_menu_close.html" %}
                   </td>
                   <div class="modal fade" id="fecharModal{{ caixa.id }}" tabindex="-1"
                     aria-labelledby="fecharModalLabel{{ caixa.id }}" aria-hidden="true">
@@ -133,7 +126,7 @@ Caixas Mensais
                           Você tem certeza que deseja fechar o caixa mensal de {{ caixa.mes|date:"F Y" }}?
                         </div>
                         <div class="modal-footer">
-                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
                           <form method="post" class="d-inline-block" action="{% url 'financeiro:caixa_mensal_close' caixa.id %}">
                             {% csrf_token %}
                             <input type="hidden" name="fechar_caixa_mensal" value="{{ caixa.id }}">
@@ -143,9 +136,9 @@ Caixas Mensais
                       </div>
                     </div>
                   </div>
-                {% empty %}
-                <td colspan="5">Nenhum registro encontrado</td>
                 </tr>
+                {% empty %}
+                {% include "components/empty_state.html" with colspan=5 message="Nenhum registro encontrado" icon="bx bx-wallet" %}
                 {% endfor %}
               </tbody>
             </table>

@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="container py-4">
-  <h3>Minhas Notificações</h3>
+  {% include "components/page_header.html" with title="Minhas Notificações" icon="bx bx-bell" %}
 
   <form method="get" class="row g-2 mb-3">
     <div class="col-md-6">
@@ -41,7 +41,7 @@
     <button
       type="submit"
       formaction="{% url 'marcar_selecionadas' %}?next={{ request.get_full_path|urlencode }}"
-      class="btn btn-secondary"
+      class="btn btn-outline-secondary"
     >
       Marcar selecionadas como lidas
     </button>

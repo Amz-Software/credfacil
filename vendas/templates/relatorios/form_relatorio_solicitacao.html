@@ -12,16 +12,23 @@ Relatório de Vendas
 
 
 {% block content %}
-<div class="container mt-4">
-    <div class="card shadow-sm">
-      <div class="card-header">
-        <h3 class="card-title mb-0 text-secondary">Gerar Relatório de Vendas</h3>
-      </div>
-      <div class="card-body">
-        <form method="get" action="{% url 'vendas:folha_solicitacao_relatorio' %}" target="_blank">
-          {{ form|crispy }}
-          <input type="submit" class="btn btn-primary" value="Gerar Relatório">
-        </form>
+<div class="container-xxl mt-4">
+    {% include "components/page_header.html" with title="Relatório de Vendas" icon="bx bx-file" subtitle="Gere o relatório de solicitações em PDF" %}
+    <div class="row">
+      <div class="col-12 col-lg-8">
+        <div class="card shadow-sm border-0">
+          <div class="card-header">
+            <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-file me-2 text-primary"></i>Gerar Relatório de Vendas</h5>
+          </div>
+          <div class="card-body">
+            <form method="get" action="{% url 'vendas:folha_solicitacao_relatorio' %}" target="_blank">
+              {{ form|crispy }}
+              <div class="d-flex flex-wrap gap-2 mt-4">
+                <button type="submit" class="btn btn-primary"><i class="bx bx-file me-1"></i>Gerar Relatório</button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
 </div>

@@ -39,6 +39,13 @@ RUN apt-get update && apt-get install -y \
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" --unattended
 RUN chsh -s $(which zsh)
 
+# Node.js LTS + CLI do Claude Code (para rodar o `claude` dentro do container)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g @anthropic-ai/claude-code \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN ln -fs /usr/share/zoneinfo/America/Belem /etc/localtime
 RUN echo "America/Belem" > /etc/timezone
 

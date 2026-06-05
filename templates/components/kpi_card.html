@@ -1,0 +1,26 @@
+{% comment %} ==========================================================================
+   kpi_card — cartão de indicador (KPI) padronizado
+   Uso:
+   {% include "components/kpi_card.html" with icon="bx bx-cart-alt"
+        label="Total de Vendas" value=total accent="primary" %}
+   {% include "components/kpi_card.html" with icon="bx bx-dollar-circle"
+        label="Valor Total" value=total_geral|intcomma is_money=True accent="success"
+        sub="3 primeiras parcelas" %}
+   accent: primary | success | danger | warning | info | secondary
+   ========================================================================== {% endcomment %}
+<div class="card kpi-card shadow-sm h-100 border-0"
+     style="border-left:4px solid {% if accent == 'primary' %}var(--ipix-yellow){% elif accent == 'success' %}var(--ipix-success){% elif accent == 'danger' %}var(--ipix-danger){% elif accent == 'warning' %}var(--ipix-warning){% elif accent == 'info' %}var(--ipix-info){% else %}var(--ipix-secondary){% endif %} !important;">
+  <div class="card-body d-flex align-items-center p-4">
+    <div class="me-3">
+      <span class="avatar bg-{{ accent|default:'primary' }} {% if accent == 'warning' or accent == 'primary' %}text-dark{% else %}text-white{% endif %} rounded-circle d-flex align-items-center justify-content-center"
+            style="width:60px;height:60px;">
+        <i class="{{ icon|default:'bx bx-bar-chart-alt-2' }} fs-3"></i>
+      </span>
+    </div>
+    <div class="flex-grow-1">
+      <h6 class="card-title mb-1 text-muted small">{{ label }}</h6>
+      {% if sub %}<div class="small text-muted mb-1">{{ sub }}</div>{% endif %}
+      <h3 class="mb-0 fw-bold" style="font-size:1.6rem;">{% if is_money %}R$ {% endif %}{{ value|default:"0" }}</h3>
+    </div>
+  </div>
+</div>

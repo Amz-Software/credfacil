@@ -7,9 +7,10 @@ Detalhes da Loja
 
 {% block content %}
 <div class="container-xxl mt-4">
-  <div class="card">
+  {% include "components/page_header.html" with title="Detalhes da Loja" parent="Lojas" icon="bx bx-store" subtitle=loja.nome|title %}
+  <div class="card shadow-sm border-0">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <h4 class="card-title">Detalhes da Loja</h4>
+      <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-store me-2 text-primary"></i>Detalhes da Loja</h5>
       <div class="d-flex justify-content-end gap-2 mb-3">
         {% if user|has_perm:"venda.change_loja" %}
         <a href="{% url 'vendas:loja_update' loja.pk %}" class="btn btn-primary">

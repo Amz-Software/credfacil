@@ -2040,12 +2040,8 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if analise.venda:
             return Response({"detail": "Essa solicitacao ja foi convertida em venda."}, status=400)
 
+        # Caixa aberto é opcional: associa um caixa aberto se houver, senão a venda fica sem caixa.
         caixa = Caixa.objects.filter(loja=analise.loja, data_fechamento__isnull=True).first()
-        if not caixa:
-            return Response(
-                {"detail": f"Nenhum caixa aberto encontrado para a loja {analise.loja.nome}."},
-                status=400,
-            )
 
         produto = analise.produto
         imei = analise.imei
@@ -2602,9 +2598,6 @@ class VendaViewSet(viewsets.ModelViewSet):
                 status=400,
             )
 
-        if not Caixa.caixa_aberto(timezone.localtime(timezone.now()).date(), loja):
-            return Response({"detail": "Nao e possivel realizar vendas com a loja bloqueada."}, status=400)
-
         try:
             with transaction.atomic():
                 form.instance.loja = loja
@@ -2671,9 +2664,6 @@ class VendaViewSet(viewsets.ModelViewSet):
             loja = Loja.objects.get(id=loja_id)
         except Loja.DoesNotExist:
             return Response({"detail": "Loja nao encontrada."}, status=400)
-
-        if not Caixa.caixa_aberto(timezone.localtime(timezone.now()).date(), loja):
-            return Response({"detail": "Nao e possivel editar vendas com a loja bloqueada."}, status=400)
 
         form = VendaForm(request.data, instance=venda, loja=loja_id, user=request.user)
 
@@ -2795,9 +2785,6 @@ class VendaViewSet(viewsets.ModelViewSet):
         loja = venda.loja
         if not loja:
             return Response({"detail": "Loja nao encontrada na venda."}, status=400)
-
-        if not Caixa.caixa_aberto(timezone.localtime(timezone.now()).date(), loja):
-            return Response({"detail": "Nao e possivel editar vendas com a loja bloqueada."}, status=400)
 
         form = VendaEdicaoEspecialForm(request.data, instance=venda)
 
@@ -2927,9 +2914,6 @@ class VendaViewSet(viewsets.ModelViewSet):
         venda = self.get_object()
         if venda.is_deleted:
             return Response({"detail": "Venda ja cancelada."}, status=400)
-
-        if not Caixa.caixa_aberto(timezone.localtime(timezone.now()).date(), venda.loja):
-            return Response({"detail": "Nao e possivel cancelar vendas com a loja bloqueada."}, status=400)
 
         with transaction.atomic():
             venda.is_deleted = True

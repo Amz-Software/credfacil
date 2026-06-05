@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -30,28 +31,29 @@
         }
 
         th, td {
-            border: 1px solid #ddd;
+            border: 1px solid #B9BAC8;
             padding: 8px;
             text-align: left;
         }
 
         th {
-            background-color: #4CAF50;
-            color: white;
+            background-color: #FFF6D6;
+            color: #2B2C40;
             font-weight: bold;
         }
 
         tr:nth-child(even) { background-color: #f9f9f9; }
         tr:hover { background-color: #f1f1f1; }
 
-        .header { background-color: #4CAF50; color: white; font-weight: bold; }
-        .footer { font-weight: bold; background-color: #f4f4f4; }
+        .header { background-color: #FFF6D6; color: #2B2C40; font-weight: bold; }
+        .footer { font-weight: bold; background-color: #FFF6D6; }
         .center { text-align: center; }
         .right  { text-align: right; }
     </style>
 </head>
 <body>
     <div class="container">
+        {% include "components/report_header_print.html" with loja=lojas titulo="Relatório de Solicitações" %}
         <h2>Relatório de Solicitações</h2>
         <h3>Período: {{ data_inicial|default:"-" }} a {{ data_final|default:"-" }}</h3>
         <h3>Loja: {{ lojas.nome|default:"-" }}</h3>

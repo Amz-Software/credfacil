@@ -7,14 +7,16 @@ Venda {{ venda.data_venda|date:"d/m/Y" }}
 {% block content %}
 
 <div class="container-xxl mt-4">
+  {% include "components/page_header.html" with title="Venda" icon="bx bx-receipt" parent="Vendas" subtitle=venda.data_venda|date:"d/m/Y" %}
+
   <!-- Card with Venda Information -->
   <div class="row mb-4">
     <div class="col-12">
-      <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="card-title">Venda {{ venda.data_venda|date:"d/m/Y" }}</h4>
-            <div>
-              <a href="{% url 'vendas:venda_list' %}" class="btn btn-primary me-2">
+      <div class="card shadow-sm border-0">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h5 class="card-title mb-0 d-flex align-items-center"><i class="bx bx-info-circle me-2 text-primary"></i>Dados da Venda</h5>
+            <div class="d-flex flex-wrap gap-2">
+              <a href="{% url 'vendas:venda_list' %}" class="btn btn-outline-secondary">
                 <i class="bx bx-arrow-back me-1"></i> Voltar
               </a>
               {% if user|has_perm:"vendas.delete_venda" %}
@@ -40,35 +42,35 @@ Venda {{ venda.data_venda|date:"d/m/Y" }}
   <!-- Card with List of Produtos -->
   <div class="row mb-4">
     <div class="col-12">
-      <div class="card">
+      <div class="card shadow-sm border-0">
         <div class="card-header">
-          <h4 class="card-title">Produtos Vendidos</h4>
+          <h5 class="card-title mb-0 d-flex align-items-center"><i class="bx bx-package me-2 text-primary"></i>Produtos Vendidos</h5>
         </div>
         <div class="card-body">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th>Produto</th>
-                <th>Quantidade</th>
-                <th>Valor Unitário</th>
-                <th>Valor Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in venda.itens_venda.all %}
-              <tr>
-                <td>{{ item.produto.nome }}</td>
-                <td>{{ item.quantidade }}</td>
-                <td>{{ item.valor_unitario }}</td>
-                <td>{{ item.calcular_valor_total }}</td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="4">Nenhum produto vendido</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Quantidade</th>
+                  <th>Valor Unitário</th>
+                  <th>Valor Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in venda.itens_venda.all %}
+                <tr>
+                  <td>{{ item.produto.nome }}</td>
+                  <td>{{ item.quantidade }}</td>
+                  <td>{{ item.valor_unitario }}</td>
+                  <td>{{ item.calcular_valor_total }}</td>
+                </tr>
+                {% empty %}
+                {% include "components/empty_state.html" with colspan=4 message="Nenhum produto vendido" icon="bx bx-package" %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -77,35 +79,35 @@ Venda {{ venda.data_venda|date:"d/m/Y" }}
   <!-- Card with List of Pagamentos -->
   <div class="row">
     <div class="col-12">
-      <div class="card">
+      <div class="card shadow-sm border-0">
         <div class="card-header">
-          <h4 class="card-title">Pagamentos</h4>
+          <h5 class="card-title mb-0 d-flex align-items-center"><i class="bx bx-credit-card me-2 text-primary"></i>Pagamentos</h5>
         </div>
         <div class="card-body">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th>Tipo de Pagamento</th>
-                <th>Valor</th>
-                <th>Parcelas</th>
-                <th>Data da Primeira Parcela</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for pagamento in venda.pagamentos.all %}
-              <tr>
-                <td>{{ pagamento.tipo_pagamento.nome }}</td>
-                <td>{{ pagamento.valor }}</td>
-                <td>{{ pagamento.parcelas }}</td>
-                <td>{{ pagamento.data_primeira_parcela|date:"d/m/Y" }}</td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="4">Nenhum pagamento registrado</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>Tipo de Pagamento</th>
+                  <th>Valor</th>
+                  <th>Parcelas</th>
+                  <th>Data da Primeira Parcela</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for pagamento in venda.pagamentos.all %}
+                <tr>
+                  <td>{{ pagamento.tipo_pagamento.nome }}</td>
+                  <td>{{ pagamento.valor }}</td>
+                  <td>{{ pagamento.parcelas }}</td>
+                  <td>{{ pagamento.data_primeira_parcela|date:"d/m/Y" }}</td>
+                </tr>
+                {% empty %}
+                {% include "components/empty_state.html" with colspan=4 message="Nenhum pagamento registrado" icon="bx bx-credit-card" %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

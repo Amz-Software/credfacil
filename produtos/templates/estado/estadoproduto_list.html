@@ -6,67 +6,53 @@ Estados
 
 {% block content %}
 
-<div class="container-xxl mt-4">
-  <div class="row">
-    <div class="col-12">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-      <h4 class="card-title">Estados</h4>
-      <div>
-        <form action="" method="get" class="d-inline-block me-2" id="searchForm">
-          <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Pesquisar" onchange="document.getElementById('searchForm').submit()">
-        </form>
-        {% if user|has_perm:"produtos.add_estadoproduto" %}
-        <a href="{% url 'produtos:estado_create' %}" class="btn btn-primary">
+<div class="container-xxl flex-grow-1 container-p-y">
+  {% include "components/page_header.html" with title="Estados" icon="bx bx-info-circle" subtitle="Catálogo de estados de produtos" %}
+
+  {% include "components/card_table_open.html" with title="Estados" icon="bx bx-info-circle" count=page_obj.paginator.count %}
+    <div class="d-flex justify-content-end mb-3">
+      <form action="" method="get" id="searchForm" class="d-inline-block">
+        <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Pesquisar" onchange="document.getElementById('searchForm').submit()">
+      </form>
+      {% if user|has_perm:"produtos.add_estadoproduto" %}
+      <a href="{% url 'produtos:estado_create' %}" class="btn btn-primary ms-2">
         <i class="bx bx-plus me-1"></i> Adicionar Estado
-        </a>
-        {% endif %}
-      </div>
-      </div>
-      <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-hover">
-        <thead>
-          <tr>
+      </a>
+      {% endif %}
+    </div>
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
           <th scope="col">Nome</th>
-          <th scope="col">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for estado in items %}
-          <tr>
+          <th scope="col" class="text-end">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for estado in items %}
+        <tr>
           <td>{{ estado.nome }}</td>
-          <td>
-            <div class="dropdown">
-            <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-              <i class="bx bx-dots-vertical-rounded"></i>
-            </button>
-            <div class="dropdown-menu">
+          <td class="text-end">
+            {% include "components/action_menu_open.html" %}
               {% if user|has_perm:"produtos.view_estadoproduto" %}
-              <a class="dropdown-item" href="{% url 'produtos:estado_detail' estado.id %}">
-              <i class="bx bx-show me-1"></i> Detalhes
-              </a>
+              <li><a class="dropdown-item" href="{% url 'produtos:estado_detail' estado.id %}">
+                <i class="bx bx-show me-1"></i> Detalhes
+              </a></li>
               {% endif %}
               {% if user|has_perm:"produtos.change_estadoproduto" %}
-              <a class="dropdown-item" href="{% url 'produtos:estado_update' estado.id %}">
-              <i class="bx bx-edit-alt me-1"></i> Editar
-              </a>
+              <li><a class="dropdown-item" href="{% url 'produtos:estado_update' estado.id %}">
+                <i class="bx bx-edit-alt me-1"></i> Editar
+              </a></li>
               {% endif %}
-            </div>
-            </div>
+            {% include "components/action_menu_close.html" %}
           </td>
-          {% empty %}
-          <td colspan="4">Nenhum registro encontrado</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-        </table>
-        {% include "snippets/pagination.html" %}
-      </div>
-      </div>
-    </div>
-    </div>
-  </div>
+        </tr>
+        {% empty %}
+        {% include "components/empty_state.html" with colspan=2 message="Nenhum estado encontrado" icon="bx bx-info-circle" %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% include "snippets/pagination.html" %}
+  {% include "components/card_table_close.html" %}
 </div>
 
 {% endblock %}

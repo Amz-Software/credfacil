@@ -10,11 +10,12 @@ Caixa Mensal - {{ caixa_mensal.loja }} - {{ caixa_mensal.mes|date:"F Y" }}
 {% block content %}
 
 <div class="container mt-4">
-    <div class="card mb-4 shadow-sm">
+    {% include "components/page_header.html" with title="Detalhes" parent="Caixa Mensal" icon="bx bx-wallet" subtitle=caixa_mensal.loja %}
+    <div class="card mb-4 shadow-sm border-0">
         <div class="card-header border-0 bg-white">
             <div class="row align-items-center">
                 <div class="col-md-6">
-                    <h4 class="fw-bold mb-0 text-dark">Caixa Mensal - Detalhes</h4>
+                    <h5 class="fw-bold mb-0 text-dark d-flex align-items-center"><i class="bx bx-wallet me-2 text-primary"></i>Caixa Mensal - Detalhes</h5>
                 </div>
                 <div class="col-md-6 text-md-end text-muted">
                     <small>{{ caixa_mensal.loja }} | {{ caixa_mensal.mes|date:"F Y" }}</small>

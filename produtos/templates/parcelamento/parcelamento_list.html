@@ -9,16 +9,15 @@ Parcelamentos
 <div class="container-xxl mt-4">
   <div class="row">
     <div class="col-12">
+
+      {% include "components/page_header.html" with title="Parcelamentos" icon="bx bx-credit-card" subtitle="Juros aplicados por quantidade de parcelas no financiamento iPhone" %}
+
       <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <div>
-            <h4 class="card-title mb-0">Parcelamentos</h4>
-            <small class="text-muted">Juros aplicados por quantidade de parcelas no financiamento iPhone</small>
-          </div>
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <form action="" method="get" class="d-inline-block" id="searchForm">
+            <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Pesquisar" onchange="document.getElementById('searchForm').submit()">
+          </form>
           <div class="d-flex align-items-center gap-2">
-            <form action="" method="get" class="d-inline-block" id="searchForm">
-              <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Pesquisar" onchange="document.getElementById('searchForm').submit()">
-            </form>
             {% if user|has_perm:"produtos.add_parcelamento" %}
             <a href="{% url 'produtos:parcelamento_create' %}" class="btn btn-primary">
               <i class="bx bx-plus me-1"></i> Adicionar
@@ -28,7 +27,7 @@ Parcelamentos
         </div>
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover align-middle">
               <thead>
                 <tr>
                   <th scope="col">Marca</th>
@@ -95,9 +94,7 @@ Parcelamentos
                   </td>
                 </tr>
                 {% empty %}
-                <tr>
-                  <td colspan="4" class="text-center text-muted py-4">Nenhum parcelamento cadastrado</td>
-                </tr>
+                {% include "components/empty_state.html" with colspan=4 message="Nenhum parcelamento cadastrado" icon="bx bx-credit-card" %}
                 {% endfor %}
               </tbody>
             </table>

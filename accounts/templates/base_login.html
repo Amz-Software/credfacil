@@ -1,7 +1,7 @@
 <!doctype html>
 {% load static %}
 <html
-  lang="en"
+  lang="pt-br"
   class="light-style layout-wide"
   dir="ltr"
   data-theme="theme-default"
@@ -16,7 +16,7 @@
     <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'imagens/....webp' %}" />
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="600">
-    <meta property="og:title" content="Dr Smart" />
+    <meta property="og:title" content="IPIX" />
     <meta name="description" content="O sistema de loja de celular oferece uma plataforma completa para gerenciar vendas, estoque, clientes e serviços de assistência técnica, proporcionando uma experiência de compra eficiente e integrada." />
     <meta property="og:description" content="O sistema de loja de celular oferece uma plataforma completa para gerenciar vendas, estoque, clientes e serviços de assistência técnica, proporcionando uma experiência de compra eficiente e integrada." />
     <meta charset="utf-8" />
@@ -44,6 +44,8 @@
     <link rel="stylesheet" href="{% static 'sneat-template/assets/vendor/css/rtl/core.css' %}" class="template-customizer-core-css" />
     <link rel="stylesheet" href="{% static 'sneat-template/assets/vendor/css/rtl/theme-default.css' %}" class="template-customizer-theme-css" />
     <link rel="stylesheet" href="{% static 'sneat-template/assets/css/demo.css' %}" />
+    <!-- Tema IPIX: recoloração de marca + tokens. DEVE vir por último. -->
+    <link rel="stylesheet" href="{% static 'css/ipix-theme.css' %}" />
 
     <!-- Vendors CSS -->
     <link rel="stylesheet" href="{% static 'sneat-template/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />

@@ -1224,14 +1224,11 @@ def gerar_venda(request, cliente_id):
         messages.error(request, "❌ Essa solicitação já foi convertida em venda.")
         return redirect('vendas:cliente_list')
 
-    # Verifica caixa aberto para a loja da análise
+    # Caixa aberto é opcional: associa um caixa aberto se houver, senão a venda fica sem caixa.
     caixa = Caixa.objects.filter(
         loja=analise.loja,
         data_fechamento__isnull=True
     ).first()
-    if not caixa:
-        messages.error(request, f"❌ Nenhum caixa aberto encontrado para a loja {analise.loja.nome}.")
-        return redirect('vendas:cliente_list')
     if not analise or analise.status != 'A':
         messages.error(request, "❌ Análise de crédito não aprovada para o cliente.")
         return redirect('vendas:cliente_list')
@@ -1521,10 +1518,6 @@ class VendaCreateView(PermissionRequiredMixin, CreateView):
         if not (produto_venda_formset.is_valid() and pagamento_formset.is_valid() and form.is_valid()):
             return self.form_invalid(form)
 
-        if not Caixa.caixa_aberto(localtime(now()).date(), loja):
-            messages.warning(self.request, 'Não é possível realizar vendas com a loja bloqueada!')
-            return self.form_invalid(form)
-
         try:
             with transaction.atomic():
                 self._salvar_venda(form, loja)
@@ -1625,12 +1618,6 @@ class VendaUpdateView(PermissionRequiredMixin, UpdateView):
         except Loja.DoesNotExist:
             messages.error(self.request, "Loja não encontrada")
             logger.error("Loja com id %s não encontrada", loja_id)
-            return self.form_invalid(form)
-
-        # Verifica se o caixa está aberto
-        if not Caixa.caixa_aberto(localtime(now()).date(), loja):
-            messages.warning(self.request, 'Não é possível editar vendas com a loja bloqueada!')
-            logger.warning("Tentativa de editar venda com caixa fechado para a loja %s", loja)
             return self.form_invalid(form)
 
         # Verifica a validade do formulário e dos formsets
@@ -1750,11 +1737,6 @@ class VendaEdicaoEspecialView(PermissionRequiredMixin, UpdateView):
         loja = self.object.loja
         if not loja:
             messages.error(self.request, "Loja não encontrada na venda.")
-            return self.form_invalid(form)
-
-        if not Caixa.caixa_aberto(localtime(now()).date(), loja):
-            messages.warning(self.request, 'Não é possível editar vendas com a loja bloqueada!')
-            logger.warning("Tentativa de editar venda com caixa fechado para a loja %s", loja)
             return self.form_invalid(form)
 
         if not (form.is_valid() and produto_venda_formset.is_valid() and pagamento_formset.is_valid()):
@@ -1930,10 +1912,6 @@ def cancelar_venda(request, id):
 
     if venda.is_deleted:
         messages.warning(request, 'Venda já cancelada')
-        return redirect('vendas:venda_list')
-    
-    if not Caixa.caixa_aberto(localtime(now()).date(), Loja.objects.get(id=request.session.get('loja_id'))):
-        messages.warning(request, 'Não é possível cancelar vendas com a loja bloqueada!')
         return redirect('vendas:venda_list')
     
     venda.is_deleted = True
