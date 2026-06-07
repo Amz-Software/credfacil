@@ -871,10 +871,10 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             messages.warning(request, "❌ Somente Solicitacao em análise de crédito em andamento podem ser editados.")
             return redirect(self.success_url)
         
-        # Se a venda foi gerada, apenas usuários com permissão específica podem editar
+        # Se a venda foi gerada, analistas e usuários com permissão específica podem editar
         if venda_gerada:
-            if not user.has_perm('vendas.can_edit_finished_sale'):
-                messages.warning(request, "❌ Somente usuários com permissão específica podem editar solicitações após a venda ser gerada.")
+            if not (is_analista or user.has_perm('vendas.can_edit_finished_sale')):
+                messages.warning(request, "❌ Somente analistas ou usuários com permissão específica podem editar solicitações após a venda ser gerada.")
                 return redirect(self.success_url)
 
         # Buscar loja da sessão
@@ -943,6 +943,7 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
 
             cliente = form_cliente.save(commit=False)
             cliente.contato_adicional = contato_adicional
+            cliente.informacao_pessoal = informacao
             cliente.comprovantes = comprovantes
             cliente.save(user=user)
             messages.success(request, "✅ Soliticitação atualizada com sucesso")
@@ -963,6 +964,7 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
         context = self.get_context_data(
             form_cliente=form_cliente,
             form_adicional=form_adicional,
+            form_informacao=form_informacao,
             form_comprovantes=form_comprovantes,
             form_analise_credito=form_analise_credito,
         )

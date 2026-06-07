@@ -131,7 +131,9 @@ class ClienteForm(forms.ModelForm):
             ac = getattr(self.instance, 'analise_credito', None)
             venda_gerada = bool(ac and ac.venda)
             status_em_analise = bool(ac and ac.status == 'EA')
-            can_edit_finished = bool(user and user.has_perm('vendas.can_edit_finished_sale'))
+            can_edit_finished = bool(
+                user and (is_analista or user.has_perm('vendas.can_edit_finished_sale'))
+            )
             can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
 
             def _disable_all():
@@ -273,7 +275,9 @@ class ContatoAdicionalForm(forms.ModelForm):
             ac = getattr(self.instance.cliente, 'analise_credito', None)
             venda_gerada = bool(ac and ac.venda)
             status_em_analise = bool(ac and ac.status == 'EA')
-            can_edit_finished = bool(user and user.has_perm('vendas.can_edit_finished_sale'))
+            can_edit_finished = bool(
+                user and (is_analista or user.has_perm('vendas.can_edit_finished_sale'))
+            )
             can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
 
             def _disable(*names):
@@ -381,7 +385,9 @@ class InformacaoPessoalForm(forms.ModelForm):
             ac = getattr(self.instance.cliente, 'analise_credito', None)
             venda_gerada = bool(ac and ac.venda)
             status_em_analise = bool(ac and ac.status == 'EA')
-            can_edit_finished = bool(user and user.has_perm('vendas.can_edit_finished_sale'))
+            can_edit_finished = bool(
+                user and (is_analista or user.has_perm('vendas.can_edit_finished_sale'))
+            )
             can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
 
             def _disable(*names):
@@ -600,9 +606,9 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                 self.fields['numero_parcelas'].disabled = True
                 self.fields['analise_online'].disabled = True
 
-            # Se a venda foi gerada, apenas usuários com permissão específica podem editar
+            # Se a venda foi gerada, analistas e usuários com permissão específica podem editar
             if venda_gerada:
-                if not user.has_perm('vendas.can_edit_finished_sale'):
+                if not (is_analista or user.has_perm('vendas.can_edit_finished_sale')):
                     self.fields['produto'].disabled = True
                     self.fields['numero_parcelas'].disabled = True
                     self.fields['analise_online'].disabled = True
@@ -799,7 +805,9 @@ class ComprovantesClienteForm(PreservaArquivosComprovantesMixin, forms.ModelForm
             ac = getattr(self.instance.cliente, 'analise_credito', None)
             venda_gerada = bool(ac and ac.venda)
             status_em_analise = bool(ac and ac.status == 'EA')
-            can_edit_finished = bool(user and user.has_perm('vendas.can_edit_finished_sale'))
+            can_edit_finished = bool(
+                user and (is_analista or user.has_perm('vendas.can_edit_finished_sale'))
+            )
             can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
 
             def _disable(*names):
