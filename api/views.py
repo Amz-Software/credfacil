@@ -865,6 +865,38 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         campos_arquivo = set(request.FILES.keys())
         return bool(campos_arquivo) and campos_arquivo <= self.CAMPOS_FOTO_COMPROVANTES
 
+    def _payload_tem_apenas_telefone(self, request):
+        if request.FILES:
+            return False
+        return set(request.data.keys()) == {"telefone"}
+
+    def _atualizar_telefone_cliente(self, request, cliente):
+        if not self._usuario_pode_acessar_cliente(request, cliente):
+            return Response({"detail": "Acao nao autorizada para esta loja."}, status=status.HTTP_403_FORBIDDEN)
+
+        telefone = request.data.get("telefone")
+        telefone = (telefone or "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+
+        if not telefone:
+            return Response(
+                {"detail": "Erros de validacao.", "errors": {"telefone": ["Informe o telefone."]}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not telefone.isdigit():
+            return Response(
+                {"detail": "Erros de validacao.", "errors": {"telefone": ["Telefone deve conter apenas numeros."]}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(telefone) < 10 or len(telefone) > 11:
+            return Response(
+                {"detail": "Erros de validacao.", "errors": {"telefone": ["Telefone deve ter entre 10 e 11 digitos."]}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cliente.telefone = telefone
+        cliente.save(user=request.user)
+        return Response(ClienteSolicitacaoSerializer(cliente).data)
+
     def _atualizar_fotos_comprovantes(self, request, cliente):
         if not self._usuario_pode_acessar_cliente(request, cliente):
             return Response({"detail": "Acao nao autorizada para esta loja."}, status=status.HTTP_403_FORBIDDEN)
@@ -1322,6 +1354,9 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
         is_analista = user.groups.filter(name="ANALISTA").exists()
         venda_gerada = cliente.analise_credito.venda is not None
+
+        if self._payload_tem_apenas_telefone(request):
+            return self._atualizar_telefone_cliente(request, cliente)
 
         if (
             cliente.analise_credito.status != "EA"
