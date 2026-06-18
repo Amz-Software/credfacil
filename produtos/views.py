@@ -198,7 +198,13 @@ def generate_views(modelo, form=None, paginacao=10, template_dir=''):
 
             search = self.request.GET.get('search')
             if search:
-                qs = qs.filter(nome__icontains=search)
+                if modelo is Parcelamento:
+                    filters = Q(marca__nome__icontains=search)
+                    if search.isdigit():
+                        filters |= Q(qtd_vezes=int(search))
+                    qs = qs.filter(filters)
+                elif any(field.name == 'nome' for field in modelo._meta.fields):
+                    qs = qs.filter(nome__icontains=search)
             return qs
 
     class GeneratedCreateView(PermissionRequiredMixin, CreateView):
