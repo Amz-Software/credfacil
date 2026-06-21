@@ -638,6 +638,7 @@ class RelatorioContasAReceberView(BaseView, PermissionRequiredMixin, TemplateVie
 class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, TemplateView):
     template_name = 'contas_a_receber/folha.html'
     permission_required = 'vendas.can_genarate_report_payments'
+    STATUS_LABELS = dict(RelatorioContasAReceberForm.base_fields['status'].choices)
 
     def get_context_data(self, **kwargs):
         data_inicio = self.request.GET.get('data_inicial')
@@ -686,7 +687,7 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
                 context['list_by_parcelas'] = True
                 context['parcelas'] = parcelas_list
                 context['lojas'] = lojas_qs.values_list('nome', flat=True) if lojas_qs else []
-                context['status_list'] = status_list
+                context['status_list'] = [self.STATUS_LABELS.get(status, status) for status in status_list]
                 context['data_inicio'] = data_inicio_dt
                 context['data_fim'] = data_final_dt
 
@@ -799,7 +800,8 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
                     pagamentos_qs = pagamentos_qs.filter(
                         Q(proximo_vencimento__isnull=False, proximo_vencimento__gte=data_inicio_dt, proximo_vencimento__lt=data_final_dt_plus) |
                         Q(ultimo_vencimento__isnull=False, ultimo_vencimento__gte=data_inicio_dt, ultimo_vencimento__lt=data_final_dt_plus) |
-                        Q(ultimo_pagamento__isnull=False, ultimo_pagamento__gte=data_inicio_dt, ultimo_pagamento__lt=data_final_dt_plus)
+                        Q(ultimo_pagamento__isnull=False, ultimo_pagamento__gte=data_inicio_dt, ultimo_pagamento__lt=data_final_dt_plus) |
+                        Q(sem_conexao=True)
                     ).distinct()
                 else:
                     # Se não filtrar por status, usar proximo_vencimento por padrão
@@ -838,7 +840,7 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
         context = super().get_context_data(**kwargs)
         context['contas_a_receber'] = contas_a_receber
         context['lojas'] = Loja.objects.filter(id__in=lojas).values_list('nome', flat=True)
-        context['status_list'] = status_list
+        context['status_list'] = [self.STATUS_LABELS.get(status, status) for status in status_list]
         context['data_inicio'] = datetime.strptime(data_inicio, "%Y-%m-%d").date() if data_inicio else None
         context['data_fim'] = datetime.strptime(data_fim, "%Y-%m-%d").date() if data_fim else None
         context['total_atrasado'] = total_atrasado
@@ -864,6 +866,7 @@ class RelatorioContasAReceberAvancadoView(BaseView, PermissionRequiredMixin, Tem
 class FolhaRelatorioContasAReceberAvancadoView(BaseView, PermissionRequiredMixin, TemplateView):
     template_name = 'contas_a_receber/folha_relatorio_avancado.html'
     permission_required = 'vendas.can_genarate_report_payments'
+    SITUACAO_LABELS = dict(RelatorioContasAReceberAvancadoForm.base_fields['situacoes'].choices)
 
     def get_context_data(self, **kwargs):
         data_inicio = self.request.GET.get('data_inicial')
@@ -923,6 +926,7 @@ class FolhaRelatorioContasAReceberAvancadoView(BaseView, PermissionRequiredMixin
         context['contas'] = contas
         context['data_inicio'] = data_inicio
         context['data_fim'] = data_fim
+        context['situacoes'] = [self.SITUACAO_LABELS.get(situacao, situacao) for situacao in situacoes]
         return context
 
 class RelatorioSaidaView(BaseView, PermissionRequiredMixin, TemplateView):

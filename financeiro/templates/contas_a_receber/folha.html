@@ -167,6 +167,7 @@
             <tr class="
             {% if conta.desativado %}table-secondary
             {% elif conta.bloqueado %}table-purple
+            {% elif conta.sem_conexao %}table-secondary
             {% elif conta.sem_contato %}table-indigo
             {% elif conta.mais_prazo %}table-teal
             {% elif conta.com_parcela_atrasada %}table-danger
@@ -193,6 +194,9 @@
             {% if conta.bloqueado %}
                 <span class="badge badge-purple">BLOQUEADO</span>
             {% endif %}
+            {% if conta.sem_conexao %}
+                <span class="badge badge-secondary">DESABILITADO</span>
+            {% endif %}
             {% if conta.sem_contato %}
                 <span class="badge badge-indigo">SEM CONTATO</span>
             {% endif %}
@@ -214,7 +218,7 @@
             {% if conta.flag_atrasado %}
                 <span class="badge badge-orange">COBRANÇA</span>
             {% endif %}
-            {% if not conta.desativado and not conta.bloqueado and not conta.sem_contato and not conta.mais_prazo and not conta.com_parcela_atrasada and not conta.com_pagamento_pendente and not conta.pago_dentro_prazo and not conta.todas_parcelas_pagas and not conta.flag_atrasado %}
+            {% if not conta.desativado and not conta.bloqueado and not conta.sem_conexao and not conta.sem_contato and not conta.mais_prazo and not conta.com_parcela_atrasada and not conta.com_pagamento_pendente and not conta.pago_dentro_prazo and not conta.todas_parcelas_pagas and not conta.flag_atrasado %}
                 <span class="badge badge-success">ATIVO</span>
             {% endif %}
             </td>
