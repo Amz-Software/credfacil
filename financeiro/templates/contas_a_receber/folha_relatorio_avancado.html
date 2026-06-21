@@ -25,6 +25,9 @@
   {% if data_inicio and data_fim %}
   <h3>Período: {{ data_inicio }} a {{ data_fim }}</h3>
   {% endif %}
+  {% if situacoes %}
+  <h3>Situações: {{ situacoes|join:", " }}</h3>
+  {% endif %}
   <table>
     <thead>
       <tr>
@@ -52,7 +55,7 @@
         <td>
           {% if p.bo %}<span class="badge">BO</span>{% endif %}
           {% if p.flag_atrasado %}<span class="badge">Cobrança</span>{% endif %}
-          {% if p.sem_conexao %}<span class="badge">Sem conexão</span>{% endif %}
+          {% if p.sem_conexao %}<span class="badge">Desabilitado</span>{% endif %}
           {% if p.roubo %}<span class="badge">Roubo</span>{% endif %}
           {% if p.bloqueado %}<span class="badge">Bloqueado</span>{% endif %}
           {% if p.desativado %}<span class="badge">Desativado</span>{% endif %}

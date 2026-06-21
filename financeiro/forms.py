@@ -181,7 +181,7 @@ class RelatorioContasAReceberForm(forms.Form):
             ('quitado', 'Quitado'),
             ('lembrete', 'Lembrete'),
             ('flag_atrasado', 'Cobrança'),
-            ('sem_conexao', 'Sem conexão'),
+            ('sem_conexao', 'Desabilitado'),
             ('roubo', 'Roubo'),
             ('devolucao', 'Devolução'),
             ('todos', 'Todos')
@@ -316,7 +316,7 @@ class RelatorioContasAReceberAvancadoForm(forms.Form):
             ('lembrete','Lembrete'),
             ('bo','BO'),
             ('flag_atrasado','Cobrança'),
-            ('sem_conexao','Sem conexão'),
+            ('sem_conexao','Desabilitado'),
             ('roubo','Roubo'),
             ('bloqueado','Bloquear Aparelho'),
             ('desativado','Desativar Cliente'),
