@@ -2391,15 +2391,23 @@ def folha_carne_view(request, pk, tipo):
         messages.error(request, 'Venda não possui pagamento em carnê ou promissória')
         return redirect('vendas:venda_list')
 
-    parcelas = pagamento_carne.parcelas_pagamento.all()
+    parcelas = pagamento_carne.parcelas_pagamento.order_by('numero_parcela')
     cliente = venda.cliente
     loja = get_object_or_404(Loja, credfacil=True)
 
+    # O carnê SEMPRE reflete o pagamento IPX: valor da parcela = pagamento.valor / parcelas
+    # e a quantidade vem do próprio pagamento. Nunca usa o valor do produto.
+    quantidade_parcelas = pagamento_carne.parcelas or parcelas.count()
+    valor_parcela_pagamento = (
+        pagamento_carne.valor / pagamento_carne.parcelas
+        if pagamento_carne.parcelas else pagamento_carne.valor
+    )
+
     parcelas_info = []
     for i, parcela in enumerate(parcelas):
-        valor = f"{parcela.valor:.2f}"
+        valor = f"{valor_parcela_pagamento:.2f}"
         txid = f"{pagamento_carne.pk:04d}{i+1:02d}"
-        descricao = f"{cliente.nome} - Parcela {i+1} de {len(parcelas)}"
+        descricao = f"{cliente.nome} - Parcela {i+1} de {quantidade_parcelas}"
         qr_base64 = gerar_qrcode_pix(
             chave=loja.chave_pix,
             valor=valor,
@@ -2422,7 +2430,7 @@ def folha_carne_view(request, pk, tipo):
         'venda': venda,
         'valor_total': venda.pagamentos_valor_total,
         'tipo_pagamento': 'Carnê' if tipo == 'carne' else 'Promissória',
-        'quantidade_parcelas': len(parcelas),
+        'quantidade_parcelas': quantidade_parcelas,
         'nome_cliente': cliente.nome.title(),
         'endereco_cliente': cliente.endereco,
         'cpf': cliente.cpf,

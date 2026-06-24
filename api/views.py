@@ -2824,37 +2824,14 @@ class VendaViewSet(viewsets.ModelViewSet):
                     produto_venda.save()
                 produto_venda_formset.save_m2m()
 
-                produto_venda = venda.itens_venda.first()
-                produto_base = produto_venda.produto if produto_venda else None
-                quantidade_base = produto_venda.quantidade if produto_venda else 0
-
-                entrada_base = None
-                totais_parcelamento = {}
-                if produto_base and produto_base.valor:
-                    entrada_base = produto_base.entrada_cliente * quantidade_base
-                    marca = produto_base.marca
-                    parcelamentos_marca = {
-                        p.qtd_vezes: p.porcentagem_juros
-                        for p in Parcelamento.objects.filter(marca=marca)
-                    }
-                    valor_financiado_base = (produto_base.valor - produto_base.entrada_cliente) * quantidade_base
-                    for qtd, juros in parcelamentos_marca.items():
-                        totais_parcelamento[qtd] = valor_financiado_base + (valor_financiado_base * juros / 100)
-
+                # Edição especial NÃO altera valores monetários: o valor do produto
+                # (valor_unitario/valor_desconto) e o valor do pagamento são preservados
+                # exatamente como já estão gravados. Os formulários só expõem campos
+                # não monetários (produto, imei e parcelas), então qualquer "valor"
+                # enviado é ignorado e nada é recalculado a partir do produto.
                 for pagamento in pagamento_formset.save(commit=False):
                     pagamento.venda = venda
                     pagamento.loja = loja
-                    if pagamento.tipo_pagamento and pagamento.tipo_pagamento.nome.upper() == "ENTRADA":
-                        if entrada_base is not None:
-                            pagamento.valor = entrada_base
-                    else:
-                        try:
-                            parcelas = int(pagamento.parcelas) if pagamento.parcelas else None
-                        except (TypeError, ValueError):
-                            parcelas = None
-                        total = totais_parcelamento.get(parcelas)
-                        if total is not None:
-                            pagamento.valor = total
                     pagamento.save()
                 pagamento_formset.save_m2m()
         except Exception as exc:
@@ -2954,15 +2931,23 @@ class VendaViewSet(viewsets.ModelViewSet):
                 status=400
             )
         
-        parcelas = pagamento_carne.parcelas_pagamento.all()
+        parcelas = pagamento_carne.parcelas_pagamento.order_by('numero_parcela')
         cliente = venda.cliente
         loja = get_object_or_404(Loja, credfacil=True)
-        
+
+        # O carnê SEMPRE reflete o pagamento IPX: valor da parcela = pagamento.valor / parcelas
+        # e a quantidade vem do próprio pagamento. Nunca usa o valor do produto.
+        quantidade_parcelas = pagamento_carne.parcelas or parcelas.count()
+        valor_parcela_pagamento = (
+            pagamento_carne.valor / pagamento_carne.parcelas
+            if pagamento_carne.parcelas else pagamento_carne.valor
+        )
+
         parcelas_info = []
         for i, parcela in enumerate(parcelas):
-            valor = f"{parcela.valor:.2f}"
+            valor = f"{valor_parcela_pagamento:.2f}"
             txid = f"{pagamento_carne.pk:04d}{i+1:02d}"
-            descricao = f"{cliente.nome} - Parcela {i+1} de {len(parcelas)}"
+            descricao = f"{cliente.nome} - Parcela {i+1} de {quantidade_parcelas}"
             
             try:
                 from vendas.views import gerar_qrcode_pix
@@ -2989,7 +2974,7 @@ class VendaViewSet(viewsets.ModelViewSet):
             'venda_id': venda.id,
             'valor_total': str(venda.pagamentos_valor_total),
             'tipo_pagamento': 'Carnê' if tipo == 'carne' else 'Promissória',
-            'quantidade_parcelas': len(parcelas),
+            'quantidade_parcelas': quantidade_parcelas,
             'nome_cliente': cliente.nome.title(),
             'endereco_cliente': cliente.endereco,
             'cpf': cliente.cpf,
