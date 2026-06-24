@@ -65,12 +65,19 @@ Produtos
               <span class="badge bg-label-primary ms-1"><i class="bx bxl-apple"></i> iPhone</span>
             {% endif %}
           </td>
-          <td>{{ produto.marca|default:"—" }}</td>
+          <td>
+            {{ produto.marca|default:"—" }}
+            {% if produto.marca and not produto.marca.ativo %}
+              <span class="badge bg-label-warning ms-1">Marca inativa</span>
+            {% endif %}
+          </td>
           <td>{{ produto.tipo|default:"—" }}</td>
           <td>R$ {{ produto.valor|floatformat:2|default:"—" }}</td>
           <td>R$ {{ produto.entrada_cliente|floatformat:2 }}</td>
           <td>
-            {% if produto.ativo %}
+            {% if produto.marca and not produto.marca.ativo %}
+              {% include "components/status_badge.html" with state="warning" label="Marca inativa no painel" icon="bx bx-hide" %}
+            {% elif produto.ativo %}
               {% include "components/status_badge.html" with state="success" label="Ativo" icon="bx bx-check-circle" %}
             {% else %}
               {% include "components/status_badge.html" with state="danger" label="Desativado" icon="bx bx-x-circle" %}

@@ -830,8 +830,8 @@
             <div class="form-section">
               <h5>
                 <i class="bx bx-package me-2"></i>Produto e Condições
-                {% if user|has_group:"ANALISTA" and not cliente.analise_credito.venda %}
-                  <i class="bi bi-pencil-square text-primary" title="Analista: Você pode editar todos os campos antes da venda ser gerada"></i>
+                {% if user|has_group:"ANALISTA" %}
+                  <i class="bi bi-pencil-square text-primary" title="Analista: Você pode editar esta solicitação"></i>
                 {% elif user|has_perm:"vendas.can_edit_finished_sale" and cliente.analise_credito.venda %}
                   <i class="bi bi-pencil-square text-warning" title="Você pode editar esta solicitação mesmo após a venda ser gerada"></i>
                 {% endif %}
@@ -847,6 +847,11 @@
                 <div class="alert alert-info">
                   <i class="bi bi-info-circle me-2"></i>
                   <strong>Analista:</strong> Você pode editar produto, parcelas, data de vencimento e IMEI antes da venda ser gerada.
+                </div>
+              {% elif user|has_group:"ANALISTA" and cliente.analise_credito.venda %}
+                <div class="alert alert-info">
+                  <i class="bi bi-info-circle me-2"></i>
+                  <strong>Analista:</strong> Você pode editar esta solicitação mesmo após a venda ser gerada.
                 </div>
               {% elif user|has_perm:"vendas.can_edit_finished_sale" and cliente.analise_credito.venda %}
                 <div class="alert alert-warning">
