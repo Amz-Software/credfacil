@@ -1411,6 +1411,25 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             }
             return Response({"detail": "Erros de validacao.", "errors": errors}, status=400)
 
+        # Trava: depois que a venda é GERADA, a aba "Produto" da solicitação fica
+        # imutável para QUALQUER usuário (inclusive quem tem can_edit_finished_sale).
+        # As demais abas continuam editáveis para quem tem permissão.
+        if venda_gerada:
+            CAMPOS_ABA_PRODUTO = ["produto", "data_pagamento", "numero_parcelas", "entrada_informada"]
+            campos_bloqueados = [
+                campo
+                for campo in CAMPOS_ABA_PRODUTO
+                if campo in payload_data and campo in form_analise_credito.changed_data
+            ]
+            if campos_bloqueados:
+                return Response(
+                    {
+                        "detail": "As informações de Produto não podem ser alteradas após a venda ter sido gerada.",
+                        "campos_bloqueados": campos_bloqueados,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         aviso = _avisos_solicitacoes_existentes(
             cpf=form_cliente.cleaned_data.get("cpf"),
             rg=form_cliente.cleaned_data.get("rg"),
