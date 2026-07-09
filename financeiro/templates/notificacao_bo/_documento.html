@@ -1,42 +1,32 @@
 <div class="bo-document">
-  <div class="bo-header">
-    {% if loja_logo %}
-      <img src="{{ loja_logo.url }}" alt="Logo da loja" class="bo-logo">
-    {% endif %}
-    <div class="bo-brand">
-      <div class="bo-brand-name">{{ loja_nome|default:"IPIX" }}</div>
-      <div class="bo-brand-meta">CNPJ {{ loja_cnpj }}</div>
-      <div class="bo-brand-meta">{{ loja_endereco }}{% if loja_cidade != '—' or loja_uf != '—' %} - {{ loja_cidade }}/{{ loja_uf }}{% endif %}</div>
-      <div class="bo-brand-meta">Telefone: {{ loja_telefone }}</div>
-    </div>
-  </div>
+  {% include "components/report_header_print.html" with loja=loja titulo="Notificação Extrajudicial para B.O." %}
 
   <h1>NOTIFICAÇÃO EXTRAJUDICIAL PARA BOLETIM DE OCORRÊNCIA</h1>
   <h2>REGISTRO DE NOTIFICAÇÃO DE USO INDEVIDO E RETENÇÃO DE BEM LOCADO</h2>
 
   <p class="bo-section-title">Destinatário:</p>
   <p>
-    Sra. {{ cliente.nome }}.<br>
+    Sr.(a). {{ cliente.nome }}.<br>
     CPF: {{ cliente_cpf_exibicao }}<br>
     Telefone: {{ cliente.telefone|default:"—" }}<br>
     Endereço: {{ cliente_endereco }}
   </p>
 
-  <p>Prezada Sra. {{ cliente.nome }},</p>
+  <p>Prezado(a) Sr.(a). {{ cliente.nome }},</p>
 
   <p>
     A IPIX, inscrita no CNPJ sob o nº {{ loja_cnpj }}, vem por meio desta notifica-la formalmente acerca do descumprimento do contrato de locação de aparelho celular, firmado em {{ data_assinatura|date:"d/m/Y" }}, na loja parceira {{ loja_nome }}, cujo objeto é o aparelho {{ produto_nome }}{% if produto_modelo and produto_modelo != produto_nome %} ({{ produto_modelo }}){% endif %}{% if produto_imei != '—' %}, IMEI {{ produto_imei }}{% endif %}, com vigência até {{ fim_vigencia }}, mediante pagamento mensal no valor de R$ {{ valor_mensal|floatformat:2 }}.
   </p>
 
   <p>
-    O contrato devidamente assinado pela senhora, deixa clara a natureza da locação e os termos acordados, com início de vigência em {{ inicio_vigencia }}.
+    O contrato devidamente assinado pelo(a) contratante, deixa clara a natureza da locação e os termos acordados, com início de vigência em {{ inicio_vigencia }}.
   </p>
 
   <p>
-    A partir de {{ vencimento_primeira_atrasada|date:"d/m/Y" }}, o locatário deixou de continuar realizando os pagamentos e não atende mais ligações, mensagens realizadas, caracterizando abandono contratual e possível tentativa de ocultar ou reter indevidamente o aparelho locado. O aparelho encontra-se bloqueado de forma remota conforme previsto no contrato, mas ainda em posse da cliente.
+    A partir de {{ vencimento_primeira_atrasada|date:"d/m/Y" }}, o(a) locatário(a) deixou de continuar realizando os pagamentos e não atende mais ligações, mensagens realizadas, caracterizando abandono contratual e possível tentativa de ocultar ou reter indevidamente o aparelho locado. O aparelho encontra-se bloqueado de forma remota conforme previsto no contrato, mas ainda em posse da cliente.
   </p>
 
-  <p>Consta no cadastro do locatário referências pessoais:</p>
+  <p>Consta no cadastro do(a) locatário(a) referências pessoais:</p>
   <p class="bo-referencias" data-bo-referencias>{{ referencias_personais }}</p>
 
   <p>
@@ -44,7 +34,7 @@
   </p>
 
   <p>
-    Com isso informamos que, caso não haja manifestação ou contato por parte da senhora com o objetivo de regularizar a pendência, no prazo de 5 (cinco) dias úteis a contar do recebimento desta notificação, será registrado <strong>Boletim de Ocorrência</strong> (B.O.) por uso indevido e retenção de bem móvel, além da adoção de medidas legais e judiciais cabíveis, visando a recuperação do bem e reparação de eventuais danos.
+    Com isso informamos que, caso não haja manifestação ou contato por parte da pessoa notificada com o objetivo de regularizar a pendência, no prazo de 5 (cinco) dias úteis a contar do recebimento desta notificação, será registrado <strong>Boletim de Ocorrência</strong> (B.O.) por uso indevido e retenção de bem móvel, além da adoção de medidas legais e judiciais cabíveis, visando a recuperação do bem e reparação de eventuais danos.
   </p>
 
   <p>
