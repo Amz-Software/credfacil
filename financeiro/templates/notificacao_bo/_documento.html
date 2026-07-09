@@ -37,7 +37,7 @@
   </p>
 
   <p>Consta no cadastro do locatário referências pessoais:</p>
-  <p class="bo-referencias">{{ referencias_personais|linebreaksbr }}</p>
+  <p class="bo-referencias" data-bo-referencias>{{ referencias_personais }}</p>
 
   <p>
     O contrato prevê expressamente em sua cláusula 11.4 que, em caso de inadimplência superior a 30 dias pós vencimento e sem contato, e havendo indícios de má-fé ou recusa em devolver o bem, a operadora poderá registrar <strong>BOLETIM DE OCORRÊNCIA</strong> por uso indevido ou retenção do bem.
@@ -61,5 +61,5 @@
     Telefone: {{ loja_telefone }}
   </p>
 
-  <div class="bo-footer">{{ loja_cidade }}/{{ loja_uf }}, {{ created_at|date:"d/m/Y" }}</div>
+  <div class="bo-footer" data-bo-local-assinatura>{{ bo_local_assinatura }}</div>
 </div>

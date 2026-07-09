@@ -122,3 +122,6 @@ class Repasse(models.Model):
         verbose_name_plural = 'Repasse'
         verbose_name = 'Repasse'
         ordering = ['-data']
+        permissions = (
+            ('add_notificacaobo', 'Pode gerar notificação BO'),
+        )

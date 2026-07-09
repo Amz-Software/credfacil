@@ -1,5 +1,6 @@
 from io import BytesIO
 from datetime import datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 import weasyprint
 
@@ -86,7 +87,7 @@ def _get_notificacao_bo_context(pagamento, user, referencias_personais):
     item = venda.itens_venda.select_related('produto__marca').first()
     parcelas = list(pagamento.parcelas_pagamento.all().order_by('data_vencimento', 'numero_parcela'))
     primeira_parcela_atrasada = _get_primeira_parcela_atrasada(pagamento)
-    contrato_meta = venda.contrato or {}
+    contrato_meta = venda.loja.contrato or {}
 
     inicio_vigencia = _format_date(
         contrato_meta.get('data_inicio') or contrato_meta.get('inicio_vigencia') or venda.data_venda.date()
@@ -103,6 +104,10 @@ def _get_notificacao_bo_context(pagamento, user, referencias_personais):
     uf_loja = getattr(loja, 'uf', None) or contrato_meta.get('uf') or '—'
     endereco_loja = getattr(loja, 'endereco', None) or contrato_meta.get('endereco') or '—'
     endereco_cliente = ', '.join(part for part in [cliente.endereco, cliente.bairro, cliente.cidade] if part)
+    if cidade_loja != '—' and uf_loja != '—':
+        bo_local_assinatura = f'{cidade_loja}/{uf_loja}, {timezone.localtime().strftime("%d/%m/%Y")}'
+    else:
+        bo_local_assinatura = f'{loja.nome}, {timezone.localtime().strftime("%d/%m/%Y")}'
 
     return {
         'pagamento': pagamento,
@@ -131,6 +136,7 @@ def _get_notificacao_bo_context(pagamento, user, referencias_personais):
         'valor_mensal': pagamento.valor,
         'vencimento_primeira_atrasada': primeira_parcela_atrasada.data_vencimento if primeira_parcela_atrasada else None,
         'created_at': timezone.localtime(),
+        'bo_local_assinatura': bo_local_assinatura,
     }
 
 
