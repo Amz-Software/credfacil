@@ -57,3 +57,23 @@
   </div>
 </div>
 {% endblock %}
+
+{% block extra_scripts %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const textarea = document.getElementById('{{ form.referencias_personais.id_for_label }}');
+      const preview = document.querySelector('[data-bo-referencias]');
+
+      if (!textarea || !preview) {
+        return;
+      }
+
+      const syncPreview = () => {
+        preview.textContent = textarea.value || '';
+      };
+
+      textarea.addEventListener('input', syncPreview);
+      syncPreview();
+    });
+  </script>
+{% endblock %}
