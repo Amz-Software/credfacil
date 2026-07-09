@@ -96,6 +96,9 @@
     .cr-amount-warn { color: #b97900; }
     .cr-amount-date { font-size: .72rem; color: #8592a3; white-space: nowrap; }
     .cr-table > tbody > tr > td.cr-money { min-width: 118px; }
+    .cr-actions-dropdown .dropdown-menu { min-width: 220px; }
+    .cr-actions-dropdown:hover .dropdown-menu { display: block; margin-top: 0; }
+    .cr-actions-dropdown .dropdown-toggle::after { display: none; }
 
     /* Progresso de parcelas */
     .cr-progress {
@@ -404,12 +407,28 @@
 
                 <!-- AÇÕES -->
                 <td class="text-center">
-                  {% if user|has_perm:"vendas.view_pagamento" %}
-                    <a href="{% url 'financeiro:contas_a_receber_update' conta.id %}"
-                       class="btn btn-sm btn-outline-primary" title="Ver detalhes">
-                      <i class="bx bx-show"></i>
-                    </a>
-                  {% endif %}
+                  <div class="dropdown cr-actions-dropdown d-inline-block">
+                    <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown" aria-expanded="false">
+                      <i class="bx bx-dots-vertical-rounded"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      {% if user|has_perm:"vendas.view_pagamento" %}
+                        <li>
+                          <a class="dropdown-item" href="{% url 'financeiro:contas_a_receber_update' conta.id %}">
+                            <i class="bx bx-show me-2"></i> Ver detalhes
+                          </a>
+                        </li>
+                      {% endif %}
+                      {% if user|has_perm:"financeiro.add_notificacaobo" %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                          <a class="dropdown-item text-danger" href="{% url 'financeiro:notificacao_bo_preview' conta.id %}">
+                            <i class="bx bx-file me-2"></i> Gerar BO
+                          </a>
+                        </li>
+                      {% endif %}
+                    </ul>
+                  </div>
                 </td>
               </tr>
             {% empty %}

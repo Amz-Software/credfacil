@@ -16,6 +16,7 @@ urlpatterns = [
 
     path('financeiro/contas-a-receber', ContasAReceberListView.as_view(), name='contas_a_receber_list'),
     path('financeiro/contas-a-receber/<int:pk>', ContasAReceberDetailView.as_view(), name='contas_a_receber_update'),
+    path('financeiro/contas-a-receber/<int:pk>/gerar-bo/', GerarNotificacaoBoView.as_view(), name='notificacao_bo_preview'),
 
     path('gastofixo/', gasto_fixo_views['list_view'].as_view(), name='gasto_fixo_list'),
     path('gasto-fixo/novo', gasto_fixo_views['create_view'].as_view(), name='gasto_fixo_create'),

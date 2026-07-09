@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gerar BO{% endblock %}
+
+{% block extra_head %}
+  <style>
+    .bo-preview-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 1.25rem; align-items: start; }
+    .bo-paper { background: #fff; border: 1px solid rgba(67, 89, 113, 0.12); border-radius: 18px; padding: 2rem; box-shadow: 0 10px 25px rgba(67, 89, 113, 0.08); }
+    .bo-preview-panel { position: sticky; top: 1rem; }
+    .bo-header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+    .bo-logo { max-width: 120px; max-height: 72px; object-fit: contain; }
+    .bo-brand-name { font-weight: 700; font-size: 1.2rem; letter-spacing: .08em; }
+    .bo-brand-meta { font-size: .875rem; color: #6c757d; }
+    .bo-document h1 { text-align: center; font-size: 1.2rem; margin: 16px 0 6px; font-weight: 700; }
+    .bo-document h2 { text-align: center; font-size: 1rem; margin: 0 0 26px; font-weight: 700; }
+    .bo-section-title { font-weight: 700; margin-top: 18px; }
+    .bo-referencias { white-space: pre-line; }
+    .bo-footer { margin-top: 28px; text-align: right; }
+    @media (max-width: 1199.98px) {
+      .bo-preview-layout { grid-template-columns: 1fr; }
+      .bo-preview-panel { position: static; }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-xxl mt-4">
+  {% include "components/page_header.html" with title="Gerar BO" icon="bx bx-file" subtitle="Pré-visualize a notificação extrajudicial e ajuste as referências antes de gerar o PDF" %}
+
+  <div class="bo-preview-layout">
+    <div class="bo-paper">
+      {% include 'notificacao_bo/_documento.html' %}
+    </div>
+
+    <div class="card shadow-sm border-0 bo-preview-panel">
+      <div class="card-body">
+        <h5 class="mb-3">Ajustar referências</h5>
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.referencias_personais.id_for_label }}">{{ form.referencias_personais.label }}</label>
+            {{ form.referencias_personais }}
+            {% if form.referencias_personais.errors %}
+              <div class="text-danger small mt-1">{{ form.referencias_personais.errors|striptags }}</div>
+            {% endif %}
+          </div>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-danger">
+              <i class="bx bx-file me-1"></i> Gerar documento
+            </button>
+            <a href="{% url 'financeiro:contas_a_receber_update' pagamento.id %}" class="btn btn-outline-secondary">Voltar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
