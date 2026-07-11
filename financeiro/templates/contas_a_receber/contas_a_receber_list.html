@@ -96,8 +96,14 @@
     .cr-amount-warn { color: #b97900; }
     .cr-amount-date { font-size: .72rem; color: #8592a3; white-space: nowrap; }
     .cr-table > tbody > tr > td.cr-money { min-width: 118px; }
-    .cr-actions-dropdown .dropdown-menu { min-width: 220px; }
-    .cr-actions-dropdown:hover .dropdown-menu { display: block; margin-top: 0; }
+    .cr-actions-dropdown .dropdown-menu { min-width: 220px; z-index: 1080; }
+    .cr-actions-dropdown .dropdown-toggle {
+      align-items: center;
+      display: inline-flex;
+      height: 44px;
+      justify-content: center;
+      width: 44px;
+    }
     .cr-actions-dropdown .dropdown-toggle::after { display: none; }
 
     /* Progresso de parcelas */
@@ -408,7 +414,14 @@
                 <!-- AÇÕES -->
                 <td class="text-center">
                   <div class="dropdown cr-actions-dropdown d-inline-block">
-                    <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button
+                      type="button"
+                      class="btn p-0 dropdown-toggle hide-arrow"
+                      data-bs-toggle="dropdown"
+                      data-bs-boundary="viewport"
+                      aria-expanded="false"
+                      aria-label="Abrir ações da conta de {{ conta.venda.cliente.nome }}"
+                    >
                       <i class="bx bx-dots-vertical-rounded"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
