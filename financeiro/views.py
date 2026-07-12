@@ -133,7 +133,7 @@ def _get_notificacao_bo_context(pagamento, user, referencias_personais):
         'produto_nome': produto.nome if produto else '—',
         'produto_modelo': produto.nome if produto else '—',
         'produto_imei': item.imei if item and item.imei else '—',
-        'valor_mensal': pagamento.valor,
+        'valor_mensal': primeira_parcela_atrasada.valor if primeira_parcela_atrasada else pagamento.valor_parcela,
         'vencimento_primeira_atrasada': primeira_parcela_atrasada.data_vencimento if primeira_parcela_atrasada else None,
         'created_at': timezone.localtime(),
         'bo_local_assinatura': bo_local_assinatura,
