@@ -15,7 +15,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.views.generic import CreateView, UpdateView, ListView, DetailView, TemplateView
+from django.views.generic import CreateView, UpdateView, ListView, DetailView, TemplateView, View
 
 from accounts.views import logout_view
 from financeiro.forms import *
@@ -140,8 +140,21 @@ def _get_notificacao_bo_context(pagamento, user, referencias_personais):
     }
 
 
-class GerarNotificacaoBoView(PermissionRequiredMixin, TemplateView):
-    template_name = 'notificacao_bo/notificacao_bo_preview.html'
+def _get_notificacao_bo_session_key(pagamento_id):
+    return f'notificacao_bo_referencias_{pagamento_id}'
+
+
+def _render_notificacao_bo_pdf(request, pagamento, referencias_personais):
+    context = _get_notificacao_bo_context(pagamento, request.user, referencias_personais)
+    html = render_to_string('notificacao_bo/notificacao_bo_pdf.html', context, request=request)
+    pdf_buffer = BytesIO()
+    weasyprint.HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf(pdf_buffer)
+    response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="notificacao_bo_pagamento_{pagamento.pk}.pdf"'
+    return response
+
+
+class NotificacaoBoPagamentoMixin(PermissionRequiredMixin):
     permission_required = 'financeiro.add_notificacaobo'
 
     def dispatch(self, request, *args, **kwargs):
@@ -150,21 +163,22 @@ class GerarNotificacaoBoView(PermissionRequiredMixin, TemplateView):
             .prefetch_related('parcelas_pagamento', 'venda__itens_venda__produto__marca', 'venda__cliente__contatos'),
             pk=kwargs.get('pk')
         )
-        self.primeira_parcela_atrasada = _get_primeira_parcela_atrasada(self.pagamento)
-        if not self.primeira_parcela_atrasada:
+        if not _get_primeira_parcela_atrasada(self.pagamento):
             messages.error(request, 'Não há parcela vencida em aberto para gerar o BO.')
             return redirect('financeiro:contas_a_receber_update', pk=self.pagamento.pk)
         return super().dispatch(request, *args, **kwargs)
 
-    def get_initial(self):
-        return {
-            'referencias_personais': _build_references_text(self.pagamento.venda.cliente),
-        }
+    def get_referencias_padrao(self):
+        return _build_references_text(self.pagamento.venda.cliente)
+
+
+class GerarNotificacaoBoView(NotificacaoBoPagamentoMixin, TemplateView):
+    template_name = 'notificacao_bo/notificacao_bo_preview.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        form = kwargs.get('form') or NotificacaoBoForm(initial=self.get_initial())
-        referencias_personais = form['referencias_personais'].value() if 'referencias_personais' in form.fields else self.get_initial()['referencias_personais']
+        form = kwargs.get('form') or NotificacaoBoForm(initial={'referencias_personais': self.get_referencias_padrao()})
+        referencias_personais = form['referencias_personais'].value()
         context.update(_get_notificacao_bo_context(self.pagamento, self.request.user, referencias_personais))
         context['form'] = form
         return context
@@ -174,14 +188,18 @@ class GerarNotificacaoBoView(PermissionRequiredMixin, TemplateView):
         if not form.is_valid():
             return self.render_to_response(self.get_context_data(form=form))
 
-        referencias_personais = form.cleaned_data.get('referencias_personais', '').strip() or self.get_initial()['referencias_personais']
-        context = _get_notificacao_bo_context(self.pagamento, self.request.user, referencias_personais)
-        html = render_to_string('notificacao_bo/notificacao_bo_pdf.html', context, request=self.request)
-        pdf_buffer = BytesIO()
-        weasyprint.HTML(string=html, base_url=self.request.build_absolute_uri('/')).write_pdf(pdf_buffer)
-        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
-        response['Content-Disposition'] = f'inline; filename="notificacao_bo_pagamento_{self.pagamento.pk}.pdf"'
-        return response
+        referencias_personais = form.cleaned_data.get('referencias_personais', '').strip() or self.get_referencias_padrao()
+        request.session[_get_notificacao_bo_session_key(self.pagamento.pk)] = referencias_personais
+        return redirect('financeiro:notificacao_bo_pdf', pk=self.pagamento.pk)
+
+
+class GerarNotificacaoBoPdfView(NotificacaoBoPagamentoMixin, View):
+    def get(self, request, *args, **kwargs):
+        referencias_personais = request.session.get(
+            _get_notificacao_bo_session_key(self.pagamento.pk),
+            self.get_referencias_padrao(),
+        )
+        return _render_notificacao_bo_pdf(request, self.pagamento, referencias_personais)
 
 
 class CaixaMensalListView(BaseView, PermissionRequiredMixin, ListView):
