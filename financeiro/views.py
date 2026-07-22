@@ -1,25 +1,205 @@
-from django.urls import reverse_lazy
-from django.views.generic import CreateView, UpdateView, ListView, DetailView, TemplateView
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.utils import timezone
-from django.shortcuts import redirect
-from django.shortcuts import get_object_or_404
-from accounts.views import logout_view
-from vendas.forms import ContatoForm
-from vendas.views import BaseView
-from .models import CaixaMensal, CaixaMensalGastoFixo, CaixaMensalFuncionario, GastosAleatorios
-from financeiro.forms import RelatorioSaidaForm
-from vendas.models import Contato, Loja, Parcela, StatusPagamento
-from .models import CaixaMensal, CaixaMensalFuncionario, CaixaMensalGastoFixo, GastoFixo, GastosAleatorios
+from io import BytesIO
 from datetime import datetime, timedelta
-from django.db import transaction
-from financeiro.forms import *
-from vendas.models import Pagamento
-from django.contrib.auth.mixins import PermissionRequiredMixin
-from django.contrib.auth.decorators import permission_required
-from django.db.models import OuterRef, Subquery, DateField, Q, Sum, Max, Prefetch
 from decimal import Decimal, ROUND_HALF_UP
+
+import weasyprint
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.db import transaction
+from django.http import HttpResponse
+from django.db.models import OuterRef, Subquery, DateField, Q, Sum, Max, Prefetch
+from django.shortcuts import get_object_or_404, redirect
+from django.template.loader import render_to_string
+from django.urls import reverse_lazy
+from django.utils import timezone
+from django.utils.dateparse import parse_date
+from django.views.generic import CreateView, UpdateView, ListView, DetailView, TemplateView, View
+
+from accounts.views import logout_view
+from financeiro.forms import *
+from financeiro.forms import RelatorioSaidaForm
+from vendas.forms import ContatoForm
+from vendas.models import Contato, Loja, Parcela, Pagamento, StatusPagamento
+from vendas.views import BaseView
+from .models import CaixaMensal, CaixaMensalFuncionario, CaixaMensalGastoFixo, GastoFixo, GastosAleatorios
+
+
+def _mask_cpf(cpf):
+    digits = ''.join(ch for ch in (cpf or '') if ch.isdigit())
+    if len(digits) != 11:
+        return cpf or '—'
+    return f'{digits[:3]}.***.***-{digits[-2:]}'
+
+
+def _format_date(value):
+    if not value:
+        return None
+    if hasattr(value, 'strftime'):
+        return value.strftime('%d/%m/%Y')
+    parsed = parse_date(str(value))
+    return parsed.strftime('%d/%m/%Y') if parsed else value
+
+
+def _build_references_text(cliente):
+    references = []
+
+    for contato in cliente.contatos.all().order_by('data'):
+        if contato.observacao:
+            references.append(contato.observacao.strip())
+
+    if cliente.informacao_pessoal:
+        info = cliente.informacao_pessoal
+        partes = [p for p in [info.nome, info.contato, info.endereco] if p]
+        if partes:
+            references.append(' - '.join([partes[0], ', '.join(partes[1:])]).strip(' -'))
+
+    if cliente.contato_adicional:
+        info = cliente.contato_adicional
+        partes = [p for p in [info.nome_adicional, info.contato, info.endereco_adicional] if p]
+        if partes:
+            references.append(' - '.join([partes[0], ', '.join(partes[1:])]).strip(' -'))
+
+    if not references:
+        references = [
+            'I. [Nome ou inicial], [vínculo], reside no endereço [endereço].',
+            'II. [Nome ou inicial], [vínculo], telefone [telefone], observação [texto].',
+        ]
+
+    return '\n'.join(f'{idx + 1}. {texto}' for idx, texto in enumerate(references))
+
+
+def _get_primeira_parcela_atrasada(pagamento):
+    hoje = timezone.localdate()
+    return (
+        pagamento.parcelas_pagamento
+        .filter(pago=False, data_vencimento__lt=hoje)
+        .order_by('data_vencimento', 'numero_parcela')
+        .first()
+    )
+
+
+def _get_notificacao_bo_context(pagamento, user, referencias_personais):
+    venda = pagamento.venda
+    cliente = venda.cliente
+    loja = venda.loja
+    item = venda.itens_venda.select_related('produto__marca').first()
+    parcelas = list(pagamento.parcelas_pagamento.all().order_by('data_vencimento', 'numero_parcela'))
+    primeira_parcela_atrasada = _get_primeira_parcela_atrasada(pagamento)
+    contrato_meta = venda.loja.contrato or {}
+
+    inicio_vigencia = _format_date(
+        contrato_meta.get('data_inicio') or contrato_meta.get('inicio_vigencia') or venda.data_venda.date()
+    )
+    fim_vigencia = _format_date(
+        contrato_meta.get('data_fim')
+        or contrato_meta.get('fim_vigencia')
+        or (parcelas[-1].data_vencimento if parcelas else venda.data_venda.date())
+    )
+
+    produto = item.produto if item else None
+    telefone_loja = getattr(loja, 'telefone', None) or contrato_meta.get('telefone') or '—'
+    cidade_loja = getattr(loja, 'cidade', None) or contrato_meta.get('cidade') or '—'
+    uf_loja = getattr(loja, 'uf', None) or contrato_meta.get('uf') or '—'
+    endereco_loja = getattr(loja, 'endereco', None) or contrato_meta.get('endereco') or '—'
+    endereco_cliente = ', '.join(part for part in [cliente.endereco, cliente.bairro, cliente.cidade] if part)
+    if cidade_loja != '—' and uf_loja != '—':
+        bo_local_assinatura = f'{cidade_loja}/{uf_loja}, {timezone.localtime().strftime("%d/%m/%Y")}'
+    else:
+        bo_local_assinatura = f'{loja.nome}, {timezone.localtime().strftime("%d/%m/%Y")}'
+
+    return {
+        'pagamento': pagamento,
+        'venda': venda,
+        'cliente': cliente,
+        'loja': loja,
+        'item': item,
+        'produto': produto,
+        'primeira_parcela_atrasada': primeira_parcela_atrasada,
+        'referencias_personais': referencias_personais,
+        'cliente_cpf_exibicao': _mask_cpf(cliente.cpf),
+        'cliente_endereco': endereco_cliente or '—',
+        'loja_nome': loja.nome,
+        'loja_cnpj': loja.cnpj or '—',
+        'loja_telefone': telefone_loja,
+        'loja_endereco': endereco_loja,
+        'loja_cidade': cidade_loja,
+        'loja_uf': uf_loja,
+        'loja_logo': loja.logo_loja,
+        'data_assinatura': venda.data_venda.date(),
+        'inicio_vigencia': inicio_vigencia,
+        'fim_vigencia': fim_vigencia,
+        'produto_nome': produto.nome if produto else '—',
+        'produto_modelo': produto.nome if produto else '—',
+        'produto_imei': item.imei if item and item.imei else '—',
+        'valor_mensal': primeira_parcela_atrasada.valor if primeira_parcela_atrasada else pagamento.valor_parcela,
+        'vencimento_primeira_atrasada': primeira_parcela_atrasada.data_vencimento if primeira_parcela_atrasada else None,
+        'created_at': timezone.localtime(),
+        'bo_local_assinatura': bo_local_assinatura,
+    }
+
+
+def _get_notificacao_bo_session_key(pagamento_id):
+    return f'notificacao_bo_referencias_{pagamento_id}'
+
+
+def _render_notificacao_bo_pdf(request, pagamento, referencias_personais):
+    context = _get_notificacao_bo_context(pagamento, request.user, referencias_personais)
+    html = render_to_string('notificacao_bo/notificacao_bo_pdf.html', context, request=request)
+    pdf_buffer = BytesIO()
+    weasyprint.HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf(pdf_buffer)
+    response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="notificacao_bo_pagamento_{pagamento.pk}.pdf"'
+    return response
+
+
+class NotificacaoBoPagamentoMixin(PermissionRequiredMixin):
+    permission_required = 'financeiro.add_notificacaobo'
+
+    def dispatch(self, request, *args, **kwargs):
+        self.pagamento = get_object_or_404(
+            Pagamento.objects.select_related('venda__cliente', 'venda__loja')
+            .prefetch_related('parcelas_pagamento', 'venda__itens_venda__produto__marca', 'venda__cliente__contatos'),
+            pk=kwargs.get('pk')
+        )
+        if not _get_primeira_parcela_atrasada(self.pagamento):
+            messages.error(request, 'Não há parcela vencida em aberto para gerar o BO.')
+            return redirect('financeiro:contas_a_receber_update', pk=self.pagamento.pk)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_referencias_padrao(self):
+        return _build_references_text(self.pagamento.venda.cliente)
+
+
+class GerarNotificacaoBoView(NotificacaoBoPagamentoMixin, TemplateView):
+    template_name = 'notificacao_bo/notificacao_bo_preview.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form = kwargs.get('form') or NotificacaoBoForm(initial={'referencias_personais': self.get_referencias_padrao()})
+        referencias_personais = form['referencias_personais'].value()
+        context.update(_get_notificacao_bo_context(self.pagamento, self.request.user, referencias_personais))
+        context['form'] = form
+        return context
+
+    def post(self, request, *args, **kwargs):
+        form = NotificacaoBoForm(request.POST)
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(form=form))
+
+        referencias_personais = form.cleaned_data.get('referencias_personais', '').strip() or self.get_referencias_padrao()
+        request.session[_get_notificacao_bo_session_key(self.pagamento.pk)] = referencias_personais
+        return redirect('financeiro:notificacao_bo_pdf', pk=self.pagamento.pk)
+
+
+class GerarNotificacaoBoPdfView(NotificacaoBoPagamentoMixin, View):
+    def get(self, request, *args, **kwargs):
+        referencias_personais = request.session.get(
+            _get_notificacao_bo_session_key(self.pagamento.pk),
+            self.get_referencias_padrao(),
+        )
+        return _render_notificacao_bo_pdf(request, self.pagamento, referencias_personais)
 
 
 class CaixaMensalListView(BaseView, PermissionRequiredMixin, ListView):

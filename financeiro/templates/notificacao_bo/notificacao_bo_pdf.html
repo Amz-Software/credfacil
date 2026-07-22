@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4; margin: 10mm 12mm; }
+    body { font-family: Arial, sans-serif; font-size: 8.5pt; color: #111; line-height: 1.22; }
+    .bo-document { position: relative; }
+    .bo-document > div:first-child { padding-bottom: 5px !important; margin-bottom: 7px !important; }
+    .bo-document > div:first-child img { height: 32px !important; }
+    .bo-document > div:first-child > div:last-child { line-height: 1.15 !important; }
+    .bo-document > div:first-child > div:last-child > div:first-child { font-size: 10pt !important; }
+    .bo-document > div:first-child > div:last-child > div:first-child span { font-size: 8.5pt !important; }
+    .bo-document > div:first-child > div:last-child > div:last-child { font-size: 7.5pt !important; }
+    h1 { text-align: center; font-size: 11pt; margin: 7px 0 3px; font-weight: 700; }
+    h2 { text-align: center; font-size: 9pt; margin: 0 0 8px; font-weight: 700; }
+    p { margin: 0 0 5px; text-align: justify; }
+    .bo-section-title { font-weight: 700; margin-top: 7px; }
+    .bo-referencias { white-space: pre-line; }
+    .bo-footer { margin-top: 8px; text-align: right; }
+  </style>
+</head>
+<body>
+  {% include 'notificacao_bo/_documento.html' %}
+</body>
+</html>

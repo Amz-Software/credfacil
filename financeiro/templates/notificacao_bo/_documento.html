@@ -1,0 +1,55 @@
+<div class="bo-document">
+  {% include "components/report_header_print.html" with loja=loja titulo="Notificação Extrajudicial para B.O." %}
+
+  <h1>NOTIFICAÇÃO EXTRAJUDICIAL PARA BOLETIM DE OCORRÊNCIA</h1>
+  <h2>REGISTRO DE NOTIFICAÇÃO DE USO INDEVIDO E RETENÇÃO DE BEM LOCADO</h2>
+
+  <p class="bo-section-title">Destinatário:</p>
+  <p>
+    Sr.(a). {{ cliente.nome }}.<br>
+    CPF: {{ cliente_cpf_exibicao }}<br>
+    Telefone: {{ cliente.telefone|default:"—" }}<br>
+    Endereço: {{ cliente_endereco }}
+  </p>
+
+  <p>Prezado(a) Sr.(a). {{ cliente.nome }},</p>
+
+  <p>
+    A IPIX, inscrita no CNPJ sob o nº {{ loja_cnpj }}, vem por meio desta notifica-la formalmente acerca do descumprimento do contrato de locação de aparelho celular, firmado em {{ data_assinatura|date:"d/m/Y" }}, na loja parceira {{ loja_nome }}, cujo objeto é o aparelho {{ produto_nome }}{% if produto_modelo and produto_modelo != produto_nome %} ({{ produto_modelo }}){% endif %}{% if produto_imei != '—' %}, IMEI {{ produto_imei }}{% endif %}, com vigência até {{ fim_vigencia }}, mediante pagamento mensal no valor de R$ {{ valor_mensal|floatformat:2 }}.
+  </p>
+
+  <p>
+    O contrato devidamente assinado pelo(a) contratante, deixa clara a natureza da locação e os termos acordados, com início de vigência em {{ inicio_vigencia }}.
+  </p>
+
+  <p>
+    A partir de {{ vencimento_primeira_atrasada|date:"d/m/Y" }}, o(a) locatário(a) deixou de continuar realizando os pagamentos e não atende mais ligações, mensagens realizadas, caracterizando abandono contratual e possível tentativa de ocultar ou reter indevidamente o aparelho locado. O aparelho encontra-se bloqueado de forma remota conforme previsto no contrato, mas ainda em posse da cliente.
+  </p>
+
+  <p>Consta no cadastro do(a) locatário(a) referências pessoais:</p>
+  <p class="bo-referencias" data-bo-referencias>{{ referencias_personais }}</p>
+
+  <p>
+    O contrato prevê expressamente em sua cláusula 11.4 que, em caso de inadimplência superior a 30 dias pós vencimento e sem contato, e havendo indícios de má-fé ou recusa em devolver o bem, a operadora poderá registrar <strong>BOLETIM DE OCORRÊNCIA</strong> por uso indevido ou retenção do bem.
+  </p>
+
+  <p>
+    Com isso informamos que, caso não haja manifestação ou contato por parte da pessoa notificada com o objetivo de regularizar a pendência, no prazo de 5 (cinco) dias úteis a contar do recebimento desta notificação, será registrado <strong>Boletim de Ocorrência</strong> (B.O.) por uso indevido e retenção de bem móvel, além da adoção de medidas legais e judiciais cabíveis, visando a recuperação do bem e reparação de eventuais danos.
+  </p>
+
+  <p>
+    Esta notificação é a última tentativa de resolução amigável, sendo enviada com o intuito de resguardar os direitos da empresa e evitar medidas judiciais mais gravosas.
+  </p>
+
+  <p>Aguardamos contato imediato para regularização da situação.</p>
+
+  <p>Atenciosamente,</p>
+
+  <p>
+    IPIX<br>
+    CNPJ: {{ loja_cnpj }}<br>
+    Telefone: {{ loja_telefone }}
+  </p>
+
+  <div class="bo-footer" data-bo-local-assinatura>{{ bo_local_assinatura }}</div>
+</div>

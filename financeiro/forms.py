@@ -267,6 +267,18 @@ class RepasseForm(forms.ModelForm):
         }
 
 
+class NotificacaoBoForm(forms.Form):
+    referencias_personais = forms.CharField(
+        label='Referências pessoais',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 10,
+            'placeholder': 'Edite livremente as referências pessoais antes de gerar o documento.'
+        })
+    )
+
+
 class PagamentoStatusForm(forms.ModelForm):
     class StatusPagamentoSelectWidget(ModelSelect2MultipleWidget):
         search_fields = [
