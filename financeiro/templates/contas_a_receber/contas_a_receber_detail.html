@@ -15,6 +15,15 @@
     }
     .cr-field .cr-value { color: var(--ipix-heading, #384551); font-weight: 500; }
 
+    /* Botão WhatsApp ao lado de telefones */
+    .cr-wa-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; margin-left: 6px; border-radius: 50%;
+      background: #25d366; color: #fff !important; font-size: 1rem;
+      line-height: 1; vertical-align: middle; transition: background .15s ease;
+    }
+    .cr-wa-btn:hover { background: #1da851; color: #fff !important; }
+
     /* KPIs do topo */
     .cr-kpi {
       border: 1px solid var(--ipix-gray-200, #eaeaef);
@@ -192,7 +201,7 @@
               <span class="cr-label">E-mail</span><span class="cr-value">{{ conta_a_receber.venda.cliente.email|default:"—" }}</span>
             </div>
             <div class="col-12 col-md-6 col-lg-4 cr-field">
-              <span class="cr-label">Telefone</span><span class="cr-value">{{ conta_a_receber.venda.cliente.telefone }}</span>
+              <span class="cr-label">Telefone</span><span class="cr-value">{{ conta_a_receber.venda.cliente.telefone }}{% with wa=conta_a_receber.venda.cliente.telefone|whatsapp_url %}{% if wa %}<a href="{{ wa }}" target="_blank" rel="noopener" class="cr-wa-btn" title="Abrir conversa no WhatsApp"><i class="bx bxl-whatsapp"></i></a>{% endif %}{% endwith %}</span>
             </div>
             <div class="col-12 col-md-6 col-lg-4 cr-field">
               <span class="cr-label">CPF</span><span class="cr-value">{{ conta_a_receber.venda.cliente.cpf }}</span>
@@ -430,7 +439,7 @@
               <span class="cr-label">Nome (Info. Adicional)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.informacao_pessoal.nome|title|default:"Não informado" }}</span>
             </div>
             <div class="col-12 col-md-4 cr-field">
-              <span class="cr-label">Telefone (Info. Adicional)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.informacao_pessoal.contato|default:"Não informado" }}</span>
+              <span class="cr-label">Telefone (Info. Adicional)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.informacao_pessoal.contato|default:"Não informado" }}{% with wa=conta_a_receber.venda.cliente.informacao_pessoal.contato|whatsapp_url %}{% if wa %}<a href="{{ wa }}" target="_blank" rel="noopener" class="cr-wa-btn" title="Abrir conversa no WhatsApp"><i class="bx bxl-whatsapp"></i></a>{% endif %}{% endwith %}</span>
             </div>
             <div class="col-12 col-md-4 cr-field">
               <span class="cr-label">Endereço (Info. Adicional)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.informacao_pessoal.endereco|default:"Não informado" }}</span>
@@ -439,7 +448,7 @@
               <span class="cr-label">Nome (Info. Comercial)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.contato_adicional.nome|title|default:"Não informado" }}</span>
             </div>
             <div class="col-12 col-md-4 cr-field">
-              <span class="cr-label">Telefone (Info. Comercial)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.contato_adicional.contato|default:"Não informado" }}</span>
+              <span class="cr-label">Telefone (Info. Comercial)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.contato_adicional.contato|default:"Não informado" }}{% with wa=conta_a_receber.venda.cliente.contato_adicional.contato|whatsapp_url %}{% if wa %}<a href="{{ wa }}" target="_blank" rel="noopener" class="cr-wa-btn" title="Abrir conversa no WhatsApp"><i class="bx bxl-whatsapp"></i></a>{% endif %}{% endwith %}</span>
             </div>
             <div class="col-12 col-md-4 cr-field">
               <span class="cr-label">Endereço (Info. Comercial)</span><span class="cr-value">{{ conta_a_receber.venda.cliente.contato_adicional.endereco|default:"Não informado" }}</span>
