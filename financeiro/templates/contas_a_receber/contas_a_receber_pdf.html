@@ -19,7 +19,7 @@
   <h2>1. Cliente</h2>
   <p><strong>Nome:</strong> {{ cliente.nome }}<br>
      <strong>E-mail:</strong> {{ cliente.email|default:"—" }}<br>
-     <strong>Telefone:</strong> {{ cliente.telefone }}<br>
+     <strong>Telefone:</strong> {{ cliente.telefone|default:"—" }}{% if cliente.informacao_pessoal.contato %} / {{ cliente.informacao_pessoal.contato }}{% endif %}{% if cliente.contato_adicional.contato %} / {{ cliente.contato_adicional.contato }}{% endif %}<br>
      <strong>CPF:</strong> {{ cliente.cpf }} – <strong>Nascimento:</strong> {{ cliente.nascimento }}<br>
      <strong>Endereço:</strong> {{ cliente.endereco }}, {{ cliente.bairro }} – {{ cliente.cidade }} (CEP {{ cliente.cep }})
   </p>

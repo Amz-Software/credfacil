@@ -17,6 +17,44 @@ def user_can_manage_obteve_contato(user):
         return True
     return user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR']).exists()
 
+
+def user_is_analista_or_admin(user):
+    """ANALISTA, ADMINISTRADOR ou superusuário — podem editar os números de
+    contato mesmo depois da venda gerada."""
+    if not user:
+        return False
+    if getattr(user, 'is_superuser', False):
+        return True
+    return user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR']).exists()
+
+
+def erro_pelo_menos_um_contato(form_adicional, form_informacao):
+    """Regra: pelo menos UM dos dois contatos (Adicional ou Informação Pessoal)
+    deve estar completo (nome + contato + endereço). Retorna a mensagem de erro
+    se nenhum estiver completo, ou None caso a regra seja satisfeita."""
+    def _completo(nome, contato, endereco):
+        return bool(
+            (nome or '').strip() and (contato or '').strip() and (endereco or '').strip()
+        )
+
+    adicional_ok = _completo(
+        form_adicional.cleaned_data.get('nome_adicional'),
+        form_adicional.cleaned_data.get('contato'),
+        form_adicional.cleaned_data.get('endereco_adicional'),
+    )
+    pessoal_ok = _completo(
+        form_informacao.cleaned_data.get('nome_pessoal'),
+        form_informacao.cleaned_data.get('contato_pessoal'),
+        form_informacao.cleaned_data.get('endereco_pessoal'),
+    )
+    if not adicional_ok and not pessoal_ok:
+        return (
+            'Preencha ao menos um contato completo (Contato Adicional ou '
+            'Informação Pessoal) com nome, contato e endereço.'
+        )
+    return None
+
+
 def normalize_loja(loja):
     if loja and not hasattr(loja, 'produtos_permitidos_qs'):
         return Loja.objects.filter(pk=loja).first()
@@ -258,10 +296,11 @@ class ContatoAdicionalForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        # Ambos os blocos de contato são opcionais no nível do campo; a regra
+        # "pelo menos um contato completo" é validada na view/serializer.
         for name, field in self.fields.items():
-            if name not in ['email']:
-                field.required = True
-        
+            field.required = False
+
         can_view_obteve = user_can_manage_obteve_contato(user)
         if not can_view_obteve:
             self.fields.pop('obteve_contato', None)
@@ -269,16 +308,15 @@ class ContatoAdicionalForm(forms.ModelForm):
             self.fields['obteve_contato'].required = False
             self.fields['obteve_contato'].initial = False
             self.fields['obteve_contato'].initial = False
-        
+
         if self.instance and self.instance.pk:
-            is_analista = bool(user and user.groups.filter(name='ANALISTA').exists())
             ac = getattr(self.instance.cliente, 'analise_credito', None)
             venda_gerada = bool(ac and ac.venda)
-            status_em_analise = bool(ac and ac.status == 'EA')
-            can_edit_finished = bool(
-                user and (is_analista or user.has_perm('vendas.can_edit_finished_sale'))
+            # ANALISTA/ADMIN (ou permissão de editar venda finalizada) podem editar
+            # os números mesmo após a venda gerada; os demais só antes disso.
+            pode_editar_numeros = user_is_analista_or_admin(user) or bool(
+                user and user.has_perm('vendas.can_edit_finished_sale')
             )
-            can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
 
             def _disable(*names):
                 for n in names:
@@ -289,9 +327,7 @@ class ContatoAdicionalForm(forms.ModelForm):
             if can_view_obteve and 'obteve_contato' in self.fields:
                 base_fields.append('obteve_contato')
 
-            if venda_gerada and not can_edit_finished:
-                _disable(*base_fields)
-            elif not status_em_analise and not (is_analista or can_change_status):
+            if venda_gerada and not pode_editar_numeros:
                 _disable(*base_fields)
 
     def clean_contato(self):
@@ -381,14 +417,13 @@ class InformacaoPessoalForm(forms.ModelForm):
             self.fields.pop('obteve_contato_pessoal', None)
                 
         if self.instance and self.instance.pk:
-            is_analista = bool(user and user.groups.filter(name='ANALISTA').exists())
             ac = getattr(self.instance.cliente, 'analise_credito', None)
             venda_gerada = bool(ac and ac.venda)
-            status_em_analise = bool(ac and ac.status == 'EA')
-            can_edit_finished = bool(
-                user and (is_analista or user.has_perm('vendas.can_edit_finished_sale'))
+            # ANALISTA/ADMIN (ou permissão de editar venda finalizada) podem editar
+            # os números mesmo após a venda gerada; os demais só antes disso.
+            pode_editar_numeros = user_is_analista_or_admin(user) or bool(
+                user and user.has_perm('vendas.can_edit_finished_sale')
             )
-            can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
 
             def _disable(*names):
                 for n in names:
@@ -399,9 +434,7 @@ class InformacaoPessoalForm(forms.ModelForm):
             if can_view_obteve and 'obteve_contato_pessoal' in self.fields:
                 base_fields.append('obteve_contato_pessoal')
 
-            if venda_gerada and not can_edit_finished:
-                _disable(*base_fields)
-            elif not status_em_analise and not (is_analista or can_change_status):
+            if venda_gerada and not pode_editar_numeros:
                 _disable(*base_fields)
 
     def clean_contato_pessoal(self):
@@ -1072,15 +1105,16 @@ class VendaDocumentosForm(forms.ModelForm):
 
     class Meta:
         model = Venda
-        fields = ['documento_assinado', 'foto_cliente', 'imagem_imei']
+        # A foto do cliente não é mais exigida na venda gerada (há assinatura
+        # digital do contrato). O IMEI só aparece para aparelhos iPhone (removido
+        # dinamicamente no __init__ quando a venda não tem iPhone).
+        fields = ['documento_assinado', 'imagem_imei']
         widgets = {
             'documento_assinado': forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf,.doc,.docx,.jpg,.jpeg,.png'}),
-            'foto_cliente': forms.FileInput(attrs={'class': 'form-control', 'accept': '.jpg,.jpeg,.png'}),
             'imagem_imei': forms.FileInput(attrs={'class': 'form-control', 'accept': '.jpg,.jpeg,.png'}),
         }
         labels = {
             'documento_assinado': 'Documento Assinado',
-            'foto_cliente': 'Foto do Cliente',
             'imagem_imei': 'Imagem do IMEI (iPhone)',
         }
 

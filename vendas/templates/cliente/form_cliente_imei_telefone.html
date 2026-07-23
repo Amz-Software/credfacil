@@ -279,6 +279,11 @@
                     </div>
                   {% endif %}
                   <small>Escolha um novo arquivo se quiser substituir.</small>
+                {% else %}
+                  <div class="d-flex flex-column align-items-center justify-content-center border border-dashed rounded p-3 mb-2 bg-light">
+                    <img src="{% static 'images/IPIX.png' %}" alt="IPX" style="max-height:70px; width:auto; opacity:.7;">
+                    <small class="text-muted mt-1">Sem foto anexada</small>
+                  </div>
                 {% endif %}
                 {{ form_comprovantes.foto_cliente }}
               </div>

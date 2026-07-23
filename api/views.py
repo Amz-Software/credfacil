@@ -49,6 +49,8 @@ from vendas.forms import (
     ComprovantesClienteForm,
     ContatoAdicionalForm,
     InformacaoPessoalForm,
+    erro_pelo_menos_um_contato,
+    user_is_analista_or_admin,
     FormaPagamentoEditFormSet,
     FormaPagamentoEdicaoEspecialFormSet,
     FormaPagamentoFormSet,
@@ -1265,6 +1267,17 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                 status=400,
             )
 
+        # Pelo menos um dos dois contatos deve estar completo (nome+contato+endereco).
+        erro_contato = erro_pelo_menos_um_contato(form_adicional, form_informacao)
+        if erro_contato:
+            return Response(
+                {
+                    "detail": erro_contato,
+                    "errors": {"contato": erro_contato, "contato_pessoal": erro_contato},
+                },
+                status=400,
+            )
+
         # Validação de parcelamento para produto iPhone
         erro_marca = _validar_marca_produto_solicitacao(
             payload_data,
@@ -1372,9 +1385,13 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if venda_gerada and not user.has_perm("vendas.can_edit_finished_sale"):
+        # ANALISTA/ADMIN (ou permissão de editar venda finalizada) podem editar
+        # mesmo depois da venda gerada; VENDEDOR/GERENTE só antes disso.
+        if venda_gerada and not (
+            user_is_analista_or_admin(user) or user.has_perm("vendas.can_edit_finished_sale")
+        ):
             return Response(
-                {"detail": "Sem permissao para editar solicitacoes com venda gerada."},
+                {"detail": "Somente ANALISTA/ADMIN podem editar solicitacoes com venda gerada."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -1463,6 +1480,17 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if conflito:
             return Response(
                 {"detail": "Informacoes Pessoais e Contato Adicional nao podem ser iguais.", "errors": conflito_erros},
+                status=400,
+            )
+
+        # Pelo menos um dos dois contatos deve estar completo (nome+contato+endereco).
+        erro_contato = erro_pelo_menos_um_contato(form_adicional, form_informacao)
+        if erro_contato:
+            return Response(
+                {
+                    "detail": erro_contato,
+                    "errors": {"contato": erro_contato, "contato_pessoal": erro_contato},
+                },
                 status=400,
             )
 

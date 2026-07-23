@@ -41,7 +41,8 @@ from vendas.forms import (
     RelatorioSolicitacoesForm, RelatorioVendasForm, VendaForm, VendaDocumentosForm, ProdutoVendaFormSet,
     FormaPagamentoFormSet, LancamentoForm, LancamentoCaixaTotalForm, ClienteTelefoneForm,
     AnaliseCreditoClienteImeiForm, VendaEdicaoEspecialForm,
-    ProdutoVendaEdicaoEspecialFormSet, FormaPagamentoEdicaoEspecialFormSet
+    ProdutoVendaEdicaoEspecialFormSet, FormaPagamentoEdicaoEspecialFormSet,
+    erro_pelo_menos_um_contato, user_is_analista_or_admin
 )
 from .models import (
     AnaliseCreditoCliente, Caixa, Cliente, Loja, NumeroAutenticador, ObservacaoSolicitacao, Pagamento, Parcela, ProdutoVenda,
@@ -704,7 +705,22 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
                 print("❌ CONDIÇÃO ATINGIDA: Informações Pessoais e Contato Adicional não podem ser iguais.")
                 messages.error(request, "❌ Informações Pessoais e Contato Adicional não podem ser iguais.")
                 return self.form_invalid(form_cliente)
-            
+
+            # Pelo menos um dos dois contatos deve estar completo.
+            erro_contato = erro_pelo_menos_um_contato(form_adicional, form_informacao)
+            if erro_contato:
+                form_adicional.add_error('contato', erro_contato)
+                form_informacao.add_error('contato_pessoal', erro_contato)
+                messages.error(request, f"❌ {erro_contato}")
+                context = self.get_context_data(
+                    form_cliente=form_cliente,
+                    form_adicional=form_adicional,
+                    form_informacao=form_informacao,
+                    form_comprovantes=form_comprovantes,
+                    form_analise_credito=form_analise_credito,
+                )
+                return self.render_to_response(context)
+
             comprovantes = form_comprovantes.save()
             contato_adicional = form_adicional.save()
             informacao = form_informacao.save()
@@ -859,23 +875,16 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         user = request.user
-        
-        # Verifica se o usuário é analista
-        is_analista = user.groups.filter(name='ANALISTA').exists()
-        
+
         # Verifica se a venda já foi gerada
         venda_gerada = self.object.analise_credito.venda is not None
-        
-        # Se não é analista e não tem permissão de mudar status, só pode editar se estiver em análise
-        if not is_analista and not user.has_perm('vendas.change_status_analise') and not self.object.analise_credito.status == 'EA':
-            messages.warning(request, "❌ Somente Solicitacao em análise de crédito em andamento podem ser editados.")
+
+        # ANALISTA/ADMIN (ou permissão de editar venda finalizada) podem editar
+        # mesmo depois da venda gerada. VENDEDOR/GERENTE só podem editar antes.
+        pode_editar_pos_venda = user_is_analista_or_admin(user) or user.has_perm('vendas.can_edit_finished_sale')
+        if venda_gerada and not pode_editar_pos_venda:
+            messages.warning(request, "❌ Somente ANALISTA/ADMIN podem editar a solicitação após a venda ser gerada.")
             return redirect(self.success_url)
-        
-        # Se a venda foi gerada, analistas e usuários com permissão específica podem editar
-        if venda_gerada:
-            if not (is_analista or user.has_perm('vendas.can_edit_finished_sale')):
-                messages.warning(request, "❌ Somente analistas ou usuários com permissão específica podem editar solicitações após a venda ser gerada.")
-                return redirect(self.success_url)
 
         # Buscar loja da sessão
         loja_id = request.session.get('loja_id')
@@ -934,8 +943,22 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
                 print("❌ CONDIÇÃO ATINGIDA: Informações Pessoais e Contato Adicional não podem ser iguais.")
                 messages.error(request, "❌ Informações Pessoais e Contato Adicional não podem ser iguais.")
                 return self.form_invalid(form_cliente)
-            
-            
+
+            # Pelo menos um dos dois contatos deve estar completo.
+            erro_contato = erro_pelo_menos_um_contato(form_adicional, form_informacao)
+            if erro_contato:
+                form_adicional.add_error('contato', erro_contato)
+                form_informacao.add_error('contato_pessoal', erro_contato)
+                messages.error(request, f"❌ {erro_contato}")
+                context = self.get_context_data(
+                    form_cliente=form_cliente,
+                    form_adicional=form_adicional,
+                    form_informacao=form_informacao,
+                    form_comprovantes=form_comprovantes,
+                    form_analise_credito=form_analise_credito,
+                )
+                return self.render_to_response(context)
+
             contato_adicional = form_adicional.save()
             informacao = form_informacao.save()
             comprovantes = form_comprovantes.save()
