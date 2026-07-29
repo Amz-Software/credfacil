@@ -552,6 +552,12 @@
       // Verifica ID
       console.log("[WS] ID da notificação recebida:", data.notification_id);
 
+      // 🪟 Modal central — somente ANALISTA/ADMIN quando uma NOVA proposta é criada
+      console.log("[WS][modal] event=", data.event, "| podeVerModal=", window.__podeVerModalProposta);
+      if (window.__podeVerModalProposta && data.event === 'proposta_criada') {
+        mostrarModalProposta(data);
+      }
+
       // 🔊 Som de notificação baseado no tipo
       let soundFile = "notification.mp3"; // som padrão
       
@@ -638,6 +644,66 @@
       }
     };
   </script>
+
+  <!-- 🪟 Modal central de NOVA PROPOSTA (somente ANALISTA / ADMINISTRADOR) -->
+  {% if perms.vendas.change_status_analise %}
+  <div class="modal fade" id="modalNovaProposta" tabindex="-1" aria-labelledby="modalNovaPropostaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title d-flex align-items-center gap-2" id="modalNovaPropostaLabel">
+            <i class="bx bx-bell bx-tada"></i> Nova proposta recebida
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body text-center py-4">
+          <div class="mb-3">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-label-primary" style="width:64px;height:64px;">
+              <i class="bx bx-file bx-md text-primary"></i>
+            </span>
+          </div>
+          <h6 class="fw-semibold mb-1" id="modalNovaPropostaVerb">Uma nova proposta foi criada.</h6>
+          <p class="text-muted mb-0" id="modalNovaPropostaDescription"></p>
+        </div>
+        <div class="modal-footer justify-content-center">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+          <a href="#" id="modalNovaPropostaLink" class="btn btn-primary">Ver proposta</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Flag de permissão para exibir o modal central de nova proposta
+    window.__podeVerModalProposta = true;
+
+    let __bsModalNovaProposta = null;
+
+    function mostrarModalProposta(data) {
+      const el = document.getElementById('modalNovaProposta');
+      if (!el || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+        console.warn('[WS] Modal de proposta indisponível.');
+        return;
+      }
+
+      const verbEl = document.getElementById('modalNovaPropostaVerb');
+      const descEl = document.getElementById('modalNovaPropostaDescription');
+      const linkEl = document.getElementById('modalNovaPropostaLink');
+
+      if (verbEl) verbEl.textContent = data.verb || 'Uma nova proposta foi criada.';
+      if (descEl) descEl.textContent = data.description || '';
+      if (linkEl) {
+        linkEl.href = data.target_url || '#';
+        linkEl.style.display = data.target_url ? '' : 'none';
+      }
+
+      __bsModalNovaProposta = bootstrap.Modal.getOrCreateInstance(el);
+      __bsModalNovaProposta.show();
+    }
+  </script>
+  {% else %}
+  <script>window.__podeVerModalProposta = false;</script>
+  {% endif %}
 
 
   {% block extra_scripts %}{% endblock %}

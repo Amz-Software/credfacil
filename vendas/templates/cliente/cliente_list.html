@@ -478,21 +478,17 @@ Clientes
                   </span>
                 {% elif cliente.analise_credito.produto.is_iphone %}
                   {# Fluxo iPhone #}
-                  {% if cliente.analise_credito.icloud_confirmado_analista %}
+                  {% if cliente.analise_credito.imei %}
                     <span class="badge bg-label-info">
                       <i class="bx bx-cart me-1"></i>Pronto para Venda
                     </span>
                   {% elif cliente.analise_credito.icloud_configurado_vendedor %}
                     <span class="badge bg-label-primary">
-                      <i class="bx bxl-apple me-1"></i>Aguardando Confirmação Analista
-                    </span>
-                  {% elif cliente.analise_credito.email_icloud %}
-                    <span class="badge bg-label-warning">
-                      <i class="bx bxl-apple me-1"></i>Aguardando Configuração
+                      <i class="bx bx-mobile me-1"></i>Aguardando IMEI (Analista)
                     </span>
                   {% else %}
-                    <span class="badge bg-label-secondary">
-                      <i class="bx bxl-apple me-1"></i>Aguardando iCloud
+                    <span class="badge bg-label-warning">
+                      <i class="bx bxl-apple me-1"></i>Aguardando Configuração Inicial
                     </span>
                   {% endif %}
                 {% else %}
@@ -523,22 +519,20 @@ Clientes
                 <div class="d-flex flex-wrap gap-1 mt-1">
                   {% if cliente.analise_credito.produto.is_iphone %}
                     {# Badges iPhone #}
-                    {% if cliente.analise_credito.email_icloud %}
-                      <span class="badge bg-label-success badge-sm"><i class="bx bxl-apple"></i> iCloud</span>
-                    {% else %}
-                      <span class="badge bg-label-warning badge-sm"><i class="bx bxl-apple"></i> Pendente</span>
-                    {% endif %}
-                    
                     {% if cliente.analise_credito.icloud_configurado_vendedor %}
-                      <span class="badge bg-label-success badge-sm">Vendedor: OK</span>
+                      <span class="badge bg-label-success badge-sm">Config. inicial: OK</span>
                     {% else %}
-                      <span class="badge bg-label-warning badge-sm">Vendedor: Pendente</span>
+                      <span class="badge bg-label-warning badge-sm">Config. inicial: Pendente</span>
                     {% endif %}
-                    
-                    {% if cliente.analise_credito.icloud_confirmado_analista %}
-                      <span class="badge bg-label-success badge-sm">Analista: OK</span>
+
+                    {% if cliente.analise_credito.imei_ultimos_digitos_vendedor %}
+                      <span class="badge bg-label-info badge-sm">IMEI final: {{ cliente.analise_credito.imei_ultimos_digitos_vendedor }}</span>
+                    {% endif %}
+
+                    {% if cliente.analise_credito.imei %}
+                      <span class="badge bg-label-success badge-sm">IMEI: OK</span>
                     {% else %}
-                      <span class="badge bg-label-warning badge-sm">Analista: Pendente</span>
+                      <span class="badge bg-label-warning badge-sm">IMEI: Pendente</span>
                     {% endif %}
                   {% else %}
                     {# Badges Android #}
@@ -563,7 +557,7 @@ Clientes
                  data-bs-toggle="tooltip" 
                  data-bs-html="true"
                  data-bs-placement="top"
-                 title="<strong>Detalhes do Fluxo</strong><br>{% if cliente.analise_credito.produto.is_iphone %}<strong>Tipo:</strong> iPhone<br><strong>iCloud:</strong> {% if cliente.analise_credito.email_icloud %}{{ cliente.analise_credito.email_icloud }}{% else %}Pendente{% endif %}<br><strong>Configurado Vendedor:</strong> {% if cliente.analise_credito.icloud_configurado_vendedor %}Sim{% else %}Não{% endif %}<br><strong>Confirmado Analista:</strong> {% if cliente.analise_credito.icloud_confirmado_analista %}Sim{% else %}Não{% endif %}{% else %}<strong>Tipo:</strong> Android<br><strong>Status App:</strong> {% if cliente.analise_credito.status_aplicativo == 'P' %}Pendente{% elif cliente.analise_credito.status_aplicativo == 'C' %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'I' %}Instalado{% else %}N/A{% endif %}<br><strong>Status IMEI:</strong> {% if cliente.analise_credito.imei %}Informado ({{ cliente.analise_credito.imei.imei }}){% else %}Pendente{% endif %}{% endif %}<br><strong>Status Geral:</strong> {% if cliente.analise_credito.venda_gerada %}Finalizado{% elif cliente.analise_credito.produto.is_iphone %}{% if cliente.analise_credito.icloud_confirmado_analista %}Pronto para Venda{% elif cliente.analise_credito.icloud_configurado_vendedor %}Aguardando Confirmação Analista{% elif cliente.analise_credito.email_icloud %}Aguardando Configuração{% else %}Aguardando iCloud{% endif %}{% else %}{% if cliente.analise_credito.status_aplicativo == 'I' and cliente.analise_credito.imei %}Pronto para Venda{% elif cliente.analise_credito.status_aplicativo == 'C' and not cliente.analise_credito.imei %}Aguardando IMEI{% elif cliente.analise_credito.status_aplicativo == 'C' and cliente.analise_credito.imei %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'P' %}Aguardando QR Code{% else %}Pendente{% endif %}{% endif %}"></i>
+                 title="<strong>Detalhes do Fluxo</strong><br>{% if cliente.analise_credito.produto.is_iphone %}<strong>Tipo:</strong> iPhone<br><strong>Config. inicial (Vendedor):</strong> {% if cliente.analise_credito.icloud_configurado_vendedor %}Sim{% else %}Não{% endif %}<br><strong>IMEI final:</strong> {{ cliente.analise_credito.imei_ultimos_digitos_vendedor|default:'—' }}<br><strong>IMEI (Analista):</strong> {% if cliente.analise_credito.imei %}Informado ({{ cliente.analise_credito.imei.imei }}){% else %}Pendente{% endif %}{% else %}<strong>Tipo:</strong> Android<br><strong>Status App:</strong> {% if cliente.analise_credito.status_aplicativo == 'P' %}Pendente{% elif cliente.analise_credito.status_aplicativo == 'C' %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'I' %}Instalado{% else %}N/A{% endif %}<br><strong>Status IMEI:</strong> {% if cliente.analise_credito.imei %}Informado ({{ cliente.analise_credito.imei.imei }}){% else %}Pendente{% endif %}{% endif %}<br><strong>Status Geral:</strong> {% if cliente.analise_credito.venda_gerada %}Finalizado{% elif cliente.analise_credito.produto.is_iphone %}{% if cliente.analise_credito.imei %}Pronto para Venda{% elif cliente.analise_credito.icloud_configurado_vendedor %}Aguardando IMEI{% else %}Aguardando Configuração Inicial{% endif %}{% else %}{% if cliente.analise_credito.status_aplicativo == 'I' and cliente.analise_credito.imei %}Pronto para Venda{% elif cliente.analise_credito.status_aplicativo == 'C' and not cliente.analise_credito.imei %}Aguardando IMEI{% elif cliente.analise_credito.status_aplicativo == 'C' and cliente.analise_credito.imei %}Aguardando Confirmação{% elif cliente.analise_credito.status_aplicativo == 'P' %}Aguardando QR Code{% else %}Pendente{% endif %}{% endif %}"></i>
             </td>
 
             <td>
@@ -688,50 +682,37 @@ Clientes
                   {% if cliente.analise_credito.produto.is_iphone %}
                     {# ===== FLUXO IPHONE ===== #}
                     
-                    {# Etapa 1: Configurar iCloud (Vendedor) #}
+                    {# Etapa 1: Configuração inicial (Vendedor) #}
                     {% if cliente.analise_credito.status == 'A' or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
-                    <button type="button" 
-                            class="dropdown-item {% if cliente.analise_credito.icloud_configurado_vendedor %}etapa-concluida{% else %}etapa-pendente{% endif %}" 
-                            data-bs-toggle="modal" 
+                    <button type="button"
+                            class="dropdown-item {% if cliente.analise_credito.icloud_configurado_vendedor %}etapa-concluida{% else %}etapa-pendente{% endif %}"
+                            data-bs-toggle="modal"
                             data-bs-target="#icloudModal{{ cliente.pk }}">
-                      <i class="bx bxl-apple me-1"></i>🍎 1. Configurar iCloud (Vendedor)
+                      <i class="bx bxl-apple me-1"></i>🍎 1. Configuração inicial (Vendedor)
                       {% if cliente.analise_credito.icloud_configurado_vendedor %}
                         <small class="text-muted ms-1">(Concluído)</small>
                       {% endif %}
                     </button>
                     {% endif %}
-                    
-                    {# Etapa 2: Confirmar iCloud (Analista) #}
+
+                    {# Etapa 2: Informar IMEI (Analista) #}
                     {% if cliente.analise_credito.status == 'A' and user|has_group:"ANALISTA" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
-                    <form method="post" action="{% url 'vendas:analista_confirm_icloud' cliente.pk %}" class="d-inline">
-                      {% csrf_token %}
-                      <button type="submit" class="dropdown-item {% if cliente.analise_credito.icloud_confirmado_analista %}etapa-concluida{% else %}etapa-pendente{% endif %}">
-                        <i class="bx bx-check-circle me-1"></i>✅ 2. Confirmar iCloud (Analista)
-                        {% if cliente.analise_credito.icloud_confirmado_analista %}
-                          <small class="text-muted ms-1">(Concluído)</small>
-                        {% endif %}
-                      </button>
-                    </form>
-                    {% endif %}
-                    
-                    {# Etapa 3: Informar IMEI (Analista) #}
-                    {% if cliente.analise_credito.status == 'A' and user|has_group:"ANALISTA" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
-                    <a href="{% url 'vendas:informar_imei_analise' cliente.analise_credito.pk %}" 
+                    <a href="{% url 'vendas:informar_imei_analise' cliente.analise_credito.pk %}"
                        class="dropdown-item {% if cliente.analise_credito.imei %}etapa-concluida{% else %}etapa-pendente{% endif %}">
-                      <i class="bx bx-mobile me-1"></i>📱 3. Informar IMEI (Analista)
+                      <i class="bx bx-mobile me-1"></i>📱 2. Informar IMEI (Analista)
                       {% if cliente.analise_credito.imei %}
                         <small class="text-muted ms-1">(Concluído)</small>
                       {% endif %}
                     </a>
                     {% endif %}
-                    
-                    {# Etapa 4: Gerar Venda (Vendedor) - Para iPhone #}
+
+                    {# Etapa 3: Gerar Venda (Vendedor) - Para iPhone #}
                     {% if cliente.analise_credito.status == 'A' and user|has_perm:"vendas.add_venda" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
-                    <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}" 
+                    <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}"
                           onsubmit="return confirm('Gerar venda para {{ cliente.nome }}?');" class="m-0">
                       {% csrf_token %}
                       <button type="submit" class="dropdown-item {% if cliente.analise_credito.venda_gerada %}etapa-concluida{% else %}etapa-pendente{% endif %}">
-                        <i class="bx bx-cart me-1"></i>🛒 4. Gerar Venda (Vendedor)
+                        <i class="bx bx-cart me-1"></i>🛒 3. Gerar Venda (Vendedor)
                         {% if cliente.analise_credito.venda_gerada %}
                           <small class="text-muted ms-1">(Concluído)</small>
                         {% endif %}
@@ -908,9 +889,9 @@ Clientes
                       <i class="bx bxl-apple fs-1 text-white"></i>
                     </div>
                     <h4 class="modal-title fw-bold mb-0" id="icloudModalLabel{{ cliente.pk }}">
-                      🍎 Configurar iCloud
+                      🍎 Configuração inicial
                     </h4>
-                    <p class="text-white-50 mb-0 mt-2">Configure o iPhone com as credenciais iCloud</p>
+                    <p class="text-white-50 mb-0 mt-2">Faça a configuração inicial do iPhone e informe o IMEI</p>
                   </div>
                   <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3"
                           data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -918,72 +899,52 @@ Clientes
 
                 <!-- Body -->
                 <div class="modal-body p-4">
-                  
-                  <!-- Email iCloud -->
-                  <div class="mb-4">
-                    <label class="form-label text-muted mb-2">
-                      <i class="bx bx-envelope me-1"></i>Email iCloud
-                    </label>
-                    <div class="code-display p-3 bg-light rounded-3 border">
-                      <span class="fs-5 fw-bold text-primary">
-                        {{ cliente.analise_credito.email_icloud|default:"Email não disponível" }}
-                      </span>
-                    </div>
-                  </div>
-
-                  <!-- Senha iCloud -->
-                  <div class="mb-4">
-                    <label class="form-label text-muted mb-2">
-                      <i class="bx bx-lock me-1"></i>Senha iCloud
-                    </label>
-                    <div class="code-display p-3 bg-light rounded-3 border d-flex justify-content-between align-items-center">
-                      <span class="fs-5 fw-bold text-primary password-field" data-password="{{ cliente.analise_credito.senha_icloud }}">
-                        ••••••••
-                      </span>
-                      <button type="button" class="btn btn-sm btn-outline-primary toggle-password">
-                        <i class="bx bx-show"></i> Mostrar
-                      </button>
-                    </div>
-                  </div>
 
                   <!-- Instruções -->
                   <div class="alert alert-info">
                     <i class="bx bx-info-circle me-2"></i>
                     <strong>Instruções:</strong>
                     <ol class="mb-0 mt-2">
-                      <li>Acesse as Configurações do iPhone</li>
-                      <li>Toque em "Entrar no iPhone"</li>
-                      <li>Digite o Email e Senha acima</li>
-                      <li>Complete a configuração do iCloud</li>
+                      <li>Acesse as <strong>Configurações</strong> do iPhone</li>
+                      <li>Em <strong>Face ID e Código</strong>, retire o Face ID e <strong>desative o código</strong></li>
+                      <li>Faça a <strong>configuração inicial</strong> do aparelho normalmente</li>
+                      <li>Localize o IMEI em <strong>Ajustes → Geral → Sobre</strong> e informe os <strong>4 últimos dígitos</strong> abaixo</li>
                     </ol>
+                    <div class="mt-2 p-2 bg-danger-subtle border border-danger rounded text-danger fw-semibold">
+                      🚨 NÃO adicionar o número do cliente como número de confiança! 🚨
+                    </div>
                   </div>
 
-                  <!-- Código de Reserva -->
-                  <form method="post" action="{% url 'vendas:cliente_configurar_icloud' cliente.pk %}" class="w-100" enctype="multipart/form-data">
+                  <!-- Config inicial + 4 últimos dígitos do IMEI -->
+                  <form method="post" action="{% url 'vendas:cliente_configurar_icloud' cliente.pk %}" class="w-100">
                     {% csrf_token %}
                     <div class="mb-4">
-                      <label for="codigoReserva{{ cliente.pk }}" class="form-label fw-semibold">
-                        <i class="bx bx-image me-1"></i>Imagem do Código de Reserva
+                      <label for="imeiDigitos{{ cliente.pk }}" class="form-label fw-semibold">
+                        <i class="bx bx-mobile me-1"></i>4 últimos dígitos do IMEI <span class="text-danger">*</span>
                       </label>
-                      <input type="file"
-                             id="codigoReserva{{ cliente.pk }}"
-                             name="codigo_reserva"
-                             class="form-control form-control-lg"
-                             accept="image/*"
-                             capture="environment">
-                      <div class="form-text text-muted">Tire uma foto ou selecione a imagem do código de reserva.</div>
+                      <input type="text"
+                             id="imeiDigitos{{ cliente.pk }}"
+                             name="imei_ultimos_digitos"
+                             class="form-control form-control-lg text-center fw-bold"
+                             style="letter-spacing: .5em; font-size: 1.6rem;"
+                             inputmode="numeric"
+                             pattern="\d{4}"
+                             maxlength="4"
+                             minlength="4"
+                             placeholder="0000"
+                             value="{{ cliente.analise_credito.imei_ultimos_digitos_vendedor|default:'' }}"
+                             required>
+                      <div class="form-text text-muted">Informe os 4 últimos dígitos do IMEI para confirmar.</div>
                     </div>
 
                     <!-- Botão de Confirmação -->
                     <button type="submit"
-                            id="btnConfirmarIcloud{{ cliente.pk }}"
-                            class="btn btn-success btn-lg w-100 py-3 fw-bold shadow-sm"
-                            disabled>
+                            class="btn btn-success btn-lg w-100 py-3 fw-bold shadow-sm">
                       <i class="bx bx-check-circle me-2"></i>
-                      ✅ Confirmar Configuração iCloud
+                      ✅ Confirmar configuração
                     </button>
                   </form>
-                  
+
                 </div>
               </div>
             </div>
@@ -1168,34 +1129,6 @@ Clientes
         });
       });
       
-      // Habilitar botão de confirmar iCloud do vendedor ao selecionar imagem do código de reserva
-      document.querySelectorAll('[id^="codigoReserva"]').forEach(input => {
-        const suffix = input.id.replace('codigoReserva', '');
-        const btn = document.getElementById('btnConfirmarIcloud' + suffix);
-        if (!btn) return;
-        input.addEventListener('change', function() {
-          btn.disabled = !this.files || this.files.length === 0;
-        });
-      });
-
-      // Toggle de senha iCloud
-      document.querySelectorAll('.toggle-password').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const passwordField = this.parentElement.querySelector('.password-field');
-          const password = passwordField.dataset.password;
-          const icon = this.querySelector('i');
-          
-          if (passwordField.textContent === '••••••••') {
-            passwordField.textContent = password;
-            icon.className = 'bx bx-hide';
-            this.innerHTML = '<i class="bx bx-hide"></i> Ocultar';
-          } else {
-            passwordField.textContent = '••••••••';
-            icon.className = 'bx bx-show';
-            this.innerHTML = '<i class="bx bx-show"></i> Mostrar';
-          }
-        });
-      });
     });
   </script>
 {% endblock %}

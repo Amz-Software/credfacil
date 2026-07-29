@@ -529,20 +529,6 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         initial='False',
     )
     
-    email_icloud = forms.EmailField(
-        required=False,
-        label='Email iCloud',
-        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'exemplo@icloud.com'}),
-        help_text='Obrigatório apenas para produtos iPhone'
-    )
-    
-    senha_icloud = forms.CharField(
-        required=False,
-        label='Senha iCloud',
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Digite a senha iCloud'}),
-        help_text='Obrigatório apenas para produtos iPhone'
-    )
-    
     entrada_informada = forms.DecimalField(
         required=False,
         min_value=0,
@@ -554,7 +540,7 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
     class Meta:
         model = AnaliseCreditoCliente
         # removido 'observacao' do formulário para não ser preenchido pelo vendedor
-        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada', 'analise_online', 'email_icloud', 'senha_icloud', 'numero_autenticador']
+        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada', 'analise_online', 'numero_autenticador']
         widgets = {
             'data_pagamento': forms.Select(attrs={'class': 'form-control'}),
             'numero_parcelas': forms.Select(attrs={'class': 'form-control', 'id': 'id_numero_parcelas'}),
@@ -599,22 +585,6 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                 allowed_ids.append(self.instance.produto_id)
                 produtos_qs = Produto.objects.filter(pk__in=set(allowed_ids))
             self.fields['produto'].queryset = produtos_qs
-
-        # Verificar se o usuário pode ver campos iCloud
-        can_manage_icloud = False
-        if user:
-            if user.is_superuser:
-                can_manage_icloud = True
-            elif user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR', 'VENDEDOR', 'SUPERVISOR', 'GERENTE']).exists():
-                can_manage_icloud = True
-
-        # Remover campos iCloud se a loja não pode vender iPhone OU usuário não tem permissão
-        loja_pode_iphone = getattr(loja, 'pode_vender_iphone', False) if loja else False
-        if not can_manage_icloud or not loja_pode_iphone:
-            if 'email_icloud' in self.fields:
-                del self.fields['email_icloud']
-            if 'senha_icloud' in self.fields:
-                del self.fields['senha_icloud']
 
         # entrada_informada: ocultar via atributo CSS (JS controla visibilidade por produto)
         if 'entrada_informada' in self.fields:

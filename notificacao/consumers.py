@@ -21,5 +21,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             "target_url": event["target_url"],
             "timestamp": event["timestamp"],
             "notification_id": event["notification_id"],
+            "type_notification": event.get("type_notification"),
+            "event": event.get("event"),
         }))
 

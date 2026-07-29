@@ -193,6 +193,7 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
     marca = serializers.IntegerField(source="produto.marca_id", read_only=True)
     marca_nome = serializers.CharField(source="produto.marca.nome", read_only=True)
     imei_value = serializers.CharField(source="imei.imei", read_only=True)
+    imei_ultimos_digitos_vendedor = serializers.CharField(read_only=True)
     venda_gerada = serializers.SerializerMethodField()
     numero_autenticador_detail = serializers.SerializerMethodField()
 
@@ -222,6 +223,7 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
             "imei",
             "imei_value",
             "imei_informado",
+            "imei_ultimos_digitos_vendedor",
             "venda",
             "observacao",
             "entrada_informada",

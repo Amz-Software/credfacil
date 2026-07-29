@@ -57,17 +57,9 @@ Informar IMEI - Análise de Crédito
             </div>
             {% else %}
             <div class="row mb-3">
-                <div class="col-md-6">
-                    <strong>Vendedor configurou iCloud:</strong>
+                <div class="col-md-12">
+                    <strong>Vendedor confirmou a configuração inicial:</strong>
                     {% if analise.icloud_configurado_vendedor %}
-                        <span class="badge bg-success">✅ Sim</span>
-                    {% else %}
-                        <span class="badge bg-warning">⏳ Não</span>
-                    {% endif %}
-                </div>
-                <div class="col-md-6">
-                    <strong>Analista confirmou iCloud:</strong>
-                    {% if analise.icloud_confirmado_analista %}
                         <span class="badge bg-success">✅ Sim</span>
                     {% else %}
                         <span class="badge bg-warning">⏳ Não</span>
@@ -82,11 +74,26 @@ Informar IMEI - Análise de Crédito
             </div>
             {% endif %}
 
+            {% if analise.imei_ultimos_digitos_vendedor %}
+            <div class="alert alert-warning d-flex align-items-center" role="alert">
+                <i class="bx bx-info-circle me-2 fs-4"></i>
+                <div>
+                    <strong>Referência do vendedor:</strong>
+                    o IMEI do aparelho termina em
+                    <span class="badge bg-dark fs-6 ms-1" style="letter-spacing: .2em;">{{ analise.imei_ultimos_digitos_vendedor }}</span>.
+                    <div class="small text-muted mt-1">Use estes 4 últimos dígitos para localizar/conferir o IMEI correto.</div>
+                </div>
+            </div>
+            {% endif %}
+
             <form method="post">
                 {% csrf_token %}
                 <div class="mb-3">
                     <label for="imei_informado" class="form-label">
                         <strong>IMEI do Produto *</strong>
+                        {% if analise.imei_ultimos_digitos_vendedor %}
+                        <span class="text-muted">(termina em <strong>{{ analise.imei_ultimos_digitos_vendedor }}</strong>)</span>
+                        {% endif %}
                     </label>
                     <input type="text" 
                            class="form-control" 

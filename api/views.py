@@ -1705,6 +1705,11 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             if cliente.loja_id not in lojas_usuario:
                 return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
+        # Ultimos 4 digitos do IMEI informados pelo vendedor (referencia para o analista).
+        digitos = "".join(filter(str.isdigit, str(request.data.get("imei_ultimos_digitos", ""))))[:4]
+        if digitos:
+            analise_credito.imei_ultimos_digitos_vendedor = digitos
+
         # Confirmacao da leitura do QR code leva o app para confirmacao pendente.
         analise_credito.status_aplicativo = "C"
         analise_credito.save()
@@ -1714,6 +1719,8 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
         verb = f"Vendedor confirmou instalacao do app para cliente {cliente_nome.capitalize()}."
         description = f"Aguardando analista informar IMEI. Loja: {loja.nome.capitalize()}."
+        if digitos:
+            description += f" IMEI termina em {digitos}."
 
         usuarios_para_notificar = list(
             User.objects.filter(groups__name__in=["ADMINISTRADOR", "ANALISTA"]).exclude(id=request.user.id)
@@ -1758,7 +1765,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=["post"], url_path="configurar-icloud")
     @extend_schema(
-        request=inline_serializer("ConfigurarIcloudInput", fields={"codigo_reserva": drf_serializers.ImageField()}),
+        request=inline_serializer("ConfigurarIcloudInput", fields={"imei_ultimos_digitos": drf_serializers.CharField()}),
         responses={200: OpenApiTypes.OBJECT},
     )
     def configurar_icloud(self, request, pk=None):
@@ -1770,21 +1777,19 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             if cliente.loja_id not in lojas_usuario:
                 return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
-        if not analise.email_icloud or not analise.senha_icloud:
-            return Response({"detail": "Email e senha iCloud nao configurados na analise."}, status=400)
+        # Configuracao inicial pelo vendedor: informa os 4 ultimos digitos do IMEI e confirma.
+        digitos = "".join(filter(str.isdigit, str(request.data.get("imei_ultimos_digitos", ""))))[:4]
+        if len(digitos) != 4:
+            return Response({"detail": "Informe os 4 ultimos digitos do IMEI para confirmar."}, status=400)
 
-        codigo_reserva = request.FILES.get("codigo_reserva")
-        if not codigo_reserva:
-            return Response({"detail": "O codigo de reserva (imagem) e obrigatorio para confirmar o iCloud."}, status=400)
-
-        analise.codigo_reserva = codigo_reserva
+        analise.imei_ultimos_digitos_vendedor = digitos
         analise.icloud_configurado_vendedor = True
         analise.save()
 
         cliente_nome = cliente.nome if cliente else "Cliente"
         loja = cliente.loja
-        verb = f"Vendedor configurou iCloud para cliente {cliente_nome.capitalize()}"
-        description = f"iPhone da loja {loja.nome.capitalize()}. Aguardando confirmacao do analista."
+        verb = f"Vendedor confirmou configuracao inicial para cliente {cliente_nome.capitalize()}"
+        description = f"iPhone da loja {loja.nome.capitalize()}. IMEI termina em {digitos}. Aguardando analista informar IMEI."
 
         usuarios_para_notificar = list(
             User.objects.filter(groups__name__in=["ANALISTA", "ADMINISTRADOR"]).exclude(id=request.user.id)
@@ -1932,9 +1937,9 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             return Response({"detail": "Analise nao encontrada para este cliente."}, status=404)
 
         if analise.produto.is_iphone:
-            if not analise.icloud_confirmado_analista:
+            if not analise.icloud_configurado_vendedor:
                 return Response(
-                    {"detail": "So e possivel informar IMEI apos confirmar a configuracao do iCloud."},
+                    {"detail": "So e possivel informar IMEI apos o vendedor confirmar a configuracao inicial."},
                     status=400,
                 )
         else:
@@ -2028,13 +2033,6 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         cliente = Cliente.objects.get(pk=pk)
         analise = cliente.analise_credito
 
-        if analise.produto.is_iphone:
-            if not analise.email_icloud or not analise.senha_icloud:
-                return Response(
-                    {"detail": "Para aprovar iPhone, e necessario informar Email e Senha iCloud na solicitacao."},
-                    status=400,
-                )
-
         analise.aprovar(user=request.user)
         analise.modificado_por = request.user
         analise.modificado_em = timezone.now()
@@ -2127,23 +2125,6 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
 
         produto = analise.produto
         imei = analise.imei
-
-        if getattr(produto, "is_iphone", False):
-            if not analise.email_icloud or not analise.senha_icloud:
-                return Response(
-                    {"detail": "Para gerar venda de iPhone, Email e Senha iCloud devem estar preenchidos."},
-                    status=400,
-                )
-            if not analise.icloud_configurado_vendedor:
-                return Response(
-                    {"detail": "iCloud ainda nao foi configurado pelo vendedor."},
-                    status=400,
-                )
-            if not analise.icloud_confirmado_analista:
-                return Response(
-                    {"detail": "iCloud nao confirmado pelo analista."},
-                    status=400,
-                )
 
         if ProdutoVenda.objects.filter(imei=imei.imei, venda__is_deleted=False).exists():
             return Response(
