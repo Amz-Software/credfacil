@@ -151,6 +151,7 @@ def _montar_payload_contrato(venda, loja):
             'nascimento': cliente.nascimento.isoformat() if cliente.nascimento else None,
             'endereco': cliente.endereco,
             'telefone': cliente.telefone,
+            'telefone_secundario': cliente.telefone_secundario,
         },
         'comprovantes': {
             'foto_cliente': (
@@ -378,7 +379,10 @@ def criar_parcelas(pagamento, loja):
         )
 
 
-def _avisos_solicitacoes_existentes(*, cpf=None, rg=None, nome=None, telefone=None, exclude_cliente_id=None):
+def _avisos_solicitacoes_existentes(
+    *, cpf=None, rg=None, nome=None, telefone=None, telefone_secundario=None,
+    exclude_cliente_id=None
+):
     filtros = Q()
     if cpf:
         filtros |= Q(cpf=cpf)
@@ -386,8 +390,9 @@ def _avisos_solicitacoes_existentes(*, cpf=None, rg=None, nome=None, telefone=No
         filtros |= Q(rg=rg)
     if nome:
         filtros |= Q(nome__iexact=nome)
-    if telefone:
-        filtros |= Q(telefone=telefone)
+    telefones = [numero for numero in [telefone, telefone_secundario] if numero]
+    if telefones:
+        filtros |= Q(telefone__in=telefones) | Q(telefone_secundario__in=telefones)
 
     if not filtros:
         return None
@@ -411,7 +416,7 @@ def _avisos_solicitacoes_existentes(*, cpf=None, rg=None, nome=None, telefone=No
 
     total = qs.count()
     sufixo = f" +{total - len(detalhes)}" if total > len(detalhes) else ""
-    mensagem = "Existem solicitacoes de credito com dados ja cadastrados (CPF, RG, Nome ou Telefone). "
+    mensagem = "Existem solicitacoes de credito com dados ja cadastrados (CPF, RG, Nome ou Telefones). "
     mensagem += "Encontradas: " + "; ".join(detalhes) + sufixo
     return mensagem
 
@@ -865,35 +870,46 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         campos_arquivo = set(request.FILES.keys())
         return bool(campos_arquivo) and campos_arquivo <= self.CAMPOS_FOTO_COMPROVANTES
 
-    def _payload_tem_apenas_telefone(self, request):
+    def _payload_tem_apenas_telefones(self, request):
         if request.FILES:
             return False
-        return set(request.data.keys()) == {"telefone"}
+        campos = set(request.data.keys())
+        return bool(campos) and campos <= {"telefone", "telefone_secundario"}
 
-    def _atualizar_telefone_cliente(self, request, cliente):
+    def _atualizar_telefones_cliente(self, request, cliente):
         if not self._usuario_pode_acessar_cliente(request, cliente):
             return Response({"detail": "Acao nao autorizada para esta loja."}, status=status.HTTP_403_FORBIDDEN)
 
-        telefone = request.data.get("telefone")
-        telefone = (telefone or "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        valores = {
+            "telefone": cliente.telefone,
+            "telefone_secundario": cliente.telefone_secundario,
+        }
+        errors = {}
+        for campo in request.data.keys():
+            telefone = (request.data.get(campo) or "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+            if campo == "telefone" and not telefone:
+                errors[campo] = ["Informe o telefone principal."]
+            elif telefone and not telefone.isdigit():
+                errors[campo] = ["Telefone deve conter apenas numeros."]
+            elif telefone and (len(telefone) < 10 or len(telefone) > 11):
+                errors[campo] = ["Telefone deve ter entre 10 e 11 digitos."]
+            else:
+                valores[campo] = telefone
 
-        if not telefone:
+        if (
+            valores["telefone_secundario"]
+            and valores["telefone"] == valores["telefone_secundario"]
+        ):
+            errors["telefone_secundario"] = ["O telefone secundario deve ser diferente do principal."]
+
+        if errors:
             return Response(
-                {"detail": "Erros de validacao.", "errors": {"telefone": ["Informe o telefone."]}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if not telefone.isdigit():
-            return Response(
-                {"detail": "Erros de validacao.", "errors": {"telefone": ["Telefone deve conter apenas numeros."]}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if len(telefone) < 10 or len(telefone) > 11:
-            return Response(
-                {"detail": "Erros de validacao.", "errors": {"telefone": ["Telefone deve ter entre 10 e 11 digitos."]}},
+                {"detail": "Erros de validacao.", "errors": errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        cliente.telefone = telefone
+        cliente.telefone = valores["telefone"]
+        cliente.telefone_secundario = valores["telefone_secundario"]
         cliente.save(user=request.user)
         return Response(ClienteSolicitacaoSerializer(cliente).data)
 
@@ -1162,6 +1178,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                     "marca": 1,
                     "nome": "Fulano",
                     "telefone": "11999999999",
+                    "telefone_secundario": "11988888888",
                     "cpf": "12345678900",
                     "nascimento": "1990-01-01",
                     "rg": "1234567",
@@ -1235,6 +1252,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             rg=form_cliente.cleaned_data.get("rg"),
             nome=form_cliente.cleaned_data.get("nome"),
             telefone=form_cliente.cleaned_data.get("telefone"),
+            telefone_secundario=form_cliente.cleaned_data.get("telefone_secundario"),
         )
 
         contato_adicional_val = form_adicional.cleaned_data.get("contato")
@@ -1319,6 +1337,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                     "marca": 1,
                     "nome": "Fulano",
                     "telefone": "11999999999",
+                    "telefone_secundario": "11988888888",
                     "cpf": "12345678900",
                     "nascimento": "1990-01-01",
                     "rg": "1234567",
@@ -1355,8 +1374,8 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         is_analista = user.groups.filter(name="ANALISTA").exists()
         venda_gerada = cliente.analise_credito.venda is not None
 
-        if self._payload_tem_apenas_telefone(request):
-            return self._atualizar_telefone_cliente(request, cliente)
+        if self._payload_tem_apenas_telefones(request):
+            return self._atualizar_telefones_cliente(request, cliente)
 
         if (
             cliente.analise_credito.status != "EA"
@@ -1435,6 +1454,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             rg=form_cliente.cleaned_data.get("rg"),
             nome=form_cliente.cleaned_data.get("nome"),
             telefone=form_cliente.cleaned_data.get("telefone"),
+            telefone_secundario=form_cliente.cleaned_data.get("telefone_secundario"),
             exclude_cliente_id=cliente.pk,
         )
 
@@ -1548,6 +1568,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                 "Exemplo imei",
                 value={
                     "telefone": "11999999999",
+                    "telefone_secundario": "11988888888",
                     "marca": 1,
                     "produto": 1,
                     "data_pagamento": "10",
@@ -1561,7 +1582,9 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         cliente = Cliente.objects.get(pk=pk)
         user = request.user
 
-        form_cliente = ClienteTelefoneForm(request.data, instance=cliente, user=user)
+        cliente_data = request.data.dict() if hasattr(request.data, "dict") else dict(request.data)
+        cliente_data.setdefault("telefone_secundario", cliente.telefone_secundario)
+        form_cliente = ClienteTelefoneForm(cliente_data, instance=cliente, user=user)
         form_analise_credito = AnaliseCreditoClienteImeiForm(
             request.data, instance=cliente.analise_credito, user=user
         )
@@ -3129,6 +3152,7 @@ class VendaViewSet(viewsets.ModelViewSet):
             'cliente': {
                 'nome': cliente.nome,
                 'telefone': cliente.telefone,
+                'telefone_secundario': cliente.telefone_secundario,
                 'cpf': cliente.cpf,
                 'email': cliente.email,
                 'endereco': cliente.endereco,

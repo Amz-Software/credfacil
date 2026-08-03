@@ -55,7 +55,10 @@ from pypix import Pix
 
 logger = logging.getLogger(__name__)
 
-def _avisar_solicitacoes_existentes(request, *, cpf=None, rg=None, nome=None, telefone=None, exclude_cliente_id=None):
+def _avisar_solicitacoes_existentes(
+    request, *, cpf=None, rg=None, nome=None, telefone=None,
+    telefone_secundario=None, exclude_cliente_id=None
+):
     filtros = Q()
     if cpf:
         filtros |= Q(cpf=cpf)
@@ -63,8 +66,9 @@ def _avisar_solicitacoes_existentes(request, *, cpf=None, rg=None, nome=None, te
         filtros |= Q(rg=rg)
     if nome:
         filtros |= Q(nome__iexact=nome)
-    if telefone:
-        filtros |= Q(telefone=telefone)
+    telefones = [numero for numero in [telefone, telefone_secundario] if numero]
+    if telefones:
+        filtros |= Q(telefone__in=telefones) | Q(telefone_secundario__in=telefones)
 
     if not filtros:
         return
@@ -88,7 +92,7 @@ def _avisar_solicitacoes_existentes(request, *, cpf=None, rg=None, nome=None, te
 
     total = qs.count()
     sufixo = f" +{total - len(detalhes)}" if total > len(detalhes) else ""
-    mensagem = "⚠️ Existem solicitações de crédito com dados já cadastrados (CPF, RG, Nome ou Telefone). "
+    mensagem = "⚠️ Existem solicitações de crédito com dados já cadastrados (CPF, RG, Nome ou Telefones). "
     mensagem += "Encontradas: " + "; ".join(detalhes) + sufixo
     messages.warning(request, mensagem)
 
@@ -677,6 +681,7 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
                 rg=form_cliente.cleaned_data.get('rg'),
                 nome=form_cliente.cleaned_data.get('nome'),
                 telefone=form_cliente.cleaned_data.get('telefone'),
+                telefone_secundario=form_cliente.cleaned_data.get('telefone_secundario'),
             )
             
             contato_adicional_val = form_adicional.cleaned_data.get('contato')
@@ -906,6 +911,7 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
                 rg=form_cliente.cleaned_data.get('rg'),
                 nome=form_cliente.cleaned_data.get('nome'),
                 telefone=form_cliente.cleaned_data.get('telefone'),
+                telefone_secundario=form_cliente.cleaned_data.get('telefone_secundario'),
                 exclude_cliente_id=self.object.pk,
             )
             

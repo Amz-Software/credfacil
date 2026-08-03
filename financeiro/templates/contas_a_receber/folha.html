@@ -143,6 +143,9 @@
             {% else %}
                 -
             {% endif %}
+            {% if parcela.pagamento.venda.cliente.telefone_secundario %}
+                <br>{{ parcela.pagamento.venda.cliente.telefone_secundario }}
+            {% endif %}
             </td>
             <td class="end">-</td>
             <td class="end">-</td>
@@ -227,6 +230,9 @@
                 {{ conta.venda.cliente.telefone }}
             {% else %}
                 -
+            {% endif %}
+            {% if conta.venda.cliente.telefone_secundario %}
+                <br>{{ conta.venda.cliente.telefone_secundario }}
             {% endif %}
             </td>
             <td class="end">

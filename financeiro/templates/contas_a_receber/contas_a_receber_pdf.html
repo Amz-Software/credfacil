@@ -19,7 +19,8 @@
   <h2>1. Cliente</h2>
   <p><strong>Nome:</strong> {{ cliente.nome }}<br>
      <strong>E-mail:</strong> {{ cliente.email|default:"—" }}<br>
-     <strong>Telefone:</strong> {{ cliente.telefone }}<br>
+      <strong>Telefone principal:</strong> {{ cliente.telefone }}<br>
+      <strong>Telefone secundário:</strong> {{ cliente.telefone_secundario|default:"—" }}<br>
      <strong>CPF:</strong> {{ cliente.cpf }} – <strong>Nascimento:</strong> {{ cliente.nascimento }}<br>
      <strong>Endereço:</strong> {{ cliente.endereco }}, {{ cliente.bairro }} – {{ cliente.cidade }} (CEP {{ cliente.cep }})
   </p>

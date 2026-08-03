@@ -365,6 +365,7 @@ class Cliente(Base):
     nome = models.CharField(max_length=100)
     email = models.EmailField(null=True, blank=True)
     telefone = models.CharField(max_length=20)
+    telefone_secundario = models.CharField(max_length=20, blank=True, default='')
     cpf = models.CharField(max_length=14)
     nascimento = models.DateField()
     rg = models.CharField(max_length=20)
@@ -393,6 +394,8 @@ class Cliente(Base):
 
     def save(self, *args, **kwargs):
         self.cpf = re.sub(r'\D', '', self.cpf or '')  # limpa antes de salvar
+        self.telefone = re.sub(r'\D', '', self.telefone or '')
+        self.telefone_secundario = re.sub(r'\D', '', self.telefone_secundario or '')
         super().save(*args, **kwargs)
         
 

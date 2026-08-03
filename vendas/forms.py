@@ -23,6 +23,17 @@ def normalize_loja(loja):
     return loja
 
 
+def clean_phone_number(value, label='Telefone'):
+    if not value:
+        return ''
+    telefone = value.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+    if not telefone.isdigit():
+        raise forms.ValidationError(f'{label} deve conter apenas números.')
+    if len(telefone) < 10 or len(telefone) > 11:
+        raise forms.ValidationError(f'{label} deve ter entre 10 e 11 dígitos.')
+    return telefone
+
+
 class ProdutoChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
         marca_str = f" ({obj.marca.nome})" if obj.marca_id else ""
@@ -83,6 +94,7 @@ class ClienteForm(forms.ModelForm):
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
             'telefone': forms.TextInput(attrs={'class': 'form-control tel'}),
+            'telefone_secundario': forms.TextInput(attrs={'class': 'form-control tel'}),
             'cpf': forms.TextInput(attrs={'class': 'form-control cpf'}),
             'nascimento': forms.DateInput(
                 attrs={'class': 'form-control', 'type': 'date'},
@@ -99,7 +111,8 @@ class ClienteForm(forms.ModelForm):
         }
         labels = {
             'nome': 'Nome*',
-            'telefone': 'Telefone*',
+            'telefone': 'Telefone principal*',
+            'telefone_secundario': 'Telefone secundário (opcional)',
             'cpf': 'CPF*',
             'nascimento': 'Data de Nascimento*',
             'rg': 'RG*',
@@ -123,6 +136,7 @@ class ClienteForm(forms.ModelForm):
             self.fields['rg'].required = False
         if 'cep' in self.fields:
             self.fields['cep'].required = False
+        self.fields['telefone_secundario'].required = False
         # Garante que a escolha vazia force seleção
         self.fields['recebe_auxilio'].choices = [('', '---------'), ('True', 'Sim'), ('False', 'Não')]
                 
@@ -137,7 +151,7 @@ class ClienteForm(forms.ModelForm):
             can_change_status = bool(user and user.has_perm('vendas.change_status_analise'))
 
             def _disable_all():
-                for fname in ['nome','telefone','cpf','nascimento','rg','cep','bairro','endereco','cidade','recebe_auxilio','total_renda','observacao_cliente','quantidade_dependentes','profissao']:
+                for fname in ['nome','telefone','telefone_secundario','cpf','nascimento','rg','cep','bairro','endereco','cidade','recebe_auxilio','total_renda','observacao_cliente','quantidade_dependentes','profissao']:
                     if fname in self.fields:
                         self.fields[fname].disabled = True
 
@@ -147,14 +161,10 @@ class ClienteForm(forms.ModelForm):
                 _disable_all()
 
     def clean_telefone(self):
-        telefone = self.cleaned_data.get('telefone')
-        if telefone:
-            telefone = telefone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-            if not telefone.isdigit():
-                raise forms.ValidationError("Telefone deve conter apenas números.")
-            if len(telefone) < 10 or len(telefone) > 11:
-                raise forms.ValidationError("Telefone deve ter entre 10 e 11 dígitos.")
-        return telefone
+        return clean_phone_number(self.cleaned_data.get('telefone'), 'Telefone principal')
+
+    def clean_telefone_secundario(self):
+        return clean_phone_number(self.cleaned_data.get('telefone_secundario'), 'Telefone secundário')
     
     def clean_cpf(self):
         cpf = self.cleaned_data.get('cpf')
@@ -188,6 +198,10 @@ class ClienteForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        telefone = cleaned_data.get('telefone')
+        telefone_secundario = cleaned_data.get('telefone_secundario')
+        if telefone and telefone_secundario and telefone == telefone_secundario:
+            self.add_error('telefone_secundario', 'O telefone secundário deve ser diferente do principal.')
         nascimento = cleaned_data.get('nascimento')
         # Validação de idade mínima: 22 anos (erro no campo CPF)
         if nascimento:
@@ -206,6 +220,7 @@ class ClienteTelefoneForm(forms.ModelForm):
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
             'telefone': forms.TextInput(attrs={'class': 'form-control tel'}),
+            'telefone_secundario': forms.TextInput(attrs={'class': 'form-control tel'}),
             'cpf': forms.TextInput(attrs={'class': 'form-control'}),
             'nascimento': forms.DateInput(
                 attrs={'class': 'form-control', 'type': 'date'},
@@ -219,7 +234,8 @@ class ClienteTelefoneForm(forms.ModelForm):
         }
         labels = {
             'nome': 'Nome*',
-            'telefone': 'Telefone*',
+            'telefone': 'Telefone principal*',
+            'telefone_secundario': 'Telefone secundário (opcional)',
             'cpf': 'CPF*',
             'nascimento': 'Data de Nascimento*',
             'rg': 'RG*',
@@ -233,13 +249,26 @@ class ClienteTelefoneForm(forms.ModelForm):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
-            print(name, field)
-            if name == 'telefone':
-                field.required = True
+            if name in ['telefone', 'telefone_secundario']:
+                field.required = name == 'telefone'
                 field.disabled = False
             else:
                 field.required = False
                 field.disabled = True
+
+    def clean_telefone(self):
+        return clean_phone_number(self.cleaned_data.get('telefone'), 'Telefone principal')
+
+    def clean_telefone_secundario(self):
+        return clean_phone_number(self.cleaned_data.get('telefone_secundario'), 'Telefone secundário')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        telefone = cleaned_data.get('telefone')
+        telefone_secundario = cleaned_data.get('telefone_secundario')
+        if telefone and telefone_secundario and telefone == telefone_secundario:
+            self.add_error('telefone_secundario', 'O telefone secundário deve ser diferente do principal.')
+        return cleaned_data
 
 
 class ContatoAdicionalForm(forms.ModelForm):

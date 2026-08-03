@@ -35,7 +35,7 @@
         <th>Data da Venda</th>
         <th>Cliente</th>
         <th>Lembrete</th>
-        <th>Número de Telefone</th>
+        <th>Números de Telefone</th>
         <th>IMEI</th>
         <th>Situações</th>
         <th>Status Pagamentos</th>
@@ -50,7 +50,10 @@
         <td>{{ p.venda.criado_em|date:"d/m/Y" }}</td>
         <td>{{ p.venda.cliente.nome|default:"-" }}</td>
         <td class="center">{% if p.lembrete %}Sim{% else %}Não{% endif %}</td>
-        <td>{{ p.venda.cliente.telefone|default:"-" }}</td>
+        <td>
+          {{ p.venda.cliente.telefone|default:"-" }}
+          {% if p.venda.cliente.telefone_secundario %}<br>{{ p.venda.cliente.telefone_secundario }}{% endif %}
+        </td>
         <td>{% if p.venda.itens_venda.first.imei %}{{ p.venda.itens_venda.first.imei }}{% else %}-{% endif %}</td>
         <td>
           {% if p.bo %}<span class="badge">BO</span>{% endif %}
