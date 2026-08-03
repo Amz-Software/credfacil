@@ -193,6 +193,7 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
     marca = serializers.IntegerField(source="produto.marca_id", read_only=True)
     marca_nome = serializers.CharField(source="produto.marca.nome", read_only=True)
     imei_value = serializers.CharField(source="imei.imei", read_only=True)
+    imei_ultimos_digitos_vendedor = serializers.CharField(read_only=True)
     venda_gerada = serializers.SerializerMethodField()
     numero_autenticador_detail = serializers.SerializerMethodField()
 
@@ -222,6 +223,7 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
             "imei",
             "imei_value",
             "imei_informado",
+            "imei_ultimos_digitos_vendedor",
             "venda",
             "observacao",
             "entrada_informada",
@@ -437,7 +439,8 @@ class VendaSerializer(serializers.ModelSerializer):
     valor_total_pagamentos = serializers.SerializerMethodField()
     qtd_total_parcelas = serializers.SerializerMethodField()
     valor_entrada_cliente = serializers.SerializerMethodField()
-    
+    tem_iphone = serializers.BooleanField(read_only=True)
+
     def get_vendedor_nome(self, obj):
         if obj.vendedor:
             return obj.vendedor.get_full_name() or obj.vendedor.username
@@ -486,6 +489,7 @@ class VendaSerializer(serializers.ModelSerializer):
             "valor_total_pagamentos",
             "qtd_total_parcelas",
             "valor_entrada_cliente",
+            "tem_iphone",
         ]
 
 
@@ -546,9 +550,11 @@ class SolicitacaoCreditoInputSerializer(serializers.Serializer):
     recebe_auxilio = serializers.BooleanField()
     total_renda = serializers.DecimalField(max_digits=10, decimal_places=2)
 
-    nome_adicional = serializers.CharField()
-    contato = serializers.CharField()
-    endereco_adicional = serializers.CharField()
+    # Contato Adicional e Informação Pessoal aparecem ambos, mas apenas UM
+    # precisa estar completo (validado na view). Por isso todos são opcionais aqui.
+    nome_adicional = serializers.CharField(required=False, allow_blank=True)
+    contato = serializers.CharField(required=False, allow_blank=True)
+    endereco_adicional = serializers.CharField(required=False, allow_blank=True)
     obteve_contato = serializers.BooleanField(required=False)
 
     nome_pessoal = serializers.CharField(required=False, allow_blank=True)

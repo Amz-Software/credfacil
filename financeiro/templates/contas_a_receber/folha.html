@@ -146,6 +146,9 @@
             {% if parcela.pagamento.venda.cliente.telefone_secundario %}
                 <br>{{ parcela.pagamento.venda.cliente.telefone_secundario }}
             {% endif %}
+            {% if parcela.pagamento.venda.cliente.informacao_pessoal.contato %}{% if parcela.pagamento.venda.cliente.telefone %}<br>{% endif %}{{ parcela.pagamento.venda.cliente.informacao_pessoal.contato }}{% endif %}
+            {% if parcela.pagamento.venda.cliente.contato_adicional.contato %}{% if parcela.pagamento.venda.cliente.telefone or parcela.pagamento.venda.cliente.informacao_pessoal.contato %}<br>{% endif %}{{ parcela.pagamento.venda.cliente.contato_adicional.contato }}{% endif %}
+            {% if not parcela.pagamento.venda.cliente.telefone and not parcela.pagamento.venda.cliente.informacao_pessoal.contato and not parcela.pagamento.venda.cliente.contato_adicional.contato %}-{% endif %}
             </td>
             <td class="end">-</td>
             <td class="end">-</td>
@@ -234,6 +237,9 @@
             {% if conta.venda.cliente.telefone_secundario %}
                 <br>{{ conta.venda.cliente.telefone_secundario }}
             {% endif %}
+            {% if conta.venda.cliente.informacao_pessoal.contato %}{% if conta.venda.cliente.telefone %}<br>{% endif %}{{ conta.venda.cliente.informacao_pessoal.contato }}{% endif %}
+            {% if conta.venda.cliente.contato_adicional.contato %}{% if conta.venda.cliente.telefone or conta.venda.cliente.informacao_pessoal.contato %}<br>{% endif %}{{ conta.venda.cliente.contato_adicional.contato }}{% endif %}
+            {% if not conta.venda.cliente.telefone and not conta.venda.cliente.informacao_pessoal.contato and not conta.venda.cliente.contato_adicional.contato %}-{% endif %}
             </td>
             <td class="end">
             {{ conta.valor_atrasado|default:"0.00"|floatformat:2 }}

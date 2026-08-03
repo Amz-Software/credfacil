@@ -175,16 +175,12 @@ Vendas
                     {% endif %}
                   </td>
                   <td class="text-center">
-                    {% if item.documento_assinado and item.foto_cliente %}
-                      <span class="badge bg-success" data-bs-toggle="tooltip" data-bs-placement="top" title="Documento assinado e foto do cliente inseridos">
+                    {% if item.documento_assinado or item.status_contrato == 'ASSINADO' %}
+                      <span class="badge bg-success" data-bs-toggle="tooltip" data-bs-placement="top" title="Contrato assinado / documento inserido">
                         <i class="bx bx-check-circle me-1"></i> Completo
                       </span>
-                    {% elif item.documento_assinado or item.foto_cliente %}
-                      <span class="badge bg-warning text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{% if item.documento_assinado %}Falta foto do cliente{% else %}Falta documento assinado{% endif %}">
-                        <i class="bx bx-error-circle me-1"></i> Incompleto
-                      </span>
                     {% else %}
-                      <span class="badge bg-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Faltam documento assinado e foto do cliente">
+                      <span class="badge bg-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Falta o documento assinado do contrato">
                         <i class="bx bx-x-circle me-1"></i> Pendente
                       </span>
                     {% endif %}

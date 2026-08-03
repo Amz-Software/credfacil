@@ -52,6 +52,8 @@ def notificar_status_analise_credito(sender, instance, created, **kwargs):
                     description=description,
                     target_url=instance.cliente.get_absolute_url(),
                     type_notification='analise_credito_cliente',
+                    # Dispara o modal central do ANALISTA/ADMIN no front Django
+                    event='proposta_criada',
                 )
 
     if instance.status_aplicativo == 'C':
@@ -95,18 +97,22 @@ def notificar_status_analise_credito(sender, instance, created, **kwargs):
     if (instance.status != instance.status_anterior) and not created:
         if instance.status == 'A':
             verb = f'Análise de crédito do cliente {cliente_nome.capitalize()} foi aprovada.'
-            imei_info = f'Imei {instance.imei.imei}' if instance.imei else 'IMEI não informado'
-            description = f'{imei_info} da loja {instance.loja.nome.capitalize()}.'
+            evento = 'proposta_aceita'
         elif instance.status == 'R':
             verb = f'Análise de crédito do cliente {cliente_nome.capitalize()} foi rejeitada.'
-            imei_info = f'Imei {instance.imei.imei}' if instance.imei else 'IMEI não informado'
-            description = f'{imei_info} da loja {instance.loja.nome.capitalize()}.'
+            evento = 'proposta_negada'
+        elif instance.status == 'C':
+            verb = f'Análise de crédito do cliente {cliente_nome.capitalize()} foi cancelada.'
+            evento = 'proposta_cancelada'
         else:
             return
-        
-        # Somente o Criador
-        usuarios_para_notificar = [instance.criado_por]
-        
+
+        imei_info = f'Imei {instance.imei.imei}' if instance.imei else 'IMEI não informado'
+        description = f'{imei_info} da loja {instance.loja.nome.capitalize()}.'
+
+        # Somente o Criador (vendedor)
+        usuarios_para_notificar = [instance.criado_por] if instance.criado_por else []
+
         for user in usuarios_para_notificar:
             notify.send(
                 instance,
@@ -127,6 +133,8 @@ def notificar_status_analise_credito(sender, instance, created, **kwargs):
                     description=description,
                     target_url=instance.cliente.get_absolute_url(),
                     type_notification='analise_credito_cliente',
+                    # Dispara o modal central do VENDEDOR no front React
+                    event=evento,
                 )
                 
                 

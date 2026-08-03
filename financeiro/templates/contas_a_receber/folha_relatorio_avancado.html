@@ -53,6 +53,9 @@
         <td>
           {{ p.venda.cliente.telefone|default:"-" }}
           {% if p.venda.cliente.telefone_secundario %}<br>{{ p.venda.cliente.telefone_secundario }}{% endif %}
+          {% if p.venda.cliente.informacao_pessoal.contato %}{% if p.venda.cliente.telefone %}<br>{% endif %}{{ p.venda.cliente.informacao_pessoal.contato }}{% endif %}
+          {% if p.venda.cliente.contato_adicional.contato %}{% if p.venda.cliente.telefone or p.venda.cliente.informacao_pessoal.contato %}<br>{% endif %}{{ p.venda.cliente.contato_adicional.contato }}{% endif %}
+          {% if not p.venda.cliente.telefone and not p.venda.cliente.informacao_pessoal.contato and not p.venda.cliente.contato_adicional.contato %}-{% endif %}
         </td>
         <td>{% if p.venda.itens_venda.first.imei %}{{ p.venda.itens_venda.first.imei }}{% else %}-{% endif %}</td>
         <td>

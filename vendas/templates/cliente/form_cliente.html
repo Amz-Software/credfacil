@@ -898,9 +898,6 @@
                 <i class="bx bx-mobile me-2"></i>
                 <strong>Produto iPhone selecionado.</strong>
                 Informe o valor de entrada desejado (mínimo conforme cadastro do produto).
-                {% if 'email_icloud' in form_analise_credito.fields %}
-                  Preencha também os dados do iCloud abaixo.
-                {% endif %}
               </div>
 
               <!-- Seleção de Marca (Visual) -->
@@ -968,17 +965,6 @@
                         <i class="bx bx-error-circle me-1"></i>
                         O valor de entrada não pode ser menor que a entrada mínima.
                       </div>
-                      {% if field.errors %}
-                        <div class="text-danger small">{{ field.errors|striptags }}</div>
-                      {% endif %}
-                    </div>
-                  </div>
-                  {# campos iCloud: visíveis apenas para iPhone (JS controla) #}
-                  {% elif field.html_name == 'email_icloud' or field.html_name == 'senha_icloud' %}
-                  <div class="col-md-6 icloud-field" style="display:none;">
-                    <div class="form-group">
-                      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                      {{ field }}
                       {% if field.errors %}
                         <div class="text-danger small">{{ field.errors|striptags }}</div>
                       {% endif %}

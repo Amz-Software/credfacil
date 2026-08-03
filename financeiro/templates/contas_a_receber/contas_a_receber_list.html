@@ -90,6 +90,13 @@
     .cr-sub { font-size: .78rem; color: #8592a3; }
     .cr-sub a { color: #8592a3; }
     .cr-sub a:hover { color: var(--ipix-yellow-700,#c79b00); }
+    .cr-wa-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; margin-left: 4px; border-radius: 50%;
+      background: #25d366; color: #fff !important; font-size: .95rem;
+      line-height: 1; vertical-align: middle; transition: background .15s ease;
+    }
+    .cr-wa-btn:hover { background: #1da851; color: #fff !important; }
 
     /* Valores */
     .cr-amount { font-weight: 600; white-space: nowrap; }
@@ -302,7 +309,16 @@
                         {% endif %}
                       </div>
                       {% if conta.venda.cliente.telefone %}
-                        <div class="cr-sub"><i class="bx bx-phone"></i> {{ conta.venda.cliente.telefone }}</div>
+                        <div class="cr-sub">
+                          <i class="bx bx-phone"></i> {{ conta.venda.cliente.telefone }}
+                          {% with wa=conta.venda.cliente.telefone|whatsapp_url %}
+                            {% if wa %}
+                              <a href="{{ wa }}" target="_blank" rel="noopener" class="cr-wa-btn" title="Abrir conversa no WhatsApp" onclick="event.stopPropagation();">
+                                <i class="bx bxl-whatsapp"></i>
+                              </a>
+                            {% endif %}
+                          {% endwith %}
+                        </div>
                       {% endif %}
                       {% if conta.venda.cliente.telefone_secundario %}
                         <div class="cr-sub"><i class="bx bx-phone"></i> {{ conta.venda.cliente.telefone_secundario }}</div>

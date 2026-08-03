@@ -41,7 +41,8 @@ from vendas.forms import (
     RelatorioSolicitacoesForm, RelatorioVendasForm, VendaForm, VendaDocumentosForm, ProdutoVendaFormSet,
     FormaPagamentoFormSet, LancamentoForm, LancamentoCaixaTotalForm, ClienteTelefoneForm,
     AnaliseCreditoClienteImeiForm, VendaEdicaoEspecialForm,
-    ProdutoVendaEdicaoEspecialFormSet, FormaPagamentoEdicaoEspecialFormSet
+    ProdutoVendaEdicaoEspecialFormSet, FormaPagamentoEdicaoEspecialFormSet,
+    erro_pelo_menos_um_contato, user_is_analista_or_admin
 )
 from .models import (
     AnaliseCreditoCliente, Caixa, Cliente, Loja, NumeroAutenticador, ObservacaoSolicitacao, Pagamento, Parcela, ProdutoVenda,
@@ -709,7 +710,22 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
                 print("❌ CONDIÇÃO ATINGIDA: Informações Pessoais e Contato Adicional não podem ser iguais.")
                 messages.error(request, "❌ Informações Pessoais e Contato Adicional não podem ser iguais.")
                 return self.form_invalid(form_cliente)
-            
+
+            # Pelo menos um dos dois contatos deve estar completo.
+            erro_contato = erro_pelo_menos_um_contato(form_adicional, form_informacao)
+            if erro_contato:
+                form_adicional.add_error('contato', erro_contato)
+                form_informacao.add_error('contato_pessoal', erro_contato)
+                messages.error(request, f"❌ {erro_contato}")
+                context = self.get_context_data(
+                    form_cliente=form_cliente,
+                    form_adicional=form_adicional,
+                    form_informacao=form_informacao,
+                    form_comprovantes=form_comprovantes,
+                    form_analise_credito=form_analise_credito,
+                )
+                return self.render_to_response(context)
+
             comprovantes = form_comprovantes.save()
             contato_adicional = form_adicional.save()
             informacao = form_informacao.save()
@@ -864,23 +880,16 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         user = request.user
-        
-        # Verifica se o usuário é analista
-        is_analista = user.groups.filter(name='ANALISTA').exists()
-        
+
         # Verifica se a venda já foi gerada
         venda_gerada = self.object.analise_credito.venda is not None
-        
-        # Se não é analista e não tem permissão de mudar status, só pode editar se estiver em análise
-        if not is_analista and not user.has_perm('vendas.change_status_analise') and not self.object.analise_credito.status == 'EA':
-            messages.warning(request, "❌ Somente Solicitacao em análise de crédito em andamento podem ser editados.")
+
+        # ANALISTA/ADMIN (ou permissão de editar venda finalizada) podem editar
+        # mesmo depois da venda gerada. VENDEDOR/GERENTE só podem editar antes.
+        pode_editar_pos_venda = user_is_analista_or_admin(user) or user.has_perm('vendas.can_edit_finished_sale')
+        if venda_gerada and not pode_editar_pos_venda:
+            messages.warning(request, "❌ Somente ANALISTA/ADMIN podem editar a solicitação após a venda ser gerada.")
             return redirect(self.success_url)
-        
-        # Se a venda foi gerada, analistas e usuários com permissão específica podem editar
-        if venda_gerada:
-            if not (is_analista or user.has_perm('vendas.can_edit_finished_sale')):
-                messages.warning(request, "❌ Somente analistas ou usuários com permissão específica podem editar solicitações após a venda ser gerada.")
-                return redirect(self.success_url)
 
         # Buscar loja da sessão
         loja_id = request.session.get('loja_id')
@@ -940,8 +949,22 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
                 print("❌ CONDIÇÃO ATINGIDA: Informações Pessoais e Contato Adicional não podem ser iguais.")
                 messages.error(request, "❌ Informações Pessoais e Contato Adicional não podem ser iguais.")
                 return self.form_invalid(form_cliente)
-            
-            
+
+            # Pelo menos um dos dois contatos deve estar completo.
+            erro_contato = erro_pelo_menos_um_contato(form_adicional, form_informacao)
+            if erro_contato:
+                form_adicional.add_error('contato', erro_contato)
+                form_informacao.add_error('contato_pessoal', erro_contato)
+                messages.error(request, f"❌ {erro_contato}")
+                context = self.get_context_data(
+                    form_cliente=form_cliente,
+                    form_adicional=form_adicional,
+                    form_informacao=form_informacao,
+                    form_comprovantes=form_comprovantes,
+                    form_analise_credito=form_analise_credito,
+                )
+                return self.render_to_response(context)
+
             contato_adicional = form_adicional.save()
             informacao = form_informacao.save()
             comprovantes = form_comprovantes.save()
@@ -1254,23 +1277,6 @@ def gerar_venda(request, cliente_id):
     produto = analise.produto
     imei = analise.imei
 
-    # Validações específicas para fluxo iPhone
-    if getattr(produto, 'is_iphone', False):
-        # Deve haver email/senha iCloud
-        if not analise.email_icloud or not analise.senha_icloud:
-            messages.error(request, "❌ Para gerar venda de iPhone, Email e Senha iCloud devem estar preenchidos na análise.")
-            return redirect('vendas:cliente_update', pk=cliente.pk)
-
-        # Deve ter sido configurado pelo vendedor
-        if not analise.icloud_configurado_vendedor:
-            messages.error(request, "❌ iCloud ainda não foi configurado pelo vendedor. Complete o fluxo antes de gerar a venda.")
-            return redirect('vendas:cliente_update', pk=cliente.pk)
-
-        # Deve ter confirmação do analista
-        if not analise.icloud_confirmado_analista:
-            messages.error(request, "❌ iCloud não confirmado pelo analista. Aguarde confirmação antes de gerar a venda.")
-            return redirect('vendas:cliente_update', pk=cliente.pk)
-
     # Verifica se o IMEI já está sendo usado em outra venda (único)
     if ProdutoVenda.objects.filter(imei=imei.imei).exists():
         messages.error(request, f"❌ IMEI {imei.imei} já está sendo usado em outra venda. IMEI deve ser único.")
@@ -1382,13 +1388,7 @@ def aprovar_analise_credito(request, id):
         return redirect('vendas:cliente_list')
     try:
         analise = AnaliseCreditoCliente.objects.get(id=id)
-        
-        # Verificar se é iPhone e se tem email/senha iCloud
-        if analise.produto.is_iphone:
-            if not analise.email_icloud or not analise.senha_icloud:
-                messages.error(request, '❌ Para aprovar iPhone, é necessário informar Email e Senha iCloud na solicitação.')
-                return redirect('vendas:cliente_update', pk=analise.cliente.pk)
-        
+
         analise.aprovar(user=request.user)
         analise.modificado_por = request.user
         analise.modificado_em = timezone.now()
@@ -3449,11 +3449,11 @@ def informar_imei_analise(request, pk):
     analise = get_object_or_404(AnaliseCreditoCliente, pk=pk)
     
     # Verificar se o status está correto para informar IMEI
-    # Para iPhone: verificar se o iCloud foi confirmado pelo analista
+    # Para iPhone: verificar se o vendedor confirmou a configuração inicial
     # Para Android: verificar se o aplicativo foi confirmado pelo vendedor
     if analise.produto.is_iphone:
-        if not analise.icloud_confirmado_analista:
-            messages.error(request, 'Só é possível informar IMEI após confirmar a configuração do iCloud.')
+        if not analise.icloud_configurado_vendedor:
+            messages.error(request, 'Só é possível informar IMEI após o vendedor confirmar a configuração inicial.')
             return redirect('vendas:cliente_list')
     else:
         if analise.status_aplicativo != 'C':
@@ -3628,35 +3628,31 @@ class AnalistaConfirmInstalledView(PermissionRequiredMixin, View):
 
 
 class ClienteConfigurarIcloudView(PermissionRequiredMixin, View):
-    """Vendedor confirma que configurou o iCloud no iPhone"""
+    """Vendedor confirma a configuração inicial do iPhone e informa os 4 últimos dígitos do IMEI"""
     permission_required = 'vendas.change_cliente'
 
     def post(self, request, pk):
         cliente = get_object_or_404(Cliente, pk=pk)
         analise = cliente.analise_credito
-        
-        if not analise.email_icloud or not analise.senha_icloud:
-            messages.error(request, '❌ Email e senha iCloud não configurados pela análise.')
+
+        digitos = ''.join(filter(str.isdigit, str(request.POST.get('imei_ultimos_digitos', ''))))[:4]
+        if len(digitos) != 4:
+            messages.error(request, '❌ Informe os 4 últimos dígitos do IMEI para confirmar.')
             return redirect('vendas:cliente_list')
 
-        codigo_reserva = request.FILES.get('codigo_reserva')
-        if not codigo_reserva:
-            messages.error(request, '❌ A imagem do código de reserva é obrigatória para confirmar o iCloud.')
-            return redirect('vendas:cliente_list')
-
-        analise.codigo_reserva = codigo_reserva
+        analise.imei_ultimos_digitos_vendedor = digitos
         analise.icloud_configurado_vendedor = True
         analise.save()
-        
+
         # Enviar notificação para analistas
         from notifications.signals import notify
         from notificacao.utils import enviar_ws_para_usuario
-        
+
         cliente_nome = cliente.nome if cliente else "Cliente"
         loja = cliente.loja
-        
-        verb = f'Vendedor configurou iCloud para cliente {cliente_nome.capitalize()}'
-        description = f'iPhone da loja {loja.nome.capitalize()}. Aguardando confirmação do analista.'
+
+        verb = f'Vendedor confirmou configuração inicial para cliente {cliente_nome.capitalize()}'
+        description = f'iPhone da loja {loja.nome.capitalize()}. IMEI termina em {digitos}. Aguardando analista informar IMEI.'
         
         # Notificar analistas
         usuarios_para_notificar = list(
