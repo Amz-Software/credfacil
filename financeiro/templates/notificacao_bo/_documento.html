@@ -8,7 +8,8 @@
   <p>
     Sr.(a). {{ cliente.nome }}.<br>
     CPF: {{ cliente_cpf_exibicao }}<br>
-    Telefone: {{ cliente.telefone|default:"—" }}<br>
+    Telefone principal: {{ cliente.telefone|default:"—" }}<br>
+    Telefone secundário: {{ cliente.telefone_secundario|default:"—" }}<br>
     Endereço: {{ cliente_endereco }}
   </p>
 

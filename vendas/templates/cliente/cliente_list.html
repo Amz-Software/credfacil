@@ -442,7 +442,7 @@ Clientes
                  data-bs-toggle="tooltip" 
                  data-bs-html="true"
                  data-bs-placement="top"
-                 title="<strong>Informações do Cliente</strong><br>{% if cliente.telefone %}Telefone: {{ cliente.telefone }}<br>{% endif %}{% if cliente.email %}Email: {{ cliente.email }}<br>{% endif %}ID: {{ cliente.id }}"></i>
+                 title="<strong>Informações do Cliente</strong><br>{% if cliente.telefone %}Telefone principal: {{ cliente.telefone }}<br>{% endif %}{% if cliente.telefone_secundario %}Telefone secundário: {{ cliente.telefone_secundario }}<br>{% endif %}{% if cliente.email %}Email: {{ cliente.email }}<br>{% endif %}ID: {{ cliente.id }}"></i>
             </td>
             <td>
               <span data-bs-toggle="tooltip" 
