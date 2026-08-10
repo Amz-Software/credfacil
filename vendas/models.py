@@ -679,6 +679,78 @@ class ObservacaoSolicitacao(models.Model):
         return f"Observação de {quem} em {self.criado_em:%Y-%m-%d %H:%M}"
 
 
+def upload_pre_analise_rapida(instance, filename):
+    return f'pre_analise_rapida/{filename}'
+
+
+class PreAnaliseRapida(Base):
+    """Pré-análise rápida criada pelo vendedor no front React.
+
+    Contém apenas o mínimo para o analista decidir uma pré-aprovação:
+    nome, CPF, RG (frente/verso), e duas confirmações (comprovante de
+    residência e referências). Quando pré-aprovada, o vendedor/gerente
+    conseguem finalizar a proposta completa reaproveitando os dados.
+    """
+    STATUS_CHOICES = [
+        ('P', 'Pendente'),
+        ('A', 'Pré-aprovada'),
+        ('R', 'Reprovada'),
+    ]
+
+    nome_completo = models.CharField(max_length=120, verbose_name='Nome completo')
+    cpf = models.CharField(max_length=14, verbose_name='CPF')
+    foto_rg_frente = models.ImageField(upload_to=upload_pre_analise_rapida, verbose_name='Foto do RG (frente)')
+    foto_rg_verso = models.ImageField(upload_to=upload_pre_analise_rapida, verbose_name='Foto do RG (costas)')
+    tem_comprovante_residencia = models.BooleanField(default=False, verbose_name='Tem comprovante de residência')
+    possui_duas_referencias = models.BooleanField(default=False, verbose_name='Possui 2 referências')
+
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P')
+    observacao = models.TextField(null=True, blank=True, verbose_name='Observação / motivo')
+
+    analisado_por = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pre_analises_rapidas_analisadas',
+    )
+    data_decisao = models.DateTimeField(null=True, blank=True)
+
+    # Preenchido quando o vendedor finaliza a proposta completa a partir desta pré-análise
+    cliente_gerado = models.ForeignKey(
+        'vendas.Cliente', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pre_analises_rapidas',
+    )
+
+    def aprovar(self, user):
+        self.status = 'A'
+        self.analisado_por = user
+        self.data_decisao = timezone.now()
+        self.save(user=user)
+        return self.status
+
+    def reprovar(self, user, motivo=None):
+        self.status = 'R'
+        self.analisado_por = user
+        self.data_decisao = timezone.now()
+        if motivo:
+            self.observacao = motivo
+        self.save(user=user)
+        return self.status
+
+    @property
+    def finalizada(self):
+        return self.cliente_gerado_id is not None
+
+    def get_absolute_url(self):
+        return reverse('vendas:pre_analise_rapida_detalhe', kwargs={'pk': self.pk})
+
+    def __str__(self):
+        return f"Pré-análise rápida de {self.nome_completo} ({self.get_status_display()})"
+
+    class Meta:
+        verbose_name = 'Pré-análise rápida'
+        verbose_name_plural = 'Pré-análises rápidas'
+        ordering = ['-criado_em']
+
+
 class NumeroAutenticador(Base):
     numero = models.CharField(max_length=20, verbose_name='Número de Telefone')
     descricao = models.CharField(max_length=100, null=True, blank=True, verbose_name='Descrição')

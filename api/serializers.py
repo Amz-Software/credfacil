@@ -10,6 +10,7 @@ from vendas.models import (
     ComprovantesCliente,
     Loja,
     NumeroAutenticador,
+    PreAnaliseRapida,
     Venda,
 )
 from produtos.models import Parcelamento, Produto, TipoProduto, Fabricante, Marca
@@ -786,3 +787,80 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         
         return data
 
+
+
+class PreAnaliseRapidaSerializer(serializers.ModelSerializer):
+    """Leitura da pré-análise rápida (lista/detalhe)."""
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    loja_nome = serializers.CharField(source="loja.nome", read_only=True)
+    criado_por_nome = serializers.SerializerMethodField()
+    analisado_por_nome = serializers.SerializerMethodField()
+    finalizada = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = PreAnaliseRapida
+        fields = [
+            "id",
+            "nome_completo",
+            "cpf",
+            "foto_rg_frente",
+            "foto_rg_verso",
+            "tem_comprovante_residencia",
+            "possui_duas_referencias",
+            "status",
+            "status_display",
+            "observacao",
+            "loja",
+            "loja_nome",
+            "criado_por",
+            "criado_por_nome",
+            "analisado_por",
+            "analisado_por_nome",
+            "data_decisao",
+            "cliente_gerado",
+            "finalizada",
+            "criado_em",
+            "modificado_em",
+        ]
+        read_only_fields = [
+            "status", "observacao", "analisado_por", "data_decisao",
+            "cliente_gerado", "criado_por", "loja",
+        ]
+
+    def _nome_user(self, user):
+        if not user:
+            return None
+        return user.get_full_name() or user.username
+
+    def get_criado_por_nome(self, obj):
+        return self._nome_user(obj.criado_por)
+
+    def get_analisado_por_nome(self, obj):
+        return self._nome_user(obj.analisado_por)
+
+
+class PreAnaliseRapidaInputSerializer(serializers.ModelSerializer):
+    """Criação da pré-análise rápida pelo vendedor (multipart)."""
+
+    class Meta:
+        model = PreAnaliseRapida
+        fields = [
+            "nome_completo",
+            "cpf",
+            "foto_rg_frente",
+            "foto_rg_verso",
+            "tem_comprovante_residencia",
+            "possui_duas_referencias",
+        ]
+
+    def validate_nome_completo(self, value):
+        value = (value or "").strip()
+        if len(value.split()) < 2:
+            raise serializers.ValidationError("Informe o nome completo.")
+        return value
+
+    def validate_cpf(self, value):
+        digitos = "".join(filter(str.isdigit, value or ""))
+        if len(digitos) != 11:
+            raise serializers.ValidationError("CPF inválido.")
+        return value

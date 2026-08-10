@@ -57,6 +57,24 @@ class SolicitacaoCreditoPermission(BasePermission):
         return False
 
 
+class PreAnaliseRapidaPermission(BasePermission):
+    def has_permission(self, request, view):
+        action = getattr(view, "action", None)
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+
+        if action in ("list", "retrieve"):
+            return user.has_perm("vendas.view_cliente")
+        if action == "create":
+            return user.has_perm("vendas.add_cliente")
+        if action in ("aprovar", "reprovar"):
+            return user.has_perm("vendas.change_status_analise")
+        if action == "marcar_finalizada":
+            return user.has_perm("vendas.add_venda") or user.has_perm("vendas.change_cliente")
+        return False
+
+
 class ProdutoPermission(BasePermission):
     def has_permission(self, request, view):
         action = getattr(view, "action", None)

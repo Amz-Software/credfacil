@@ -46,6 +46,13 @@ def menu_items(request):
             "section": "Vendas",
         },
         {
+            "label": "Análises Rápidas",
+            "url_name": "vendas:pre_analise_rapida_list",
+            "icon": "bx bx-bolt-circle",
+            "permission": "vendas.view_cliente",
+            "section": "Vendas",
+        },
+        {
             "label": "Vendas",
             "url_name": "vendas:venda_list",
             "icon": "bx bx-receipt",

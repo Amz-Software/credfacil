@@ -29,6 +29,12 @@ urlpatterns = [
     path('clientes/cliente_editar/<int:pk>/', ClienteUpdateView.as_view(), name='cliente_update'),
     path('clientes/cliente_editar_imei_telefone/<int:pk>/', ClienteUpdateImeiTelefoneView.as_view(), name='cliente_update_imei_telefone'),
     
+    # Pré-análise rápida (backoffice do analista)
+    path('pre-analises-rapidas/', PreAnaliseRapidaListView.as_view(), name='pre_analise_rapida_list'),
+    path('pre-analises-rapidas/<int:pk>/', PreAnaliseRapidaDetailView.as_view(), name='pre_analise_rapida_detalhe'),
+    path('pre-analises-rapidas/<int:pk>/aprovar/', aprovar_pre_analise_rapida, name='pre_analise_rapida_aprovar'),
+    path('pre-analises-rapidas/<int:pk>/reprovar/', reprovar_pre_analise_rapida, name='pre_analise_rapida_reprovar'),
+
     path('aprovar_analise/<int:id>/', aprovar_analise_credito, name='aprovar_analise'),
     path('reprovar_analise/<int:id>/', reprovar_analise_credito, name='reprovar_analise'),
     path('cancelar_analise/<int:id>/', cancelar_analise_credito, name='cancelar_analise'),

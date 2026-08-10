@@ -554,7 +554,7 @@
 
       // 🪟 Modal central — somente ANALISTA/ADMIN quando uma NOVA proposta é criada
       console.log("[WS][modal] event=", data.event, "| podeVerModal=", window.__podeVerModalProposta);
-      if (window.__podeVerModalProposta && data.event === 'proposta_criada') {
+      if (window.__podeVerModalProposta && (data.event === 'proposta_criada' || data.event === 'pre_analise_criada')) {
         mostrarModalProposta(data);
       }
 

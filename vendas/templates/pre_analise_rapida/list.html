@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Análises Rápidas{% endblock %}
+
+{% block content %}
+<div class="container-xxl mt-4">
+  {% include "components/page_header.html" with title="Análises Rápidas" icon="bx bx-bolt-circle" subtitle="Pré-análises enviadas pelos vendedores aguardando decisão" %}
+  <div class="row">
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-bolt-circle me-2 text-primary"></i>Pré-análises rápidas</h5>
+          <form action="" method="get" class="d-flex gap-2 align-items-center flex-wrap" id="filtroForm">
+            <select name="status" class="form-select" onchange="document.getElementById('filtroForm').submit()">
+              <option value="">Todos os status</option>
+              <option value="P" {% if status_atual == "P" %}selected{% endif %}>Pendente</option>
+              <option value="A" {% if status_atual == "A" %}selected{% endif %}>Pré-aprovada</option>
+              <option value="R" {% if status_atual == "R" %}selected{% endif %}>Reprovada</option>
+            </select>
+            <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Nome ou CPF"
+                   onchange="document.getElementById('filtroForm').submit()">
+          </form>
+        </div>
+
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>CPF</th>
+                  <th>Loja</th>
+                  <th>Vendedor</th>
+                  <th>Status</th>
+                  <th>Enviada em</th>
+                  <th class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for pre in pre_analises %}
+                <tr>
+                  <td><strong>{{ pre.nome_completo }}</strong></td>
+                  <td>{{ pre.cpf }}</td>
+                  <td>{{ pre.loja.nome|default:"—" }}</td>
+                  <td>{{ pre.criado_por.get_full_name|default:pre.criado_por.username }}</td>
+                  <td>
+                    {% if pre.status == "P" %}
+                      {% include "components/status_badge.html" with state="warning" label="Pendente" %}
+                    {% elif pre.status == "A" %}
+                      {% include "components/status_badge.html" with state="success" label="Pré-aprovada" %}
+                    {% else %}
+                      {% include "components/status_badge.html" with state="danger" label="Reprovada" %}
+                    {% endif %}
+                    {% if pre.finalizada %}
+                      {% include "components/status_badge.html" with state="info" label="Finalizada" %}
+                    {% endif %}
+                  </td>
+                  <td>{{ pre.criado_em|date:"d/m/Y H:i" }}</td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'vendas:pre_analise_rapida_detalhe' pre.pk %}">
+                      <i class="bx bx-show me-1"></i> Analisar
+                    </a>
+                  </td>
+                </tr>
+                {% empty %}
+                {% include "components/empty_state.html" with colspan=7 message="Nenhuma análise rápida encontrada" icon="bx bx-bolt" %}
+                {% endfor %}
+              </tbody>
+            </table>
+            {% include "snippets/pagination.html" %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

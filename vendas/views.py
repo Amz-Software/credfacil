@@ -45,7 +45,7 @@ from vendas.forms import (
     erro_pelo_menos_um_contato, user_is_analista_or_admin
 )
 from .models import (
-    AnaliseCreditoCliente, Caixa, Cliente, Loja, NumeroAutenticador, ObservacaoSolicitacao, Pagamento, Parcela, ProdutoVenda,
+    AnaliseCreditoCliente, Caixa, Cliente, Loja, NumeroAutenticador, ObservacaoSolicitacao, Pagamento, Parcela, PreAnaliseRapida, ProdutoVenda,
     TipoPagamento, Venda, LancamentoCaixa, LancamentoCaixaTotal, StatusPagamento
 )
 from produtos.models import Marca
@@ -1429,7 +1429,80 @@ def reprovar_analise_credito(request, id):
         messages.error(request, 'Análise de crédito não encontrada')
 
     return redirect('vendas:cliente_list')
-    
+
+
+# ─── Pré-análise rápida (backoffice do analista) ────────────────────────────
+
+class PreAnaliseRapidaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    model = PreAnaliseRapida
+    template_name = 'pre_analise_rapida/list.html'
+    context_object_name = 'pre_analises'
+    permission_required = 'vendas.view_cliente'
+    paginate_by = 25
+
+    def get_queryset(self):
+        qs = PreAnaliseRapida.objects.select_related(
+            'loja', 'criado_por', 'analisado_por', 'cliente_gerado'
+        ).order_by('-criado_em')
+
+        status = self.request.GET.get('status')
+        if status:
+            qs = qs.filter(status=status)
+
+        search = self.request.GET.get('q')
+        if search:
+            qs = qs.filter(Q(nome_completo__icontains=search) | Q(cpf__icontains=search))
+
+        user = self.request.user
+        if not (user.is_superuser or user.has_perm('vendas.view_all_analise_credito')):
+            lojas_ids = set(user.lojas.values_list('id', flat=True))
+            if getattr(user, 'loja_id', None):
+                lojas_ids.add(user.loja_id)
+            qs = qs.filter(loja_id__in=lojas_ids)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['status_atual'] = self.request.GET.get('status', '')
+        ctx['q'] = self.request.GET.get('q', '')
+        ctx['pode_decidir'] = self.request.user.has_perm('vendas.change_status_analise')
+        return ctx
+
+
+class PreAnaliseRapidaDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    model = PreAnaliseRapida
+    template_name = 'pre_analise_rapida/detail.html'
+    context_object_name = 'pre_analise'
+    permission_required = 'vendas.view_cliente'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['pode_decidir'] = self.request.user.has_perm('vendas.change_status_analise')
+        return ctx
+
+
+@permission_required('vendas.change_status_analise', raise_exception=True)
+def aprovar_pre_analise_rapida(request, pk):
+    pre = get_object_or_404(PreAnaliseRapida, pk=pk)
+    if pre.status != 'P':
+        messages.warning(request, 'Esta pré-análise já foi decidida.')
+        return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
+    pre.aprovar(user=request.user)
+    messages.success(request, '✅ Pré-análise pré-aprovada com sucesso.')
+    return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
+
+
+@permission_required('vendas.change_status_analise', raise_exception=True)
+def reprovar_pre_analise_rapida(request, pk):
+    pre = get_object_or_404(PreAnaliseRapida, pk=pk)
+    if pre.status != 'P':
+        messages.warning(request, 'Esta pré-análise já foi decidida.')
+        return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
+    motivo = request.POST.get('motivo') if request.method == 'POST' else None
+    pre.reprovar(user=request.user, motivo=motivo)
+    messages.success(request, 'Pré-análise reprovada.')
+    return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
+
 
 def cliente_editar_view(request):
     cliente_id = request.GET.get('cliente_id')

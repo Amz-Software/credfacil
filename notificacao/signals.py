@@ -1,12 +1,28 @@
+import logging
+
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from vendas.models import AnaliseCreditoCliente, Cliente
+from vendas.models import AnaliseCreditoCliente, Cliente, PreAnaliseRapida
 from django.contrib.auth import get_user_model
 from notifications.signals import notify
 from notificacao.utils import enviar_ws_para_usuario
 from estoque.models import EntradaEstoque
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
+
+
+def _ws_seguro(**kwargs):
+    """Envia notificação WS de forma best-effort.
+
+    Uma indisponibilidade do canal (ex.: Redis offline) NÃO deve derrubar o
+    request nem a transação que originou a notificação.
+    """
+    try:
+        enviar_ws_para_usuario(**kwargs)
+    except Exception:  # noqa: BLE001 — notificação em tempo real é best-effort
+        logger.warning("Falha ao enviar notificação WebSocket (ignorada).", exc_info=True)
 
 @receiver(pre_save, sender=AnaliseCreditoCliente)
 def status_anterior(sender, instance, **kwargs):
@@ -174,6 +190,84 @@ def notificar_status_analise_credito(sender, instance, created, **kwargs):
 
 
                 
+@receiver(pre_save, sender=PreAnaliseRapida)
+def pre_analise_status_anterior(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            instance._status_anterior = PreAnaliseRapida.objects.get(pk=instance.pk).status
+        except PreAnaliseRapida.DoesNotExist:
+            instance._status_anterior = None
+    else:
+        instance._status_anterior = None
+
+
+@receiver(post_save, sender=PreAnaliseRapida)
+def notificar_pre_analise_rapida(sender, instance, created, **kwargs):
+    loja_nome = instance.loja.nome.capitalize() if instance.loja else 'sua loja'
+
+    # 1) Criação → notifica ANALISTA/ADMIN (modal central no backoffice Django)
+    if created:
+        verb = f'Nova análise rápida de {instance.nome_completo.title()}.'
+        description = f'CPF {instance.cpf} — loja {loja_nome}.'
+
+        destinatarios = list(
+            User.objects.filter(groups__name__in=['ADMINISTRADOR', 'ANALISTA']).exclude(id=instance.criado_por_id)
+        )
+        for user in destinatarios:
+            notify.send(instance, recipient=user, verb=verb, description=description, target=instance)
+            ultima = user.notifications.unread().order_by('-timestamp').first()
+            if ultima:
+                _ws_seguro(
+                    usuario=user,
+                    instance=instance,
+                    notification_id=ultima.id,
+                    verb=verb,
+                    description=description,
+                    target_url=instance.get_absolute_url(),
+                    type_notification='pre_analise_rapida',
+                    # Dispara o modal central do ANALISTA/ADMIN no front Django
+                    event='pre_analise_criada',
+                )
+        return
+
+    # 2) Decisão (pré-aprovada/reprovada) → notifica vendedor + gerentes (modal React)
+    status_anterior = getattr(instance, '_status_anterior', None)
+    if instance.status != status_anterior and instance.status in ('A', 'R'):
+        if instance.status == 'A':
+            verb = f'Análise rápida de {instance.nome_completo.title()} foi pré-aprovada.'
+            evento = 'pre_analise_aprovada'
+        else:
+            verb = f'Análise rápida de {instance.nome_completo.title()} foi reprovada.'
+            evento = 'pre_analise_reprovada'
+        description = f'CPF {instance.cpf} — loja {loja_nome}.'
+
+        destinatarios = []
+        if instance.criado_por:
+            destinatarios.append(instance.criado_por)
+        if instance.loja_id:
+            destinatarios.extend(instance.loja.gerentes.all())
+        # remove duplicados preservando ordem
+        vistos = set()
+        destinatarios = [u for u in destinatarios if u and not (u.id in vistos or vistos.add(u.id))]
+
+        for user in destinatarios:
+            notify.send(instance, recipient=user, verb=verb, description=description, target=instance)
+            ultima = user.notifications.unread().order_by('-timestamp').first()
+            if ultima:
+                _ws_seguro(
+                    usuario=user,
+                    instance=instance,
+                    notification_id=ultima.id,
+                    verb=verb,
+                    description=description,
+                    # Rota do SPA React (lista de análises rápidas)
+                    target_url='/app/analise-rapida',
+                    type_notification='pre_analise_rapida',
+                    # Dispara o modal central do VENDEDOR/GERENTE no front React
+                    event=evento,
+                )
+
+
 @receiver(post_save, sender=EntradaEstoque)
 def notificar_administradores_entrada(sender, instance, created, **kwargs):
     if created:

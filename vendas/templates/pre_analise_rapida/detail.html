@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Análise Rápida — {{ pre_analise.nome_completo }}{% endblock %}
+
+{% block content %}
+<div class="container-xxl mt-4">
+  {% include "components/page_header.html" with title="Análise Rápida" icon="bx bx-bolt-circle" subtitle=pre_analise.nome_completo %}
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bx bx-user me-2 text-primary"></i>Dados do cliente</h5>
+          {% if pre_analise.status == "P" %}
+            {% include "components/status_badge.html" with state="warning" label="Pendente" %}
+          {% elif pre_analise.status == "A" %}
+            {% include "components/status_badge.html" with state="success" label="Pré-aprovada" %}
+          {% else %}
+            {% include "components/status_badge.html" with state="danger" label="Reprovada" %}
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-5">Nome completo</dt>
+            <dd class="col-7">{{ pre_analise.nome_completo }}</dd>
+
+            <dt class="col-5">CPF</dt>
+            <dd class="col-7">{{ pre_analise.cpf }}</dd>
+
+            <dt class="col-5">Comprovante de residência</dt>
+            <dd class="col-7">
+              {% if pre_analise.tem_comprovante_residencia %}
+                <span class="text-success"><i class="bx bx-check-circle"></i> Sim</span>
+              {% else %}
+                <span class="text-danger"><i class="bx bx-x-circle"></i> Não</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-5">Possui 2 referências</dt>
+            <dd class="col-7">
+              {% if pre_analise.possui_duas_referencias %}
+                <span class="text-success"><i class="bx bx-check-circle"></i> Sim</span>
+              {% else %}
+                <span class="text-danger"><i class="bx bx-x-circle"></i> Não</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-5">Loja</dt>
+            <dd class="col-7">{{ pre_analise.loja.nome|default:"—" }}</dd>
+
+            <dt class="col-5">Vendedor</dt>
+            <dd class="col-7">{{ pre_analise.criado_por.get_full_name|default:pre_analise.criado_por.username }}</dd>
+
+            <dt class="col-5">Enviada em</dt>
+            <dd class="col-7">{{ pre_analise.criado_em|date:"d/m/Y H:i" }}</dd>
+
+            {% if pre_analise.analisado_por %}
+            <dt class="col-5">Decidida por</dt>
+            <dd class="col-7">{{ pre_analise.analisado_por.get_full_name|default:pre_analise.analisado_por.username }} — {{ pre_analise.data_decisao|date:"d/m/Y H:i" }}</dd>
+            {% endif %}
+
+            {% if pre_analise.observacao %}
+            <dt class="col-5">Observação</dt>
+            <dd class="col-7">{{ pre_analise.observacao }}</dd>
+            {% endif %}
+          </dl>
+        </div>
+
+        {% if pode_decidir and pre_analise.status == "P" %}
+        <div class="card-footer d-flex gap-2">
+          <form action="{% url 'vendas:pre_analise_rapida_aprovar' pre_analise.pk %}" method="post" class="flex-fill">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success w-100"
+                    onclick="return confirm('Confirmar pré-aprovação desta análise?')">
+              <i class="bx bx-check me-1"></i> Pré-aprovar
+            </button>
+          </form>
+          <button type="button" class="btn btn-outline-danger flex-fill" data-bs-toggle="modal" data-bs-target="#modalReprovar">
+            <i class="bx bx-x me-1"></i> Reprovar
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="card shadow-sm border-0">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bx bx-id-card me-2 text-primary"></i>Documentos (RG)</h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">RG — Frente</label>
+              {% if pre_analise.foto_rg_frente %}
+                <a href="{{ pre_analise.foto_rg_frente.url }}" target="_blank">
+                  <img src="{{ pre_analise.foto_rg_frente.url }}" class="img-fluid rounded border" alt="RG frente">
+                </a>
+              {% else %}
+                <p class="text-muted">Não enviado</p>
+              {% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">RG — Costas</label>
+              {% if pre_analise.foto_rg_verso %}
+                <a href="{{ pre_analise.foto_rg_verso.url }}" target="_blank">
+                  <img src="{{ pre_analise.foto_rg_verso.url }}" class="img-fluid rounded border" alt="RG costas">
+                </a>
+              {% else %}
+                <p class="text-muted">Não enviado</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if pode_decidir and pre_analise.status == "P" %}
+<div class="modal fade" id="modalReprovar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form action="{% url 'vendas:pre_analise_rapida_reprovar' pre_analise.pk %}" method="post">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Reprovar pré-análise</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label">Motivo (opcional)</label>
+          <textarea name="motivo" class="form-control" rows="3" placeholder="Descreva o motivo da reprovação"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger">Reprovar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

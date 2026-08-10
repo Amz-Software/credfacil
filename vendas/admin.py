@@ -533,3 +533,14 @@ class NumeroAutenticadorAdmin(AdminBase):
 
     class Media:
         js = ('admin/js/numero_autenticador_mask.js',)
+
+
+@admin.register(PreAnaliseRapida)
+class PreAnaliseRapidaAdmin(AdminBase):
+    list_display = ('nome_completo', 'cpf', 'status', 'tem_comprovante_residencia',
+                    'possui_duas_referencias', 'loja', 'criado_por', 'analisado_por', 'criado_em')
+    list_filter = ('status', 'tem_comprovante_residencia', 'possui_duas_referencias', 'loja', 'criado_em')
+    search_fields = ('nome_completo', 'cpf', 'loja__nome')
+    date_hierarchy = 'criado_em'
+    ordering = ('-criado_em',)
+    readonly_fields = ('criado_em', 'modificado_em', 'data_decisao', 'analisado_por', 'cliente_gerado')
