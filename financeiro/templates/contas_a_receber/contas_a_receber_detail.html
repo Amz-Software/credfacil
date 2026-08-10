@@ -201,7 +201,10 @@
               <span class="cr-label">E-mail</span><span class="cr-value">{{ conta_a_receber.venda.cliente.email|default:"—" }}</span>
             </div>
             <div class="col-12 col-md-6 col-lg-4 cr-field">
-              <span class="cr-label">Telefone</span><span class="cr-value">{{ conta_a_receber.venda.cliente.telefone }}{% with wa=conta_a_receber.venda.cliente.telefone|whatsapp_url %}{% if wa %}<a href="{{ wa }}" target="_blank" rel="noopener" class="cr-wa-btn" title="Abrir conversa no WhatsApp"><i class="bx bxl-whatsapp"></i></a>{% endif %}{% endwith %}</span>
+              <span class="cr-label">Telefone principal</span><span class="cr-value">{{ conta_a_receber.venda.cliente.telefone }}</span>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4 cr-field">
+              <span class="cr-label">Telefone secundário</span><span class="cr-value">{{ conta_a_receber.venda.cliente.telefone_secundario|default:"—" }}</span>
             </div>
             <div class="col-12 col-md-6 col-lg-4 cr-field">
               <span class="cr-label">CPF</span><span class="cr-value">{{ conta_a_receber.venda.cliente.cpf }}</span>
@@ -740,7 +743,8 @@
       <p>
         <strong>Nome:</strong> {{ conta_a_receber.venda.cliente.nome }}<br>
         <strong>E-mail:</strong> {{ conta_a_receber.venda.cliente.email|default:"—" }}<br>
-        <strong>Telefone:</strong> {{ conta_a_receber.venda.cliente.telefone }}<br>
+        <strong>Telefone principal:</strong> {{ conta_a_receber.venda.cliente.telefone }}<br>
+        <strong>Telefone secundário:</strong> {{ conta_a_receber.venda.cliente.telefone_secundario|default:"—" }}<br>
         <strong>CPF:</strong> {{ conta_a_receber.venda.cliente.cpf }} –
         <strong>Nascimento:</strong> {{ conta_a_receber.venda.cliente.nascimento }}<br>
         <strong>Endereço:</strong>

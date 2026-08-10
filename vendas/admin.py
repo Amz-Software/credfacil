@@ -62,6 +62,7 @@ class VendaAdmin(HistoryAdminBase):
         'cliente__nome',
         'cliente__cpf',
         'cliente__telefone',
+        'cliente__telefone_secundario',
         'vendedor__first_name',
         'vendedor__last_name',
         'vendedor__username',
@@ -209,7 +210,7 @@ class VendaClienteInline(admin.TabularInline):
 
 @admin.register(Cliente)
 class ClienteAdmin(HistoryAdminBase):
-    list_display = ('nome', 'cpf', 'telefone', 'email', 'cidade', 'profissao', 'recebe_auxilio', 'total_renda', 'loja', 'criado_em')
+    list_display = ('nome', 'cpf', 'telefone', 'telefone_secundario', 'email', 'cidade', 'profissao', 'recebe_auxilio', 'total_renda', 'loja', 'criado_em')
     list_filter = (
         'loja',
         'recebe_auxilio',
@@ -221,6 +222,7 @@ class ClienteAdmin(HistoryAdminBase):
         'cpf',
         'rg',
         'telefone',
+        'telefone_secundario',
         'email',
         'cidade',
         'bairro',
@@ -487,6 +489,7 @@ class AnaliseCreditoClienteAdmin(HistoryAdminBase):
         'cliente__nome',
         'cliente__cpf',
         'cliente__telefone',
+        'cliente__telefone_secundario',
         'produto__nome',
         'imei__imei',
         'imei_informado',

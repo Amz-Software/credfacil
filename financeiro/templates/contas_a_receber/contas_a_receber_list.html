@@ -320,6 +320,9 @@
                           {% endwith %}
                         </div>
                       {% endif %}
+                      {% if conta.venda.cliente.telefone_secundario %}
+                        <div class="cr-sub"><i class="bx bx-phone"></i> {{ conta.venda.cliente.telefone_secundario }}</div>
+                      {% endif %}
                     </div>
                   </div>
                 </td>

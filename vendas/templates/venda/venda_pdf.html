@@ -89,7 +89,7 @@
 
         /* Definir tamanhos relativos para colunas */
         .table-client th:nth-child(1), .table-client td:nth-child(1) { width: 20%; } /* Nome/Razão Social */
-        .table-client th:nth-child(2), .table-client td:nth-child(2) { width: 15%; } /* Telefone */
+        .table-client th:nth-child(2), .table-client td:nth-child(2) { width: 15%; } /* Telefones */
         .table-client th:nth-child(3), .table-client td:nth-child(3) { width: 15%; } /* CNPJ/CPF */
         .table-client th:nth-child(4), .table-client td:nth-child(4) { width: 20%; } /* Email */
         .table-client th:nth-child(5), .table-client td:nth-child(5) { width: 20%; } /* Endereço */
@@ -141,7 +141,7 @@
             <thead>
                 <tr>
                     <th>Nome/Razão Social</th>
-                    <th>Telefone</th>
+                    <th>Telefones</th>
                     <th>CNPJ/CPF</th>
                     <th>Email</th>
                     <th>Endereço</th>
@@ -153,7 +153,10 @@
             <tbody>
                 <tr>
                     <td>{{ venda.cliente }}</td>
-                    <td class="text-center">{{ venda.cliente.telefone }}</td>
+                    <td class="text-center">
+                        {{ venda.cliente.telefone }}
+                        {% if venda.cliente.telefone_secundario %}<br>{{ venda.cliente.telefone_secundario }}{% endif %}
+                    </td>
                     <td class="text-center">{{ venda.cliente.cpf }}</td>
                     <td class="text-center">{{ venda.cliente.email }}</td>
                     <td>{{ venda.cliente.endereco }}</td>

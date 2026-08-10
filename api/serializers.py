@@ -313,6 +313,7 @@ class ClienteSolicitacaoSerializer(serializers.ModelSerializer):
             "nome",
             "email",
             "telefone",
+            "telefone_secundario",
             "cpf",
             "nascimento",
             "rg",
@@ -537,6 +538,7 @@ class VendaDocumentosSerializer(serializers.Serializer):
 class SolicitacaoCreditoInputSerializer(serializers.Serializer):
     nome = serializers.CharField()
     telefone = serializers.CharField()
+    telefone_secundario = serializers.CharField(required=False, allow_blank=True)
     cpf = serializers.CharField()
     nascimento = serializers.DateField()
     rg = serializers.CharField(required=False, allow_blank=True)
@@ -589,6 +591,7 @@ class SolicitacaoCreditoInputSerializer(serializers.Serializer):
 
 class SolicitacaoImeiTelefoneInputSerializer(serializers.Serializer):
     telefone = serializers.CharField()
+    telefone_secundario = serializers.CharField(required=False, allow_blank=True)
     marca = serializers.IntegerField()
     produto = serializers.IntegerField()
     data_pagamento = serializers.CharField()

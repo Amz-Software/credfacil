@@ -1412,10 +1412,10 @@
         
         // Additional validation for duplicate phones
         if (complete) {
-          const telefone = $('#id_telefone').val();
-          const telefone_adicional = $('#id_telefone_adicional').val();
+          const telefone = ($('#id_telefone').val() || '').replace(/\D/g, '');
+          const telefone_secundario = ($('#id_telefone_secundario').val() || '').replace(/\D/g, '');
           
-          if (telefone && telefone_adicional && telefone === telefone_adicional) {
+          if (telefone && telefone_secundario && telefone === telefone_secundario) {
             complete = false;
           }
         }
@@ -1566,6 +1566,10 @@
       if ($('#id_email').length && !$('#id_email').siblings('.validation-feedback').length) {
         $('#id_email').after('<div class="validation-feedback"></div>');
       }
+
+      if ($('#id_telefone_secundario').length && !$('#id_telefone_secundario').siblings('.validation-feedback').length) {
+        $('#id_telefone_secundario').after('<div class="validation-feedback"></div>');
+      }
       
       // Bind validation events (exclui o textarea de nova observação na aba Histórico)
       $('input, select, textarea').not('#novaObservacaoTexto').on('blur change', function() {
@@ -1581,22 +1585,29 @@
       
       // Validation for duplicate phones
       function validateDuplicatePhones() {
-        const telefone = $('#id_telefone').val();
-        const telefone_adicional = $('#id_telefone_adicional').val();
+        const telefone = ($('#id_telefone').val() || '').replace(/\D/g, '');
+        const telefone_secundario = ($('#id_telefone_secundario').val() || '').replace(/\D/g, '');
         
-        if (telefone && telefone_adicional && telefone === telefone_adicional) {
-          $('#id_telefone_adicional').removeClass('is-valid').addClass('is-invalid');
-          $('#id_telefone_adicional').siblings('.validation-feedback').removeClass('valid-feedback').addClass('invalid-feedback').text('Telefone adicional não pode ser igual ao telefone principal');
+        if (telefone_secundario && (telefone_secundario.length < 10 || telefone_secundario.length > 11)) {
+          $('#id_telefone_secundario').removeClass('is-valid').addClass('is-invalid');
+          $('#id_telefone_secundario').siblings('.validation-feedback').removeClass('valid-feedback').addClass('invalid-feedback').text('Telefone secundário deve ter entre 10 e 11 dígitos');
           return false;
-        } else if (telefone_adicional) {
-          $('#id_telefone_adicional').removeClass('is-invalid').addClass('is-valid');
-          $('#id_telefone_adicional').siblings('.validation-feedback').removeClass('invalid-feedback').addClass('valid-feedback').text('Telefone adicional válido');
+        } else if (telefone && telefone_secundario && telefone === telefone_secundario) {
+          $('#id_telefone_secundario').removeClass('is-valid').addClass('is-invalid');
+          $('#id_telefone_secundario').siblings('.validation-feedback').removeClass('valid-feedback').addClass('invalid-feedback').text('Telefone secundário não pode ser igual ao telefone principal');
+          return false;
+        } else if (telefone_secundario) {
+          $('#id_telefone_secundario').removeClass('is-invalid').addClass('is-valid');
+          $('#id_telefone_secundario').siblings('.validation-feedback').removeClass('invalid-feedback').addClass('valid-feedback').text('Telefone secundário válido');
+        } else {
+          $('#id_telefone_secundario').removeClass('is-invalid is-valid');
+          $('#id_telefone_secundario').siblings('.validation-feedback').text('');
         }
         return true;
       }
       
       // Bind validation for duplicate phones
-      $('#id_telefone, #id_telefone_adicional').on('blur change', function() {
+      $('#id_telefone, #id_telefone_secundario').on('blur change', function() {
         validateDuplicatePhones();
       });
       
