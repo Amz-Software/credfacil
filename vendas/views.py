@@ -1823,11 +1823,17 @@ class VendaEdicaoEspecialView(PermissionRequiredMixin, UpdateView):
         if not (form.is_valid() and produto_venda_formset.is_valid() and pagamento_formset.is_valid()):
             return self.form_invalid(form)
 
+        alterou_somente_imei = self._alterou_somente_imei(
+            produto_venda_formset,
+            pagamento_formset,
+        )
+
         try:
             with transaction.atomic():
                 self._atualizar_venda(form, loja)
                 self._processar_produtos(produto_venda_formset, loja)
-                self._processar_pagamentos(pagamento_formset, loja)
+                if not alterou_somente_imei:
+                    self._processar_pagamentos(pagamento_formset, loja)
                 messages.success(self.request, 'Venda atualizada com sucesso')
             return super().form_valid(form)
         except Exception as e:
@@ -1847,6 +1853,28 @@ class VendaEdicaoEspecialView(PermissionRequiredMixin, UpdateView):
             produto_venda.loja = loja
             produto_venda.save()
         formset.save_m2m()
+
+    @staticmethod
+    def _alterou_somente_imei(produto_formset, pagamento_formset):
+        campos_produto_alterados = {
+            campo
+            for produto_form in produto_formset.forms
+            for campo in produto_form.changed_data
+        }
+        if campos_produto_alterados != {'imei'}:
+            return False
+
+        for pagamento_form in pagamento_formset.forms:
+            nome_campo = pagamento_form.add_prefix('parcelas')
+            if nome_campo not in pagamento_form.data:
+                continue
+
+            parcelas_anteriores = pagamento_form.initial.get('parcelas')
+            parcelas_informadas = pagamento_form.cleaned_data.get('parcelas')
+            if parcelas_informadas != parcelas_anteriores:
+                return False
+
+        return True
 
     def _processar_pagamentos(self, formset, loja):
         pagamentos_modificados = formset.save(commit=False)
