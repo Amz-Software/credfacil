@@ -1945,8 +1945,11 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                     notification_id=ultima_notificacao.id,
                     verb=verb,
                     description=description,
-                    target_url=cliente.get_absolute_url(),
+                    # Path React direto para o botao de atalho do modal do vendedor
+                    # cair na tela da solicitacao (segue o padrao do evento pre_analise).
+                    target_url=f"/app/solicitacoes/{cliente.pk}",
                     type_notification="analise_credito_cliente",
+                    event="instalacao_confirmada",
                 )
 
         return Response({"detail": f"Instalacao do app confirmada para {cliente.nome}."})
