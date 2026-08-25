@@ -28,9 +28,12 @@ def _ws_seguro(**kwargs):
 def status_anterior(sender, instance, **kwargs):
     if instance.pk:
         try:
-            instance.status_anterior = AnaliseCreditoCliente.objects.get(pk=instance.pk).status
+            anterior = AnaliseCreditoCliente.objects.get(pk=instance.pk)
+            instance.status_anterior = anterior.status
+            instance.status_aplicativo_anterior = anterior.status_aplicativo
         except AnaliseCreditoCliente.DoesNotExist:
             instance.status_anterior = None
+            instance.status_aplicativo_anterior = None
 
 
 @receiver(post_save, sender=AnaliseCreditoCliente)
@@ -154,8 +157,42 @@ def notificar_status_analise_credito(sender, instance, created, **kwargs):
                     # Dispara o modal central do VENDEDOR no front React
                     event=evento,
                 )
-                
-                
+
+    # Instalacao confirmada: status_aplicativo -> 'I' (venda liberada para geracao).
+    # Centralizado aqui para cobrir TODOS os endpoints que marcam a instalacao
+    # (informar-imei-analise, analista-confirmar-instalacao, views do Django).
+    status_app_anterior = getattr(instance, 'status_aplicativo_anterior', None)
+    if not created and instance.status_aplicativo == 'I' and status_app_anterior != 'I':
+        verb = f'Instalação confirmada para o cliente {cliente_nome.capitalize()}. Venda liberada para geração.'
+        imei_info = f'Imei {instance.imei.imei}' if instance.imei else 'IMEI não informado'
+        description = f'{imei_info} da loja {instance.loja.nome.capitalize()}.'
+
+        # Somente o Criador (vendedor)
+        destinatarios = [instance.criado_por] if instance.criado_por else []
+        for user in destinatarios:
+            notify.send(
+                instance,
+                recipient=user,
+                verb=verb,
+                description=description,
+                target=instance.cliente,
+            )
+
+            ultima_notificacao = user.notifications.unread().order_by('-timestamp').first()
+            if ultima_notificacao:
+                _ws_seguro(
+                    usuario=user,
+                    instance=instance,
+                    notification_id=ultima_notificacao.id,
+                    verb=verb,
+                    description=description,
+                    target_url=f'/app/solicitacoes/{instance.cliente.pk}',
+                    type_notification='analise_credito_cliente',
+                    # Dispara o modal central do VENDEDOR no front React
+                    event='instalacao_confirmada',
+                )
+
+
 #     if created:
 #         verb = f'Nova entrada de estoque registrada.'
 #         description = f'Entrada Estoque'

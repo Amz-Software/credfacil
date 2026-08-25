@@ -1925,8 +1925,10 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         verb = f"Analista confirmou instalacao do app para cliente {cliente_nome.capitalize()}."
         description = f"IMEI {analise_credito.imei.imei} da loja {loja.nome.capitalize()}. Venda liberada para geracao."
 
+        # O popup do VENDEDOR (event=instalacao_confirmada) e disparado pelo signal
+        # ao detectar status_aplicativo -> 'I'. Aqui notificamos apenas admin/analista.
         usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=["VENDEDOR", "ADMINISTRADOR", "ANALISTA"]).exclude(id=request.user.id)
+            User.objects.filter(groups__name__in=["ADMINISTRADOR", "ANALISTA"]).exclude(id=request.user.id)
         )
         for user in usuarios_para_notificar:
             notify.send(
@@ -1945,11 +1947,8 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                     notification_id=ultima_notificacao.id,
                     verb=verb,
                     description=description,
-                    # Path React direto para o botao de atalho do modal do vendedor
-                    # cair na tela da solicitacao (segue o padrao do evento pre_analise).
                     target_url=f"/app/solicitacoes/{cliente.pk}",
                     type_notification="analise_credito_cliente",
-                    event="instalacao_confirmada",
                 )
 
         return Response({"detail": f"Instalacao do app confirmada para {cliente.nome}."})
