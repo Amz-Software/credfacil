@@ -203,6 +203,43 @@ class RelatorioContasAReceberForm(forms.Form):
         widget=Select2MultipleWidget(attrs={'class': 'form-control'})
     )
 
+class RelatorioParcelasForm(forms.Form):
+    """Filtros do relatório em grade de parcelas (Excel colorido por status)."""
+    lojas = forms.ModelMultipleChoiceField(
+        queryset=Loja.objects.all(),
+        label='Lojas',
+        required=False,
+        widget=Select2MultipleWidget(attrs={'class': 'form-control'})
+    )
+    status = forms.ChoiceField(
+        choices=[
+            ('todos', 'Todos'),
+            ('atrasado', 'Com parcela atrasada'),
+            ('a_vencer', 'Somente a vencer (em dia)'),
+            ('quitado', 'Quitados'),
+        ],
+        label='Status',
+        required=False,
+        initial='todos',
+        widget=Select2Widget(attrs={'class': 'form-control'})
+    )
+    data_inicial = forms.DateField(
+        label='Vencimento de',
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+    )
+    data_final = forms.DateField(
+        label='Vencimento até',
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+    )
+    busca = forms.CharField(
+        label='Cliente ou CPF',
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome do cliente ou CPF'})
+    )
+
+
 class RelatorioSaidaForm(forms.Form):
     data_inicial = forms.DateField(
         label='Data Inicial',

@@ -3,6 +3,9 @@ from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 import weasyprint
+import openpyxl
+from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
@@ -1223,3 +1226,219 @@ class ContatoUpdateView(PermissionRequiredMixin, UpdateView):
     def get_success_url(self):
         # volta à tela de pagamento
         return reverse('financeiro:contas_a_receber_update', args=[self.kwargs['pagamento_pk']])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Relatório de Parcelas — grade colorida por status (Excel)
+#   🟢 Pago  •  🔴 Atrasado  •  🟡 A vencer
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _brl(valor):
+    """Formata número/Decimal como moeda brasileira: 1234.5 -> 'R$ 1.234,50'."""
+    s = f"{float(valor or 0):,.2f}"  # 1,234.50
+    return "R$ " + s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+class _FiltroParcelasMixin:
+    """Monta o queryset de Pagamentos parcelados aplicando os filtros do relatório."""
+
+    def get_pagamentos(self):
+        request = self.request
+        user = request.user
+
+        qs = (
+            Pagamento.objects
+            .exclude(venda__is_deleted=True)
+            .filter(tipo_pagamento__parcelas=True)
+            .exclude(tipo_pagamento__caixa=True)
+            .with_status_flags()
+        )
+
+        # Escopo por loja (quem não vê todos os pagamentos fica preso à loja da sessão)
+        if not user.has_perm('vendas.can_view_all_payments'):
+            qs = qs.filter(loja_id=request.session.get('loja_id'))
+        else:
+            lojas = request.GET.getlist('lojas')
+            if lojas:
+                qs = qs.filter(loja_id__in=lojas)
+
+        # Status
+        status = request.GET.get('status') or 'todos'
+        if status == 'atrasado':
+            qs = qs.filter(com_parcela_atrasada=True)
+        elif status == 'a_vencer':
+            qs = qs.filter(com_pagamento_pendente=True)
+        elif status == 'quitado':
+            qs = qs.filter(todas_parcelas_pagas=True)
+
+        # Período de vencimento das parcelas
+        data_inicial = parse_date(request.GET.get('data_inicial') or '')
+        data_final = parse_date(request.GET.get('data_final') or '')
+        if data_inicial:
+            qs = qs.filter(parcelas_pagamento__data_vencimento__gte=data_inicial)
+        if data_final:
+            qs = qs.filter(parcelas_pagamento__data_vencimento__lte=data_final)
+
+        # Busca por cliente/CPF
+        busca = (request.GET.get('busca') or '').strip()
+        if busca:
+            qs = qs.filter(
+                Q(venda__cliente__nome__icontains=busca) |
+                Q(venda__cliente__cpf__icontains=busca)
+            )
+
+        return (
+            qs.distinct()
+            .select_related('venda', 'venda__cliente', 'venda__loja', 'loja')
+            .prefetch_related('parcelas_pagamento', 'venda__itens_venda__produto')
+            .order_by('venda__loja__nome', 'venda__cliente__nome')
+        )
+
+
+class RelatorioParcelasView(BaseView, PermissionRequiredMixin, TemplateView):
+    """Página com o formulário de filtros que dispara o download do Excel."""
+    template_name = 'contas_a_receber/relatorio_parcelas.html'
+    permission_required = 'vendas.can_genarate_report_payments'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = RelatorioParcelasForm(self.request.GET or None)
+        return context
+
+
+class RelatorioParcelasExcelView(_FiltroParcelasMixin, PermissionRequiredMixin, View):
+    """Gera o .xlsx em grade de parcelas colorido por status."""
+    permission_required = 'vendas.can_genarate_report_payments'
+
+    FILL_HEADER = PatternFill('solid', fgColor='ED7D31')
+    FILL_PAGO = PatternFill('solid', fgColor='92D050')
+    FILL_ATRASADO = PatternFill('solid', fgColor='FF0000')
+    FILL_AVENCER = PatternFill('solid', fgColor='FFC000')
+    THIN = Side(style='thin', color='C9A27E')
+    BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+
+    def get(self, request, *args, **kwargs):
+        hoje = timezone.localdate()
+        pagamentos = list(self.get_pagamentos())
+
+        # Pré-processa linhas e descobre o maior número de parcelas
+        linhas = []
+        max_parcelas = 1
+        for pag in pagamentos:
+            parcelas = sorted(pag.parcelas_pagamento.all(), key=lambda p: p.numero_parcela)
+            max_parcelas = max(max_parcelas, len(parcelas))
+            venda = pag.venda
+            cliente = getattr(venda, 'cliente', None)
+            aparelhos = ', '.join(
+                i.produto.nome for i in venda.itens_venda.all() if getattr(i, 'produto', None)
+            ) if venda else ''
+            linhas.append({
+                'loja': venda.loja.nome if venda and venda.loja else (pag.loja.nome if pag.loja else ''),
+                'cliente': cliente.nome if cliente else '—',
+                'aparelho': aparelhos or '—',
+                'parcelas': parcelas,
+            })
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Parcelamento'
+
+        col_fixas = 3        # Loja, Cliente, Aparelho
+        col_totais = 4       # Total, Pago, Atrasado, A vencer
+        total_cols = col_fixas + max_parcelas + col_totais
+
+        # ── Título
+        titulo = ws.cell(row=1, column=1, value='Relatório de Parcelas')
+        titulo.font = Font(bold=True, size=16, color='7A3E00')
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
+
+        gerado = timezone.localtime().strftime('%d/%m/%Y %H:%M')
+        sub = ws.cell(row=2, column=1, value=f'Gerado em {gerado} • {len(linhas)} cliente(s)')
+        sub.font = Font(italic=True, color='7A7A7A')
+        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=total_cols)
+
+        # ── Legenda
+        ws.cell(row=3, column=1, value='Legenda:').font = Font(bold=True)
+        for i, (texto, fill, branco) in enumerate([
+            ('Pago', self.FILL_PAGO, False),
+            ('Atrasado', self.FILL_ATRASADO, True),
+            ('A vencer', self.FILL_AVENCER, False),
+        ]):
+            cel = ws.cell(row=3, column=2 + i, value=texto)
+            cel.fill = fill
+            cel.border = self.BORDER
+            cel.alignment = Alignment(horizontal='center')
+            cel.font = Font(bold=True, color='FFFFFF') if branco else Font(bold=True)
+
+        # ── Cabeçalho
+        header_row = 5
+        headers = (
+            ['Loja', 'Cliente', 'Aparelho']
+            + [str(i) for i in range(1, max_parcelas + 1)]
+            + ['Total', 'Pago', 'Atrasado', 'A vencer']
+        )
+        for idx, txt in enumerate(headers, start=1):
+            cel = ws.cell(row=header_row, column=idx, value=txt)
+            cel.fill = self.FILL_HEADER
+            cel.font = Font(bold=True, color='FFFFFF')
+            cel.alignment = Alignment(horizontal='center', vertical='center')
+            cel.border = self.BORDER
+
+        # ── Dados
+        r = header_row + 1
+        for linha in linhas:
+            ws.cell(row=r, column=1, value=linha['loja']).border = self.BORDER
+            ws.cell(row=r, column=2, value=linha['cliente']).border = self.BORDER
+            ws.cell(row=r, column=3, value=linha['aparelho']).border = self.BORDER
+
+            tot = tot_pago = tot_atraso = tot_avencer = Decimal('0')
+            for p in linha['parcelas']:
+                col = col_fixas + p.numero_parcela
+                if col > col_fixas + max_parcelas:
+                    continue
+                valor = p.valor or Decimal('0')
+                tot += valor
+                if p.pago:
+                    fill, font = self.FILL_PAGO, Font(bold=True)
+                    tot_pago += p.valor_pago_efetivo
+                elif p.data_vencimento and p.data_vencimento < hoje:
+                    fill, font = self.FILL_ATRASADO, Font(bold=True, color='FFFFFF')
+                    tot_atraso += p.valor_restante
+                else:
+                    fill, font = self.FILL_AVENCER, Font(bold=True)
+                    tot_avencer += p.valor_restante
+                venc = p.data_vencimento.strftime('%d/%m/%Y') if p.data_vencimento else ''
+                cel = ws.cell(row=r, column=col, value=f'{_brl(valor)}\n{venc}')
+                cel.fill = fill
+                cel.font = font
+                cel.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                cel.border = self.BORDER
+
+            base = col_fixas + max_parcelas
+            for offset, valor in enumerate([tot, tot_pago, tot_atraso, tot_avencer], start=1):
+                cel = ws.cell(row=r, column=base + offset, value=_brl(valor))
+                cel.border = self.BORDER
+                cel.alignment = Alignment(horizontal='right')
+            r += 1
+
+        # ── Larguras / congelamento / grid
+        ws.column_dimensions['A'].width = 18
+        ws.column_dimensions['B'].width = 24
+        ws.column_dimensions['C'].width = 26
+        for i in range(1, max_parcelas + 1):
+            ws.column_dimensions[get_column_letter(col_fixas + i)].width = 14
+        for i in range(1, col_totais + 1):
+            ws.column_dimensions[get_column_letter(col_fixas + max_parcelas + i)].width = 13
+        ws.freeze_panes = ws.cell(row=header_row + 1, column=col_fixas + 1)
+        ws.sheet_view.showGridLines = False
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        nome = f'relatorio_parcelas_{hoje.strftime("%Y%m%d")}.xlsx'
+        resp = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        resp['Content-Disposition'] = f'attachment; filename="{nome}"'
+        return resp

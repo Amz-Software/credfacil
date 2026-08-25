@@ -95,6 +95,11 @@ def menu_items(request):
                     "url_name": "financeiro:relatorio_contas_a_receber_avancado",
                     "permission": "vendas.view_pagamento",
                 },
+                {
+                    "label": "Relatório de Parcelas",
+                    "url_name": "financeiro:relatorio_parcelas",
+                    "permission": "vendas.can_genarate_report_payments",
+                },
             ],
         },
         {

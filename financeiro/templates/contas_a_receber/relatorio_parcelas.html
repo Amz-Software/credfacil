@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+Relatório de Parcelas
+{% endblock title %}
+
+{% block extra_head %}
+{{ form.media.css }}
+{% endblock extra_head %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow-sm">
+    <div class="card-header d-flex align-items-center gap-2">
+      <i class="bx bx-grid-alt text-primary"></i>
+      <h3 class="card-title mb-0 text-secondary">Gerar Relatório de Parcelas</h3>
+    </div>
+    <div class="card-body">
+      <p class="text-muted">
+        Gera um Excel em grade com uma linha por cliente e uma coluna por parcela,
+        colorida conforme o status:
+        <span class="badge" style="background:#92D050;color:#000;">Pago</span>
+        <span class="badge" style="background:#FF0000;color:#fff;">Atrasado</span>
+        <span class="badge" style="background:#FFC000;color:#000;">A vencer</span>.
+        Cada célula mostra o valor e o vencimento da parcela.
+      </p>
+
+      <form method="get" action="{% url 'financeiro:relatorio_parcelas_excel' %}" target="_blank">
+        {{ form|crispy }}
+        <button type="submit" class="btn btn-primary">
+          <i class="bx bx-download"></i> Gerar Excel
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ form.media.js }}
+{% endblock extra_scripts %}

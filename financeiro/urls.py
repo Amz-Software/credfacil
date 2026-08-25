@@ -34,5 +34,8 @@ urlpatterns = [
     path('relatorio/contas-a-pagar/folha', FolhaRelatorioContasAReceberView.as_view(), name='relatorio_folha_contas_a_receber'),
     path('relatorio/contas-a-receber/avancado', RelatorioContasAReceberAvancadoView.as_view(), name='relatorio_contas_a_receber_avancado'),
     path('relatorio/contas-a-receber/folha-avancado', FolhaRelatorioContasAReceberAvancadoView.as_view(), name='relatorio_folha_contas_a_receber_avancado'),
-    
+
+    path('relatorio/parcelas', RelatorioParcelasView.as_view(), name='relatorio_parcelas'),
+    path('relatorio/parcelas/excel', RelatorioParcelasExcelView.as_view(), name='relatorio_parcelas_excel'),
+
 ]
