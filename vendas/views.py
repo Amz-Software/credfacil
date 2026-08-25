@@ -3696,10 +3696,11 @@ class AnalistaConfirmInstalledView(PermissionRequiredMixin, View):
         
         verb = f'Analista confirmou instalação do app para cliente {cliente_nome.capitalize()}.'
         description = f'IMEI {analise_credito.imei.imei} da loja {loja.nome.capitalize()}. Venda liberada para geração.'
-        
-        # Notificar vendedores e outros analistas
+
+        # O popup do VENDEDOR (event=instalacao_confirmada) e disparado pelo signal
+        # ao detectar status_aplicativo -> 'I'. Aqui notificamos apenas admin/analista.
         usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=['VENDEDOR', 'ADMINISTRADOR', 'ANALISTA']).exclude(id=request.user.id)
+            User.objects.filter(groups__name__in=['ADMINISTRADOR', 'ANALISTA']).exclude(id=request.user.id)
         )
         
         for user in usuarios_para_notificar:

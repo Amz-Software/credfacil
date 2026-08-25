@@ -75,14 +75,15 @@ def notificar_status_analise_credito(sender, instance, created, **kwargs):
                     event='proposta_criada',
                 )
 
-    if instance.status_aplicativo == 'C':
-        verb = f'Instalação do cliente {cliente_nome.capitalize()} está aguardando confirmação.'
+    status_app_anterior = getattr(instance, 'status_aplicativo_anterior', None)
+    if instance.status_aplicativo == 'C' and status_app_anterior != 'C':
+        verb = f'Vendedor confirmou a instalação do app do cliente {cliente_nome.capitalize()}. Aguardando você confirmar.'
         imei_info = f'Imei {instance.imei.imei}' if instance.imei else 'IMEI não informado'
         description = f'{imei_info} da loja {instance.loja.nome.capitalize()}.'
 
-        # Admins + analista que criou
+        # Admins/analistas (distinct: usuario em 2 grupos nao deve ser notificado 2x)
         usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=['ADMINISTRADOR', 'ANALISTA']).exclude(id=instance.criado_por_id)
+            User.objects.filter(groups__name__in=['ADMINISTRADOR', 'ANALISTA']).exclude(id=instance.criado_por_id).distinct()
         )
 
         if instance.criado_por:
@@ -108,6 +109,8 @@ def notificar_status_analise_credito(sender, instance, created, **kwargs):
                     description=description,
                     target_url=instance.cliente.get_absolute_url(),
                     type_notification='analise_credito_cliente',
+                    # Dispara o modal central do ANALISTA/ADMIN no front Django
+                    event='instalacao_aguardando_confirmacao',
                 )
 
     if not hasattr(instance, 'status_anterior'):

@@ -554,7 +554,7 @@
 
       // 🪟 Modal central — somente ANALISTA/ADMIN quando uma NOVA proposta é criada
       console.log("[WS][modal] event=", data.event, "| podeVerModal=", window.__podeVerModalProposta);
-      if (window.__podeVerModalProposta && (data.event === 'proposta_criada' || data.event === 'pre_analise_criada')) {
+      if (window.__podeVerModalProposta && (data.event === 'proposta_criada' || data.event === 'pre_analise_criada' || data.event === 'instalacao_aguardando_confirmacao')) {
         mostrarModalProposta(data);
       }
 
@@ -652,7 +652,7 @@
       <div class="modal-content border-0 shadow-lg">
         <div class="modal-header bg-primary text-white">
           <h5 class="modal-title d-flex align-items-center gap-2" id="modalNovaPropostaLabel">
-            <i class="bx bx-bell bx-tada"></i> Nova proposta recebida
+            <i class="bx bx-bell bx-tada"></i> <span id="modalNovaPropostaTitulo">Nova proposta recebida</span>
           </h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
         </div>
@@ -686,13 +686,27 @@
         return;
       }
 
+      const tituloEl = document.getElementById('modalNovaPropostaTitulo');
       const verbEl = document.getElementById('modalNovaPropostaVerb');
       const descEl = document.getElementById('modalNovaPropostaDescription');
       const linkEl = document.getElementById('modalNovaPropostaLink');
 
+      // Título e rótulo do botão variam conforme o evento
+      let titulo = 'Nova proposta recebida';
+      let linkLabel = 'Ver proposta';
+      if (data.event === 'instalacao_aguardando_confirmacao') {
+        titulo = 'Instalação aguardando confirmação';
+        linkLabel = 'Ver solicitação';
+      } else if (data.event === 'pre_analise_criada') {
+        titulo = 'Nova análise rápida';
+        linkLabel = 'Ver análise';
+      }
+
+      if (tituloEl) tituloEl.textContent = titulo;
       if (verbEl) verbEl.textContent = data.verb || 'Uma nova proposta foi criada.';
       if (descEl) descEl.textContent = data.description || '';
       if (linkEl) {
+        linkEl.textContent = linkLabel;
         linkEl.href = data.target_url || '#';
         linkEl.style.display = data.target_url ? '' : 'none';
       }
