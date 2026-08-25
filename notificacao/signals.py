@@ -147,7 +147,9 @@ def notificar_status_analise_credito(sender, instance, created, **kwargs):
                     notification_id=ultima_notificacao.id,
                     verb=verb,
                     description=description,
-                    target_url=instance.cliente.get_absolute_url(),
+                    # Rota do SPA React (detalhe da solicitacao). cliente.get_absolute_url()
+                    # retorna a URL do Django, que nao existe no React e causa 404 + logout.
+                    target_url=f'/app/solicitacoes/{instance.cliente.pk}',
                     type_notification='analise_credito_cliente',
                     # Dispara o modal central do VENDEDOR no front React
                     event=evento,
