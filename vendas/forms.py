@@ -1732,3 +1732,24 @@ class ContatoForm(forms.ModelForm):
                 attrs={'class': 'form-control', 'rows': 3}
             ),
         }
+
+
+class PreAnaliseRapidaConsultaSerasaForm(forms.ModelForm):
+    """Analista anexa a consulta Serasa ainda na análise rápida."""
+
+    class Meta:
+        model = PreAnaliseRapida
+        fields = ['consulta_serasa']
+        widgets = {
+            'consulta_serasa': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.jpg,.jpeg,.png,.webp',
+            }),
+        }
+        labels = {'consulta_serasa': 'Consulta Serasa'}
+
+    def clean_consulta_serasa(self):
+        arquivo = self.cleaned_data.get('consulta_serasa')
+        if not arquivo:
+            raise forms.ValidationError('Selecione o arquivo da consulta Serasa.')
+        return arquivo

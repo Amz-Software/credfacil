@@ -14,6 +14,7 @@ from django.utils.text import slugify
 import calendar
 import os
 from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 from simple_history.models import HistoricalRecords
 
 def upload_to_venda(instance, filename):
@@ -707,6 +708,18 @@ class PreAnaliseRapida(Base):
     tem_comprovante_residencia = models.BooleanField(default=False, verbose_name='Tem comprovante de residência')
     possui_duas_referencias = models.BooleanField(default=False, verbose_name='Possui 2 referências')
 
+    # Anexada pelo analista durante a análise rápida. Ao virar proposta, é copiada
+    # para ComprovantesCliente.consulta_serasa, já vindo preenchida no cadastro.
+    consulta_serasa = models.FileField(
+        upload_to=upload_pre_analise_rapida, null=True, blank=True,
+        verbose_name='Consulta Serasa',
+    )
+    consulta_serasa_anexada_por = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pre_analises_rapidas_serasa',
+    )
+    consulta_serasa_anexada_em = models.DateTimeField(null=True, blank=True)
+
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P')
     observacao = models.TextField(null=True, blank=True, verbose_name='Observação / motivo')
 
@@ -741,6 +754,57 @@ class PreAnaliseRapida(Base):
     @property
     def finalizada(self):
         return self.cliente_gerado_id is not None
+
+    @property
+    def tem_consulta_serasa(self):
+        return bool(self.consulta_serasa)
+
+    def anexar_consulta_serasa(self, arquivo, user=None):
+        """Analista anexa a consulta Serasa ainda na análise rápida."""
+        self.consulta_serasa = arquivo
+        self.consulta_serasa_anexada_por = user
+        self.consulta_serasa_anexada_em = timezone.now()
+        self.save(user=user)
+        return self.consulta_serasa
+
+    def remover_consulta_serasa(self, user=None):
+        if not self.consulta_serasa:
+            return False
+        self.consulta_serasa.delete(save=False)
+        self.consulta_serasa = None
+        self.consulta_serasa_anexada_por = None
+        self.consulta_serasa_anexada_em = None
+        self.save(user=user)
+        return True
+
+    def aplicar_consulta_serasa(self, cliente, user=None, sobrescrever=False):
+        """Copia a consulta Serasa anexada na análise rápida para os comprovantes
+        do cliente gerado, de forma que a proposta já nasça com o documento
+        preenchido. Não sobrescreve um arquivo já existente, salvo se pedido."""
+        if not self.consulta_serasa or cliente is None:
+            return False
+
+        comprovantes = getattr(cliente, 'comprovantes', None)
+        if comprovantes is None:
+            return False
+        if comprovantes.consulta_serasa and not sobrescrever:
+            return False
+
+        try:
+            self.consulta_serasa.open('rb')
+            conteudo = ContentFile(self.consulta_serasa.read())
+        except (FileNotFoundError, OSError, ValueError):
+            return False
+        finally:
+            try:
+                self.consulta_serasa.close()
+            except Exception:
+                pass
+
+        nome = os.path.basename(self.consulta_serasa.name)
+        comprovantes.consulta_serasa.save(nome, conteudo, save=False)
+        comprovantes.save(user=user)
+        return True
 
     def get_absolute_url(self):
         return reverse('vendas:pre_analise_rapida_detalhe', kwargs={'pk': self.pk})

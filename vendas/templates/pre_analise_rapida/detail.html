@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load file_utils %}
 
 {% block title %}Análise Rápida — {{ pre_analise.nome_completo }}{% endblock %}
 
@@ -114,6 +115,88 @@
           </div>
         </div>
       </div>
+
+      {% if pode_gerenciar_serasa %}
+      <div class="card shadow-sm border-0 mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bx bx-search-alt me-2 text-primary"></i>Consulta Serasa</h5>
+          {% if pre_analise.consulta_serasa %}
+            {% include "components/status_badge.html" with state="success" label="Anexada" %}
+          {% else %}
+            {% include "components/status_badge.html" with state="secondary" label="Não anexada" %}
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">
+            <i class="bx bx-info-circle me-1"></i>
+            Anexe aqui a consulta Serasa feita durante a análise rápida. Quando o vendedor gerar a
+            proposta a partir desta análise, o documento já vai preenchido nos comprovantes do cliente.
+          </p>
+
+          {% if pre_analise.consulta_serasa %}
+            <div class="mb-3">
+              {% if pre_analise.consulta_serasa|is_image_file %}
+                <a href="{{ pre_analise.consulta_serasa.url }}" target="_blank" class="d-block mb-2">
+                  <img src="{{ pre_analise.consulta_serasa.url }}" class="img-thumbnail" style="max-height:160px;">
+                </a>
+              {% else %}
+                <div class="border rounded p-3 bg-light-subtle">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small"><i class="bx bx-file me-1"></i> Pré-visualização</span>
+                    <a href="{{ pre_analise.consulta_serasa.url }}" target="_blank" class="btn btn-sm btn-primary">
+                      <i class="bx bx-download me-1"></i> Abrir em nova aba
+                    </a>
+                  </div>
+                  <iframe src="{{ pre_analise.consulta_serasa.url }}" title="Consulta Serasa"
+                          class="w-100 border rounded" style="min-height: 420px;"></iframe>
+                </div>
+              {% endif %}
+              {% if pre_analise.consulta_serasa_anexada_em %}
+                <small class="text-muted d-block mt-2">
+                  Anexada{% if pre_analise.consulta_serasa_anexada_por %} por
+                  {{ pre_analise.consulta_serasa_anexada_por.get_full_name|default:pre_analise.consulta_serasa_anexada_por.username }}{% endif %}
+                  em {{ pre_analise.consulta_serasa_anexada_em|date:"d/m/Y H:i" }}
+                </small>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if pre_analise.finalizada %}
+            <div class="alert alert-info mb-0">
+              <i class="bx bx-check-circle me-1"></i>
+              Esta análise já virou proposta. Altere a consulta Serasa direto no cadastro do cliente.
+            </div>
+          {% else %}
+            <form action="{% url 'vendas:pre_analise_rapida_consulta_serasa' pre_analise.pk %}"
+                  method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
+              {% csrf_token %}
+              <div class="col-md-8">
+                <label for="{{ form_consulta_serasa.consulta_serasa.id_for_label }}" class="form-label fw-semibold">
+                  {% if pre_analise.consulta_serasa %}Substituir arquivo{% else %}Anexar consulta Serasa{% endif %}
+                </label>
+                {{ form_consulta_serasa.consulta_serasa }}
+              </div>
+              <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill">
+                  <i class="bx bx-upload me-1"></i> Salvar
+                </button>
+              </div>
+            </form>
+
+            {% if pre_analise.consulta_serasa %}
+            <form action="{% url 'vendas:pre_analise_rapida_consulta_serasa_remover' pre_analise.pk %}"
+                  method="post" class="mt-2">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-danger"
+                      onclick="return confirm('Remover a consulta Serasa desta análise?')">
+                <i class="bx bx-trash me-1"></i> Remover consulta
+              </button>
+            </form>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>

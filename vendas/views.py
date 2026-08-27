@@ -18,6 +18,7 @@ from qrcode.constants import ERROR_CORRECT_M
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.core.exceptions import PermissionDenied
 from accounts.models import User
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -42,6 +43,7 @@ from vendas.forms import (
     FormaPagamentoFormSet, LancamentoForm, LancamentoCaixaTotalForm, ClienteTelefoneForm,
     AnaliseCreditoClienteImeiForm, VendaEdicaoEspecialForm,
     ProdutoVendaEdicaoEspecialFormSet, FormaPagamentoEdicaoEspecialFormSet,
+    PreAnaliseRapidaConsultaSerasaForm,
     erro_pelo_menos_um_contato, user_is_analista_or_admin
 )
 from .models import (
@@ -1475,6 +1477,17 @@ class PreAnaliseRapidaListView(LoginRequiredMixin, PermissionRequiredMixin, List
         return ctx
 
 
+def _pode_gerenciar_consulta_serasa(user):
+    """Mesma regra usada no cadastro do cliente: analista/quem pode decidir
+    análise ou quem tem permissão explícita de consulta Serasa."""
+    return bool(
+        user.is_superuser
+        or user.has_perm('vendas.change_status_analise')
+        or user.has_perm('vendas.view_consulta_serasa')
+        or user.groups.filter(name='ANALISTA').exists()
+    )
+
+
 class PreAnaliseRapidaDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = PreAnaliseRapida
     template_name = 'pre_analise_rapida/detail.html'
@@ -1484,7 +1497,61 @@ class PreAnaliseRapidaDetailView(LoginRequiredMixin, PermissionRequiredMixin, De
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['pode_decidir'] = self.request.user.has_perm('vendas.change_status_analise')
+        ctx['pode_gerenciar_serasa'] = _pode_gerenciar_consulta_serasa(self.request.user)
+        ctx['form_consulta_serasa'] = PreAnaliseRapidaConsultaSerasaForm(instance=self.object)
         return ctx
+
+
+@login_required
+def anexar_consulta_serasa_pre_analise(request, pk):
+    """Analista anexa (ou substitui) a consulta Serasa direto na análise rápida.
+    O arquivo é copiado para os comprovantes do cliente quando a proposta é gerada."""
+    pre = get_object_or_404(PreAnaliseRapida, pk=pk)
+
+    if not _pode_gerenciar_consulta_serasa(request.user):
+        raise PermissionDenied('Você não tem permissão para anexar a consulta Serasa.')
+
+    if request.method != 'POST':
+        return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
+
+    if pre.finalizada:
+        messages.warning(
+            request,
+            'Esta análise já virou proposta. Anexe a consulta Serasa direto no cadastro do cliente.',
+        )
+        return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
+
+    form = PreAnaliseRapidaConsultaSerasaForm(request.POST, request.FILES, instance=pre)
+    if not form.is_valid():
+        for erro in form.errors.get('consulta_serasa', ['Arquivo inválido.']):
+            messages.error(request, erro)
+        return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
+
+    pre.anexar_consulta_serasa(form.cleaned_data['consulta_serasa'], user=request.user)
+    messages.success(
+        request,
+        '✅ Consulta Serasa anexada. Ela já virá preenchida quando a proposta for gerada.',
+    )
+    return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
+
+
+@login_required
+def remover_consulta_serasa_pre_analise(request, pk):
+    pre = get_object_or_404(PreAnaliseRapida, pk=pk)
+
+    if not _pode_gerenciar_consulta_serasa(request.user):
+        raise PermissionDenied('Você não tem permissão para remover a consulta Serasa.')
+
+    if request.method != 'POST':
+        return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
+
+    if pre.finalizada:
+        messages.warning(request, 'Esta análise já virou proposta e não pode mais ser alterada.')
+    elif pre.remover_consulta_serasa(user=request.user):
+        messages.success(request, 'Consulta Serasa removida da análise rápida.')
+    else:
+        messages.info(request, 'Nenhuma consulta Serasa anexada nesta análise.')
+    return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
 
 
 @permission_required('vendas.change_status_analise', raise_exception=True)

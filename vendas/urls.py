@@ -34,6 +34,8 @@ urlpatterns = [
     path('pre-analises-rapidas/<int:pk>/', PreAnaliseRapidaDetailView.as_view(), name='pre_analise_rapida_detalhe'),
     path('pre-analises-rapidas/<int:pk>/aprovar/', aprovar_pre_analise_rapida, name='pre_analise_rapida_aprovar'),
     path('pre-analises-rapidas/<int:pk>/reprovar/', reprovar_pre_analise_rapida, name='pre_analise_rapida_reprovar'),
+    path('pre-analises-rapidas/<int:pk>/consulta-serasa/', anexar_consulta_serasa_pre_analise, name='pre_analise_rapida_consulta_serasa'),
+    path('pre-analises-rapidas/<int:pk>/consulta-serasa/remover/', remover_consulta_serasa_pre_analise, name='pre_analise_rapida_consulta_serasa_remover'),
 
     path('aprovar_analise/<int:id>/', aprovar_analise_credito, name='aprovar_analise'),
     path('reprovar_analise/<int:id>/', reprovar_analise_credito, name='reprovar_analise'),

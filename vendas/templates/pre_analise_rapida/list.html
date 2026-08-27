@@ -55,6 +55,11 @@
                     {% if pre.finalizada %}
                       {% include "components/status_badge.html" with state="info" label="Finalizada" %}
                     {% endif %}
+                    {% if pre.consulta_serasa %}
+                      <span class="badge bg-label-primary" title="Consulta Serasa anexada pelo analista">
+                        <i class="bx bx-search-alt"></i> Serasa
+                      </span>
+                    {% endif %}
                   </td>
                   <td>{{ pre.criado_em|date:"d/m/Y H:i" }}</td>
                   <td class="text-end">

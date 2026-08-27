@@ -799,6 +799,8 @@ class PreAnaliseRapidaSerializer(serializers.ModelSerializer):
     criado_por_nome = serializers.SerializerMethodField()
     analisado_por_nome = serializers.SerializerMethodField()
     finalizada = serializers.BooleanField(read_only=True)
+    # Só o indicativo: o arquivo do Serasa não é exposto ao vendedor.
+    tem_consulta_serasa = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = PreAnaliseRapida
@@ -822,6 +824,7 @@ class PreAnaliseRapidaSerializer(serializers.ModelSerializer):
             "data_decisao",
             "cliente_gerado",
             "finalizada",
+            "tem_consulta_serasa",
             "criado_em",
             "modificado_em",
         ]

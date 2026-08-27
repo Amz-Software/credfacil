@@ -3577,4 +3577,7 @@ class PreAnaliseRapidaViewSet(viewsets.ModelViewSet):
             if cliente:
                 instance.cliente_gerado = cliente
                 instance.save(user=request.user)
+                # A consulta Serasa anexada pelo analista na análise rápida já
+                # nasce preenchida nos comprovantes da proposta gerada.
+                instance.aplicar_consulta_serasa(cliente, user=request.user)
         return Response(PreAnaliseRapidaSerializer(instance, context={"request": request}).data)
