@@ -63,30 +63,9 @@
                 <label for="id_email" class="form-label">Chave Pix</label>
                 <input type="text" class="form-control" id="id_email" name="chave_pix" value="{{ form.chave_pix.value|default_if_none:'' }}">
               </div>
-              <div class="col-md-6 mb-3">
-                <label for="id_porcentagem_desconto_4" class="form-label">Porcentual Desconto 4</label>
-                <input type="text" class="form-control" id="id_porcentagem_desconto_4"
-                  name="porcentagem_desconto_4"
-                  value="{{ form.porcentagem_desconto_4.value|default_if_none:'' }}">
-              </div>
-              <div class="col-md-6 mb-3">
-                <label for="id_porcentagem_desconto_6" class="form-label">Porcentual Desconto 6</label>
-                <input type="text" class="form-control" id="id_porcentagem_desconto_6"
-                  name="porcentagem_desconto_6"
-                  value="{{ form.porcentagem_desconto_6.value|default_if_none:'' }}">
-              </div>
-              <div class="col-md-6 mb-3">
-                <label for="id_porcentagem_desconto_8" class="form-label">Porcentual Desconto</label>
-                <input type="text" class="form-control" id="id_porcentagem_desconto_8"
-                  name="porcentagem_desconto_8"
-                  value="{{ form.porcentagem_desconto_8.value|default_if_none:'' }}">
-              </div>
-              <div class="col-md-6 mb-3">
-                <label for="id_porcentagem_desconto_10" class="form-label">Porcentual Desconto 10</label>
-                <input type="text" class="form-control" id="id_porcentagem_desconto_10"
-                  name="porcentagem_desconto_10"
-                  value="{{ form.porcentagem_desconto_10.value|default_if_none:'' }}">
-              </div>
+              {# porcentagem_desconto_{4,6,8,10} removidos: nenhum cálculo os lia.
+                 O desconto aplicado na venda vem de Parcelamento.porcentagem_desconto,
+                 cadastrado por marca. #}
               <div class="col-md-6 mb-3">
                 <label for="id_qr_code_aplicativo" class="form-label">Qr Code Aplicativo</label>
                 <input type="file" class="form-control" id="id_qr_code_aplicativo" name="qr_code_aplicativo">

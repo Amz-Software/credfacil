@@ -574,6 +574,35 @@ class ClienteListView(BaseView, PermissionRequiredMixin, ListView):
     #     return self.get(request, *args, **kwargs)
     
 
+def _produtos_json_list(somente_ativos: bool = True) -> list[dict]:
+    """Produtos no formato consumido pelo JS dos formulários de solicitação."""
+    qs = Produto.objects.filter(ativo=True) if somente_ativos else Produto.objects.all()
+    return [
+        {
+            'id': p['id'],
+            'nome': p['nome'],
+            'is_iphone': p['is_iphone'],
+            'valor': float(p['valor'] or 0),
+            'entrada': float(p['entrada_cliente'] or 0),
+            'marca_id': p['marca_id'],
+        }
+        for p in qs.values('id', 'nome', 'is_iphone', 'valor', 'entrada_cliente', 'marca_id')
+    ]
+
+
+def _parcelamentos_json_list() -> list[dict]:
+    """Parcelamentos por marca — fonte única dos juros em todas as telas."""
+    return [
+        {
+            'id': p['id'],
+            'marca_id': p['marca_id'],
+            'qtd_vezes': p['qtd_vezes'],
+            'porcentagem_juros': float(p['porcentagem_juros']),
+        }
+        for p in Parcelamento.objects.values('id', 'marca_id', 'qtd_vezes', 'porcentagem_juros')
+    ]
+
+
 class ClienteCreateView(PermissionRequiredMixin, CreateView):
     model = Cliente
     form_class = ClienteForm
@@ -602,32 +631,8 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
         # Adiciona informação sobre permissão de visualizar consulta Serasa
         context['can_view_consulta_serasa'] = self.request.user.has_perm('vendas.view_consulta_serasa')
         
-        produtos = Produto.objects.filter(ativo=True).values(
-            'id', 'nome', 'is_iphone', 'valor', 'entrada_cliente', 'marca_id'
-        )
-        produtos_list = [
-            {
-                'id': p['id'],
-                'nome': p['nome'],
-                'is_iphone': p['is_iphone'],
-                'valor': float(p['valor'] or 0),
-                'entrada': float(p['entrada_cliente'] or 0),
-                'marca_id': p['marca_id'],
-            }
-            for p in produtos
-        ]
-        context['produtos_json'] = json.dumps(produtos_list)
-
-        parcelamentos = list(Parcelamento.objects.values('id', 'marca_id', 'qtd_vezes', 'porcentagem_juros'))
-        context['parcelamentos_json'] = json.dumps([
-            {
-                'id': p['id'],
-                'marca_id': p['marca_id'],
-                'qtd_vezes': p['qtd_vezes'],
-                'porcentagem_juros': float(p['porcentagem_juros']),
-            }
-            for p in parcelamentos
-        ])
+        context['produtos_json'] = json.dumps(_produtos_json_list())
+        context['parcelamentos_json'] = json.dumps(_parcelamentos_json_list())
 
         loja_id_ctx = self.request.session.get('loja_id')
         marcas_qs = Marca.objects.filter(ativo=True)
@@ -830,32 +835,8 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
 
         context['status_app_choices'] = AnaliseCreditoCliente.STATUS_APP_CHOICES
 
-        produtos = Produto.objects.all().values(
-            'id', 'nome', 'is_iphone', 'valor', 'entrada_cliente', 'marca_id'
-        )
-        produtos_list = [
-            {
-                'id': p['id'],
-                'nome': p['nome'],
-                'is_iphone': p['is_iphone'],
-                'valor': float(p['valor'] or 0),
-                'entrada': float(p['entrada_cliente'] or 0),
-                'marca_id': p['marca_id'],
-            }
-            for p in produtos
-        ]
-        context['produtos_json'] = json.dumps(produtos_list)
-
-        parcelamentos = list(Parcelamento.objects.values('id', 'marca_id', 'qtd_vezes', 'porcentagem_juros'))
-        context['parcelamentos_json'] = json.dumps([
-            {
-                'id': p['id'],
-                'marca_id': p['marca_id'],
-                'qtd_vezes': p['qtd_vezes'],
-                'porcentagem_juros': float(p['porcentagem_juros']),
-            }
-            for p in parcelamentos
-        ])
+        context['produtos_json'] = json.dumps(_produtos_json_list(somente_ativos=False))
+        context['parcelamentos_json'] = json.dumps(_parcelamentos_json_list())
 
         loja_id_ctx = self.request.session.get('loja_id')
         marcas_qs = Marca.objects.filter(ativo=True)
@@ -1021,6 +1002,12 @@ class ClienteUpdateImeiTelefoneView(PermissionRequiredMixin, UpdateView):
         context['cliente_id'] = cliente.id
         context['analise_credito'] = cliente.analise_credito
         context['status_app_choices'] = AnaliseCreditoCliente.STATUS_APP_CHOICES
+
+        # O template consome produtos_json/parcelamentos_json para montar os cards
+        # de valor. Sem eles o JSON.parse do template estourava e derrubava todo o
+        # bloco de script — inclusive o handler do botão Aprovar.
+        context['produtos_json'] = json.dumps(_produtos_json_list(somente_ativos=False))
+        context['parcelamentos_json'] = json.dumps(_parcelamentos_json_list())
 
         return context
 

@@ -1505,7 +1505,14 @@ class LojaForm(forms.ModelForm):
 
     class Meta:
         model = Loja
-        fields = '__all__'
+        # porcentagem_desconto_{4,6,8,10} ficam de fora: nenhum cálculo os lê.
+        # O desconto aplicado na venda vem de Parcelamento.porcentagem_desconto.
+        exclude = [
+            'porcentagem_desconto_4',
+            'porcentagem_desconto_6',
+            'porcentagem_desconto_8',
+            'porcentagem_desconto_10',
+        ]
 
         widgets = {
             'telefone': forms.TextInput(attrs={'class': 'form-control tel'}),
@@ -1532,18 +1539,6 @@ class LojaForm(forms.ModelForm):
                 self.fields['pode_vender_iphone'].disabled = True
                 self.fields['pode_vender_iphone'].widget.attrs['readonly'] = True
                 self.fields['pode_vender_iphone'].help_text = 'Apenas administradores podem alterar esta configuração.'
-
-        if self.instance and self.instance.porcentagem_desconto_4 is not None:
-            self.initial['porcentagem_desconto_4'] = str(self.instance.porcentagem_desconto_4).replace(',', '.')
-            
-        if self.instance and self.instance.porcentagem_desconto_6 is not None:
-            self.initial['porcentagem_desconto_6'] = str(self.instance.porcentagem_desconto_6).replace(',', '.')
-            
-        if self.instance and self.instance.porcentagem_desconto_8 is not None:
-            self.initial['porcentagem_desconto_8'] = str(self.instance.porcentagem_desconto_8).replace(',', '.')
-        
-        if self.instance and getattr(self.instance, 'porcentagem_desconto_10', None) is not None:
-            self.initial['porcentagem_desconto_10'] = str(self.instance.porcentagem_desconto_10).replace(',', '.')
 
     def clean_credfacil(self):
         if self.instance.pk and 'credfacil' not in self.data:

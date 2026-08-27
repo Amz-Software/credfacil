@@ -51,7 +51,7 @@ Loja
 ├── usuarios (M2M ↔ User)
 ├── gerentes (M2M ↔ User)
 ├── produtos_bloqueados (M2M ↔ Produto)
-├── porcentagem_desconto_{4,6,8,10} — descontos por parcelamento IPX
+├── porcentagem_desconto_{4,6,8,10} — LEGADO, não lido por nenhum cálculo
 ├── pode_vender_iphone (bool)
 └── repasses (reverse FK ← Repasse)
 
@@ -98,7 +98,8 @@ Parcela
 Produto
 ├── valor_repasse_logista (base do cálculo de repasse)
 ├── entrada_cliente (valor de entrada para financiamento)
-├── valor_{4,6,8,10,12,14}_vezes (preços por parcelamento)
+├── valor_{4,6,8,10,12,14}_vezes — LEGADO, não lido por nenhum cálculo
+├── marca (FK → Marca — define os parcelamentos disponíveis)
 ├── is_iphone (bool — fluxo especial)
 ├── ativo (bool — soft delete)
 └── lojas_bloqueadas (M2M ↔ Loja)
@@ -174,47 +175,48 @@ Este é o fluxo principal do produto CredFacil (financiamento próprio).
   └─ Cria ProdutoVenda com produto e IMEI da análise
   └─ Cria Pagamento ENTRADA (produto.entrada_cliente)
   └─ Cria Pagamento IPX com:
-     └─ valor = total - entrada
-     └─ parcelas = escolhido pelo analista
-     └─ desconto = loja.porcentagem_desconto_{n}x
+     └─ valor = (produto.valor − entrada) × (1 + Parcelamento.porcentagem_juros/100)
+     └─ parcelas = escolhido na solicitação
+     └─ desconto = Parcelamento.porcentagem_desconto (da marca do produto)
      └─ data_primeira_parcela = dia 1, 10 ou 20 do mês seguinte
   └─ Vincula analise.venda = venda criada
 ```
 
-### Fluxo Especial — iPhone
+### Cálculo do Valor — Unificado
 
-Para produtos com `is_iphone = True`, o cálculo de valor e repasse é completamente diferente:
+O cálculo é **o mesmo para todos os produtos**, iPhone ou não. Implementado de
+forma idêntica em `vendas/views.py:gerar_venda` e `api/views.py:gerar_venda`:
 
 ```
-1. Vendedor cadastra credenciais iCloud
-   └─ icloud_configurado_vendedor = True
+parcelamento     = Parcelamento.objects.get(marca=produto.marca, qtd_vezes=parcelas)
+entrada          = analise.entrada_informada or produto.entrada_cliente
+valor_financiado = produto.valor − entrada
+valor_credfacil  = valor_financiado × (1 + parcelamento.porcentagem_juros / 100)
+repasse_logista  = produto.valor − entrada
+valor_parcela    = valor_credfacil / parcelas
 
-2. Analista confirma iCloud
-   └─ icloud_confirmado_analista = True
+Pagamento ENTRADA = entrada (1 parcela)
+Pagamento IPX     = valor_credfacil (n parcelas, porcentagem_desconto do Parcelamento)
+```
 
+Se não existir `Parcelamento` para `(marca do produto, qtd_vezes)`, a geração da
+venda é abortada. A criação da solicitação também é bloqueada antes disso, em
+`api/views._validar_parcelamento`.
+
+**Campos legados, não lidos por nenhum cálculo**: `Produto.valor_{n}_vezes`,
+`Produto.valor_repasse_logista` e `Loja.porcentagem_desconto_{4,6,8,10}`.
+As colunas ainda existem no banco, mas foram removidas dos formulários e telas.
+
+#### Passos exclusivos do iPhone
+
+Para `is_iphone = True` o cálculo é o mesmo; o que muda é o fluxo de aprovação:
+
+```
+1. Vendedor cadastra credenciais iCloud   → icloud_configurado_vendedor = True
+2. Analista confirma iCloud               → icloud_confirmado_analista = True
 3. Analista informa IMEI (após confirmar iCloud)
-   └─ analise.imei = EstoqueImei selecionado
-   └─ imei.aplicativo_instalado = True
-
-4. Operador informa entrada_informada (editável, deve ser >= produto.entrada_cliente)
-
-5. Aprovação e geração da venda via gerar_venda:
-   └─ Busca Parcelamento.objects.get(qtd_vezes=parcelas) → porcentagem_juros
-   └─ valor_total = produto.valor + (produto.valor × porcentagem_juros / 100)
-   └─ repasse_logista = produto.valor − entrada_informada
-   └─ Pagamento ENTRADA = entrada_informada (informada pelo operador)
-   └─ Pagamento IPX = valor_total (parcelado em n vezes, sem desconto de loja)
+4. Não exige status_aplicativo == 'I' para gerar a venda (produtos comuns exigem)
 ```
-
-#### Comparativo iPhone × Não iPhone
-
-| Campo | Não iPhone | iPhone |
-|-------|-----------|--------|
-| Valor do produto IPX | `produto.valor_{n}x` | `produto.valor × (1 + juros%)` |
-| Repasse logista | `produto.valor_repasse_logista` | `produto.valor − entrada_informada` |
-| Entrada | `produto.entrada_cliente` (fixo) | `analise.entrada_informada` (editável, ≥ mínimo) |
-| Desconto de loja | `credfacil.porcentagem_desconto_{n}x` | Não aplicado |
-| Juros | Embutido no `valor_{n}x` | `Parcelamento.porcentagem_juros` |
 
 ---
 
@@ -474,30 +476,32 @@ Flags que controlam comportamento:
 - Entradas de estoque: formato `ENT{ano}-{sequencial:04d}` (ex: `ENT2024-0001`)
 - Usuários: username auto-gerado a partir de nome + sobrenome
 
-### Descontos por Parcelamento (IPX — somente não iPhone)
+### Tabela de Parcelamento (todos os produtos)
 
-Configurado por loja:
-```
-Loja.porcentagem_desconto_4x   → 4 parcelas
-Loja.porcentagem_desconto_6x   → 6 parcelas
-Loja.porcentagem_desconto_8x   → 8 parcelas
-Loja.porcentagem_desconto_10x  → 10 parcelas
-```
-
-Aplicado no `gerar_venda` apenas para produtos **não iPhone**.
-
-### Tabela de Parcelamento (somente iPhone)
-
-`Parcelamento` define os juros por quantidade de parcelas para produtos iPhone:
+`Parcelamento` é a **fonte única** dos juros e descontos, para qualquer produto:
 
 | Campo | Descrição |
 |-------|-----------|
-| `qtd_vezes` | Quantidade de parcelas (unique) |
-| `porcentagem_juros` | % de juros aplicado sobre `produto.valor` |
+| `marca` | FK → Marca (nullable). Junto com `qtd_vezes` forma a chave única |
+| `qtd_vezes` | Quantidade de parcelas |
+| `porcentagem_juros` | % de juros sobre o valor financiado |
+| `porcentagem_desconto` | % gravado no `Pagamento` IPX gerado |
 
-**Endpoint**: `GET/POST/PATCH/DELETE /api/parcelamentos/`
+**Endpoint**: `GET/POST/PATCH/DELETE /api/parcelamentos/` — aceita `?marca=<id>`.
 
-O campo `produto.valor` é o valor base do iPhone; os campos `valor_4_vezes`...`valor_14_vezes` e `valor_repasse_logista` **não são usados** para iPhones.
+O parcelamento é **cadastrável**: as opções de "nº de parcelas" oferecidas ao
+vendedor são exatamente as linhas cadastradas para a marca do produto, sem lista
+fixa. Uma marca sem `Parcelamento` bloqueia a criação de solicitações para os
+produtos dela.
+
+Consomem essa tabela:
+- React `NovaSolicitacaoPage` — opções do select e simulação de valores
+- Templates `cliente/form_cliente.html` e `cliente/form_cliente_imei_telefone.html`
+- `_validar_parcelamento` (criação/edição via API)
+- Ambos os `gerar_venda`
+
+> `Loja.porcentagem_desconto_{4,6,8,10}` **não** participa de nenhum cálculo.
+> É coluna legada mantida só por compatibilidade de dados.
 
 ---
 

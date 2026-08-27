@@ -426,20 +426,33 @@ def _avisos_solicitacoes_existentes(
     return mensagem
 
 
-def _validar_parcelamento_iphone(form_analise_credito):
+def _validar_parcelamento(form_analise_credito, somente_se_alterado=False):
     """
-    Valida se existem parcelamentos cadastrados para o produto iPhone selecionado.
-    Retorna dict de erros (formato compatível com form.errors) ou None se válido.
+    Valida se o numero de parcelas escolhido existe em Parcelamento para a marca
+    do produto. Vale para qualquer produto, nao so iPhone: gravar uma combinacao
+    sem Parcelamento correspondente cria uma solicitacao que trava depois na
+    aprovacao do analista (o select de parcelas fica sem a opcao e volta vazio).
+
+    Com `somente_se_alterado=True` a checagem so roda quando produto ou numero de
+    parcelas mudaram no POST, para nao bloquear a edicao de solicitacoes antigas
+    que ja foram gravadas com um parcelamento hoje inexistente.
+
+    Retorna dict de erros (formato compativel com form.errors) ou None se valido.
     """
     produto = form_analise_credito.cleaned_data.get("produto")
-    if not produto or not getattr(produto, "is_iphone", False):
+    if not produto:
         return None
+
+    if somente_se_alterado:
+        alterados = set(form_analise_credito.changed_data)
+        if not alterados & {"produto", "numero_parcelas"}:
+            return None
 
     marca = getattr(produto, "marca", None)
     if not marca:
         return {
             "produto": [
-                "Produto iPhone sem marca vinculada. Configure a marca do produto antes de criar a solicitacao."
+                "Produto sem marca vinculada. Configure a marca do produto antes de criar a solicitacao."
             ]
         }
 
@@ -451,7 +464,7 @@ def _validar_parcelamento_iphone(form_analise_credito):
         return {
             "numero_parcelas": [
                 f"Nenhum parcelamento cadastrado para a marca '{marca.nome}'. "
-                "Solicite ao administrador que cadastre os parcelamentos da marca antes de criar uma solicitacao de iPhone."
+                "Solicite ao administrador que cadastre os parcelamentos da marca antes de criar a solicitacao."
             ]
         }
 
@@ -1299,7 +1312,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                 status=400,
             )
 
-        # Validação de parcelamento para produto iPhone
+        # Validação de marca e parcelamento do produto escolhido
         erro_marca = _validar_marca_produto_solicitacao(
             payload_data,
             form_analise_credito.cleaned_data.get("produto"),
@@ -1310,7 +1323,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                 status=400,
             )
 
-        erro_parcelamento = _validar_parcelamento_iphone(form_analise_credito)
+        erro_parcelamento = _validar_parcelamento(form_analise_credito)
         if erro_parcelamento:
             return Response(
                 {"detail": "Erros de validacao.", "errors": {"analise_credito": erro_parcelamento}},
@@ -1517,7 +1530,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                 status=400,
             )
 
-        # Validação de parcelamento para produto iPhone
+        # Validação de marca e parcelamento do produto escolhido
         erro_marca = _validar_marca_produto_solicitacao(
             payload_data,
             form_analise_credito.cleaned_data.get("produto"),
@@ -1528,7 +1541,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                 status=400,
             )
 
-        erro_parcelamento = _validar_parcelamento_iphone(form_analise_credito)
+        erro_parcelamento = _validar_parcelamento(form_analise_credito, somente_se_alterado=True)
         if erro_parcelamento:
             return Response(
                 {"detail": "Erros de validacao.", "errors": {"analise_credito": erro_parcelamento}},

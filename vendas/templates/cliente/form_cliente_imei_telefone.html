@@ -470,13 +470,30 @@
   {{ form_analise_credito.media.js }}
   <script>
     $(function(){
-      // lista de produtos do contexto
-      const produtos = JSON.parse('{{ produtos_json|escapejs }}');
+      // Parse defensivo: um JSON ausente ou malformado não pode derrubar o
+      // restante do bloco (o handler do botão Aprovar vive aqui embaixo).
+      let produtos = [];
+      try {
+        produtos = JSON.parse('{{ produtos_json|escapejs }}');
+      } catch (e) {
+        console.error('Erro ao parsear produtos_json:', e);
+      }
+
+      let parcelamentos = [];
+      try {
+        parcelamentos = JSON.parse('{{ parcelamentos_json|escapejs }}');
+      } catch (e) {
+        console.error('Erro ao parsear parcelamentos_json:', e);
+      }
+
+      const ENTRADA_INFORMADA = parseFloat('{{ analise_credito.entrada_informada|default_if_none:"" }}');
 
       function formatBRL(v) {
         return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
       }
 
+      // Mesmo cálculo de gerar_venda e das demais telas: juros vêm de
+      // Parcelamento (por marca), não dos antigos campos valor_{n}_vezes.
       function atualizaInfo() {
         const prodId = $('#id_produto').val();
         const np     = $('#id_numero_parcelas').val();
@@ -487,35 +504,30 @@
           return;
         }
 
-        // busca dados do produto
         const p = produtos.find(x => x.id == prodId) || {};
-        const entrada = p.entrada  || 0;
-        const valor4  = p.valor4   || 0;
-        const valor6  = p.valor6   || 0;
-        const valor8  = p.valor8   || 0;
-        const valor10 = p.valor10  || 0;
-        const valor12 = p.valor12  || 0;
-        const valor14 = p.valor14  || 0;
+        const valorBase = p.valor || 0;
+        const entrada = !isNaN(ENTRADA_INFORMADA) ? ENTRADA_INFORMADA : (p.entrada || 0);
+        $('#info-entrada').text(formatBRL(entrada));
 
-        // escolhe total conforme parcelas
-        const total = { '4': valor4, '6': valor6, '8': valor8, '10': valor10, '12': valor12, '14': valor14 }[np] || 0;
-        const parcela = (np && total)
-          ? total / parseInt(np, 10)
-          : 0;
-
-        // alerta se não houver valor cadastrado para o parcelamento escolhido
-        if (np && total === 0) {
-          alert(`Atenção: valor para ${np}x não está cadastrado para este produto.`);
+        const parcelas = parseInt(np, 10);
+        if (!np || isNaN(parcelas)) {
+          $('#info-total').text('—');
+          $('#info-parcela').text('—');
+          return;
         }
 
-        // preenche os cards
-        $('#info-entrada').text(formatBRL(entrada));
-        $('#info-total')  .text(formatBRL(total));
+        const parc = parcelamentos.find(x => x.marca_id == p.marca_id && x.qtd_vezes === parcelas);
+        if (!parc) {
+          $('#info-total').text('Parcelamento ' + np + 'x não cadastrado para esta marca');
+          $('#info-parcela').text('—');
+          return;
+        }
 
-        const textoParcela = np
-          ? `${np}× de ${formatBRL(parcela)}`
-          : '—';
-        $('#info-parcela').text(textoParcela);
+        const valorFinanciado = Math.max(valorBase - entrada, 0);
+        const total = valorFinanciado + (valorFinanciado * parc.porcentagem_juros / 100);
+
+        $('#info-total').text(formatBRL(total));
+        $('#info-parcela').text(np + '× de ' + formatBRL(total / parcelas));
       }
 
       // dispara ao mudar produto (Select2) ou número de parcelas
