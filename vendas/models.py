@@ -761,10 +761,22 @@ class PreAnaliseRapida(Base):
 
     def anexar_consulta_serasa(self, arquivo, user=None):
         """Analista anexa a consulta Serasa ainda na análise rápida."""
+        # Lê o arquivo anterior direto do banco: a instância pode já ter sido
+        # alterada pelo ModelForm antes de chegar aqui.
+        anterior = None
+        if self.pk:
+            anterior = type(self).objects.filter(pk=self.pk).values_list(
+                'consulta_serasa', flat=True
+            ).first()
+
         self.consulta_serasa = arquivo
         self.consulta_serasa_anexada_por = user
         self.consulta_serasa_anexada_em = timezone.now()
         self.save(user=user)
+
+        # remove o arquivo substituído para não ficar órfão no storage
+        if anterior and anterior != self.consulta_serasa.name:
+            self.consulta_serasa.storage.delete(anterior)
         return self.consulta_serasa
 
     def remover_consulta_serasa(self, user=None):
