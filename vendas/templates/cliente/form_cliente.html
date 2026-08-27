@@ -1778,6 +1778,11 @@
         return resultado;
       }
 
+      // Estado da proposta como está salvo no banco — usado para restaurar o
+      // parcelamento na abertura da tela sem atrapalhar trocas feitas na mão.
+      const PRODUTO_SALVO_ID = '{{ analise_credito.produto_id|default_if_none:"" }}';
+      const PARCELAS_SALVAS = '{{ analise_credito.numero_parcelas|default_if_none:"" }}';
+
       function atualizaOpcoesParcelamento(produto) {
         console.log('[Parcelamento] atualizaOpcoesParcelamento | produto:', produto);
         const select = $('#id_numero_parcelas');
@@ -1799,10 +1804,30 @@
         select.empty();
         select.append('<option value="">---------</option>');
 
+        // Mantém o valor já salvo como option válida mesmo quando ele não
+        // existe mais na tabela de parcelamentos da marca. Sem isso o select
+        // ficava vazio, o POST não enviava numero_parcelas e o backend
+        // devolvia "Este campo é obrigatório" ao salvar/aprovar.
+        // Só preserva enquanto o produto continua sendo o da proposta salva —
+        // ao trocar de produto/marca a lista deve ser recomeçada do zero.
+        function preservarValorAtual(motivo) {
+          if (!valorAtual) return;
+          if (!produto || String(produto.id) !== String(PRODUTO_SALVO_ID)) return;
+          if (valorAtual !== PARCELAS_SALVAS) return;
+          if (select.find('option[value="' + valorAtual + '"]').length === 0) {
+            select.append(
+              $('<option>').val(valorAtual).text(valorAtual + 'x (parcelamento não cadastrado)')
+            );
+            console.warn('[Parcelamento] Valor salvo ' + valorAtual + 'x preservado (' + motivo + ').');
+          }
+          select.val(valorAtual);
+        }
+
         if (!produto || !produto.marca_id) {
           if (produto) {
             console.warn('[Parcelamento] Produto sem marca_id — impossível filtrar parcelamentos. Produto:', produto);
             select.append('<option value="" disabled>Produto sem marca — configure a marca do produto</option>');
+            preservarValorAtual('produto sem marca');
           } else {
             console.log('[Parcelamento] Nenhum produto selecionado, limpando opções de parcelas.');
           }
@@ -1813,6 +1838,7 @@
         if (parcs.length === 0) {
           console.warn('[Parcelamento] Nenhum parcelamento cadastrado para marca_id:', produto.marca_id);
           select.append('<option value="" disabled>Nenhum parcelamento cadastrado para esta marca</option>');
+          preservarValorAtual('marca sem parcelamentos');
           return;
         }
 
@@ -1823,10 +1849,12 @@
 
         console.log('[Parcelamento] Opções de parcelas populadas:', parcs.map(p => p.qtd_vezes + 'x'));
 
-        // Reseleciona se ainda disponível
+        // Reseleciona se ainda disponível; se não estiver, preserva mesmo assim
         if (valorAtual && select.find('option[value="' + valorAtual + '"]').length) {
           select.val(valorAtual);
           console.log('[Parcelamento] Valor anterior re-selecionado:', valorAtual);
+        } else {
+          preservarValorAtual('parcelamento não cadastrado para esta marca');
         }
       }
 

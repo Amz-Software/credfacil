@@ -2,7 +2,7 @@ from django import forms
 from django.db.models import OuterRef, Exists
 from accounts.models import User
 from estoque.models import Estoque, EstoqueImei
-from produtos.models import Produto
+from produtos.models import Produto, Parcelamento
 from .models import *
 from django_select2.forms import Select2Widget, ModelSelect2Widget, Select2MultipleWidget
 from django_select2.forms import ModelSelect2MultipleWidget, HeavySelect2Widget
@@ -542,7 +542,72 @@ class InformacaoPessoalEditForm(forms.ModelForm):
 
 
 
-class AnaliseCreditoClienteForm(forms.ModelForm):
+class NumeroParcelasChoicesMixin:
+    """Popula as options do select de numero_parcelas no servidor.
+
+    `AnaliseCreditoCliente.numero_parcelas` é um CharField sem `choices`, então
+    o widget `forms.Select` sairia sem nenhuma option e dependeria totalmente do
+    JS para ser preenchido. Sempre incluímos a option do valor já salvo — mesmo
+    que não exista mais em `Parcelamento` — para o campo não voltar vazio no
+    POST e derrubar o save/aprovação com "Este campo é obrigatório".
+    """
+
+    def _produto_em_edicao(self):
+        """Produto considerado no momento: o enviado no POST ou o já salvo."""
+        if self.is_bound:
+            produto_id = self.data.get(self.add_prefix('produto'))
+            if produto_id:
+                return Produto.objects.filter(pk=produto_id).select_related('marca').first()
+        if self.instance and self.instance.produto_id:
+            return self.instance.produto
+        return None
+
+    def _valor_atual_numero_parcelas(self):
+        """Valor de numero_parcelas que precisa sobreviver ao round-trip."""
+        if self.is_bound:
+            valor = self.data.get(self.add_prefix('numero_parcelas'))
+            if valor:
+                return str(valor).strip()
+        if self.instance and self.instance.numero_parcelas:
+            return str(self.instance.numero_parcelas).strip()
+        return ''
+
+    def _montar_choices_numero_parcelas(self):
+        """Renderiza as options de numero_parcelas no servidor.
+
+        O JS de form_cliente.html continua reconstruindo a lista quando o
+        usuário troca de produto/marca; aqui garantimos que a option do valor
+        salvo sempre exista, para o campo nunca voltar vazio no POST.
+        """
+        campo = self.fields.get('numero_parcelas')
+        if campo is None:
+            return
+
+        produto = self._produto_em_edicao()
+        marca_id = getattr(produto, 'marca_id', None)
+
+        qtds = []
+        if marca_id:
+            qtds = list(
+                Parcelamento.objects
+                .filter(marca_id=marca_id)
+                .order_by('qtd_vezes')
+                .values_list('qtd_vezes', flat=True)
+            )
+
+        choices = [('', '---------')]
+        choices += [(str(q), f'{q}x') for q in qtds]
+
+        # Mantém o valor já salvo mesmo que não exista mais em Parcelamento,
+        # senão o campo é silenciosamente zerado e o save/aprovação quebra.
+        valor_atual = self._valor_atual_numero_parcelas()
+        if valor_atual and valor_atual not in [c[0] for c in choices]:
+            choices.append((valor_atual, f'{valor_atual}x (parcelamento não cadastrado)'))
+
+        campo.widget.choices = choices
+
+
+class AnaliseCreditoClienteForm(NumeroParcelasChoicesMixin, forms.ModelForm):
     produto = ProdutoChoiceField(
         queryset=Produto.objects.filter(ativo=True).select_related('marca'),
         widget=Select2Widget(attrs={'class': 'form-control'}),
@@ -625,6 +690,13 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
         self.fields['data_pagamento'].required = True
         self.fields['numero_parcelas'].required = True
 
+        # O modelo guarda numero_parcelas como CharField sem choices, então o
+        # Select sairia vazio e dependeria 100% do JS para ser populado. Quando
+        # o valor salvo não existe mais em Parcelamento (marca sem cadastro,
+        # produto sem marca, parcelamento legado como 4x/8x), o JS zerava o
+        # campo e o POST voltava vazio -> "Este campo é obrigatório".
+        self._montar_choices_numero_parcelas()
+
         if self.instance and self.instance.pk:
             # Verifica se o usuário é analista
             is_analista = user and user.groups.filter(name='ANALISTA').exists()
@@ -667,7 +739,7 @@ class AnaliseCreditoClienteForm(forms.ModelForm):
                 self.add_error('produto', 'Este modelo nao esta liberado para esta loja.')
 
         return cleaned_data
-class AnaliseCreditoClienteImeiForm(forms.ModelForm):
+class AnaliseCreditoClienteImeiForm(NumeroParcelasChoicesMixin, forms.ModelForm):
     produto = ProdutoChoiceField(
         queryset=Produto.objects.filter(ativo=True),
         widget=Select2Widget(attrs={'class': 'form-control'}),
@@ -707,6 +779,9 @@ class AnaliseCreditoClienteImeiForm(forms.ModelForm):
                 allowed_ids.append(self.instance.produto_id)
                 produtos_qs = Produto.objects.filter(pk__in=set(allowed_ids))
             self.fields['produto'].queryset = produtos_qs
+
+        # Sem choices no modelo, o select de parcelas sairia vazio na tela.
+        self._montar_choices_numero_parcelas()
 
         # Desabilita todos os campos, exceto 'imei'
         for field_name in ['produto', 'data_pagamento', 'numero_parcelas']:
