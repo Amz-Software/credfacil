@@ -25,6 +25,12 @@ Vendas
           <form action="" method="get" id="searchForm">
             <div class="row g-3">
               <div class="col-md-3">
+                <label for="venda_id" class="form-label fw-semibold">
+                  <i class="bx bx-hash me-1"></i>Número da Venda
+                </label>
+                <input type="number" name="venda_id" id="venda_id" class="form-control" value="{{ request.GET.venda_id }}" min="1" step="1" placeholder="Digite o ID da venda">
+              </div>
+              <div class="col-md-3">
                 <label for="search" class="form-label fw-semibold">
                   <i class="bx bx-calendar me-1"></i>Data da Venda
                 </label>
