@@ -24,6 +24,7 @@ urlpatterns = [
 
     #cliente
     path('clientes/', ClienteListView.as_view(), name='cliente_list'),
+    path('clientes/exportar-excel/', ClienteExportExcelView.as_view(), name='cliente_export_excel'),
     path('clientes/editar/', cliente_editar_view, name='cliente_edit_form'),
     path('clientes/cliente_create/', ClienteCreateView.as_view(), name='cliente_create'),
     path('clientes/cliente_editar/<int:pk>/', ClienteUpdateView.as_view(), name='cliente_update'),

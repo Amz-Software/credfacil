@@ -238,6 +238,9 @@ Clientes
               <input type="hidden" name="search" value="{{ request.GET.search }}">
               <input type="hidden" name="status" value="{{ request.GET.status }}">
               <input type="hidden" name="analise_online" value="{{ request.GET.analise_online }}">
+              {% for loja_id in lojas_selecionadas %}
+                <input type="hidden" name="loja" value="{{ loja_id }}">
+              {% endfor %}
       
               <select name="status_app"
                       class="form-select form-select-sm w-100"
@@ -343,13 +346,14 @@ Clientes
                     <input type="text" name="search" id="search" class="form-control" value="{{ request.GET.search }}" placeholder="Nome do cliente">
                   </div>
                   <div class="col-md-3">
-                    <label for="loja" class="form-label">Loja</label>
-                    <select name="loja" id="loja" class="form-select">
-                      <option value="">Todas as lojas</option>
+                    <label for="loja" class="form-label">Lojas</label>
+                    <select name="loja" id="loja" class="form-select select2-lojas" multiple
+                            data-placeholder="Todas as lojas">
                       {% for loja in lojas %}
-                        <option value="{{ loja.pk }}" {% if request.GET.loja == loja.pk|stringformat:"s" %}selected{% endif %}>{{ loja.nome }}</option>
+                        <option value="{{ loja.pk }}" {% if loja.pk|stringformat:"s" in lojas_selecionadas %}selected{% endif %}>{{ loja.nome }}</option>
                       {% endfor %}
                     </select>
+                    <div class="form-text">Deixe vazio para considerar todas as lojas.</div>
                   </div>
                   <div class="col-md-2">
                     <label for="data_inicio" class="form-label">Data Início</label>
@@ -359,11 +363,17 @@ Clientes
                     <label for="data_fim" class="form-label">Data Fim</label>
                     <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ request.GET.data_fim }}">
                   </div>
-                  <div class="col-md-2">
+                  <div class="col-md-4">
                     <label class="form-label">&nbsp;</label>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex flex-wrap gap-2">
                       <button type="submit" class="btn btn-primary">Filtrar</button>
                       <a href="{% url 'vendas:cliente_list' %}" class="btn btn-outline-secondary">Limpar</a>
+                      <a href="{% url 'vendas:cliente_export_excel' %}?{{ request.GET.urlencode }}"
+                         class="btn btn-success"
+                         data-bs-toggle="tooltip"
+                         title="Exporta os clientes usando os filtros aplicados nesta listagem">
+                        <i class="bx bx-download me-1"></i> Exportar Excel
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -967,6 +977,20 @@ Clientes
 {% endblock %}
 
 {% block extra_scripts %}
+  <script src="{% static 'sneat-template/assets/vendor/libs/select2/select2.js' %}"></script>
+  <script>
+    // Filtro de lojas com seleção múltipla
+    document.addEventListener('DOMContentLoaded', function () {
+      if (window.jQuery && jQuery.fn.select2) {
+        jQuery('.select2-lojas').select2({
+          placeholder: jQuery('.select2-lojas').data('placeholder'),
+          width: '100%',
+          allowClear: true
+        });
+      }
+    });
+  </script>
+
   {{ status_choices|json_script:"statusChoices" }}
   <script>
     const statusChoices = JSON.parse(

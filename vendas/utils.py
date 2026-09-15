@@ -1,3 +1,4 @@
+import re
 from datetime import date
 
 def calcular_data_primeira_parcela(dia_str: str) -> date:
@@ -25,3 +26,27 @@ def calcular_data_primeira_parcela(dia_str: str) -> date:
         mes += 1
 
     return date(ano, mes, dia)
+
+
+def formatar_cpf(cpf: str | None) -> str:
+    """Formata um CPF armazenado como dígitos puros em 000.000.000-00.
+
+    Devolve o valor original quando não houver exatamente 11 dígitos.
+    """
+    digitos = re.sub(r'\D', '', cpf or '')
+    if len(digitos) != 11:
+        return cpf or ''
+    return f'{digitos[:3]}.{digitos[3:6]}.{digitos[6:9]}-{digitos[9:]}'
+
+
+def formatar_telefone(telefone: str | None) -> str:
+    """Formata um telefone armazenado como dígitos puros em (00) 00000-0000.
+
+    Suporta 10 (fixo) e 11 (celular) dígitos; devolve o valor original
+    para qualquer outro tamanho.
+    """
+    digitos = re.sub(r'\D', '', telefone or '')
+    if len(digitos) not in (10, 11):
+        return telefone or ''
+    ddd, restante = digitos[:2], digitos[2:]
+    return f'({ddd}) {restante[:-4]}-{restante[-4:]}'

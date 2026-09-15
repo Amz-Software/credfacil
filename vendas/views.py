@@ -35,6 +35,8 @@ from estoque.models import Estoque, EstoqueImei
 from financeiro.forms import RepasseForm
 from financeiro.models import Repasse
 from produtos.models import Parcelamento, Produto
+from vendas.exports import gerar_planilha_clientes
+from vendas.filtros import filtrar_clientes_solicitacao, lojas_selecionadas
 from vendas.forms import (
     AnaliseCreditoClienteForm, ClienteConsultaForm, ClienteForm, ComprovantesClienteEditForm,
     ComprovantesClienteForm, ContatoAdicionalEditForm, ContatoAdicionalForm, FormaPagamentoEditFormSet,
@@ -445,48 +447,7 @@ class ClienteListView(BaseView, PermissionRequiredMixin, ListView):
     
 
     def get_queryset(self):
-        qs = Cliente.objects.all()
-        search = self.request.GET.get('search')
-        analise_online = self.request.GET.get('analise_online')
-        status_app = self.request.GET.get('status_app')
-        loja_filter = self.request.GET.get('loja')
-        data_inicio = self.request.GET.get('data_inicio')
-        data_fim = self.request.GET.get('data_fim')
-        vendas_nao_finalizadas = self.request.GET.get('vendas_nao_finalizadas')
-        
-        if status_app:
-            qs = qs.filter(analise_credito__status_aplicativo=status_app).distinct()
-            
-        if search:
-            qs = qs.filter(nome__icontains=search)
-            
-        if analise_online == '1':
-            qs = qs.filter(analise_credito__analise_online=True).distinct()
-        elif analise_online == '0':
-            qs = qs.filter(analise_credito__analise_online=False).distinct()
-            
-        status = self.request.GET.get('status')
-        if status:
-            qs = qs.filter(analise_credito__status=status).distinct()
-        
-        if loja_filter:
-            qs = qs.filter(loja_id=loja_filter)
-            
-        if data_inicio and data_fim:
-            qs = qs.filter(analise_credito__data_analise__range=[data_inicio, data_fim]).distinct()
-        elif data_inicio:
-            qs = qs.filter(analise_credito__data_analise__gte=data_inicio).distinct()
-        elif data_fim:
-            qs = qs.filter(analise_credito__data_analise__lte=data_fim).distinct()
-            
-        if vendas_nao_finalizadas:
-            qs = qs.filter(analise_credito__venda__isnull=True).distinct()
-            
-        if not self.request.user.has_perm('vendas.view_all_analise_credito'):
-            loja_id = self.request.session.get('loja_id')
-            qs = qs.filter(loja_id=loja_id)
-        
-        return qs.order_by('-id')
+        return filtrar_clientes_solicitacao(self.request)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -512,7 +473,24 @@ class ClienteListView(BaseView, PermissionRequiredMixin, ListView):
         context['current_status'] = self.request.GET.get('status', '')
         context['status_app_choices'] = AnaliseCreditoCliente.STATUS_APP_CHOICES
         context['current_status_app'] = self.request.GET.get('status_app', '')
+        context['lojas_selecionadas'] = lojas_selecionadas(self.request)
         return context
+
+
+class ClienteExportExcelView(PermissionRequiredMixin, View):
+    """Exporta em .xlsx os clientes da listagem de solicitações.
+
+    Usa exatamente os mesmos filtros da tela, então o arquivo reflete o que
+    o usuário está vendo — sem o recorte de paginação.
+    """
+
+    permission_required = 'vendas.view_cliente'
+
+    def get(self, request, *args, **kwargs):
+        clientes = filtrar_clientes_solicitacao(request).only(
+            'nome', 'cpf', 'telefone', 'cidade'
+        )
+        return gerar_planilha_clientes(clientes.iterator())
     
     
     
