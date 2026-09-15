@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.generic import CreateView, UpdateView, ListView, DetailView, TemplateView, View
 
+from accounts.permissions import AnalistaOuAdminRequiredMixin, user_is_analista_or_admin
 from accounts.views import logout_view
 from financeiro.forms import *
 from financeiro.forms import RelatorioSaidaForm
@@ -157,7 +158,7 @@ def _render_notificacao_bo_pdf(request, pagamento, referencias_personais):
     return response
 
 
-class NotificacaoBoPagamentoMixin(PermissionRequiredMixin):
+class NotificacaoBoPagamentoMixin(AnalistaOuAdminRequiredMixin, PermissionRequiredMixin):
     permission_required = 'financeiro.add_notificacaobo'
 
     def dispatch(self, request, *args, **kwargs):
@@ -630,6 +631,10 @@ class ContasAReceberListView(BaseView, PermissionRequiredMixin, ListView):
             context['lojas'] = Loja.objects.all()
         context['status_pagamento_all'] = StatusPagamento.objects.all()
         context['selected_status_pagamento'] = self.request.GET.getlist('status_pagamento')
+        # Detalhes e Gerar BO são restritos a ADMINISTRADOR/ANALISTA
+        pode_acessar = user_is_analista_or_admin(self.request.user)
+        context['pode_ver_detalhes'] = pode_acessar
+        context['pode_gerar_bo'] = pode_acessar and self.request.user.has_perm('financeiro.add_notificacaobo')
         return context
 
     def verificar_atraso_parcela(self, pagamento):
@@ -643,7 +648,7 @@ class ContasAReceberListView(BaseView, PermissionRequiredMixin, ListView):
     
 
 
-class ContasAReceberDetailView(PermissionRequiredMixin, DetailView):
+class ContasAReceberDetailView(AnalistaOuAdminRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Pagamento
     template_name = 'contas_a_receber/contas_a_receber_detail.html'
     context_object_name = 'conta_a_receber'

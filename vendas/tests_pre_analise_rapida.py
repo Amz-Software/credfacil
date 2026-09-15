@@ -1,5 +1,8 @@
 import shutil
 import tempfile
+from io import BytesIO
+
+from PIL import Image
 
 from django.contrib.auth.models import Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -13,6 +16,12 @@ from vendas.views import PreAnaliseRapidaDetailView
 
 def _arquivo(nome='serasa.pdf'):
     return SimpleUploadedFile(nome, b'%PDF-1.4 conteudo', content_type='application/pdf')
+
+
+def _imagem(nome='rg.png'):
+    buffer = BytesIO()
+    Image.new('RGB', (4, 4), 'white').save(buffer, format='PNG')
+    return SimpleUploadedFile(nome, buffer.getvalue(), content_type='image/png')
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix='credfacil-test-media-'))
@@ -186,3 +195,52 @@ class MarcarFinalizadaCopiaSerasaTests(TestCase):
         dados = resp.json()
         self.assertTrue(dados['tem_consulta_serasa'])
         self.assertNotIn('consulta_serasa', dados)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix='credfacil-test-media-'))
+class SegundaCompraNaAnaliseRapidaTests(TestCase):
+    """Campo 'É a segunda compra do cliente conosco?' no fluxo da pré-análise."""
+
+    def setUp(self):
+        self.loja = Loja.objects.create(nome='Loja Teste')
+        self.vendedor = User.objects.create_user(
+            username='vendedor2', email='vendedor2@teste.com', password='x', loja=self.loja,
+        )
+        self.vendedor.user_permissions.add(
+            Permission.objects.get(codename='add_cliente'),
+            Permission.objects.get(codename='view_cliente'),
+        )
+        self.vendedor.lojas.add(self.loja)
+
+    def _payload(self, segunda_compra):
+        return {
+            'nome_completo': 'Cliente Segunda Compra',
+            'cpf': '123.456.789-00',
+            'foto_rg_frente': _imagem('frente.png'),
+            'foto_rg_verso': _imagem('verso.png'),
+            'tem_comprovante_residencia': 'true',
+            'possui_duas_referencias': 'true',
+            'segunda_compra': segunda_compra,
+        }
+
+    def test_vendedor_marca_segunda_compra(self):
+        self.client.force_login(self.vendedor)
+        response = self.client.post('/api/pre-analises-rapidas/', self._payload('true'))
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertTrue(PreAnaliseRapida.objects.get(pk=response.json()['id']).segunda_compra)
+
+    def test_vendedor_marca_primeira_compra(self):
+        self.client.force_login(self.vendedor)
+        response = self.client.post('/api/pre-analises-rapidas/', self._payload('false'))
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertFalse(PreAnaliseRapida.objects.get(pk=response.json()['id']).segunda_compra)
+
+    def test_segunda_compra_exposta_na_leitura(self):
+        pre = PreAnaliseRapida.objects.create(
+            nome_completo='Cliente Teste', cpf='12345678900',
+            loja=self.loja, criado_por=self.vendedor, segunda_compra=True,
+        )
+        self.client.force_login(self.vendedor)
+        response = self.client.get(f'/api/pre-analises-rapidas/{pre.pk}/')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()['segunda_compra'])

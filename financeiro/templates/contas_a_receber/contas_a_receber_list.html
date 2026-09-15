@@ -444,20 +444,23 @@
                       <i class="bx bx-dots-vertical-rounded"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                      {% if user|has_perm:"vendas.view_pagamento" %}
+                      {% if pode_ver_detalhes %}
                         <li>
                           <a class="dropdown-item" href="{% url 'financeiro:contas_a_receber_update' conta.id %}">
                             <i class="bx bx-show me-2"></i> Ver detalhes
                           </a>
                         </li>
                       {% endif %}
-                      {% if user|has_perm:"financeiro.add_notificacaobo" %}
+                      {% if pode_gerar_bo %}
                         <li><hr class="dropdown-divider"></li>
                         <li>
                           <a class="dropdown-item text-danger" href="{% url 'financeiro:notificacao_bo_preview' conta.id %}">
                             <i class="bx bx-file me-2"></i> Gerar BO
                           </a>
                         </li>
+                      {% endif %}
+                      {% if not pode_ver_detalhes and not pode_gerar_bo %}
+                        <li><span class="dropdown-item-text text-muted small">Nenhuma ação disponível</span></li>
                       {% endif %}
                     </ul>
                   </div>

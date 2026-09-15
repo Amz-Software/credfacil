@@ -91,6 +91,7 @@
                     <th>Parcelas</th>
                     <th>Produtos</th>
                     <th>Status Solicitação</th>
+                    <th>2ª Compra</th>
                     <th>Consulta Serasa</th>
                     <th>Tipo</th>
                     <th>Valor de Entrada</th>
@@ -128,6 +129,7 @@
                             Desconhecido
                         {% endif %}
                     </td>
+                    <td>{{ venda.is_segunda_compra|yesno:"Sim,Não" }}</td>
                     <td>
                         {{ venda.cliente.comprovantes.restricao|yesno:"Positiva,Negativa"}}
                     </td>
@@ -145,7 +147,7 @@
                 <tr>
                     <td colspan="3"><strong>Total de Vendas: {{ total_vendas }}</strong></td>
                     <td colspan="2"><strong>Total Entrada: R$ {{ total_entrada|floatformat:2 }}</strong></td>
-                    <td colspan="3"><strong>Total Repasse: R$ {{ total_repasse|floatformat:2 }}</strong></td>
+                    <td colspan="4"><strong>Total Repasse: R$ {{ total_repasse|floatformat:2 }}</strong></td>
                     <td colspan="2"><strong>Total Valor: R$ {{ total_valor|floatformat:2 }}</strong></td>
                     <td colspan="2"><strong>Total Juros: R$ {{ total_juros|floatformat:2 }}</strong></td>
                 </tr>

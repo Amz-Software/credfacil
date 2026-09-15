@@ -10,7 +10,7 @@ from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 from collections import defaultdict
 from io import BytesIO
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
 import qrcode
 from qrcode import QRCode
 from qrcode.constants import ERROR_CORRECT_M
@@ -2836,7 +2836,12 @@ class FolhaRelatorioVendasView(PermissionRequiredMixin, TemplateView):
             filtros['analises_credito_venda__analise_online'] = analise_online_normalizada in ('true', '1')
 
         # faz a query
-        self.vendas = Venda.objects.filter(is_deleted=False, **filtros).distinct()
+        segunda_compra_do_cliente = PreAnaliseRapida.objects.filter(
+            cliente_gerado_id=OuterRef('cliente_id'), segunda_compra=True,
+        )
+        self.vendas = Venda.objects.filter(is_deleted=False, **filtros).annotate(
+            is_segunda_compra=Exists(segunda_compra_do_cliente),
+        ).distinct()
 
         # se não encontrou, redireciona antes de chamar get_context_data
         if not self.vendas.exists():

@@ -47,6 +47,15 @@
               {% endif %}
             </dd>
 
+            <dt class="col-5">Segunda compra conosco</dt>
+            <dd class="col-7">
+              {% if pre_analise.segunda_compra %}
+                <span class="text-success"><i class="bx bx-check-circle"></i> Sim</span>
+              {% else %}
+                <span class="text-muted"><i class="bx bx-x-circle"></i> Não</span>
+              {% endif %}
+            </dd>
+
             <dt class="col-5">Loja</dt>
             <dd class="col-7">{{ pre_analise.loja.nome|default:"—" }}</dd>
 

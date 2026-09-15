@@ -1,6 +1,7 @@
 from django import forms
 from django.db.models import OuterRef, Exists
 from accounts.models import User
+from accounts.permissions import user_is_analista_or_admin
 from estoque.models import Estoque, EstoqueImei
 from produtos.models import Produto, Parcelamento
 from .models import *
@@ -11,21 +12,7 @@ from datetime import date
 
 
 def user_can_manage_obteve_contato(user):
-    if not user:
-        return False
-    if getattr(user, 'is_superuser', False):
-        return True
-    return user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR']).exists()
-
-
-def user_is_analista_or_admin(user):
-    """ANALISTA, ADMINISTRADOR ou superusuário — podem editar os números de
-    contato mesmo depois da venda gerada."""
-    if not user:
-        return False
-    if getattr(user, 'is_superuser', False):
-        return True
-    return user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR']).exists()
+    return user_is_analista_or_admin(user)
 
 
 def erro_pelo_menos_um_contato(form_adicional, form_informacao):

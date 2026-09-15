@@ -812,6 +812,7 @@ class PreAnaliseRapidaSerializer(serializers.ModelSerializer):
             "foto_rg_verso",
             "tem_comprovante_residencia",
             "possui_duas_referencias",
+            "segunda_compra",
             "status",
             "status_display",
             "observacao",
@@ -857,6 +858,7 @@ class PreAnaliseRapidaInputSerializer(serializers.ModelSerializer):
             "foto_rg_verso",
             "tem_comprovante_residencia",
             "possui_duas_referencias",
+            "segunda_compra",
         ]
 
     def validate_nome_completo(self, value):

@@ -707,6 +707,7 @@ class PreAnaliseRapida(Base):
     foto_rg_verso = models.ImageField(upload_to=upload_pre_analise_rapida, verbose_name='Foto do RG (costas)')
     tem_comprovante_residencia = models.BooleanField(default=False, verbose_name='Tem comprovante de residência')
     possui_duas_referencias = models.BooleanField(default=False, verbose_name='Possui 2 referências')
+    segunda_compra = models.BooleanField(default=False, verbose_name='É a segunda compra do cliente conosco')
 
     # Anexada pelo analista durante a análise rápida. Ao virar proposta, é copiada
     # para ComprovantesCliente.consulta_serasa, já vindo preenchida no cadastro.

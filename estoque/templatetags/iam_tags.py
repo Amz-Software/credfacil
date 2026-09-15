@@ -1,6 +1,8 @@
 import re
 
 from django import template
+
+from accounts.permissions import user_is_analista_or_admin
 from produtos.models import Produto
 
 register = template.Library()
@@ -32,6 +34,12 @@ register.filter('has_perm', has_perm)
 @register.filter
 def has_group(user, group_name):
     return user.groups.filter(name=group_name).exists()
+
+
+@register.filter
+def is_analista_or_admin(user):
+    """True para superusuários e membros dos grupos ANALISTA/ADMINISTRADOR."""
+    return user_is_analista_or_admin(user)
 
 
 @register.filter

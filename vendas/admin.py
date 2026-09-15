@@ -541,8 +541,8 @@ class NumeroAutenticadorAdmin(AdminBase):
 @admin.register(PreAnaliseRapida)
 class PreAnaliseRapidaAdmin(AdminBase):
     list_display = ('nome_completo', 'cpf', 'status', 'tem_comprovante_residencia',
-                    'possui_duas_referencias', 'loja', 'criado_por', 'analisado_por', 'criado_em')
-    list_filter = ('status', 'tem_comprovante_residencia', 'possui_duas_referencias', 'loja', 'criado_em')
+                    'possui_duas_referencias', 'segunda_compra', 'loja', 'criado_por', 'analisado_por', 'criado_em')
+    list_filter = ('status', 'tem_comprovante_residencia', 'possui_duas_referencias', 'segunda_compra', 'loja', 'criado_em')
     search_fields = ('nome_completo', 'cpf', 'loja__nome')
     date_hierarchy = 'criado_em'
     ordering = ('-criado_em',)
