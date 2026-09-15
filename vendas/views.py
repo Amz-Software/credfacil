@@ -1589,6 +1589,7 @@ class VendaListView(BaseView, PermissionRequiredMixin, ListView):
     def get_queryset(self):
         query = Venda.objects.all()
         data_filter = self.request.GET.get('search')
+        venda_id = self.request.GET.get('venda_id', '').strip()
         loja = self.request.GET.get('loja_id')
         cliente_nome = self.request.GET.get('cliente_nome')
         vendas_canceladas = self.request.GET.get('vendas_canceladas')
@@ -1598,6 +1599,8 @@ class VendaListView(BaseView, PermissionRequiredMixin, ListView):
             query = query.filter(loja__id=loja)
         if data_filter:
             query = query.filter(data_venda=data_filter)
+        if venda_id:
+            query = query.filter(pk=venda_id) if venda_id.isdigit() else query.none()
         if cliente_nome:
             query = query.filter(cliente__nome__icontains=cliente_nome)
         if vendas_canceladas:
