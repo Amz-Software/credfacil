@@ -15,6 +15,7 @@ import calendar
 import os
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from django.core.validators import FileExtensionValidator
 from simple_history.models import HistoricalRecords
 
 def upload_to_venda(instance, filename):
@@ -1238,6 +1239,71 @@ class Parcela(Base):
         permissions = (
             ('change_vencimento_parcela', 'Pode alterar data de vencimento de parcelas'),
         )
+
+
+def upload_to_comprovante_parcela(instance, filename):
+    """Guarda o comprovante em uma pasta por parcela, preservando o nome do arquivo."""
+    if instance.parcela_id:
+        return f'comprovantes_parcelas/{instance.parcela_id}/{filename}'
+    return f'comprovantes_parcelas/temp/{filename}'
+
+
+class ComprovanteParcela(Base):
+    """Comprovante de pagamento anexado a uma parcela por ADMINISTRADOR/ANALISTA."""
+
+    EXTENSOES_PERMITIDAS = ('pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic')
+    # HEIC fica fora de EXTENSOES_IMAGEM: sem pillow-heif o arquivo não é convertido
+    # para WEBP e a maioria dos navegadores não renderiza <img> HEIC. Ele continua
+    # sendo aceito e baixável, mas exibido com ícone de arquivo em vez de miniatura.
+    EXTENSOES_IMAGEM = ('jpg', 'jpeg', 'png', 'webp')
+    TAMANHO_MAXIMO_BYTES = 10 * 1024 * 1024
+
+    parcela = models.ForeignKey(
+        'vendas.Parcela', on_delete=models.CASCADE, related_name='comprovantes',
+    )
+    arquivo = models.FileField(
+        upload_to=upload_to_comprovante_parcela,
+        validators=[FileExtensionValidator(allowed_extensions=list(EXTENSOES_PERMITIDAS))],
+        verbose_name='Arquivo do comprovante',
+    )
+    observacao = models.CharField(max_length=255, blank=True, verbose_name='Observação')
+
+    class Meta:
+        verbose_name = 'Comprovante de Parcela'
+        verbose_name_plural = 'Comprovantes de Parcelas'
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        return f'Comprovante da {self.parcela}'
+
+    @property
+    def nome_arquivo(self):
+        return os.path.basename(self.arquivo.name) if self.arquivo else ''
+
+    @property
+    def extensao(self):
+        return os.path.splitext(self.arquivo.name)[1].lstrip('.').lower() if self.arquivo else ''
+
+    @property
+    def is_imagem(self):
+        return self.extensao in self.EXTENSOES_IMAGEM
+
+    @property
+    def is_pdf(self):
+        return self.extensao == 'pdf'
+
+    @property
+    def tamanho_legivel(self):
+        """Tamanho do arquivo em formato humano; vazio quando o arquivo sumiu do storage."""
+        try:
+            tamanho = self.arquivo.size
+        except (ValueError, OSError):
+            return ''
+        for unidade in ('B', 'KB', 'MB'):
+            if tamanho < 1024:
+                return f'{tamanho:.0f} {unidade}'
+            tamanho /= 1024
+        return f'{tamanho:.1f} GB'
 
 
 class Contato(Base):

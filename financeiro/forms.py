@@ -1,3 +1,5 @@
+import os
+
 from django import forms
 from accounts.models import User
 from .models import *
@@ -157,6 +159,45 @@ ParcelaInlineFormSet = forms.inlineformset_factory(
     extra=0,
     can_delete=True
 )
+
+
+class ComprovanteParcelaForm(forms.ModelForm):
+    """Upload de comprovante de pagamento de uma parcela (PDF ou imagem)."""
+
+    class Meta:
+        model = ComprovanteParcela
+        fields = ['arquivo', 'observacao']
+        widgets = {
+            'arquivo': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.jpg,.jpeg,.png,.webp,.heic,image/*,application/pdf',
+            }),
+            'observacao': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ex.: PIX recebido em 10/03',
+                'maxlength': '255',
+            }),
+        }
+        labels = {
+            'arquivo': 'Arquivo do comprovante',
+            'observacao': 'Observação (opcional)',
+        }
+
+    def clean_arquivo(self):
+        arquivo = self.cleaned_data.get('arquivo')
+        if not arquivo:
+            raise forms.ValidationError('Selecione um arquivo para anexar.')
+
+        if arquivo.size > ComprovanteParcela.TAMANHO_MAXIMO_BYTES:
+            limite_mb = ComprovanteParcela.TAMANHO_MAXIMO_BYTES // (1024 * 1024)
+            raise forms.ValidationError(f'O arquivo excede o limite de {limite_mb} MB.')
+
+        extensao = os.path.splitext(arquivo.name)[1].lstrip('.').lower()
+        if extensao not in ComprovanteParcela.EXTENSOES_PERMITIDAS:
+            permitidas = ', '.join(ComprovanteParcela.EXTENSOES_PERMITIDAS).upper()
+            raise forms.ValidationError(f'Formato não permitido. Use um destes: {permitidas}.')
+
+        return arquivo
 
 class RelatorioContasAReceberForm(forms.Form):
     data_inicial = forms.DateField(

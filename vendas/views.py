@@ -27,6 +27,7 @@ from django.http import Http404, JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.utils.timezone import localtime, now
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, DeleteView, UpdateView, View, FormView
 from django_select2.views import AutoResponseView
@@ -1406,6 +1407,33 @@ def reprovar_analise_credito(request, id):
 
 # ─── Pré-análise rápida (backoffice do analista) ────────────────────────────
 
+PERMISSAO_VER_TODAS_PRE_ANALISES = 'vendas.view_all_analise_credito'
+
+
+def _pode_ver_todas_pre_analises(user):
+    return bool(user.is_superuser or user.has_perm(PERMISSAO_VER_TODAS_PRE_ANALISES))
+
+
+def _lojas_visiveis_pre_analise(user):
+    """Lojas que o usuário pode enxergar na listagem de análises rápidas."""
+    if _pode_ver_todas_pre_analises(user):
+        return Loja.objects.all().order_by('nome')
+
+    lojas_ids = set(user.lojas.values_list('id', flat=True))
+    if getattr(user, 'loja_id', None):
+        lojas_ids.add(user.loja_id)
+    return Loja.objects.filter(id__in=lojas_ids).order_by('nome')
+
+
+def _inicio_do_dia(data):
+    """Primeiro instante do dia no fuso do projeto (USE_TZ=True).
+
+    Filtrar por intervalo de datetime evita o lookup `__date`, que no MySQL
+    depende das tabelas de fuso horário carregadas no banco.
+    """
+    return timezone.make_aware(datetime.combine(data, datetime.min.time()))
+
+
 class PreAnaliseRapidaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = PreAnaliseRapida
     template_name = 'pre_analise_rapida/list.html'
@@ -1427,17 +1455,31 @@ class PreAnaliseRapidaListView(LoginRequiredMixin, PermissionRequiredMixin, List
             qs = qs.filter(Q(nome_completo__icontains=search) | Q(cpf__icontains=search))
 
         user = self.request.user
-        if not (user.is_superuser or user.has_perm('vendas.view_all_analise_credito')):
-            lojas_ids = set(user.lojas.values_list('id', flat=True))
-            if getattr(user, 'loja_id', None):
-                lojas_ids.add(user.loja_id)
-            qs = qs.filter(loja_id__in=lojas_ids)
+        if not _pode_ver_todas_pre_analises(user):
+            qs = qs.filter(loja_id__in=_lojas_visiveis_pre_analise(user).values('id'))
+
+        loja_id = self.request.GET.get('loja', '')
+        if loja_id.isdigit():
+            qs = qs.filter(loja_id=int(loja_id))
+
+        data_inicio = parse_date(self.request.GET.get('data_inicio', ''))
+        if data_inicio:
+            qs = qs.filter(criado_em__gte=_inicio_do_dia(data_inicio))
+
+        data_fim = parse_date(self.request.GET.get('data_fim', ''))
+        if data_fim:
+            qs = qs.filter(criado_em__lt=_inicio_do_dia(data_fim + timedelta(days=1)))
+
         return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['status_atual'] = self.request.GET.get('status', '')
         ctx['q'] = self.request.GET.get('q', '')
+        ctx['lojas'] = _lojas_visiveis_pre_analise(self.request.user)
+        ctx['loja_atual'] = self.request.GET.get('loja', '')
+        ctx['data_inicio'] = self.request.GET.get('data_inicio', '')
+        ctx['data_fim'] = self.request.GET.get('data_fim', '')
         ctx['pode_decidir'] = self.request.user.has_perm('vendas.change_status_analise')
         return ctx
 

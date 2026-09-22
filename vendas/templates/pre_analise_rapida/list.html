@@ -12,14 +12,35 @@
         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
           <h5 class="mb-0 d-flex align-items-center"><i class="bx bx-bolt-circle me-2 text-primary"></i>Pré-análises rápidas</h5>
           <form action="" method="get" class="d-flex gap-2 align-items-center flex-wrap" id="filtroForm">
-            <select name="status" class="form-select" onchange="document.getElementById('filtroForm').submit()">
+            <select name="status" class="form-select w-auto" onchange="document.getElementById('filtroForm').submit()">
               <option value="">Todos os status</option>
               <option value="P" {% if status_atual == "P" %}selected{% endif %}>Pendente</option>
               <option value="A" {% if status_atual == "A" %}selected{% endif %}>Pré-aprovada</option>
               <option value="R" {% if status_atual == "R" %}selected{% endif %}>Reprovada</option>
             </select>
-            <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Nome ou CPF"
+            <select name="loja" class="form-select w-auto" aria-label="Filtrar por loja"
+                    onchange="document.getElementById('filtroForm').submit()">
+              <option value="">Todas as lojas</option>
+              {% for loja in lojas %}
+                <option value="{{ loja.pk }}" {% if loja_atual == loja.pk|stringformat:"s" %}selected{% endif %}>{{ loja.nome }}</option>
+              {% endfor %}
+            </select>
+            <div class="d-flex align-items-center gap-1">
+              <label for="data_inicio" class="form-label mb-0 small text-muted">De</label>
+              <input type="date" name="data_inicio" id="data_inicio" value="{{ data_inicio }}" class="form-control w-auto"
+                     onchange="document.getElementById('filtroForm').submit()">
+              <label for="data_fim" class="form-label mb-0 small text-muted">até</label>
+              <input type="date" name="data_fim" id="data_fim" value="{{ data_fim }}" class="form-control w-auto"
+                     onchange="document.getElementById('filtroForm').submit()">
+            </div>
+            <input type="text" name="q" value="{{ q }}" class="form-control w-auto" placeholder="Nome ou CPF"
                    onchange="document.getElementById('filtroForm').submit()">
+            <button type="submit" class="btn btn-primary"><i class="bx bx-filter-alt me-1"></i>Filtrar</button>
+            {% if status_atual or loja_atual or data_inicio or data_fim or q %}
+              <a href="{% url 'vendas:pre_analise_rapida_list' %}" class="btn btn-outline-secondary" title="Limpar filtros">
+                <i class="bx bx-x"></i>
+              </a>
+            {% endif %}
           </form>
         </div>
 

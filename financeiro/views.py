@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.db.models import OuterRef, Subquery, DateField, Q, Sum, Max, Prefetch
 from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import render_to_string
@@ -25,7 +25,7 @@ from accounts.views import logout_view
 from financeiro.forms import *
 from financeiro.forms import RelatorioSaidaForm
 from vendas.forms import ContatoForm
-from vendas.models import Contato, Loja, Parcela, Pagamento, StatusPagamento
+from vendas.models import ComprovanteParcela, Contato, Loja, Parcela, Pagamento, StatusPagamento
 from vendas.views import BaseView
 from .models import CaixaMensal, CaixaMensalFuncionario, CaixaMensalGastoFixo, GastoFixo, GastosAleatorios
 
@@ -659,8 +659,12 @@ class ContasAReceberDetailView(AnalistaOuAdminRequiredMixin, PermissionRequiredM
         conta_a_receber = self.get_object()
         context['parcela_form'] = ParcelaInlineFormSet(
             instance=conta_a_receber,
+            queryset=Parcela.objects.prefetch_related(
+                Prefetch('comprovantes', queryset=ComprovanteParcela.objects.select_related('criado_por'))
+            ),
             form_kwargs={'user': self.request.user}
         )
+        context['comprovante_form'] = ComprovanteParcelaForm()
         totais_parcelas = conta_a_receber.parcelas_pagamento.aggregate(
             total_valor=Sum('valor'),
             total_valor_pago=Sum('valor_pago'),
@@ -812,7 +816,99 @@ class ContasAReceberDetailView(AnalistaOuAdminRequiredMixin, PermissionRequiredM
             messages.error(request, "Erro ao atualizar as parcelas.")
             return self.render_to_response(self.get_context_data(parcela_form=parcela_form))
 
-    
+
+class ComprovanteParcelaBaseView(AnalistaOuAdminRequiredMixin, PermissionRequiredMixin, View):
+    """Base dos fluxos de comprovante de pagamento de uma parcela."""
+
+    def get_parcela(self):
+        """Resolve a parcela da URL dentro do escopo de loja do usuário.
+
+        É chamada de dentro de get()/post(), ou seja, só depois que os mixins de
+        autorização rodaram: quem não pode acessar recebe 403 e não consegue
+        descobrir quais IDs existem pela diferença entre 403 e 404.
+        """
+        parcelas = Parcela.objects.select_related('pagamento')
+        if not self.request.user.has_perm('vendas.can_view_all_payments'):
+            parcelas = parcelas.filter(
+                pagamento__loja_id=self.request.session.get('loja_id')
+            )
+        return get_object_or_404(
+            parcelas,
+            pk=self.kwargs.get('parcela_pk'),
+            pagamento_id=self.kwargs.get('pk'),
+        )
+
+    def get_comprovante(self, parcela):
+        return get_object_or_404(
+            ComprovanteParcela, pk=self.kwargs.get('comprovante_pk'), parcela=parcela,
+        )
+
+    def redirect_para_detalhe(self, parcela):
+        return redirect('financeiro:contas_a_receber_update', pk=parcela.pagamento_id)
+
+
+class ComprovanteParcelaUploadView(ComprovanteParcelaBaseView):
+    """Anexa um comprovante de pagamento a uma parcela."""
+
+    permission_required = 'vendas.change_pagamento'
+
+    def post(self, request, *args, **kwargs):
+        parcela = self.get_parcela()
+        form = ComprovanteParcelaForm(request.POST, request.FILES)
+        if not form.is_valid():
+            for campo, erros in form.errors.items():
+                rotulo = form.fields[campo].label if campo in form.fields else 'Comprovante'
+                for erro in erros:
+                    messages.error(request, f'{rotulo}: {erro}')
+            return self.redirect_para_detalhe(parcela)
+
+        comprovante = form.save(commit=False)
+        comprovante.parcela = parcela
+        comprovante.loja = parcela.pagamento.loja
+        comprovante.save(user=request.user)
+        messages.success(
+            request,
+            f'Comprovante anexado à parcela {parcela.numero_parcela} com sucesso!',
+        )
+        return self.redirect_para_detalhe(parcela)
+
+
+class ComprovanteParcelaDeleteView(ComprovanteParcelaBaseView):
+    """Remove um comprovante já anexado (arquivo e registro)."""
+
+    permission_required = 'vendas.change_pagamento'
+
+    def post(self, request, *args, **kwargs):
+        parcela = self.get_parcela()
+        self.get_comprovante(parcela).delete()
+        messages.success(
+            request, f'Comprovante da parcela {parcela.numero_parcela} removido.',
+        )
+        return self.redirect_para_detalhe(parcela)
+
+
+class ComprovanteParcelaDownloadView(ComprovanteParcelaBaseView):
+    """Entrega o arquivo do comprovante apenas para quem pode ver o pagamento.
+
+    Evita depender do servimento público de MEDIA_URL para documentos financeiros.
+    """
+
+    permission_required = 'vendas.view_pagamento'
+
+    def get(self, request, *args, **kwargs):
+        parcela = self.get_parcela()
+        comprovante = self.get_comprovante(parcela)
+        try:
+            arquivo = comprovante.arquivo.open('rb')
+        except (ValueError, FileNotFoundError, OSError):
+            messages.error(request, 'Arquivo do comprovante não encontrado no servidor.')
+            return self.redirect_para_detalhe(parcela)
+
+        # inline: permite pré-visualizar imagem/PDF; ?download=1 força o salvamento
+        as_attachment = request.GET.get('download') == '1'
+        return FileResponse(arquivo, as_attachment=as_attachment, filename=comprovante.nome_arquivo)
+
+
 class RelatorioContasAReceberView(BaseView, PermissionRequiredMixin, TemplateView):
     template_name = 'contas_a_receber/relatorio.html'
     permission_required = 'vendas.can_genarate_report_payments'

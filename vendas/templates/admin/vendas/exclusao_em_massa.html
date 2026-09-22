@@ -1,0 +1,58 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Início</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; Exclusão em massa
+</div>
+{% endblock %}
+
+{% block content %}
+<p class="errornote">
+  Esta ação é <strong>irreversível</strong>. Todos os registros relacionados são
+  apagados em cascata (vendas, pagamentos, parcelas, análises, histórico).
+</p>
+
+<p>
+  Você está prestes a excluir <strong>{{ total }}</strong>
+  {{ opts.verbose_name_plural }}.
+</p>
+
+{% if lojas %}
+<p>Lojas afetadas: <strong>{{ lojas|join:", " }}</strong></p>
+{% endif %}
+
+{% if contagens %}
+<h2>Registros que serão removidos</h2>
+<table>
+  <thead><tr><th>Modelo</th><th>Quantidade</th></tr></thead>
+  <tbody>
+    {% for nome, quantidade in contagens %}
+    <tr><td>{{ nome|capfirst }}</td><td>{{ quantidade }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="help">
+  A prévia detalhada é omitida acima de {{ limite_previa }} registros para não
+  travar a página. A exclusão em cascata acontece normalmente.
+</p>
+{% endif %}
+
+<form method="post">{% csrf_token %}
+  {% for pk in selecionados %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="{{ nome_acao }}">
+  <input type="hidden" name="select_across" value="{{ select_across }}">
+  <input type="hidden" name="index" value="{{ index }}">
+  <input type="hidden" name="{{ campo_confirmacao }}" value="1">
+  <div class="submit-row">
+    <input type="submit" class="default" value="Sim, excluir {{ total }} registro(s)">
+    <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+from datetime import datetime
 from io import BytesIO
 
 from PIL import Image
@@ -8,10 +9,11 @@ from django.contrib.auth.models import Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import User
 from vendas.models import Cliente, ComprovantesCliente, Loja, PreAnaliseRapida
-from vendas.views import PreAnaliseRapidaDetailView
+from vendas.views import PreAnaliseRapidaDetailView, PreAnaliseRapidaListView
 
 
 def _arquivo(nome='serasa.pdf'):
@@ -244,3 +246,76 @@ class SegundaCompraNaAnaliseRapidaTests(TestCase):
         response = self.client.get(f'/api/pre-analises-rapidas/{pre.pk}/')
         self.assertEqual(response.status_code, 200, response.content)
         self.assertTrue(response.json()['segunda_compra'])
+
+
+class FiltrosListaAnaliseRapidaTests(TestCase):
+    """Filtros de loja e data na listagem de análises rápidas (front Django)."""
+
+    def setUp(self):
+        self.loja_a = Loja.objects.create(nome='Loja A')
+        self.loja_b = Loja.objects.create(nome='Loja B')
+        self.analista = User.objects.create_user(
+            username='analista-filtros', email='analista-filtros@teste.com',
+            password='x', loja=self.loja_a,
+        )
+        self.analista.user_permissions.add(
+            Permission.objects.get(codename='view_cliente'),
+            Permission.objects.get(codename='view_all_analise_credito'),
+        )
+
+        self.pre_a = self._criar('Cliente Loja A', self.loja_a, '2026-09-01 10:00')
+        self.pre_b = self._criar('Cliente Loja B', self.loja_b, '2026-09-10 10:00')
+
+    def _criar(self, nome, loja, criado_em):
+        pre = PreAnaliseRapida.objects.create(
+            nome_completo=nome, cpf='12345678900', loja=loja, criado_por=self.analista,
+        )
+        # criado_em é auto_now_add: precisa ser reescrito direto no banco
+        momento = timezone.make_aware(datetime.strptime(criado_em, '%Y-%m-%d %H:%M'))
+        PreAnaliseRapida.objects.filter(pk=pre.pk).update(criado_em=momento)
+        return pre
+
+    def _contexto(self, user=None, **params):
+        # RequestFactory: mesma razão do detalhe — evita o render do test client.
+        request = RequestFactory().get(reverse('vendas:pre_analise_rapida_list'), params)
+        request.user = user or self.analista
+        response = PreAnaliseRapidaListView.as_view()(request)
+        return response.context_data
+
+    def _listar(self, **params):
+        return list(self._contexto(**params)['pre_analises'])
+
+    def test_sem_filtro_lista_todas(self):
+        self.assertCountEqual(self._listar(), [self.pre_a, self.pre_b])
+
+    def test_filtra_por_loja(self):
+        self.assertEqual(self._listar(loja=self.loja_b.pk), [self.pre_b])
+
+    def test_filtra_por_data_inicio(self):
+        self.assertEqual(self._listar(data_inicio='2026-09-05'), [self.pre_b])
+
+    def test_filtra_por_data_fim_inclui_o_dia_inteiro(self):
+        self.assertEqual(self._listar(data_fim='2026-09-10'), [self.pre_b, self.pre_a])
+
+    def test_filtra_por_intervalo_de_datas(self):
+        self.assertEqual(
+            self._listar(data_inicio='2026-09-01', data_fim='2026-09-01'), [self.pre_a]
+        )
+
+    def test_combina_loja_e_data(self):
+        self.assertEqual(self._listar(loja=self.loja_a.pk, data_inicio='2026-09-05'), [])
+
+    def test_valores_invalidos_sao_ignorados(self):
+        self.assertCountEqual(self._listar(loja='abc', data_inicio='ontem'), [self.pre_a, self.pre_b])
+
+    def test_select_de_lojas_respeita_escopo_do_usuario(self):
+        vendedor = User.objects.create_user(
+            username='vendedor-filtros', email='vendedor-filtros@teste.com',
+            password='x', loja=self.loja_a,
+        )
+        vendedor.user_permissions.add(Permission.objects.get(codename='view_cliente'))
+        vendedor.lojas.add(self.loja_a)
+
+        ctx = self._contexto(user=vendedor)
+        self.assertEqual(list(ctx['lojas']), [self.loja_a])
+        self.assertEqual(list(ctx['pre_analises']), [self.pre_a])

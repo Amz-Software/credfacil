@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from simple_history.admin import SimpleHistoryAdmin
+from .admin_actions import excluir_em_massa
 from .models import *
 
 class AdminBase(admin.ModelAdmin):
@@ -73,6 +74,7 @@ class VendaAdmin(HistoryAdminBase):
     autocomplete_fields = ('cliente', 'vendedor', 'caixa', 'loja')
     list_select_related = ('cliente', 'vendedor', 'loja', 'caixa')
     list_per_page = 50
+    actions = [excluir_em_massa]
     inlines = [ProdutoVendaInline, PagamentoInline]
     readonly_fields = AdminBase.readonly_fields + ('contrato_publico_uuid', 'contrato_publico_link', 'data_venda')
     fieldsets = (
@@ -234,6 +236,7 @@ class ClienteAdmin(HistoryAdminBase):
     raw_id_fields = ('comprovantes', 'contato_adicional', 'informacao_pessoal')
     list_select_related = ('loja',)
     list_per_page = 50
+    actions = [excluir_em_massa]
     inlines = [VendaClienteInline]
 
 @admin.register(Endereco)

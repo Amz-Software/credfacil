@@ -93,7 +93,13 @@ Pagamento
 Parcela
 ├── pagamento (FK → Pagamento)
 ├── numero, valor, vencimento, data_pagamento
-└── tipo_pagamento (FK → TipoPagamento)
+├── tipo_pagamento (FK → TipoPagamento)
+└── comprovantes (reverse FK ← ComprovanteParcela)
+
+ComprovanteParcela
+├── parcela (FK → Parcela)
+├── arquivo (FileField — PDF ou imagem, máx. 10 MB)
+└── observacao (CharField, opcional)
 
 Produto
 ├── valor_repasse_logista (base do cálculo de repasse)

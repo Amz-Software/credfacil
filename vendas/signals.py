@@ -1,6 +1,6 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from .models import Pagamento, Parcela
+from .models import ComprovanteParcela, Pagamento, Parcela
 from datetime import timedelta
 from notifications.signals import notify
 from .models import Parcela
@@ -46,6 +46,24 @@ def criar_ou_atualizar_parcelas(sender, instance, created, **kwargs):
                 criado_por=instance.criado_por,
                 modificado_por=instance.modificado_por
             )
+
+@receiver(post_delete, sender=ComprovanteParcela)
+def remover_arquivo_comprovante_parcela(sender, instance, **kwargs):
+    """Apaga o arquivo do storage sempre que o comprovante é removido.
+
+    Fica em post_delete (e não em um override de `Model.delete`) porque parcelas
+    são apagadas em massa por `criar_ou_atualizar_parcelas`: a cascata para
+    ComprovanteParcela não passa por `Model.delete()` e deixaria arquivos órfãos.
+    """
+    arquivo = instance.arquivo
+    if not arquivo or not arquivo.name:
+        return
+    try:
+        arquivo.storage.delete(arquivo.name)
+    except (OSError, ValueError):
+        # Arquivo já ausente do storage: a remoção do registro não deve falhar.
+        pass
+
 
 def calcular_data_vencimento(data_primeira_parcela, numero_parcela):
     # Cada parcela é no mesmo dia do mês, nos meses seguintes

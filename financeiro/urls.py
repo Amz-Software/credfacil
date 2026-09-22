@@ -17,6 +17,21 @@ urlpatterns = [
     path('financeiro/contas-a-receber', ContasAReceberListView.as_view(), name='contas_a_receber_list'),
     path('financeiro/contas-a-receber/<int:pk>', ContasAReceberDetailView.as_view(), name='contas_a_receber_update'),
     path('financeiro/contas-a-receber/<int:pk>/gerar-bo/', GerarNotificacaoBoView.as_view(), name='notificacao_bo_preview'),
+    path(
+        'financeiro/contas-a-receber/<int:pk>/parcela/<int:parcela_pk>/comprovante/',
+        ComprovanteParcelaUploadView.as_view(),
+        name='comprovante_parcela_upload',
+    ),
+    path(
+        'financeiro/contas-a-receber/<int:pk>/parcela/<int:parcela_pk>/comprovante/<int:comprovante_pk>/arquivo/',
+        ComprovanteParcelaDownloadView.as_view(),
+        name='comprovante_parcela_download',
+    ),
+    path(
+        'financeiro/contas-a-receber/<int:pk>/parcela/<int:parcela_pk>/comprovante/<int:comprovante_pk>/remover/',
+        ComprovanteParcelaDeleteView.as_view(),
+        name='comprovante_parcela_delete',
+    ),
     path('financeiro/contas-a-receber/<int:pk>/gerar-bo/pdf/', GerarNotificacaoBoPdfView.as_view(), name='notificacao_bo_pdf'),
 
     path('gastofixo/', gasto_fixo_views['list_view'].as_view(), name='gasto_fixo_list'),

@@ -87,6 +87,21 @@
     }
     #parcelas-table td { white-space: nowrap; }
 
+    /* Comprovantes de pagamento por parcela */
+    .cr-comprovante-btn { white-space: nowrap; }
+    .cr-comprovante-item {
+      border: 1px solid var(--ipix-gray-200, #eaeaef);
+      border-radius: .6rem; padding: .75rem .9rem; margin-bottom: .6rem;
+    }
+    .cr-comprovante-thumb {
+      width: 72px; height: 72px; flex-shrink: 0; border-radius: .5rem; overflow: hidden;
+      background: rgba(133,146,163,.10); color: #8592a3;
+      display: flex; align-items: center; justify-content: center; font-size: 1.9rem;
+    }
+    .cr-comprovante-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .min-w-0 { min-width: 0; }
+    .dark-style .cr-comprovante-item { border-color: rgba(255,255,255,.08); }
+
     /* Dark mode: superfícies personalizadas mantêm contraste */
     .dark-style .cr-kpi,
     .dark-style .sit-item { background: #2b2c40; border-color: rgba(255,255,255,.08); }
@@ -589,6 +604,7 @@
                     </th>
                     <th scope="col">Pago?</th>
                     <th scope="col">Cliente Informou?</th>
+                    <th scope="col" class="text-center">Comprovante</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -602,6 +618,26 @@
                       <td>{{ parcela.data_vencimento }}</td>
                       <td>{{ parcela.pago }}</td>
                       <td>{{ parcela.pagamento_efetuado }}</td>
+                      <td class="text-center">
+                        {% if parcela.instance.pk %}
+                          {% with total_comprovantes=parcela.instance.comprovantes.all|length %}
+                            <button type="button"
+                                    class="btn btn-sm cr-comprovante-btn {% if total_comprovantes %}btn-success{% else %}btn-outline-secondary{% endif %}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#comprovanteModal-{{ parcela.instance.pk }}"
+                                    title="{% if total_comprovantes %}Ver comprovantes anexados{% else %}Anexar comprovante de pagamento{% endif %}">
+                              <i class="bi {% if total_comprovantes %}bi-paperclip{% else %}bi-plus-circle{% endif %}"></i>
+                              {% if total_comprovantes %}
+                                <span class="badge bg-light text-success ms-1">{{ total_comprovantes }}</span>
+                              {% else %}
+                                <span class="ms-1 d-none d-lg-inline">Anexar</span>
+                              {% endif %}
+                            </button>
+                          {% endwith %}
+                        {% else %}
+                          <span class="text-muted small">Salve a parcela primeiro</span>
+                        {% endif %}
+                      </td>
                     </tr>
                   {% endfor %}
                 </tbody>
@@ -610,7 +646,7 @@
                     <td colspan="2" class="text-end">Total</td>
                     <td id="total-valor-original-cell">R$ {{ total_valor_original|floatformat:2 }}</td>
                     <td>R$ {{ total_valor_pago|floatformat:2 }}</td>
-                    <td colspan="3"></td>
+                    <td colspan="4"></td>
                   </tr>
                 </tfoot>
               </table>
@@ -643,6 +679,9 @@
         </div>
       </div>
     </div>
+
+    {# Modais de comprovante de pagamento (um por parcela) #}
+    {% include "contas_a_receber/_comprovantes_parcela_modais.html" %}
 
     {# ================================================================== #}
     {# MODAL DE CONFIRMAÇÃO PARA A QUITAÇÃO DO ANALISTA                   #}
@@ -1029,6 +1068,14 @@
 
         // Remove qualquer botão de remover herdado pelo clone (se houver)
         newRow.querySelectorAll('.btn-remove-extra').forEach(function (b) { b.remove(); });
+
+        // A parcela nova ainda não existe no banco: o botão de comprovante clonado
+        // apontaria para o modal da parcela anterior.
+        newRow.querySelectorAll('.cr-comprovante-btn').forEach(function (b) {
+          const celula = b.closest('td');
+          b.remove();
+          if (celula) celula.innerHTML = '<span class="text-muted small">Salve a parcela primeiro</span>';
+        });
 
         tbody.appendChild(newRow);
         totalFormsInput.value = String(newIndex + 1);

@@ -1,0 +1,125 @@
+{# Modais de comprovante de pagamento — um por parcela salva.
+   Incluído fora do <form> do formset de parcelas: form aninhado é HTML inválido.
+   Contexto esperado: parcela_form, conta_a_receber, user. #}
+{% load iam_tags %}
+{% with pode_gerenciar_comprovante=user|is_analista_or_admin %}
+  {% for parcela in parcela_form %}
+    {% if parcela.instance.pk %}
+      <div class="modal fade" id="comprovanteModal-{{ parcela.instance.pk }}" tabindex="-1"
+           aria-labelledby="comprovanteModalLabel-{{ parcela.instance.pk }}" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="comprovanteModalLabel-{{ parcela.instance.pk }}">
+                <i class="bi bi-paperclip me-1"></i>
+                Comprovantes — Parcela {{ parcela.instance.numero_parcela }}
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <div class="modal-body">
+              <div class="text-muted small mb-3">
+                Vencimento {{ parcela.instance.data_vencimento|date:"d/m/Y" }} ·
+                Valor R$ {{ parcela.instance.valor|floatformat:2 }}
+              </div>
+
+              {# --- Lista dos comprovantes já anexados --- #}
+              {% for comprovante in parcela.instance.comprovantes.all %}
+                <div class="cr-comprovante-item d-flex align-items-start gap-3">
+                  <div class="cr-comprovante-thumb">
+                    {% if comprovante.is_imagem %}
+                      <a href="{% url 'financeiro:comprovante_parcela_download' conta_a_receber.id parcela.instance.pk comprovante.pk %}"
+                         target="_blank" rel="noopener" title="Abrir em tamanho real">
+                        <img src="{% url 'financeiro:comprovante_parcela_download' conta_a_receber.id parcela.instance.pk comprovante.pk %}"
+                             alt="Comprovante {{ comprovante.nome_arquivo }}" loading="lazy">
+                      </a>
+                    {% elif comprovante.is_pdf %}
+                      <i class="bi bi-file-earmark-pdf"></i>
+                    {% else %}
+                      <i class="bi bi-file-earmark-image"></i>
+                    {% endif %}
+                  </div>
+
+                  <div class="flex-grow-1 min-w-0">
+                    <div class="fw-semibold text-truncate">{{ comprovante.nome_arquivo }}</div>
+                    {% if comprovante.observacao %}
+                      <div class="small">{{ comprovante.observacao }}</div>
+                    {% endif %}
+                    <small class="text-muted d-block">
+                      Anexado por {{ comprovante.criado_por.get_full_name|default:comprovante.criado_por.username|default:"—" }}
+                      em {{ comprovante.criado_em|date:"d/m/Y H:i" }}
+                      {% if comprovante.tamanho_legivel %}· {{ comprovante.tamanho_legivel }}{% endif %}
+                    </small>
+
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                      <a href="{% url 'financeiro:comprovante_parcela_download' conta_a_receber.id parcela.instance.pk comprovante.pk %}"
+                         target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye me-1"></i> Visualizar
+                      </a>
+                      <a href="{% url 'financeiro:comprovante_parcela_download' conta_a_receber.id parcela.instance.pk comprovante.pk %}?download=1"
+                         class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-download me-1"></i> Baixar
+                      </a>
+                      {% if pode_gerenciar_comprovante and user|has_perm:"vendas.change_pagamento" %}
+                        <form method="post"
+                              action="{% url 'financeiro:comprovante_parcela_delete' conta_a_receber.id parcela.instance.pk comprovante.pk %}"
+                              onsubmit="return confirm('Remover este comprovante? A ação não pode ser desfeita.');">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-trash me-1"></i> Remover
+                          </button>
+                        </form>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              {% empty %}
+                <div class="alert alert-light border text-center mb-3" role="status">
+                  <i class="bi bi-inbox fs-4 d-block mb-1 text-muted"></i>
+                  Nenhum comprovante anexado a esta parcela.
+                </div>
+              {% endfor %}
+
+              {# --- Upload de novo comprovante --- #}
+              {% if pode_gerenciar_comprovante and user|has_perm:"vendas.change_pagamento" %}
+                <hr>
+                <h6 class="sub-heading mb-2">Anexar novo comprovante</h6>
+                <form method="post" enctype="multipart/form-data"
+                      action="{% url 'financeiro:comprovante_parcela_upload' conta_a_receber.id parcela.instance.pk %}">
+                  {% csrf_token %}
+                  <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-6">
+                      <label class="form-label small mb-1" for="arquivo-{{ parcela.instance.pk }}">Arquivo (PDF ou imagem)</label>
+                      <input type="file" name="arquivo" id="arquivo-{{ parcela.instance.pk }}"
+                             class="form-control" required
+                             accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,image/*,application/pdf">
+                    </div>
+                    <div class="col-12 col-md-4">
+                      <label class="form-label small mb-1" for="observacao-{{ parcela.instance.pk }}">Observação (opcional)</label>
+                      <input type="text" name="observacao" id="observacao-{{ parcela.instance.pk }}"
+                             class="form-control" maxlength="255" placeholder="Ex.: PIX recebido em 10/03">
+                    </div>
+                    <div class="col-12 col-md-2 d-grid">
+                      <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload me-1"></i> Enviar
+                      </button>
+                    </div>
+                  </div>
+                  <small class="text-muted d-block mt-2">Formatos aceitos: PDF, JPG, PNG, WEBP ou HEIC. Tamanho máximo: 10 MB.</small>
+                </form>
+              {% else %}
+                <div class="alert alert-secondary mb-0 small" role="status">
+                  Apenas ADMINISTRADOR ou ANALISTA com permissão de edição de pagamento pode anexar comprovantes.
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
+{% endwith %}
