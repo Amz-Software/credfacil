@@ -36,6 +36,12 @@
             <input type="text" name="q" value="{{ q }}" class="form-control w-auto" placeholder="Nome ou CPF"
                    onchange="document.getElementById('filtroForm').submit()">
             <button type="submit" class="btn btn-primary"><i class="bx bx-filter-alt me-1"></i>Filtrar</button>
+            {% if pode_gerar_pdf %}
+              <button type="submit" formaction="{% url 'vendas:pre_analise_rapida_pdf' %}" formtarget="_blank"
+                      class="btn btn-outline-danger" title="Gerar relatório em PDF com os filtros atuais">
+                <i class="bx bxs-file-pdf me-1"></i>Gerar PDF
+              </button>
+            {% endif %}
             {% if status_atual or loja_atual or data_inicio or data_fim or q %}
               <a href="{% url 'vendas:pre_analise_rapida_list' %}" class="btn btn-outline-secondary" title="Limpar filtros">
                 <i class="bx bx-x"></i>

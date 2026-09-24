@@ -1434,6 +1434,47 @@ def _inicio_do_dia(data):
     return timezone.make_aware(datetime.combine(data, datetime.min.time()))
 
 
+def _pode_gerar_relatorio_pre_analise(user):
+    """Apenas analista ou administrador podem gerar o relatório em PDF."""
+    return bool(
+        user.is_superuser
+        or user.groups.filter(name__in=['ANALISTA', 'ADMINISTRADOR']).exists()
+    )
+
+
+def _filtrar_pre_analises(request):
+    """Aplica ao queryset os mesmos filtros usados na listagem e no PDF."""
+    qs = PreAnaliseRapida.objects.select_related(
+        'loja', 'criado_por', 'analisado_por', 'cliente_gerado'
+    ).order_by('-criado_em')
+
+    status = request.GET.get('status')
+    if status:
+        qs = qs.filter(status=status)
+
+    search = request.GET.get('q')
+    if search:
+        qs = qs.filter(Q(nome_completo__icontains=search) | Q(cpf__icontains=search))
+
+    user = request.user
+    if not _pode_ver_todas_pre_analises(user):
+        qs = qs.filter(loja_id__in=_lojas_visiveis_pre_analise(user).values('id'))
+
+    loja_id = request.GET.get('loja', '')
+    if loja_id.isdigit():
+        qs = qs.filter(loja_id=int(loja_id))
+
+    data_inicio = parse_date(request.GET.get('data_inicio', ''))
+    if data_inicio:
+        qs = qs.filter(criado_em__gte=_inicio_do_dia(data_inicio))
+
+    data_fim = parse_date(request.GET.get('data_fim', ''))
+    if data_fim:
+        qs = qs.filter(criado_em__lt=_inicio_do_dia(data_fim + timedelta(days=1)))
+
+    return qs
+
+
 class PreAnaliseRapidaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = PreAnaliseRapida
     template_name = 'pre_analise_rapida/list.html'
@@ -1442,35 +1483,7 @@ class PreAnaliseRapidaListView(LoginRequiredMixin, PermissionRequiredMixin, List
     paginate_by = 25
 
     def get_queryset(self):
-        qs = PreAnaliseRapida.objects.select_related(
-            'loja', 'criado_por', 'analisado_por', 'cliente_gerado'
-        ).order_by('-criado_em')
-
-        status = self.request.GET.get('status')
-        if status:
-            qs = qs.filter(status=status)
-
-        search = self.request.GET.get('q')
-        if search:
-            qs = qs.filter(Q(nome_completo__icontains=search) | Q(cpf__icontains=search))
-
-        user = self.request.user
-        if not _pode_ver_todas_pre_analises(user):
-            qs = qs.filter(loja_id__in=_lojas_visiveis_pre_analise(user).values('id'))
-
-        loja_id = self.request.GET.get('loja', '')
-        if loja_id.isdigit():
-            qs = qs.filter(loja_id=int(loja_id))
-
-        data_inicio = parse_date(self.request.GET.get('data_inicio', ''))
-        if data_inicio:
-            qs = qs.filter(criado_em__gte=_inicio_do_dia(data_inicio))
-
-        data_fim = parse_date(self.request.GET.get('data_fim', ''))
-        if data_fim:
-            qs = qs.filter(criado_em__lt=_inicio_do_dia(data_fim + timedelta(days=1)))
-
-        return qs
+        return _filtrar_pre_analises(self.request)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1481,7 +1494,54 @@ class PreAnaliseRapidaListView(LoginRequiredMixin, PermissionRequiredMixin, List
         ctx['data_inicio'] = self.request.GET.get('data_inicio', '')
         ctx['data_fim'] = self.request.GET.get('data_fim', '')
         ctx['pode_decidir'] = self.request.user.has_perm('vendas.change_status_analise')
+        ctx['pode_gerar_pdf'] = _pode_gerar_relatorio_pre_analise(self.request.user)
         return ctx
+
+
+class PreAnaliseRapidaPDFView(LoginRequiredMixin, View):
+    """Relatório em PDF das pré-análises rápidas, com os mesmos filtros da
+    listagem. Restrito a analista/administrador."""
+
+    def get(self, request, *args, **kwargs):
+        if not _pode_gerar_relatorio_pre_analise(request.user):
+            raise PermissionDenied
+
+        qs = _filtrar_pre_analises(request)
+
+        status_map = dict(PreAnaliseRapida.STATUS_CHOICES)
+        linhas = []
+        for pre in qs:
+            status_label = status_map.get(pre.status, pre.status)
+            if pre.status == 'A' and pre.finalizada:
+                status_label = f'{status_label} (Finalizada)'
+            linhas.append({
+                'cliente': pre.nome_completo,
+                'cpf': pre.cpf,
+                'loja': pre.loja.nome if pre.loja else '—',
+                'status': status_label,
+                'enviado_em': timezone.localtime(pre.criado_em).strftime('%d/%m/%Y %H:%M'),
+            })
+
+        loja_id = request.GET.get('loja', '')
+        loja_filtro = Loja.objects.filter(pk=loja_id).first() if loja_id.isdigit() else None
+        status_filtro = status_map.get(request.GET.get('status', ''), 'Todos')
+
+        html = get_template('pre_analise_rapida/pre_analise_rapida_pdf.html').render({
+            'linhas': linhas,
+            'total': len(linhas),
+            'loja_filtro': loja_filtro.nome if loja_filtro else 'Todas',
+            'status_filtro': status_filtro,
+            'data_inicio': request.GET.get('data_inicio', '') or '—',
+            'data_fim': request.GET.get('data_fim', '') or '—',
+            'gerado_em': timezone.localtime(timezone.now()).strftime('%d/%m/%Y %H:%M'),
+        })
+        pdf_buffer = BytesIO()
+        weasyprint.HTML(string=html).write_pdf(pdf_buffer)
+        pdf_buffer.seek(0)
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        filename = f'pre_analises_rapidas_{timezone.now():%Y%m%d_%H%M%S}.pdf'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 
 
 def _pode_gerenciar_consulta_serasa(user):

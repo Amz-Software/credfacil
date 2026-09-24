@@ -1,0 +1,52 @@
+{% extends "components/report_base.html" %}
+
+{% block report_title %}Relatório de Análises Rápidas{% endblock %}
+
+{% block report_page_size %}A4 landscape{% endblock %}
+
+{% block report_head %}
+    .subtitle { color: #555; font-size: 9pt; margin-bottom: 10px; }
+    .filtros { margin-bottom: 12px; font-size: 8.5pt; color: #444; }
+    .filtros span { display: inline-block; margin-right: 14px; }
+    .filtros strong { color: #2B2C40; }
+    .pill { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 8pt; font-weight: 700; background: #FFF6D6; color: #2B2C40; }
+    .footer-reg { margin-top: 12px; color: #777; font-size: 8pt; text-align: right; }
+{% endblock %}
+
+{% block report_content %}
+  <div class="ipix-report-title">Relatório de Análises Rápidas</div>
+  <div class="subtitle">Gerado em {{ gerado_em }}</div>
+
+  <div class="filtros">
+    <span><strong>Loja:</strong> {{ loja_filtro }}</span>
+    <span><strong>Status:</strong> {{ status_filtro }}</span>
+    <span><strong>Período:</strong> {{ data_inicio }} até {{ data_fim }}</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th>CPF</th>
+        <th>Loja</th>
+        <th>Status</th>
+        <th>Enviado em</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in linhas %}
+        <tr>
+          <td>{{ l.cliente }}</td>
+          <td>{{ l.cpf }}</td>
+          <td>{{ l.loja }}</td>
+          <td><span class="pill">{{ l.status }}</span></td>
+          <td>{{ l.enviado_em }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" style="text-align:center; padding:14px; color:#777;">Nenhuma análise rápida encontrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="footer-reg">{{ total }} registro(s)</div>
+{% endblock %}

@@ -227,6 +227,7 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
             "imei_ultimos_digitos_vendedor",
             "venda",
             "observacao",
+            "segunda_compra",
             "entrada_informada",
             "email_icloud",
             "senha_icloud",
@@ -585,6 +586,7 @@ class SolicitacaoCreditoInputSerializer(serializers.Serializer):
     numero_parcelas = serializers.CharField()
     entrada_informada = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     analise_online = serializers.BooleanField(required=False)
+    segunda_compra = serializers.BooleanField(required=False)
     email_icloud = serializers.EmailField(required=False, allow_blank=True)
     senha_icloud = serializers.CharField(required=False, allow_blank=True)
 

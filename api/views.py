@@ -3593,4 +3593,7 @@ class PreAnaliseRapidaViewSet(viewsets.ModelViewSet):
                 # A consulta Serasa anexada pelo analista na análise rápida já
                 # nasce preenchida nos comprovantes da proposta gerada.
                 instance.aplicar_consulta_serasa(cliente, user=request.user)
+                # A marcação de segunda compra feita na análise rápida é
+                # levada automaticamente para a solicitação gerada.
+                instance.aplicar_segunda_compra(cliente, user=request.user)
         return Response(PreAnaliseRapidaSerializer(instance, context={"request": request}).data)
