@@ -1,6 +1,8 @@
-{# Modais de comprovante de pagamento — um por parcela salva.
-   Incluído fora do <form> do formset de parcelas: form aninhado é HTML inválido.
-   Contexto esperado: parcela_form, conta_a_receber, user. #}
+{% comment %}
+  Modais de comprovante de pagamento — um por parcela salva.
+  Deve ser incluído FORA do formset de parcelas: formulário aninhado é HTML inválido.
+  Contexto esperado: parcela_form, conta_a_receber, user.
+{% endcomment %}
 {% load iam_tags %}
 {% with pode_gerenciar_comprovante=user|is_analista_or_admin %}
   {% for parcela in parcela_form %}

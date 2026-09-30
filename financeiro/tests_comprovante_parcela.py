@@ -7,6 +7,8 @@ client do Django é incompatível com o Python desta venv.
 
 import shutil
 import tempfile
+
+import html5lib
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -38,6 +40,7 @@ PNG_MINIMO = (
 )
 
 MEDIA_TEMPORARIA = tempfile.mkdtemp(prefix='comprovantes-teste-')
+XHTML = '{http://www.w3.org/1999/xhtml}'
 
 
 def _criar_usuario(username, loja, grupo):
@@ -251,6 +254,63 @@ class ComprovanteParcelaTests(TestCase):
         response = self.client.get(self._url_download(comprovante))
 
         self.assertEqual(response.status_code, 403)
+
+    def test_cada_parcela_tem_seu_proprio_form_de_upload_no_dom(self):
+        """Regressão: a 1ª parcela não enviava o arquivo.
+
+        Um comentário `{# #}` multilinha (que o Django só reconhece em uma linha)
+        era renderizado como HTML literal e continha a palavra `<form>`. O parser
+        do navegador abria ali um form sem `enctype`, que engolia o primeiro modal
+        — o `<form>` interno era ignorado por aninhamento e o arquivo nunca era
+        enviado. Da segunda linha em diante funcionava, pois o `</form>` do
+        primeiro modal já havia fechado o form intruso.
+        """
+        for numero in (2, 3):
+            Parcela.objects.create(
+                pagamento=self.pagamento, numero_parcela=numero, valor=Decimal('100.00'),
+                data_vencimento=date.today() + timedelta(days=30 * numero), loja=self.loja,
+            )
+        parcelas = list(self.pagamento.parcelas_pagamento.all())
+
+        documento = html5lib.parse(self._html_detalhe(self.analista))
+        forms = list(documento.iter(f'{XHTML}form'))
+
+        # Todo form do DOM precisa ter atributos: um form "vazio" denuncia markup vazado
+        self.assertEqual(
+            [f.attrib for f in forms if not f.attrib], [],
+            'Há um <form> sem atributos no DOM — provável HTML vazado de comentário.',
+        )
+
+        # Cada parcela tem exatamente um form de upload, com enctype e input file dentro
+        for parcela in parcelas:
+            action = self._url_upload(parcela)
+            uploads = [f for f in forms if f.get('action') == action]
+            self.assertEqual(
+                len(uploads), 1, f'Parcela {parcela.pk} deveria ter 1 form de upload.',
+            )
+            upload = uploads[0]
+            self.assertEqual(upload.get('enctype'), 'multipart/form-data')
+            arquivos = [
+                campo for campo in upload.iter(f'{XHTML}input')
+                if campo.get('type') == 'file'
+            ]
+            self.assertEqual(
+                len(arquivos), 1,
+                f'O input de arquivo da parcela {parcela.pk} ficou fora do próprio form.',
+            )
+
+        # Nenhum modal pode estar dentro de um <form>
+        pais = {filho: pai for pai in documento.iter() for filho in pai}
+        for modal in documento.iter(f'{XHTML}div'):
+            if not (modal.get('id') or '').startswith('comprovanteModal-'):
+                continue
+            ancestral = pais.get(modal)
+            while ancestral is not None:
+                self.assertNotEqual(
+                    ancestral.tag, f'{XHTML}form',
+                    f"{modal.get('id')} foi renderizado dentro de um <form>.",
+                )
+                ancestral = pais.get(ancestral)
 
     # --- escopo por loja e limpeza de arquivos ---
 
