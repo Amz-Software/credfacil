@@ -618,10 +618,19 @@ class AnaliseCreditoClienteForm(NumeroParcelasChoicesMixin, forms.ModelForm):
         help_text='Para iPhone: valor de entrada (deve ser maior ou igual à entrada mínima do produto)',
     )
 
+    segunda_compra = forms.TypedChoiceField(
+        required=False,
+        choices=[('False', 'Não'), ('True', 'Sim')],
+        coerce=lambda v: v == 'True',
+        label='É a segunda compra do cliente conosco?',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        initial='False',
+    )
+
     class Meta:
         model = AnaliseCreditoCliente
         # removido 'observacao' do formulário para não ser preenchido pelo vendedor
-        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada', 'analise_online', 'numero_autenticador']
+        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada', 'analise_online', 'segunda_compra', 'numero_autenticador']
         widgets = {
             'data_pagamento': forms.Select(attrs={'class': 'form-control'}),
             'numero_parcelas': forms.Select(attrs={'class': 'form-control', 'id': 'id_numero_parcelas'}),

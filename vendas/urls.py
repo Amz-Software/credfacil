@@ -32,6 +32,7 @@ urlpatterns = [
     
     # Pré-análise rápida (backoffice do analista)
     path('pre-analises-rapidas/', PreAnaliseRapidaListView.as_view(), name='pre_analise_rapida_list'),
+    path('pre-analises-rapidas/relatorio-pdf/', PreAnaliseRapidaPDFView.as_view(), name='pre_analise_rapida_pdf'),
     path('pre-analises-rapidas/<int:pk>/', PreAnaliseRapidaDetailView.as_view(), name='pre_analise_rapida_detalhe'),
     path('pre-analises-rapidas/<int:pk>/aprovar/', aprovar_pre_analise_rapida, name='pre_analise_rapida_aprovar'),
     path('pre-analises-rapidas/<int:pk>/reprovar/', reprovar_pre_analise_rapida, name='pre_analise_rapida_reprovar'),

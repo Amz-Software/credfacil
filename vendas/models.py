@@ -598,7 +598,8 @@ class AnaliseCreditoCliente(Base):
     imei_ultimos_digitos_vendedor = models.CharField(max_length=4, null=True, blank=True, verbose_name='Últimos 4 dígitos do IMEI (vendedor)')
     venda = models.ForeignKey('vendas.Venda', on_delete=models.CASCADE, related_name='analises_credito_venda', null=True, blank=True)
     observacao = models.TextField(null=True, blank=True)
-    
+    segunda_compra = models.BooleanField(default=False, verbose_name='É a segunda compra do cliente conosco')
+
     # Entrada informada pelo operador (editável no fluxo iPhone; mínimo = produto.entrada_cliente)
     entrada_informada = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Entrada informada pelo operador')
 
@@ -818,6 +819,20 @@ class PreAnaliseRapida(Base):
         nome = os.path.basename(self.consulta_serasa.name)
         comprovantes.consulta_serasa.save(nome, conteudo, save=False)
         comprovantes.save(user=user)
+        return True
+
+    def aplicar_segunda_compra(self, cliente, user=None):
+        """Copia a marcação de segunda compra da análise rápida para a
+        solicitação (AnaliseCreditoCliente) gerada para o cliente."""
+        if cliente is None:
+            return False
+
+        analise = getattr(cliente, 'analise_credito', None)
+        if analise is None or analise.segunda_compra == self.segunda_compra:
+            return False
+
+        analise.segunda_compra = self.segunda_compra
+        analise.save(user=user)
         return True
 
     def get_absolute_url(self):
