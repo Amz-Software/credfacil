@@ -13,7 +13,6 @@ import uuid
 from django.utils.text import slugify
 import calendar
 import os
-from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.core.validators import FileExtensionValidator
 from simple_history.models import HistoricalRecords
@@ -437,42 +436,37 @@ class Venda(Base):
         super().save(*args, **kwargs)
         
         if is_new and self.pk:
-            moved_documento = False
-            moved_foto = False
-            moved_imagem_imei = False
-            
-            if self.documento_assinado and 'vendas/temp/' in str(self.documento_assinado):
-                old_path = str(self.documento_assinado)
-                new_path = f'vendas/{self.pk}/{os.path.basename(old_path)}'
-                if default_storage.exists(old_path):
-                    with default_storage.open(old_path, 'rb') as old_file:
-                        default_storage.save(new_path, old_file)
-                    default_storage.delete(old_path)
-                    self.documento_assinado = new_path
-                    moved_documento = True
-            
-            if self.foto_cliente and 'vendas/temp/' in str(self.foto_cliente):
-                old_path = str(self.foto_cliente)
-                new_path = f'vendas/{self.pk}/{os.path.basename(old_path)}'
-                if default_storage.exists(old_path):
-                    with default_storage.open(old_path, 'rb') as old_file:
-                        default_storage.save(new_path, old_file)
-                    default_storage.delete(old_path)
-                    self.foto_cliente = new_path
-                    moved_foto = True
+            temporarios = {}
+            for campo in ('documento_assinado', 'foto_cliente', 'imagem_imei'):
+                old_path = self._copiar_arquivo_de_temp(campo)
+                if old_path:
+                    temporarios[campo] = old_path
+            if temporarios:
+                super().save(update_fields=list(temporarios))
+                # Só apaga o temporário depois que o banco já aponta para a cópia.
+                for campo, old_path in temporarios.items():
+                    getattr(self, campo).storage.delete(old_path)
 
-            if self.imagem_imei and 'vendas/temp/' in str(self.imagem_imei):
-                old_path = str(self.imagem_imei)
-                new_path = f'vendas/{self.pk}/{os.path.basename(old_path)}'
-                if default_storage.exists(old_path):
-                    with default_storage.open(old_path, 'rb') as old_file:
-                        default_storage.save(new_path, old_file)
-                    default_storage.delete(old_path)
-                    self.imagem_imei = new_path
-                    moved_imagem_imei = True
-            
-            if moved_documento or moved_foto or moved_imagem_imei:
-                super().save(update_fields=['documento_assinado', 'foto_cliente', 'imagem_imei'])
+    def _copiar_arquivo_de_temp(self, campo):
+        """Copia o arquivo de `vendas/temp/` para `vendas/{pk}/`; retorna o caminho antigo.
+
+        Usa o nome devolvido por `storage.save`, que ganha sufixo quando o nome
+        já existe — assim nunca aponta para (nem sobrescreve) o arquivo de outro.
+        """
+        arquivo = getattr(self, campo)
+        if not arquivo or 'vendas/temp/' not in arquivo.name:
+            return None
+        storage = arquivo.storage
+        old_path = arquivo.name
+        if not storage.exists(old_path):
+            return None
+        with storage.open(old_path, 'rb') as old_file:
+            new_name = storage.save(
+                f'vendas/{self.pk}/{os.path.basename(old_path)}', old_file,
+                max_length=self._meta.get_field(campo).max_length,
+            )
+        setattr(self, campo, new_name)
+        return old_path
 
     @cached_property
     def tem_iphone(self):
