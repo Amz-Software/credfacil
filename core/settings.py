@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 import sentry_sdk
@@ -110,6 +111,26 @@ STORAGES = {
         'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
     },
 }
+
+# Mídia no S3 (bucket privado, URLs assinadas). Credenciais via AWS_ACCESS_KEY_ID /
+# AWS_SECRET_ACCESS_KEY no ambiente. As chaves no bucket são os mesmos nomes gravados
+# nos FileFields (sem prefixo), então os registros existentes continuam válidos.
+USE_S3 = os.environ.get('USE_S3', 'False').lower() == 'true'
+if USE_S3:
+    STORAGES['default'] = {'BACKEND': 'storages.backends.s3.S3Storage'}
+    # Falha já na inicialização se faltar configuração, em vez de 500 no primeiro upload.
+    for _var in ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_STORAGE_BUCKET_NAME'):
+        if not os.environ.get(_var):
+            raise ImproperlyConfigured(f'USE_S3=True exige a variável {_var}')
+    AWS_STORAGE_BUCKET_NAME = os.environ['AWS_STORAGE_BUCKET_NAME']
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'sa-east-1')
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_ADDRESSING_STYLE = 'virtual'
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = True
+    AWS_QUERYSTRING_EXPIRE = int(os.environ.get('AWS_QUERYSTRING_EXPIRE', 12 * 60 * 60))
+    # Vários uploads usam pastas planas com o nome original do arquivo: nunca sobrescrever.
+    AWS_S3_FILE_OVERWRITE = False
 
 ROOT_URLCONF = 'core.urls'
 

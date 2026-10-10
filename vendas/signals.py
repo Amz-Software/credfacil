@@ -127,7 +127,11 @@ def convert_images_to_webp(sender, instance, **kwargs):
             
             if not file_field or not file_field.name:
                 continue
-                
+
+            # Arquivo já salvo: nada a converter, e abrir custaria uma requisição ao S3.
+            if getattr(file_field, '_committed', True):
+                continue
+
             try:
                 underlying_file = file_field.file
             except (ValueError, Exception):
