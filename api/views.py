@@ -271,13 +271,10 @@ def buscar_lojas_by_username(request):
     except User.MultipleObjectsReturned:
         user = User.objects.filter(Q(username__iexact=username) | Q(email__iexact=username)).first()
 
-    lojas_qs = user.lojas.all()
-    if lojas_qs.exists():
-        lojas = [{"id": l.id, "nome": l.nome} for l in lojas_qs]
-    elif user.loja:
-        lojas = [{"id": user.loja.id, "nome": user.loja.nome}]
-    else:
-        lojas = []
+    # A busca pré-login deve refletir somente vínculos explícitos de usuário
+    # ou gerente. O FK user.loja é legado e não concede acesso por si só.
+    lojas_qs = (user.lojas.all() | user.lojas_gerenciadas.all()).distinct()
+    lojas = [{"id": loja.id, "nome": loja.nome} for loja in lojas_qs]
 
     return Response({"lojas": lojas})
 
