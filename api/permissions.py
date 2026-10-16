@@ -155,8 +155,11 @@ class UserPermission(BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        # List and retrieve require view permission
-        if action in ("list", "retrieve", "me"):
+        # Users can always read their own profile; administrative user
+        # listings and detail views still require the accounts permission.
+        if action == "me":
+            return True
+        if action in ("list", "retrieve"):
             return user.is_superuser or user.has_perm("accounts.view_user")
         if action == "create":
             return user.is_superuser or user.has_perm("accounts.add_user")
