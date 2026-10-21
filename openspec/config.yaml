@@ -1,0 +1,35 @@
+schema: spec-driven
+
+context: |
+  Escreva propostas, especificações, planos e tarefas em português brasileiro.
+  Trate o acesso a lojas como autorização de servidor: a loja selecionada na
+  interface, sessão, parâmetro de consulta ou token não concede acesso por si só.
+  Usuários comuns devem estar vinculados à loja como usuários ou gerentes;
+  administradores mantêm a exceção global definida pelo projeto.
+  No financiamento de vendas, use Parcelamento cadastrado para a marca e a
+  quantidade de parcelas como fonte de juros e desconto; não reintroduza campos
+  de preço e desconto legados nos cálculos.
+
+rules:
+  proposal:
+    - Delimite os módulos e fluxos afetados entre interface web, API REST e WebSocket.
+    - Declare impactos em payloads, sessões, permissões e compatibilidade com clientes existentes.
+    - Para alterações de vendas, diferencie o fluxo manual do fluxo originado por análise de crédito.
+  specs:
+    - Descreva autorização por loja no servidor e cenários para usuário comum, gerente e administrador.
+    - Especifique bases, períodos e estados usados em cálculos de financiamento, parcelas e repasses.
+    - Trate Parcelamento por marca e quantidade de parcelas como fonte de juros e desconto no financiamento.
+    - Registre mudanças de contrato de API e seus efeitos para consumidores existentes.
+  tasks:
+    - Inclua os módulos e pontos de entrada necessários para cobrir cada fluxo afetado.
+    - Para vendas e pagamentos, cubra entrada, envio, persistência, leitura, edição e recarga dos dados afetados.
+    - Para alterações de acesso, cubra a loja selecionada e a autorização efetiva nos endpoints protegidos.
+
+operations:
+  apply:
+    guidance:
+      - Confira os limites entre módulos antes de alterar fluxos compartilhados por interface e API.
+      - Ao alterar contratos REST, informe se o payload ou a resposta visível ao frontend mudou.
+  archive:
+    guidance:
+      - Registre os módulos, contratos e comportamentos de negócio efetivamente alterados.
