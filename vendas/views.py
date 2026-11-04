@@ -10,7 +10,7 @@ from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 from collections import defaultdict
 from io import BytesIO
-from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models import Count, Exists, OuterRef, Q, F
 import qrcode
 from qrcode import QRCode
 from qrcode.constants import ERROR_CORRECT_M
@@ -60,6 +60,42 @@ from pypix import Pix
 
 
 logger = logging.getLogger(__name__)
+
+
+def _clientes_quitados_por_loja(pagamento_ids):
+    """Retorna IDs de clientes com pagamento IPX integralmente quitado por loja.
+
+    `pagamento_ids` deve conter somente pagamentos que possuem ao menos uma
+    parcela dentro do período selecionado. A quitação é avaliada sobre todas
+    as parcelas do pagamento, e não apenas sobre as parcelas do período.
+    """
+    pagamento_ids = set(pagamento_ids)
+    clientes_por_loja = defaultdict(set)
+    if not pagamento_ids:
+        return clientes_por_loja
+
+    pagamentos_quitados = (
+        Pagamento.objects.filter(
+            id__in=pagamento_ids,
+            tipo_pagamento__nome='IPX',
+            venda__cliente_id__isnull=False,
+        )
+        .annotate(
+            total_parcelas=Count('parcelas_pagamento', distinct=True),
+            parcelas_pagas=Count(
+                'parcelas_pagamento',
+                filter=Q(parcelas_pagamento__pago=True),
+                distinct=True,
+            ),
+        )
+        .filter(total_parcelas__gt=0, total_parcelas=F('parcelas_pagas'))
+        .values_list('venda__loja_id', 'venda__cliente_id')
+        .distinct()
+    )
+
+    for loja_id, cliente_id in pagamentos_quitados:
+        clientes_por_loja[loja_id].add(cliente_id)
+    return clientes_por_loja
 
 def _avisar_solicitacoes_existentes(
     request, *, cpf=None, rg=None, nome=None, telefone=None,
@@ -3431,6 +3467,14 @@ class GraficoTemplateView(TemplateView):
             
             parcelas_por_venda[parcela.pagamento.venda_id].append(parcela)
             vendas_ids_validas.add(parcela.pagamento.venda_id)
+
+        pagamentos_no_periodo_ids = {
+            parcela.pagamento_id
+            for parcelas in parcelas_por_venda.values()
+            for parcela in parcelas
+        }
+        clientes_quitados_por_loja = _clientes_quitados_por_loja(pagamentos_no_periodo_ids)
+        clientes_quitados_ids = set().union(*clientes_quitados_por_loja.values()) if clientes_quitados_por_loja else set()
             
         # Otimizar laço de Vendas para iterar apenas as que tem parcelas no período
         vendas = vendas.filter(id__in=vendas_ids_validas)
@@ -3651,6 +3695,7 @@ class GraficoTemplateView(TemplateView):
             'total_de_parcelas_geral': total_geral_parcelas,
             'parcelas_vencidas': total_de_parcelas_vencidas,
             'clientes_vencidos': len(clientes_vencidos_ids),
+            'clientes_quitados': len(clientes_quitados_ids),
             'parcelas_pagas': total_de_parcelas_pagas,
             'parcelas_a_vencer': total_de_parcelas_a_vencer,
             'valor_total_parcelas': total_pagas + total_vencidas + total_a_vencer,
@@ -4047,6 +4092,32 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
                 if dt_fim and dt_base > dt_fim: continue
             parcelas_por_venda[parcela.pagamento.venda_id].append(parcela)
 
+        pagamentos_no_periodo_ids = {
+            parcela.pagamento_id
+            for parcelas in parcelas_por_venda.values()
+            for parcela in parcelas
+        }
+        clientes_quitados_por_loja = _clientes_quitados_por_loja(pagamentos_no_periodo_ids)
+        total_clientes_quitados_ids = set().union(*clientes_quitados_por_loja.values()) if clientes_quitados_por_loja else set()
+        lojas_por_id = dict(lojas.values_list('id', 'nome'))
+        lojas_quitadas_por_cliente = defaultdict(set)
+        for loja_id, cliente_ids in clientes_quitados_por_loja.items():
+            for cliente_id in cliente_ids:
+                lojas_quitadas_por_cliente[cliente_id].add(lojas_por_id.get(loja_id, 'Desconhecida'))
+        nomes_clientes_quitados = dict(
+            Cliente.objects.filter(id__in=total_clientes_quitados_ids)
+            .values_list('id', 'nome')
+        )
+        clientes_quitados_lista = [
+            {
+                'nome': nomes_clientes_quitados[cliente_id],
+                'lojas': ', '.join(sorted(lojas_cliente, key=str.casefold)),
+            }
+            for cliente_id, lojas_cliente in lojas_quitadas_por_cliente.items()
+            if cliente_id in nomes_clientes_quitados
+        ]
+        clientes_quitados_lista.sort(key=lambda cliente: cliente['nome'].casefold())
+
         # Dados por loja
         dados_por_loja = {}
         total_clientes_vencidos_ids = set()
@@ -4117,6 +4188,7 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
                 'parcelas_pagas': total_de_parcelas_pagas,
                 'parcelas_vencidas': total_de_parcelas_vencidas,
                 'clientes_vencidos': len(clientes_vencidos_ids),
+                'clientes_quitados': len(clientes_quitados_por_loja.get(loja.id, set())),
                 'parcelas_a_vencer': total_de_parcelas_a_vencer,
                 'total_pagas': total_pagas,
                 'total_vencidas': total_vencidas,
@@ -4138,6 +4210,8 @@ class DashboardReportPDFView(PermissionRequiredMixin, View):
         return {
             'dados_por_loja': dados_por_loja,
             'clientes_vencidos': len(total_clientes_vencidos_ids),
+            'clientes_quitados': len(total_clientes_quitados_ids),
+            'clientes_quitados_lista': clientes_quitados_lista,
             'data_geracao': timezone.now(),
             'usuario': self.request.user,
         }
