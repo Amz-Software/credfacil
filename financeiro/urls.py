@@ -25,8 +25,6 @@ urlpatterns = [
     ),
     path('financeiro/contas-a-receber/<int:pk>/gerar-bo/pdf/', GerarNotificacaoBoPdfView.as_view(), name='notificacao_bo_pdf'),
 
-    path('relatorio/saidas', RelatorioSaidaView.as_view(), name='relatorio_saidas'),
-    path('relatorio/folha-saida', FolhaRelatorioSaidaView.as_view(), name='relatorio_folha_saida'),
     
     path('repasse/criar/', RepasseCreateView.as_view(), name='repasse_create'),
     path('repasse/<int:pk>/editar/', RepasseUpdateView.as_view(), name='repasse_edit'),

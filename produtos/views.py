@@ -2,7 +2,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib import messages
 from django.urls import reverse_lazy
-from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
+from django.views.generic import ListView, CreateView, DetailView, UpdateView
 from django.views import View
 from django.http import HttpResponse
 from django.template.loader import render_to_string
@@ -246,15 +246,11 @@ def generate_views(modelo, form=None, paginacao=10, template_dir=''):
             kwargs['user'] = self.request.user
             return kwargs
 
-    class GeneratedDeleteView(PermissionRequiredMixin, DeleteView):
-        model = modelo
-        success_url = reverse_lazy(f'{modelo._meta.model_name}s:{modelo._meta.model_name}s')
-        permission_required = f'{modelo._meta.app_label}.delete_{modelo._meta.model_name}'
-
+    # Sem view genérica de exclusão: produtos, marcas e parcelamentos têm
+    # views próprias (desativar/excluir com regras de negócio).
     return {
         'list_view': GeneratedListView,
         'create_view': GeneratedCreateView,
         'detail_view': GeneratedDetailView,
         'update_view': GeneratedUpdateView,
-        'delete_view': GeneratedDeleteView
     }

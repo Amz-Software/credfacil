@@ -23,7 +23,6 @@ from django.views.generic import CreateView, UpdateView, ListView, DetailView, T
 from accounts.permissions import AnalistaOuAdminRequiredMixin, user_is_analista_or_admin
 from accounts.views import logout_view
 from financeiro.forms import *
-from financeiro.forms import RelatorioSaidaForm
 from vendas.forms import ContatoForm
 from vendas.models import ComprovanteParcela, Contato, Loja, Parcela, Pagamento, StatusPagamento
 from vendas.views import BaseView
@@ -959,45 +958,7 @@ class FolhaRelatorioContasAReceberAvancadoView(BaseView, PermissionRequiredMixin
         context['situacoes'] = [self.SITUACAO_LABELS.get(situacao, situacao) for situacao in situacoes]
         return context
 
-class RelatorioSaidaView(BaseView, PermissionRequiredMixin, TemplateView):
-    template_name = 'relatorio/relatorio_saida.html'
-    permission_required = 'vendas.can_generate_report_sale'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['form'] = RelatorioSaidaForm()
-
-        return context
     
-class FolhaRelatorioSaidaView(BaseView, PermissionRequiredMixin, TemplateView):
-    template_name = 'relatorio/folha_relatorio_saida.html'
-    permission_required = 'financeiro.view_caixamensal'
-
-    def get_context_data(self, **kwargs):
-        data_inicio = self.request.GET.get('data_inicial')
-        data_fim = self.request.GET.get('data_final')
-        lojas = self.request.GET.getlist('lojas')
-        saidas = []
-
-        if data_inicio and data_fim:
-            lojas = Loja.objects.filter(id__in=lojas)
-            data_final = datetime.strptime(data_fim, "%Y-%m-%d").date() + timedelta(days=1)
-
-            for loja in lojas:
-                caixas = Caixa.objects.filter(loja=loja).filter(data_abertura__range=[data_inicio, data_final]).filter(data_fechamento__isnull=False)
-                for caixa in caixas:
-                    saidas += caixa.lancamentos_caixa.filter(tipo_lancamento='2')
-
-        context = super().get_context_data(**kwargs)
-        context['saidas'] = saidas
-        # retornar apenas os nomes das lojas
-        context['lojas'] = lojas.values_list('nome', flat=True)
-        context['data_inicio'] = datetime.strptime(data_inicio, "%Y-%m-%d").date() if data_inicio else None
-        context['data_fim'] = datetime.strptime(data_fim, "%Y-%m-%d").date() if data_fim else None
-        context['total_saida'] = sum(saida.valor for saida in saidas)
-        context['quantidade_saida'] = len(saidas)
-
-        return context
     
     
     

@@ -76,6 +76,53 @@ class RotasCitadasExistemTests(TestCase):
         self._assert_todas_existem(_nomes_citados(URL_EM_PYTHON, '.py'))
 
 
+class MenuCatalogoTests(TestCase):
+    def test_tipos_de_produto_aparece_no_menu_para_quem_tem_permissao(self):
+        from django.contrib.auth.models import Permission
+
+        loja = Loja.objects.create(nome='Loja Catálogo')
+        user = User.objects.create_user(
+            username='catalogo', email='catalogo@example.com', password='123456',
+        )
+        loja.usuarios.add(user)
+        user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label__in=['vendas', 'produtos'],
+            codename__in=['view_loja', 'view_tipoproduto'],
+        ))
+        self.client.force_login(user)
+        session = self.client.session
+        session['loja_id'] = loja.id
+        session.save()
+
+        response = self.client.get(reverse('vendas:guia'))
+
+        self.assertContains(response, f'href="{reverse("produtos:tipos")}"')
+
+    def test_telas_de_tipo_de_produto_abrem(self):
+        from produtos.models import TipoProduto
+
+        loja = Loja.objects.create(nome='Loja Catálogo')
+        admin = User.objects.create_superuser(
+            username='admin', email='admin@example.com', password='123456',
+        )
+        loja.usuarios.add(admin)
+        tipo = TipoProduto.objects.create(nome='Celular', numero_serial=True, loja=loja)
+        self.client.force_login(admin)
+        session = self.client.session
+        session['loja_id'] = loja.id
+        session.save()
+        urls = [
+            reverse('produtos:tipos'),
+            reverse('produtos:tipo_create'),
+            reverse('produtos:tipo_detail', args=[tipo.id]),
+            reverse('produtos:tipo_update', args=[tipo.id]),
+        ]
+
+        for url in urls:
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+
+
 class MenuAbreTodasAsTelasTests(TestCase):
     def setUp(self):
         self.loja = Loja.objects.create(nome='Loja Telas')

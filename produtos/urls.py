@@ -8,12 +8,8 @@ from .views import generate_views, ProdutoListView, ProdutoDeleteView, ProdutoAc
 app_name = 'produtos'
 
 produtoViews = generate_views(Produto, ProdutoForms, 10, 'produtos')
-corProdutoViews = generate_views(CorProduto, CorProdutoForms, 10, 'cor')
 tipoViews = generate_views(TipoProduto, TipoForms, 10, 'tipo')
-fabricanteViews = generate_views(Fabricante, FabricanteForms, 10, 'fabricante')
 marcaViews = generate_views(Marca, MarcaForms, 10, 'marca')
-estadoViews = generate_views(EstadoProduto, EstadoProdutoForms, 10, 'estado')
-memoriaViews = generate_views(MemoriaProduto, MemoriaForms, 10, 'memoria')
 parcelamentoViews = generate_views(Parcelamento, ParcelamentoForms, 20, 'parcelamento')
 
 
@@ -26,43 +22,17 @@ urlpatterns = [
     path('produtos/deletar/<int:pk>/', ProdutoDeleteView.as_view(), name='produto_delete'),
     path('produtos/ativar/<int:pk>/', ProdutoActivateView.as_view(), name='produto_activate'),
 
-    path('corproduto/', corProdutoViews['list_view'].as_view(), name='cores'),
-    path('cor-produto/novo/', corProdutoViews['create_view'].as_view(), name='cor_create'),
-    path('cor-produto/detalhe/<int:pk>/', corProdutoViews['detail_view'].as_view(), name='cor_detail'),
-    path('cor-produto/editar/<int:pk>/', corProdutoViews['update_view'].as_view(), name='cor_update'),
-    path('cor-produto/deletar/<int:pk>/', corProdutoViews['delete_view'].as_view(), name='cor_delete'),
-
     path('tipoproduto/', tipoViews['list_view'].as_view(), name='tipos'),
     path('tipo/novo/', tipoViews['create_view'].as_view(), name='tipo_create'),
     path('tipo/detalhe/<int:pk>/', tipoViews['detail_view'].as_view(), name='tipo_detail'),
     path('tipo/editar/<int:pk>/', tipoViews['update_view'].as_view(), name='tipo_update'),
-    path('tipo/deletar/<int:pk>/', tipoViews['delete_view'].as_view(), name='tipo_delete'),
-
-    path('fabricante/', fabricanteViews['list_view'].as_view(), name='fabricantes'),
-    path('fabricante/novo/', fabricanteViews['create_view'].as_view(), name='fabricante_create'),
-    path('fabricante/detalhe/<int:pk>/', fabricanteViews['detail_view'].as_view(), name='fabricante_detail'),
-    path('fabricante/editar/<int:pk>/', fabricanteViews['update_view'].as_view(), name='fabricante_update'),
-    path('fabricante/deletar/<int:pk>/', fabricanteViews['delete_view'].as_view(), name='fabricante_delete'),
 
     path('marca/', marcaViews['list_view'].as_view(), name='marcas'),
     path('marca/novo/', marcaViews['create_view'].as_view(), name='marca_create'),
     path('marca/detalhe/<int:pk>/', marcaViews['detail_view'].as_view(), name='marca_detail'),
     path('marca/editar/<int:pk>/', marcaViews['update_view'].as_view(), name='marca_update'),
-    path('marca/deletar/<int:pk>/', marcaViews['delete_view'].as_view(), name='marca_delete'),
     path('marca/desativar/<int:pk>/', MarcaDeactivateView.as_view(), name='marca_deactivate'),
     path('marca/ativar/<int:pk>/', MarcaActivateView.as_view(), name='marca_activate'),
-
-    path('estadoproduto/', estadoViews['list_view'].as_view(), name='estados'),
-    path('estado/novo/', estadoViews['create_view'].as_view(), name='estado_create'),
-    path('estado/detalhe/<int:pk>/', estadoViews['detail_view'].as_view(), name='estado_detail'),
-    path('estado/editar/<int:pk>/', estadoViews['update_view'].as_view(), name='estado_update'),
-    path('estado/deletar/<int:pk>/', estadoViews['delete_view'].as_view(), name='estado_delete'),
-
-    path('memoriaproduto/', memoriaViews['list_view'].as_view(), name='memorias'),
-    path('memoria/novo/', memoriaViews['create_view'].as_view(), name='memoria_create'),
-    path('memoria/detalhe/<int:pk>/', memoriaViews['detail_view'].as_view(), name='memoria_detail'),
-    path('memoria/editar/<int:pk>/', memoriaViews['update_view'].as_view(), name='memoria_update'),
-    path('memoria/deletar/<int:pk>/', memoriaViews['delete_view'].as_view(), name='memoria_delete'),
 
     path('parcelamento/', parcelamentoViews['list_view'].as_view(), name='parcelamentos'),
     path('parcelamento/novo/', parcelamentoViews['create_view'].as_view(), name='parcelamento_create'),

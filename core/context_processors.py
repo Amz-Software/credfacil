@@ -110,11 +110,6 @@ def menu_items(request):
                     "url_name": "vendas:venda_relatorio",
                     "permission": "vendas.can_generate_report_sale",
                 },
-                {
-                    "label": "Relatório de Saídas",
-                    "url_name": "financeiro:relatorio_saidas",
-                    "permission": "vendas.can_generate_report_sale",
-                },
             ],
         },
         # ── CATÁLOGO ────────────────────────────────────────────────────
@@ -130,6 +125,13 @@ def menu_items(request):
             "url_name": "produtos:marcas",
             "icon": "bx bx-purchase-tag",
             "permission": "produtos.view_marca",
+            "section": "Catálogo",
+        },
+        {
+            "label": "Tipos de Produto",
+            "url_name": "produtos:tipos",
+            "icon": "bx bx-category",
+            "permission": "produtos.view_tipoproduto",
             "section": "Catálogo",
         },
         {

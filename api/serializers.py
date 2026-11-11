@@ -13,7 +13,7 @@ from vendas.models import (
     PreAnaliseRapida,
     Venda,
 )
-from produtos.models import Parcelamento, Produto, TipoProduto, Fabricante, Marca
+from produtos.models import Parcelamento, Produto, TipoProduto, Marca
 from vendas.models import ProdutoVenda, Pagamento
 
 
@@ -360,10 +360,6 @@ class TipoProdutoSerializer(serializers.ModelSerializer):
         fields = ["id", "nome"]
 
 
-class FabricanteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Fabricante
-        fields = ["id", "nome"]
 
 
 class ProdutoSerializer(serializers.ModelSerializer):
