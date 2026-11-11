@@ -828,6 +828,19 @@ class LojaViewSet(viewsets.ModelViewSet):
         return Response({"detail": "QR Code e codigo do aplicativo replicados com sucesso."})
 
 
+MIN_DIGITOS_BUSCA_CPF = 3
+
+
+def _filtro_busca_solicitacao(termo: str) -> Q:
+    """Busca por nome ou CPF. O CPF é gravado só com dígitos, então a máscara
+    do termo é ignorada; poucos dígitos não disparam a busca por CPF."""
+    filtro = Q(nome__icontains=termo)
+    digitos = re.sub(r"\D", "", termo)
+    if len(digitos) >= MIN_DIGITOS_BUSCA_CPF:
+        filtro |= Q(cpf__contains=digitos)
+    return filtro
+
+
 @extend_schema_view(
     list=extend_schema(tags=["Solicitacoes"]),
     retrieve=extend_schema(tags=["Solicitacoes"]),
@@ -968,7 +981,7 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if status_app:
             qs = qs.filter(analise_credito__status_aplicativo=status_app).distinct()
         if search:
-            qs = qs.filter(nome__icontains=search)
+            qs = qs.filter(_filtro_busca_solicitacao(search))
         if analise_online == "1":
             qs = qs.filter(analise_credito__analise_online=True).distinct()
         elif analise_online == "0":
