@@ -1,0 +1,35 @@
+{% comment %}
+Modal único de confirmação para ações que alteram dados.
+
+Uso em qualquer template que estenda base.html:
+
+  <a href="#" class="btn btn-danger"
+     data-post-url="{% url 'vendas:venda_cancel' venda.id %}"
+     data-confirm-title="Cancelar venda"
+     data-confirm-message="A venda será cancelada. Esta ação não pode ser desfeita."
+     data-confirm-label="Cancelar venda"
+     data-confirm-variant="danger">Cancelar</a>
+
+O clique abre este modal; ao confirmar, envia um POST (com CSRF) para
+data-post-url. Ver static/js/confirm-action.js.
+{% endcomment %}
+<div class="modal fade" id="confirmActionModal" tabindex="-1" aria-labelledby="confirmActionTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmActionTitle">Confirmar ação</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0" id="confirmActionMessage">Tem certeza que deseja continuar?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Voltar</button>
+        <form method="post" id="confirmActionForm" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary" id="confirmActionSubmit">Confirmar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

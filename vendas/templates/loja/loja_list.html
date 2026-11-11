@@ -95,9 +95,14 @@ Lojas
                         </a></li>
                         {% endif %}
                         {% if user|has_perm:"vendas.change_loja" %}
-                        <li><a class="dropdown-item" href="{% url 'vendas:loja_replicar' loja.pk %}">
-                            <i class='bx bx-transfer me-1'></i> Replicar Codigo/QrCode
-                        </a></li>
+                        <li><button type="button" class="dropdown-item"
+                            data-post-url="{% url 'vendas:loja_replicar' loja.pk %}"
+                            data-confirm-title="Replicar código e QR Code"
+                            data-confirm-message="O código e o QR Code do aplicativo de {{ loja.nome }} vão substituir os de todas as outras lojas."
+                            data-confirm-label="Replicar para todas"
+                            data-confirm-variant="warning">
+                            <i class='bx bx-transfer me-1'></i> Replicar código/QR Code
+                        </button></li>
                         {% endif %}
                     {% include "components/action_menu_close.html" %}
                   </td>

@@ -18,6 +18,10 @@ class LojaApiTestCase(APITestCase):
     def _add_perm(self, app_label, codename):
         perm = Permission.objects.get(content_type__app_label=app_label, codename=codename)
         self.user.user_permissions.add(perm)
+        # O Django guarda as permissões em cache no objeto; recarrega o usuário
+        # para que a permissão recém-concedida valha nas próximas requisições.
+        self.user = User.objects.get(pk=self.user.pk)
+        self.client.force_authenticate(self.user)
 
     def test_loja_retrieve_exibe_flags_de_acesso_e_bloqueia_repasses_sem_permissao(self):
         self._add_perm("vendas", "view_loja")

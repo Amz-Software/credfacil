@@ -58,12 +58,14 @@ Usuários
               {% endif %}
               {% if user|has_perm:"accounts.delete_user" %}
               <li>
-                <form method="post" action="{% url 'accounts:user_delete' user_object.id %}" class="d-inline-block w-100">
-                {% csrf_token %}
-                <button type="submit" class="dropdown-item text-danger w-100">
-                  <i class="bx bx-trash me-1"></i> Excluir
+                <button type="button" class="dropdown-item text-danger w-100"
+                        data-post-url="{% url 'accounts:user_delete' user_object.id %}"
+                        data-confirm-title="Desativar usuário"
+                        data-confirm-message="{{ user_object.get_full_name|default:user_object.username }} não poderá mais entrar no sistema."
+                        data-confirm-label="Desativar usuário"
+                        data-confirm-variant="danger">
+                  <i class="bx bx-trash me-1"></i> Desativar
                 </button>
-                </form>
               </li>
               {% endif %}
             {% include "components/action_menu_close.html" %}

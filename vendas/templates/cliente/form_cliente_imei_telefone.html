@@ -436,14 +436,22 @@
               <button type="button" class="btn btn-success" id="aprovarBtn" data-url="{% url 'vendas:aprovar_analise' cliente.analise_credito.id %}">
                 <i class="bx bx-check me-1"></i> Aprovar
               </button>
-              <a href="{% url 'vendas:reprovar_analise' cliente.analise_credito.id %}"
-                 class="btn btn-danger">
+              <button type="button" class="btn btn-danger"
+                      data-post-url="{% url 'vendas:reprovar_analise' cliente.analise_credito.id %}"
+                      data-confirm-title="Reprovar análise"
+                      data-confirm-message="A análise de crédito de {{ cliente.nome }} será reprovada. Alterações não salvas neste formulário serão perdidas."
+                      data-confirm-label="Reprovar análise"
+                      data-confirm-variant="danger">
                 <i class="bx bx-x me-1"></i> Reprovar
-              </a>
-              <a href="{% url 'vendas:cancelar_analise' cliente.analise_credito.id %}"
-                 class="btn btn-outline-secondary">
-                <i class="bx bx-reset me-1"></i> Cancelar
-              </a>
+              </button>
+              <button type="button" class="btn btn-outline-secondary"
+                      data-post-url="{% url 'vendas:cancelar_analise' cliente.analise_credito.id %}"
+                      data-confirm-title="Cancelar análise"
+                      data-confirm-message="A análise de crédito de {{ cliente.nome }} será cancelada. Alterações não salvas neste formulário serão perdidas."
+                      data-confirm-label="Cancelar análise"
+                      data-confirm-variant="danger">
+                <i class="bx bx-reset me-1"></i> Cancelar análise
+              </button>
             </div>
           {% endif %}
         </div>

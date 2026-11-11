@@ -15,7 +15,10 @@ from django.contrib.auth.models import Permission, Group
 from .forms import UserForm
 from .models import User
 from django.core.exceptions import ObjectDoesNotExist
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_POST
 from django.contrib.auth.views import PasswordChangeView, PasswordChangeDoneView
 from django.views.generic.edit import FormView
 
@@ -61,7 +64,7 @@ class CustomPasswordResetCompleteView(PasswordResetCompleteView):
     template_name = 'login/password_reset_complete.html'
     
 
-class ResetarSenhaView(FormView):
+class ResetarSenhaView(LoginRequiredMixin, FormView):
     template_name = 'login/resetar_senha.html'
     form_class = ResetPasswordForm
     success_url = reverse_lazy('accounts:my_profile_update')
@@ -75,7 +78,7 @@ class ResetarSenhaView(FormView):
         return super().form_valid(form)
 
 
-class MyProfileView(TemplateView):
+class MyProfileView(LoginRequiredMixin, TemplateView):
     template_name = 'profile/my_profile.html'
 
     def get_context_data(self, **kwargs):
@@ -102,7 +105,7 @@ class MyProfileUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_invalid(form)
 
 
-class UserCreateView(CreateView):
+class UserCreateView(PermissionRequiredMixin, CreateView):
     model = User
     form_class = UserForm
     template_name = 'user/user_form.html'
@@ -119,7 +122,7 @@ class UserCreateView(CreateView):
     
     
 
-class UserUpdateView(UpdateView):
+class UserUpdateView(PermissionRequiredMixin, UpdateView):
     model = User
     form_class = UserForm
     template_name = 'user/user_form.html'
@@ -133,15 +136,17 @@ class UserUpdateView(UpdateView):
         return context
 
 
+@require_POST
+@permission_required('accounts.delete_user', raise_exception=True)
 def delete_user(request, pk):
-    user = User.objects.get(pk=pk)
+    user = get_object_or_404(User, pk=pk)
     user.is_active = False
     user.save()
-    messages.success(request, 'Usuário deletado com sucesso.')
+    messages.success(request, 'Usuário desativado com sucesso.')
     return redirect('accounts:user_list')
 
 
-class PermissionsListView(ListView):
+class PermissionsListView(PermissionRequiredMixin, ListView):
     model = Permission
     template_name = 'auth/permissions_list.html'
     context_object_name = 'permissions'
@@ -157,21 +162,21 @@ class PermissionsListView(ListView):
 
         return query
 
-class GroupListView(ListView):
+class GroupListView(PermissionRequiredMixin, ListView):
     model = Group
     template_name = 'auth/groups_list.html'
     context_object_name = 'groups'
     permission_required = 'auth.view_group'
     paginate_by = 10
     
-class GroupCreateView(CreateView):
+class GroupCreateView(PermissionRequiredMixin, CreateView):
     model = Group
     form_class = GroupForm
     template_name = 'auth/group_form.html'
     success_url = reverse_lazy('accounts:group_list')
     permission_required = 'auth.add_group'
     
-class GroupUpdateView(UpdateView):
+class GroupUpdateView(PermissionRequiredMixin, UpdateView):
     model = Group
     form_class = GroupForm
     template_name = 'auth/group_form.html'
@@ -184,7 +189,7 @@ class GroupUpdateView(UpdateView):
         return context
 
 
-class UserListView(ListView):
+class UserListView(PermissionRequiredMixin, ListView):
     model = User
     template_name = 'auth/users_list.html'
     context_object_name = 'users'

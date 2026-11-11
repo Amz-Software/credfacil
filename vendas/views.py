@@ -29,6 +29,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.timezone import localtime, now
+from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, DeleteView, UpdateView, View, FormView
 from django_select2.views import AutoResponseView
 from pixqrcodegen import Payload
@@ -329,7 +330,7 @@ from django.template import Context
 import weasyprint
 from io import BytesIO
 
-class CaixaKpiCountsView(View):
+class CaixaKpiCountsView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         if request.user.has_perm('vendas.view_all_analise_credito'):
             qs = AnaliseCreditoCliente.objects.all()
@@ -1404,6 +1405,7 @@ def aprovar_analise_credito(request, id):
     return redirect('vendas:cliente_list')
 
 
+@require_POST
 @permission_required('vendas.change_analisecreditocliente', raise_exception=True)
 def cancelar_analise_credito(request, id):
     user = request.user
@@ -1422,6 +1424,7 @@ def cancelar_analise_credito(request, id):
 
     return redirect('vendas:cliente_list')
 
+@require_POST
 @permission_required('vendas.change_status_analise', raise_exception=True)
 def reprovar_analise_credito(request, id):
     user = request.user
@@ -1680,6 +1683,7 @@ def reprovar_pre_analise_rapida(request, pk):
     return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
 
 
+@permission_required('vendas.change_cliente', raise_exception=True)
 def cliente_editar_view(request):
     cliente_id = request.GET.get('cliente_id')
     cliente = get_object_or_404(Cliente, id=cliente_id)
@@ -2188,6 +2192,8 @@ class VendaTrocarProdutoView(PermissionRequiredMixin, View):
 
     # Métodos de validação e restauração de estoque e IMEI removidos - não são mais necessários
 
+@require_POST
+@permission_required('vendas.delete_venda', raise_exception=True)
 def cancelar_venda(request, id):
     venda = get_object_or_404(Venda, id=id)
     data_atual = localtime(now()).date()
@@ -2375,6 +2381,8 @@ class LojaUpdateView(PermissionRequiredMixin, UpdateView):
         return reverse_lazy('vendas:loja_detail', kwargs={'pk': self.object.id})
 
     
+@require_POST
+@permission_required('vendas.change_loja', raise_exception=True)
 def replicar_qr_code_codigo_aplicativo(request, pk):
     loja = get_object_or_404(Loja, id=pk)
     if not loja.qr_code_aplicativo or loja.codigo_aplicativo is None:
@@ -2662,6 +2670,7 @@ def gerar_qrcode_pix(chave, valor, txid, nome_loja, cidade_loja, descricao=None)
     return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
 
+@permission_required('vendas.view_venda', raise_exception=True)
 def folha_carne_view(request, pk, tipo):
     venda = get_object_or_404(Venda, pk=pk)
     pagamento_carne = Pagamento.objects.filter(
@@ -3054,6 +3063,7 @@ class ProdutoVendidoListView(PermissionRequiredMixin, ListView):
         return context
 
 
+@permission_required('vendas.view_venda', raise_exception=True)
 def contrato_view(request, pk):
     
     # Busca a venda
@@ -3426,8 +3436,9 @@ class GuiaView(LoginRequiredMixin, TemplateView):
     template_name = 'guia.html'
 
 
-class GraficoTemplateView(TemplateView):
+class GraficoTemplateView(PermissionRequiredMixin, TemplateView):
     template_name = 'dash/index.html'
+    permission_required = 'vendas.can_view_all_dashboard'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

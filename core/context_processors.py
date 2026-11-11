@@ -63,7 +63,7 @@ def menu_items(request):
             "label": "Produtos Vendidos",
             "url_name": "vendas:produto_vendido_list",
             "icon": "bx bx-cart-alt",
-            "permission": "vendas.can_view_produtos_vendidos",
+            "permission": "vendas.view_produtovenda",
             "section": "Vendas",
         },
         {
@@ -88,12 +88,12 @@ def menu_items(request):
                 {
                     "label": "Relatório de Contas a Receber",
                     "url_name": "financeiro:relatorio_contas_a_receber",
-                    "permission": "vendas.view_pagamento",
+                    "permission": "vendas.can_genarate_report_payments",
                 },
                 {
                     "label": "Relatório de Situações",
                     "url_name": "financeiro:relatorio_contas_a_receber_avancado",
-                    "permission": "vendas.view_pagamento",
+                    "permission": "vendas.can_genarate_report_payments",
                 },
                 {
                     "label": "Relatório de Parcelas",

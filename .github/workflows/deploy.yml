@@ -11,9 +11,48 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    name: Testes
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    env:
+      SECRET_KEY: ci-apenas-para-testes
+      DEBUG: "True"
+      ALLOWED_HOSTS: "*"
+      DB_USED: sqlite
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Dependências de sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y default-libmysqlclient-dev pkg-config libpango-1.0-0 libpangoft2-1.0-0
+
+      - name: Dependências Python
+        run: pip install -r requirements.txt
+
+      - name: Testes
+        run: python manage.py test
+
   deploy:
     name: Deploy via SSH
     runs-on: ubuntu-latest
+    needs: test
 
     steps:
       - name: Deploy via SSH
