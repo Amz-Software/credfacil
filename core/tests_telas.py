@@ -131,6 +131,16 @@ class LayoutAssetsTests(TestCase):
 
         self.assertEqual(sem_plugin, [])
 
+    def test_template_que_usa_select2_carrega_o_css(self):
+        sem_css = []
+        for caminho in _arquivos('.html'):
+            texto = caminho.read_text(encoding='utf-8', errors='ignore')
+            usa_js = 'libs/select2/select2.js' in texto or 'select2.min.js' in texto
+            if usa_js and 'select2.css' not in texto and 'select2.min.css' not in texto:
+                sem_css.append(str(caminho.relative_to(BASE_DIR)))
+
+        self.assertEqual(sem_css, [])
+
     def test_painel_customizador_do_tema_fica_oculto(self):
         config = BASE_DIR / 'static' / 'sneat-template' / 'assets' / 'js' / 'config.js'
 
