@@ -57,9 +57,6 @@ class EntradaEstoque(Base):
     def count_produtos(self):
         return self.produtos.count()
     
-    def get_absolute_url(self):
-        return reverse('estoque:entrada_detail', kwargs={'pk': self.pk}) 
-    
     def __str__(self):
         return f"Entrada {self.numero_nota}"
 

@@ -2,24 +2,16 @@ from django.contrib import admin
 from django.urls import path
 
 from financeiro.views import ContatoCreateView, ContatoUpdateView
-from utils.gerador_views import generate_views
 from vendas.forms import *
 from vendas.models import *
 from .views import *
-
-tipoPagamentoViews = generate_views(TipoPagamento, TipoPagamentoForm, 10, template_dir='tipopagamento')
 
 app_name = 'vendas'
 urlpatterns = [
     path('', IndexView.as_view(), name='index'),
     path('guia/', GuiaView.as_view(), name='guia'),
 
-    #caixa
-    path('caixas/', CaixaListView.as_view(), name='caixa_list'),
-    path('caixas/<int:pk>/', CaixaDetailView.as_view(), name='caixa_detail'),
-    path('caixa/caixa-total/', CaixaTotalView.as_view(), name='caixa_total'),
-    path('caixa/lancamento/<int:pk>/', lancamento_delete_view, name='lancamento_delete'),
-    path('caixa/caixa-total/lancamento/<int:pk>/', lancamento_total_delete_view, name='caixa_total_lancamento_delete'),
+    # Contadores por status da tela de Solicitações (o nome da rota é histórico).
     path('caixas/kpis/', CaixaKpiCountsView.as_view(), name='caixa_kpis'),
 
     #cliente
@@ -44,12 +36,6 @@ urlpatterns = [
     path('cancelar_analise/<int:id>/', cancelar_analise_credito, name='cancelar_analise'),
     path('analise/<int:pk>/observacao/adicionar/', adicionar_observacao_solicitacao, name='adicionar_observacao_solicitacao'),
     
-    #tipo de pagamento
-    path('tipopagamento/', tipoPagamentoViews['list_view'].as_view(), name='tipos_pagamento'),
-    path('tipos-pagamento/novo/', tipoPagamentoViews['create_view'].as_view(), name='tipopagamento_create'),
-    path('tipos-pagamento/detalhe/<int:pk>/', tipoPagamentoViews['detail_view'].as_view(), name='tipopagamento_detail'),
-    path('tipos-pagamento/editar/<int:pk>/', tipoPagamentoViews['update_view'].as_view(), name='tipopagamento_update'),
-
     #venda
     path('vendas/', VendaListView.as_view(), name='venda_list'),
     path('vendas/editar/<int:pk>/', VendaUpdateView.as_view(), name='venda_update'),
@@ -77,8 +63,6 @@ urlpatterns = [
     path('produtos/ajax/', get_produtos, name='produtos_ajax'),
 
     path('vendas/nota/<int:pk>/', VendaPDFView.as_view(), name='venda_pdf'),
-    path('caixa/folha/<int:pk>/', FolhaCaixaPDFView.as_view(), name='caixa_pdf'),
-    path('caixa/folha-produtos/<int:pk>/', FolhaProdutoPDFView.as_view(), name='caixa_produto_pdf'),
     path('gerar-carne/<int:pk>/<str:tipo>/', folha_carne_view, name='gerar_carne'),
     
     path('vendas/relatorio/', RelatorioVendasView.as_view(), name='venda_relatorio'),
@@ -88,7 +72,6 @@ urlpatterns = [
     path('venda/contrato/<int:pk>/', contrato_view, name='gerar_contrato'),
     path('produtos-vendidos/', ProdutoVendidoListView.as_view(), name='produto_vendido_list'),
     path('pagamento/<int:pk>/confirmar-quitacao/', ConfirmarQuitacaoView.as_view(), name='confirmar_quitacao'),
-    path('gerar_qrcode_pix/<int:loja_id>/', gerar_qrcode_pix, name='gerar_qrcode_pix'),
     
     path(
         'pagamento/<int:pk>/toggle-bloqueio/',

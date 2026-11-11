@@ -44,7 +44,7 @@ from vendas.forms import (
     ComprovantesClienteForm, ContatoAdicionalEditForm, ContatoAdicionalForm, FormaPagamentoEditFormSet,
     InformacaoPessoalEditForm, InformacaoPessoalForm, LojaForm, NumeroAutenticadorForm, ProdutoVendaEditFormSet,
     RelatorioSolicitacoesForm, RelatorioVendasForm, VendaForm, VendaDocumentosForm, ProdutoVendaFormSet,
-    FormaPagamentoFormSet, LancamentoForm, LancamentoCaixaTotalForm, ClienteTelefoneForm,
+    FormaPagamentoFormSet, ClienteTelefoneForm,
     AnaliseCreditoClienteImeiForm, VendaEdicaoEspecialForm,
     ProdutoVendaEdicaoEspecialFormSet, FormaPagamentoEdicaoEspecialFormSet,
     PreAnaliseRapidaConsultaSerasaForm,
@@ -351,129 +351,12 @@ class CaixaKpiCountsView(LoginRequiredMixin, View):
 
     
 
-class CaixaListView(BaseView, PermissionRequiredMixin, ListView):
-    model = Caixa
-    template_name = 'caixa/caixa_list.html'
-    context_object_name = 'caixas'
-    permission_required = 'vendas.view_caixa'
-    
-    
-    def get_queryset(self):
-        query = super().get_queryset()
-        data_filter = self.request.GET.get('search')
-        loja = self.request.GET.get('loja')
-        
-        if loja:
-            query = query.filter(loja__id=loja)
-            
-        if data_filter:
-            return query.filter(data_abertura=data_filter)
-        
-        return query.order_by('-criado_em')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        if self.request.user.has_perm('vendas.can_view_all_stores'):
-            context['lojas'] = Loja.objects.all()
-        return context
-
-    def post(self, request, *args, **kwargs):
-        # Abertura de caixa
-        if 'criar_caixa' in request.POST:
-            user = request.user
-            today = timezone.localtime(timezone.now()).date()
-
-            # Escolhe a loja: do select se tiver permissão, senão da sessão
-            if user.has_perm('vendas.can_view_all_stores'):
-                loja_id = request.POST.get('loja_id')
-            else:
-                loja_id = request.session.get('loja_id')
-            loja = Loja.objects.get(id=loja_id)
-
-            if not Caixa.caixa_aberto(today, loja):
-                Caixa.objects.create(
-                    data_abertura=today,
-                    criado_por=user,
-                    modificado_por=user,
-                    loja=loja
-                )
-                messages.success(request, 'Caixa aberto com sucesso')
-            else:
-                messages.warning(request, 'Já existe um caixa aberto para hoje')
-
-            return redirect('vendas:caixa_list')
-
-        # Fechamento de caixa (mantido igual)
-        if 'fechar_caixa' in request.POST:
-            today = timezone.localtime(timezone.now()).date()
-            try:
-                caixa = Caixa.objects.get(id=request.POST['fechar_caixa'],
-                                          loja=request.session.get('loja_id'))
-                caixa.data_fechamento = today
-                caixa.save(user=request.user)
-                messages.success(request, 'Caixa fechado com sucesso')
-            except Caixa.DoesNotExist:
-                messages.warning(request, 'Não existe caixa aberto para hoje')
-            return redirect('vendas:caixa_list')
-
-        return self.get(request, *args, **kwargs)
 
 
 
-class CaixaDetailView(PermissionRequiredMixin, DetailView):
-    model = Caixa
-    template_name = 'caixa/caixa_detail.html'
-    permission_required = 'vendas.view_caixa'
-    
-    def get_context_data(self, **kwargs):
-        loja_id = self.request.session.get('loja_id')
-        loja = get_object_or_404(Loja, id=loja_id)
-        context = super().get_context_data(**kwargs)
-        context['vendas'] = self.object.vendas.filter(is_deleted=False).filter(loja=loja)
-        context['form_lancamento'] = LancamentoForm()
-        context['lancamentos'] = LancamentoCaixa.objects.filter(caixa=self.object)
-        return context
-
-    def post(self, request, *args, **kwargs):
-        # Pegue o ID do caixa diretamente de kwargs
-        caixa_id = kwargs.get('pk')  # O parâmetro é chamado 'pk' na URL
-
-        try:
-            # Busque o objeto Caixa
-            caixa = Caixa.objects.get(id=caixa_id)
-        except Caixa.DoesNotExist:
-            messages.error(request, 'Erro: Caixa não existe.')
-            return redirect('vendas:caixa_list')  # Ajuste conforme sua necessidade
-
-        # Instancie o formulário com os dados do POST
-        form = LancamentoForm(request.POST, user=request.user)
-
-        if form.is_valid():
-            # Salve o formulário e associe ao caixa
-            lancamento = form.save(commit=False)
-            lancamento.caixa = caixa
-            lancamento.save()
-            messages.success(request, 'Lançamento realizado com sucesso')
-            return redirect('vendas:caixa_detail', pk=caixa_id)
-
-        # Caso o formulário seja inválido
-        messages.error(request, 'Erro ao realizar lançamento')
-        return self.get(request, *args, **kwargs)
     
 
-def lancamento_delete_view(request, pk):
-    lancamento = get_object_or_404(LancamentoCaixa, id=pk)
-    caixa_id = lancamento.caixa.id
-    lancamento.delete()
-    messages.success(request, 'Lançamento excluído com sucesso')
-    return redirect('vendas:caixa_detail', pk=caixa_id)
 
-def lancamento_total_delete_view(request, pk):
-    lancamento = get_object_or_404(LancamentoCaixaTotal, id=pk)
-    loja_id = lancamento.loja.id
-    lancamento.delete()
-    messages.success(request, 'Lançamento excluído com sucesso')
-    return redirect('vendas:caixa_total')
     
 
 class ClienteListView(BaseView, PermissionRequiredMixin, ListView):
@@ -2148,7 +2031,7 @@ class VendaTrocarProdutoView(PermissionRequiredMixin, View):
 
         if not produto_atual_id or not novo_produto_id or not imei:
             messages.error(request, 'Todos os campos são obrigatórios.')
-            return redirect('vendas:venda_trocar_produto', pk=pk)
+            return redirect('vendas:venda_trocar', pk=pk)
 
         try:
             produto_atual = ProdutoVenda.objects.get(id=produto_atual_id, venda=venda)
@@ -2208,83 +2091,6 @@ def cancelar_venda(request, id):
     return redirect('vendas:venda_list')
 
     
-class CaixaTotalView(PermissionRequiredMixin, TemplateView):
-    template_name = 'caixa/caixa_total.html'
-    permission_required = 'vendas.view_caixa'
-    
-    def get_context_data(self, **kwargs):
-        loja_id = self.request.session.get('loja_id')
-        loja = Loja.objects.get(id=loja_id)
-
-        caixas = Loja.objects.get(id=loja_id).caixa_loja.all().order_by('-data_abertura').filter(data_fechamento__isnull=False)
-        vendas_caixa = []
-        entradas_caixa = []
-        saidas_caixa = []
-        total_entrada = 0
-        total_saida = 0
-        total_venda =0
-
-        for caixa in caixas:
-            vendas = caixa.vendas.filter(is_deleted=False, pagamentos__tipo_pagamento__caixa=True)
-            entradas = caixa.lancamentos_caixa.filter(tipo_lancamento='1')
-            saidas = caixa.lancamentos_caixa.filter(tipo_lancamento='2')
-            if vendas:
-                vendas_caixa.append(vendas)
-
-            if entradas:
-                entradas_caixa.append(entradas)
-
-            if saidas:
-                saidas_caixa.append(saidas)
-            
-            total_entrada += caixa.entradas
-            total_saida += caixa.saidas
-            total_venda += caixa.saldo_total_dinheiro
-
-        entradas_caixa_total = LancamentoCaixaTotal.objects.filter(tipo_lancamento='1', loja=loja)
-        saidas_caixa_total = LancamentoCaixaTotal.objects.filter(tipo_lancamento='2', loja=loja)
-
-        for entrada in entradas_caixa_total:
-            total_entrada += entrada.valor
-
-        for saida in saidas_caixa_total:
-            total_saida += saida.valor
-
-        entradas_caixa.append(entradas_caixa_total)
-        saidas_caixa.append(saidas_caixa_total)
-
-            
-        total = (total_entrada + total_venda) - total_saida
-
-        context = super().get_context_data(**kwargs)
-        context['caixas'] = Caixa.objects.all()
-        context['loja'] = Loja.objects.get(id=loja_id)
-        context['vendas'] = vendas_caixa
-        context['entradas'] = entradas_caixa
-        context['saidas'] = saidas_caixa
-        context['total_entrada'] = total_entrada
-        context['total_saida'] = total_saida
-        context['total_venda'] = total_venda
-        context['total'] = total
-        context['form_lancamento'] = LancamentoCaixaTotalForm()
-        context['lancamentos'] = LancamentoCaixaTotal.objects.filter(loja=loja)
-        
-        return context
-    
-    def post(self, request, *args, **kwargs):
-        loja_id = request.session.get('loja_id')
-        loja = Loja.objects.get(id=loja_id)
-        form = LancamentoCaixaTotalForm(request.POST)
-        
-        if form.is_valid():
-            form.instance.loja = loja
-            form.instance.criado_por = request.user
-            form.save()
-            messages.success(request, 'Lançamento realizado com sucesso')
-            return redirect('vendas:caixa_total')
-        
-        messages.error(request, 'Erro ao realizar lançamento')
-        return self.get(request, *args, **kwargs)
     
 
 class LojaListView(BaseView, PermissionRequiredMixin, ListView):
@@ -2536,110 +2342,8 @@ class VendaPDFView(PermissionRequiredMixin, View):
         return render(request, 'venda/venda_pdf.html', context)
     
     
-class FolhaCaixaPDFView(PermissionRequiredMixin, View):
-    permission_required = 'vendas.view_venda'
-    
-    def get(self, request, pk):
-        caixa = get_object_or_404(Caixa, id=pk)
-        vendas = caixa.vendas.filter(is_deleted=False)
-        lancamentos = caixa.lancamentos_caixa.all()
-
-        entrada_total = 0
-        saida_total = 0
-
-        for lancamento in lancamentos:
-            if lancamento.tipo_lancamento == '1':
-                entrada_total += lancamento.valor
-            else:
-                saida_total += lancamento.valor
-
-        valor_venda_por_tipo_pagamento = {}
-
-        for venda in vendas:
-            for pagamento in venda.pagamentos.filter(tipo_pagamento__caixa=True):
-                if not pagamento.tipo_pagamento.nao_contabilizar:
-                    if pagamento.tipo_pagamento.nome not in valor_venda_por_tipo_pagamento:
-                        valor_venda_por_tipo_pagamento[pagamento.tipo_pagamento.nome] = 0
-                    valor_venda_por_tipo_pagamento[pagamento.tipo_pagamento.nome] += pagamento.valor
-
-        caixa_valor_final = (caixa.saldo_total_dinheiro + caixa.entradas) - caixa.saidas
-        valor_por_tipo_pagamento_total = sum(valor_venda_por_tipo_pagamento.values())
-
-        entrada_total += valor_por_tipo_pagamento_total
-        valor_final = entrada_total - saida_total
-        saldo_total = entrada_total
-
-        context = {
-            'caixa': caixa,
-            'data': localtime(now()).date(),
-            'vendas': vendas,
-            'lancamentos': lancamentos,
-            'entrada_total': entrada_total,
-            'saida_total': saida_total,
-            'valor_por_tipo_pagamento_total': valor_por_tipo_pagamento_total,
-            'saldo_total': saldo_total,
-            'valor_venda_por_tipo_pagamento': valor_venda_por_tipo_pagamento.items(),
-            'caixa_valor_final': caixa_valor_final,
-            'valor_final': valor_final
-        }
-        return render(request, 'caixa/folha_caixa.html', context)
 
     
-class FolhaProdutoPDFView(PermissionRequiredMixin, View):
-    permission_required = 'vendas.view_venda'
-
-    def get(self, request, pk):
-        caixa = get_object_or_404(Caixa, id=pk)
-
-        # Otimiza a query trazendo os relacionamentos necessários
-        vendas = caixa.vendas.filter(is_deleted=False).prefetch_related(
-            'itens_venda__produto', 'pagamentos'
-        )
-
-        produtos_info = []
-        total_produtos = 0
-        valor_total = 0
-
-        for venda in vendas:
-            # Captura todas as formas de pagamento únicas
-            pagamentos = venda.pagamentos.all()
-            formas_pagamento = ', '.join(set(p.tipo_pagamento.nome for p in pagamentos))
-            valor_total += venda.pagamentos_valor_total_dinheiro
-            total_custos = 0
-            total_lucro = 0
-
-            for produto in venda.itens_venda.all():
-                if produto.produto and produto.produto.nome:
-                    produtos_info.append({
-                        'id_venda': venda.id,
-                        'id_produto': produto.produto.id,
-                        'produto': produto.produto.nome,
-                        'vendedor': venda.vendedor.get_full_name() if venda.vendedor else 'N/A',
-                        'preco': produto.valor_unitario,
-                        'entrada_cliente': produto.produto.entrada_cliente,
-                        'repasse_logista': produto.venda.repasse_logista,
-                        'quantidade': produto.quantidade,
-                        'custo': produto.custo(),
-                        'total': venda.pagamentos_valor_total,
-                        'lucro': produto.lucro(),
-                        'formas_pagamento': formas_pagamento
-                    })
-                    total_produtos += produto.quantidade
-
-        total_lucro = sum(produto['lucro'] for produto in produtos_info)
-        total_custos = sum(produto['custo'] for produto in produtos_info)
-
-        context = {
-            'caixa': caixa,
-            'data': localtime(now()).date(),
-            'produtos': produtos_info,
-            'total_produtos': total_produtos,
-            'valor_total': valor_total,
-            'total_custos': total_custos,
-            'total_lucro': total_lucro
-        }
-
-        return render(request, 'caixa/folha_produtos.html', context)
 
 
 def gerar_qrcode_pix(chave, valor, txid, nome_loja, cidade_loja, descricao=None):

@@ -33,9 +33,6 @@ class CaixaMensal(Base):
     def __str__(self):
         return f'{self.loja} - {self.mes}'
     
-    def get_absolute_url(self):
-        return reverse('financeiro:caixa_mensal_update', args=[self.pk])
-    
     class Meta:
         verbose_name_plural = 'Caixas Mensais'
         verbose_name = 'Caixa Mensal'

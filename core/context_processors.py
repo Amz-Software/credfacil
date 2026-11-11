@@ -30,14 +30,6 @@ def menu_items(request):
             "section": "Início",
         },
         # ── VENDAS (operação do dia a dia) ──────────────────────────────
-        # Tela de Caixa ocultada — vendas não dependem mais de caixa aberto.
-        # {
-        #     "label": "Caixa",
-        #     "url_name": "vendas:caixa_list",
-        #     "icon": "bx bx-money",
-        #     "permission": "vendas.view_caixa",
-        #     "section": "Vendas",
-        # },
         {
             "label": "Solicitações de Crédito",
             "url_name": "vendas:cliente_list",
@@ -125,20 +117,6 @@ def menu_items(request):
                 },
             ],
         },
-        # {
-        #     "label": "Fechamentos Mensais",
-        #     "url_name": "financeiro:caixa_mensal_list",
-        #     "icon": "bx bx-calendar-check",
-        #     "permission": "financeiro.view_caixamensal",
-        #     "section": "Financeiro",
-        # },
-        # {
-        #     "label": "Gastos Fixos",
-        #     "url_name": "financeiro:gasto_fixo_list",
-        #     "icon": "bx bx-money-withdraw",
-        #     "permission": "financeiro.view_gastofixo",
-        #     "section": "Financeiro",
-        # },
         # ── CATÁLOGO ────────────────────────────────────────────────────
         {
             "label": "Produtos",
@@ -161,31 +139,6 @@ def menu_items(request):
             "permission": "produtos.view_parcelamento",
             "section": "Catálogo",
         },
-        # ── ESTOQUE (desativado — manter para referência futura) ────────
-        # {
-        #     "label": "Estoque",
-        #     "icon": "bx bx-box",
-        #     "permission": "estoque.view_estoque",
-        #     "section": "Estoque",
-        #     "sub_items": [
-        #         {"label": "Ver Estoque", "url_name": "estoque:estoque_list", "permission": "estoque.view_estoque"},
-        #         {"label": "Estoque IMEI", "url_name": "estoque:estoque_imei_list", "permission": "estoque.view_estoqueimei"},
-        #         {"label": "Ver Entradas", "url_name": "estoque:entrada_list", "permission": "estoque.view_entradaestoque"},
-        #         {"label": "Adicionar Entrada", "url_name": "estoque:estoque_entrada", "permission": "estoque.add_entradaestoque"},
-        #         {"label": "Fornecedores", "url_name": "estoque:fornecedores", "permission": "estoque.view_fornecedor"},
-        #     ],
-        # },
-        # ── ASSISTÊNCIA (desativado — manter para referência futura) ────
-        # {
-        #     "label": "Assistência",
-        #     "icon": "bx bx-wrench",
-        #     "permission": "assistencia.view_assistencia",
-        #     "section": "Assistência",
-        #     "sub_items": [
-        #         {"label": "Caixa Assistência", "url_name": "assistencia:caixa_assistencia_list", "permission": "assistencia.view_assistencia"},
-        #         {"label": "Ordens de Serviço", "url_name": "assistencia:ordem_servico_list", "permission": "assistencia.view_ordemservico"},
-        #     ],
-        # },
         # ── CONFIGURAÇÕES ───────────────────────────────────────────────
         {
             "label": "Lojas",

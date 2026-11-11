@@ -57,100 +57,13 @@ class ParcelaForm(forms.ModelForm):
                 self.fields['data_vencimento'].widget.attrs['readonly'] = 'readonly'
                 self.fields['data_vencimento'].widget.attrs.pop('type', None)
 
-class GastosAleatoriosForm(forms.ModelForm):
-    class Meta:
-        model = GastosAleatorios
-        fields = ['descricao', 'observacao', 'valor']
-        widgets = {
-            'descricao': forms.TextInput(attrs={'class': 'form-control', 'style': 'background-color: #d4edda;'}),
-            'observacao': forms.Textarea(attrs={'rows': 1, 'class': 'form-control'}),
-            'valor': forms.TextInput(attrs={'class': 'form-control money', 'style': 'background-color: #d4edda;'}),
-        }
-class GastoFixoForm(forms.ModelForm):
-    class Meta:
-        model = GastoFixo
-        fields = ['nome']
-        widgets = {
-            'nome': forms.TextInput(attrs={'class': 'form-control'}),
-        }
-        labels = {
-            'nome': 'Nome do Gasto Fixo',
-        }
-
-    def __init__(self, *args, disabled=False, **kwargs):
-        self.user = kwargs.pop('user', None)  # Pega o usuário que será passado pela view
-        super().__init__(*args, **kwargs)
-        if disabled:
-            for field in self.fields.values():
-                field.widget.attrs['disabled'] = True
-
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        if self.user:  
-            if not instance.pk: 
-                instance.criado_por = self.user
-            instance.modificado_por = self.user 
-        if commit:
-            instance.save()
-        return instance
-
-class CaixaMensalGastoFixoForm(forms.ModelForm):
-    class Meta:
-        model = CaixaMensalGastoFixo
-        fields = ['gasto_fixo', 'observacao', 'valor']
-        widgets = {
-            'gasto_fixo': forms.Select(attrs={'class': 'form-select'}),
-            'observacao': forms.Textarea(attrs={'rows': 1, 'class': 'form-control'}),
-            'valor': forms.TextInput(attrs={'class': 'form-control money', 'style': 'background-color: #d4edda;'}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super(CaixaMensalGastoFixoForm, self).__init__(*args, **kwargs)
-        self.fields['gasto_fixo'].queryset = GastoFixo.objects.filter(loja=self.instance.caixa_mensal.loja)
 
 
-class CaixaMensalFuncionarioForm(forms.ModelForm):
-    nome = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
 
-    class Meta:
-        model = CaixaMensalFuncionario
-        fields = ['comissao', 'salario']
-        widgets = {
-            'comissao': forms.TextInput(attrs={'class': 'form-control money'}),
-            'salario': forms.TextInput(attrs={'class': 'form-control money', 'style': 'background-color: #d4edda;'}),
-        }
-        labels = {
-            'comissao': 'Comissão',
-            'salario': 'Salário',
-        }
-    
-    def __init__(self, *args, **kwargs):
-        super(CaixaMensalFuncionarioForm, self).__init__(*args, **kwargs)
-        # Preencher o campo nome com o nome do funcionário 
-        self.fields['nome'].initial = f'{self.instance.funcionario.first_name} {self.instance.funcionario.last_name}'
-        self.fields['nome'].widget.attrs['readonly'] = 'readonly'
 
 # Definições dos FormSets com Prefixo
-CaixaMensalGastoFixoFormSet = forms.modelformset_factory(
-    CaixaMensalGastoFixo,
-    form=CaixaMensalGastoFixoForm,
-    extra=0
-)
 
-CaixaMensalFuncionarioFormSet = forms.modelformset_factory(
-    CaixaMensalFuncionario,
-    form=CaixaMensalFuncionarioForm,
-    extra=0,
-    can_delete=True
-)
 
-GastosAleatoriosFormSet = forms.inlineformset_factory(
-    CaixaMensal,
-    GastosAleatorios,
-    form=GastosAleatoriosForm,
-    extra=0,
-    can_delete=True
-)
 
 ParcelaInlineFormSet = forms.inlineformset_factory(
     Pagamento,

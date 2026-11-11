@@ -32,7 +32,6 @@ urlpatterns = [
     path('', include('estoque.urls')),
     path('', include('financeiro.urls')),
     path('', include('accounts.urls')),
-    path('', include('assistencia.urls')),
     path('notificacao/', include('notificacao.urls')),
     path('foto/<uuid:session_id>/', foto_celular_view, name='foto-celular'),
     path('api/', include('api.urls')),

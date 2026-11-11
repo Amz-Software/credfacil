@@ -1091,51 +1091,6 @@ class NumeroAutenticadorForm(forms.ModelForm):
         return instance
 
 
-class TipoPagamentoForm(forms.ModelForm):
-    class Meta:
-        model = TipoPagamento
-        fields = '__all__'
-        exclude= ['loja']
-        widgets = {
-            'nome': forms.TextInput(attrs={'class': 'form-control'}),
-            'caixa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'parcelas': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'financeira': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'carne': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'nao_contabilizar': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        }
-        help_texts = {
-            'caixa': 'Esse pagamento será realizado no caixa nas formas de recebimento pelo logista.',
-            'parcelas': 'Marque se o pagamento pode ser parcelado.',
-            'financeira': 'Marque se o pagamento é feito por financeira.',
-            'carne': 'Marque se o pagamento é feito por carnê ou promissória.',
-            'nao_contabilizar': 'Marque se o pagamento não deve ser contabilizado.',
-        }
-        labels = {
-            'nome': 'Nome*',
-            'caixa': 'Caixa',
-            'parcelas': 'Parcelas',
-            'financeira': 'Financeira',
-            'carne': 'Carnê',
-            'nao_contabilizar': 'Não Contabilizar',
-        }
-
-    def __init__(self, *args, disabled=False, **kwargs):
-        self.user = kwargs.pop('user', None)  # Pega o usuário que será passado pela view
-        super().__init__(*args, **kwargs)
-        if disabled:
-            for field in self.fields.values():
-                field.widget.attrs['disabled'] = True
-
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        if self.user:  
-            if not instance.pk: 
-                instance.criado_por = self.user
-            instance.modificado_por = self.user 
-        if commit:
-            instance.save()
-        return instance
 
     
 class VendaForm(forms.ModelForm):
@@ -1405,54 +1360,7 @@ class PagamentoForm(forms.ModelForm):
             # ajustar data da primeira parcela para o padrao yyyy-MM-dd
             self.fields['data_primeira_parcela'].widget.format = '%Y-%m-%d'
 
-class LancamentoForm(forms.ModelForm):
-    class Meta:
-        model = LancamentoCaixa
-        fields = '__all__'
-        exclude = ['loja', 'caixa']
-        widgets = {
-            'motivo': forms.TextInput(attrs={'class': 'form-control'}),
-            'tipo_lancamento': forms.Select(attrs={'class': 'form-control'}),
-            'valor': forms.TextInput(attrs={'class': 'form-control money'}),
-        }
-        labels = {
-            'motivo': 'Motivo*',
-            'tipo_lancamento': 'Tipo de Lançamento*',
-            'valor': 'Valor*',
-        }
-    
-    def __init__(self, *args, disabled=False, **kwargs):
-        self.user = kwargs.pop('user', None)  # Pega o usuário que será passado pela view
-        super().__init__(*args, **kwargs)
-        if disabled:
-            for field in self.fields.values():
-                field.widget.attrs['disabled'] = True
-
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        if self.user:  
-            if not instance.pk: 
-                instance.criado_por = self.user
-            instance.modificado_por = self.user 
-        if commit:
-            instance.save()
-        return instance
         
-class LancamentoCaixaTotalForm(forms.ModelForm):
-    class Meta:
-        model = LancamentoCaixaTotal
-        fields = '__all__'
-        exclude = ['loja', 'caixa']
-        widgets = {
-            'motivo': forms.TextInput(attrs={'class': 'form-control'}),
-            'tipo_lancamento': forms.Select(attrs={'class': 'form-control'}),
-            'valor': forms.TextInput(attrs={'class': 'form-control money'}),
-        }
-        labels = {
-            'motivo': 'Motivo*',
-            'tipo_lancamento': 'Tipo de Lançamento*',
-            'valor': 'Valor*',
-        }
 
 FormaPagamentoFormSet = forms.inlineformset_factory(Venda, Pagamento, form=PagamentoForm, extra=1, can_delete=False)
 ProdutoVendaFormSet = forms.inlineformset_factory(Venda, ProdutoVenda, form=ProdutoVendaForm, extra=1, can_delete=False)
