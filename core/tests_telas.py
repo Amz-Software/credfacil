@@ -76,6 +76,67 @@ class RotasCitadasExistemTests(TestCase):
         self._assert_todas_existem(_nomes_citados(URL_EM_PYTHON, '.py'))
 
 
+class LayoutAssetsTests(TestCase):
+    """Bibliotecas do layout: só o que alguma tela usa, na ordem certa."""
+
+    REMOVIDOS = (
+        'apexcharts',
+        'apex-charts',
+        'dashboards-analytics',
+        'typeahead',
+        'fontawesome',
+        'flag-icons',
+        'cdn.jsdelivr.net/npm/chart.js"',
+        'bootstrap-icons@1.10.5',
+        'CSRF Token usado',
+    )
+
+    def _html_logado(self) -> str:
+        loja = Loja.objects.create(nome='Loja Layout')
+        admin = User.objects.create_superuser(
+            username='admin', email='admin@example.com', password='123456',
+        )
+        loja.usuarios.add(admin)
+        self.client.force_login(admin)
+        session = self.client.session
+        session['loja_id'] = loja.id
+        session.save()
+        return self.client.get(reverse('vendas:guia')).content.decode()
+
+    def test_layout_principal_nao_carrega_bibliotecas_sem_uso(self):
+        html = self._html_logado()
+
+        for trecho in self.REMOVIDOS:
+            with self.subTest(trecho=trecho):
+                self.assertNotIn(trecho, html)
+
+    def test_layouts_nao_carregam_plugins_jquery_antes_do_jquery(self):
+        html_logado = self._html_logado()
+        self.client.logout()
+        html_publico = self.client.get(reverse('vendas:consulta_pagamentos')).content.decode()
+
+        for nome, html in (('base', html_logado), ('base_blank', html_publico)):
+            with self.subTest(layout=nome):
+                inicio_jquery = html.find('jquery.min.js')
+                self.assertGreater(inicio_jquery, 0)
+                self.assertNotIn('jquery.mask', html[:inicio_jquery])
+                self.assertNotIn("$('", html[:inicio_jquery])
+
+    def test_template_que_usa_mask_carrega_o_plugin(self):
+        sem_plugin = []
+        for caminho in _arquivos('.html'):
+            texto = caminho.read_text(encoding='utf-8', errors='ignore')
+            if '.mask(' in texto and 'jquery.mask' not in texto:
+                sem_plugin.append(str(caminho.relative_to(BASE_DIR)))
+
+        self.assertEqual(sem_plugin, [])
+
+    def test_painel_customizador_do_tema_fica_oculto(self):
+        config = BASE_DIR / 'static' / 'sneat-template' / 'assets' / 'js' / 'config.js'
+
+        self.assertIn('displayCustomizer: false', config.read_text(encoding='utf-8'))
+
+
 class MenuCatalogoTests(TestCase):
     def test_tipos_de_produto_aparece_no_menu_para_quem_tem_permissao(self):
         from django.contrib.auth.models import Permission
