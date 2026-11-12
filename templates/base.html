@@ -508,19 +508,37 @@
     }
 
     const ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(ws_scheme + '://' + window.location.host + '/ws/notifications/');
+    const WS_ESPERA_MAXIMA_MS = 30000;
+    let wsTentativas = 0;
 
-    console.log("[WS] Conectando...");
+    // Reconecta sozinho quando o servidor reinicia (deploy, reciclagem de
+    // worker): sem isso o analista deixava de receber o modal até dar F5.
+    function conectarWs() {
+      console.log("[WS] Conectando...");
+      const socket = new WebSocket(ws_scheme + '://' + window.location.host + '/ws/notifications/');
 
-    socket.onopen = function () {
-      console.log("[WS] Conectado com sucesso!");
-    };
+      socket.onopen = function () {
+        wsTentativas = 0;
+        console.log("[WS] Conectado com sucesso!");
+      };
 
-    socket.onerror = function (error) {
-      console.error("[WS] Erro na conexão:", error);
-    };
+      socket.onerror = function (error) {
+        console.error("[WS] Erro na conexão:", error);
+      };
 
-    socket.onmessage = function (e) {
+      socket.onclose = function () {
+        const espera = Math.min(WS_ESPERA_MAXIMA_MS, 1000 * 2 ** wsTentativas);
+        wsTentativas += 1;
+        console.warn(`[WS] Conexão encerrada; nova tentativa em ${espera / 1000}s.`);
+        setTimeout(conectarWs, espera);
+      };
+
+      socket.onmessage = tratarMensagemWs;
+    }
+
+    conectarWs();
+
+    function tratarMensagemWs(e) {
       console.log("[WS] Mensagem recebida:", e.data);
       const data = JSON.parse(e.data);
 
@@ -617,7 +635,7 @@
             `;
         document.head.appendChild(style);
       }
-    };
+    }
   </script>
 
   <!-- 🪟 Modal central de NOVA PROPOSTA (somente ANALISTA / ADMINISTRADOR) -->
