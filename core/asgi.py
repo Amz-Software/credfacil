@@ -1,4 +1,11 @@
 import os
+
+from core import asgiref_patch
+
+# Antes de tudo: cancelar um request preso não pode travar o event loop
+# (incidente de 2026-11-12). Ver core/asgiref_patch.py.
+asgiref_patch.aplicar()
+
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application

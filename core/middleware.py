@@ -6,6 +6,7 @@ página pública passa a ser uma decisão explícita neste arquivo.
 """
 from django.conf import settings
 from django.contrib.auth.views import redirect_to_login
+from django.http import JsonResponse
 
 # Rotas com autenticação própria (JWT no DRF, login do admin) ou arquivos.
 PREFIXOS_PUBLICOS = (
@@ -47,3 +48,23 @@ class LoginObrigatorioMiddleware:
         if request.resolver_match.view_name in ROTAS_PUBLICAS:
             return None
         return redirect_to_login(request.get_full_path())
+
+
+CAMINHO_HEALTHZ = '/healthz/'
+
+
+class HealthCheckMiddleware:
+    """Responde `/healthz/` antes de qualquer outro middleware.
+
+    Usado pelo healthcheck do Docker (autoheal) e pelo deploy. Fica no topo da
+    pilha para não depender de ALLOWED_HOSTS (o container chama 127.0.0.1),
+    sessão, login ou banco: só confirma que o servidor ainda processa requests.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path == CAMINHO_HEALTHZ:
+            return JsonResponse({'status': 'ok'})
+        return self.get_response(request)

@@ -69,8 +69,8 @@ jobs:
 
             APP_DIR="/root/credfacil"
             SERVICE="web"
-            HEALTH_URL="http://localhost:8010/"
-            HEALTHCHECK_TRIES=180   # 180 * 2s = 6min (collectstatic é lento)
+            HEALTH_URL="http://localhost:8010/healthz/"
+            HEALTHCHECK_TRIES=60    # 60 * 2s = 2min (boot sem migrate/collectstatic)
 
             cd "$APP_DIR"
 
@@ -101,23 +101,36 @@ jobs:
             echo "==> [6] merge ok ($(git rev-parse --short HEAD))"
 
             if [ "$NEEDS_REBUILD" = "true" ]; then
-              echo "==> [7a] rebuild da imagem $SERVICE"
+              echo "==> [7] rebuild da imagem $SERVICE"
               docker compose build "$SERVICE"
-              docker compose up -d --no-deps "$SERVICE"
+            fi
+
+            # Migrate/collectstatic num container avulso, com o site antigo ainda
+            # no ar (collectstatic leva ~2min). autoheal=false: o container avulso
+            # herda o healthcheck do serviço e não pode ser reiniciado no meio.
+            echo "==> [8] migrate + collectstatic (site segue no ar)"
+            # DB_*_TIMEOUT=0: um ALTER TABLE longo não pode ser cortado no meio.
+            docker compose run --rm --no-deps -T -l autoheal=false \
+              -e DB_READ_TIMEOUT=0 -e DB_WRITE_TIMEOUT=0 "$SERVICE" \
+              sh -c "python3 manage.py migrate --noinput && python3 manage.py collectstatic --noinput"
+
+            if [ "$NEEDS_REBUILD" = "true" ]; then
+              echo "==> [9a] recriando containers alterados (web, autoheal)"
+              docker compose up -d
             else
-              echo "==> [7b] restart do $SERVICE"
+              echo "==> [9b] restart do $SERVICE"
               docker compose restart "$SERVICE"
             fi
-            echo "==> [8] swap de container ok"
+            echo "==> [10] swap de container ok"
 
-            echo "==> [9] Healthcheck (até $((HEALTHCHECK_TRIES * 2))s — boot inclui collectstatic)"
+            echo "==> [11] Healthcheck (até $((HEALTHCHECK_TRIES * 2))s)"
             ok=0
             i=0
             while [ "$i" -lt "$HEALTHCHECK_TRIES" ]; do
               i=$((i + 1))
               code=$(curl -s -o /dev/null --max-time 5 -w '%{http_code}' "$HEALTH_URL" 2>/dev/null || true)
-              if [ "$code" = "200" ] || [ "$code" = "301" ] || [ "$code" = "302" ]; then
-                echo "==> [10] OK ($code) na tentativa $i (~$((i * 2))s)"
+              if [ "$code" = "200" ]; then
+                echo "==> [12] OK ($code) na tentativa $i (~$((i * 2))s)"
                 ok=1
                 break
               fi

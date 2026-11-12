@@ -65,6 +65,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'core.middleware.HealthCheckMiddleware',  # primeiro: liveness sem host/sessão/banco
     'django.middleware.security.SecurityMiddleware',
     "whitenoise.middleware.WhiteNoiseMiddleware",
     'corsheaders.middleware.CorsMiddleware',
@@ -95,10 +96,22 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("redis", 6379)],
+            # Timeouts evitam conexão "zumbi" com o Redis travando envios sem fim
+            # (incidente de 2026-11-12). socket_timeout > brpop_timeout (5s) do
+            # channels_redis, para não derrubar a leitura bloqueante do consumer.
+            "hosts": [{
+                "address": "redis://redis:6379",
+                "socket_connect_timeout": 3,
+                "socket_timeout": 15,
+                "socket_keepalive": True,
+                "health_check_interval": 30,
+            }],
         },
     },
 }
+
+# Envio WS de notificações: timeout por envio (s).
+NOTIFICACAO_WS_TIMEOUT = float(os.environ.get("NOTIFICACAO_WS_TIMEOUT", "3"))
 
 # Tell select2 which cache configuration to use:
 SELECT2_CACHE_BACKEND = "select2"
@@ -213,6 +226,16 @@ SPECTACULAR_SETTINGS = {
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+def _timeouts_mysql() -> dict:
+    """Timeouts do cliente MySQL vindos do ambiente; valor 0 omite a opção."""
+    padroes = {'connect_timeout': '10', 'read_timeout': '120', 'write_timeout': '120'}
+    valores = {
+        opcao: int(os.environ.get(f"DB_{opcao.upper()}", padrao))
+        for opcao, padrao in padroes.items()
+    }
+    return {opcao: valor for opcao, valor in valores.items() if valor > 0}
+
+
 DATABASES = {
     'sqlite': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -225,6 +248,10 @@ DATABASES = {
         'PASSWORD': os.environ.get("DB_PASSWORD"),
         'HOST': os.environ.get("DB_HOST"),
         'PORT': os.environ.get("DB_PORT"),
+        # Nenhuma query pode esperar para sempre (incidente de 2026-11-12).
+        # Valores em segundos; 0 desliga (o deploy usa 0 no `migrate`, para um
+        # ALTER TABLE longo não ser cortado no meio).
+        'OPTIONS': _timeouts_mysql(),
     },
 }
 

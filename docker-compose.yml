@@ -7,17 +7,38 @@ services:
       - .:/app
       - ./static:/app/static
       - ./mediafiles:/app/mediafiles
-    command: >
-      sh -c "python3 manage.py migrate &&
-             python3 manage.py collectstatic --noinput &&
-             daphne -b 0.0.0.0 -p 8010 core.asgi:application"
+    # migrate/collectstatic rodam no deploy (deploy.yml), não no boot: assim um
+    # restart sobe em segundos em vez de ~2 min. Ver gunicorn.conf.py.
+    command: gunicorn core.asgi:application -c gunicorn.conf.py
     restart: always
+    stop_grace_period: 35s  # > graceful_timeout do gunicorn (30s)
     ports:
       - '8010:8010'
     networks:
       - mynetwork
     depends_on:
       - redis
+    labels:
+      - autoheal=true
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/healthz/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Reinicia containers com label autoheal=true que fiquem "unhealthy"
+  # (rede de segurança além do watchdog de workers do gunicorn).
+  autoheal:
+    image: willfarrell/autoheal:1.2.0
+    restart: always
+    network_mode: none
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=10
+      - AUTOHEAL_START_PERIOD=120
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   redis:
     image: redis:latest
