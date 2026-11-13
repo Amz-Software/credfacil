@@ -110,9 +110,13 @@ jobs:
             # herda o healthcheck do serviço e não pode ser reiniciado no meio.
             echo "==> [8] migrate + collectstatic (site segue no ar)"
             # DB_*_TIMEOUT=0: um ALTER TABLE longo não pode ser cortado no meio.
+            # </dev/null: este script chega ao bash pelo stdin (heredoc); sem
+            # isso o `compose run` consome o resto do script e o deploy termina
+            # "com sucesso" sem reiniciar nada (aconteceu em 2026-11-13).
             docker compose run --rm --no-deps -T -l autoheal=false \
               -e DB_READ_TIMEOUT=0 -e DB_WRITE_TIMEOUT=0 "$SERVICE" \
-              sh -c "python3 manage.py migrate --noinput && python3 manage.py collectstatic --noinput"
+              sh -c "python3 manage.py migrate --noinput && python3 manage.py collectstatic --noinput" \
+              </dev/null
 
             if [ "$NEEDS_REBUILD" = "true" ]; then
               echo "==> [9a] recriando containers alterados (web, autoheal)"
