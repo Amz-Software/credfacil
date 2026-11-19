@@ -58,3 +58,16 @@ class SolicitacoesDeCreditoTelaTests(TemplateLimpoMixin, BackofficeTestCase):
 
     def test_template_sem_css_js_inline_nem_hex(self):
         self.assert_template_limpo('vendas/templates/cliente/cliente_list.html')
+
+
+class DetalheDaLojaTelaTests(TemplateLimpoMixin, BackofficeTestCase):
+    def test_kpis_por_componente_e_js_em_arquivo(self):
+        html = self.html('vendas:loja_detail', self.loja.pk)
+
+        self.assertEqual(html.count('kpi-card'), 3)
+        self.assertTem('js/loja-detail.js', html)
+        self.assertTem(f'data-loja-id="{self.loja.pk}"', html)
+        self.assertTem('Nenhuma venda encontrada', html)
+
+    def test_template_sem_css_js_inline_nem_hex(self):
+        self.assert_template_limpo('vendas/templates/loja/loja_detail.html')
