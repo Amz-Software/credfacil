@@ -613,7 +613,6 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
                 form_informacao.add_error('nome_pessoal', 'Nome de Informações Pessoais não pode ser igual ao Nome Adicional.')
 
             if conflito:
-                print("❌ CONDIÇÃO ATINGIDA: Informações Pessoais e Contato Adicional não podem ser iguais.")
                 messages.error(request, "❌ Informações Pessoais e Contato Adicional não podem ser iguais.")
                 return self.form_invalid(form_cliente)
 
@@ -651,7 +650,7 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
             try:
                 loja = Loja.objects.get(id=loja_id)
             except Loja.DoesNotExist:
-                print(f"❌ Loja com ID {loja_id} não encontrada")
+                logger.warning("Loja %s não encontrada ao salvar a solicitação", loja_id)
                 return self.form_invalid(form_cliente)
 
             analise = form_analise_credito.save(commit=False)
@@ -660,18 +659,11 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
             analise.criado_por = request.user
             analise.modificado_por = request.user
             analise.save(user=request.user)
-            print("✅ Análise de crédito salva")
 
             messages.success(request, "✅ Soliticitação cadastrado com sucesso")
             return redirect(self.success_url)
 
         else:
-            print("❌ Um ou mais formulários são inválidos:")
-            print("form_cliente errors:", form_cliente.errors)
-            print("form_adicional errors:", form_adicional.errors)
-            print("form_informacao errors:", form_informacao.errors)
-            print("form_comprovantes errors:", form_comprovantes.errors)
-            print("form_analise_credito errors:", form_analise_credito.errors)
             
             for form in [form_cliente, form_adicional, form_informacao, form_comprovantes, form_analise_credito]:   
                 for field, errors in form.errors.items():
@@ -828,7 +820,6 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
                 form_informacao.add_error('nome_pessoal', 'Nome de Informações Pessoais não pode ser igual ao Nome Adicional.')
 
             if conflito:
-                print("❌ CONDIÇÃO ATINGIDA: Informações Pessoais e Contato Adicional não podem ser iguais.")
                 messages.error(request, "❌ Informações Pessoais e Contato Adicional não podem ser iguais.")
                 return self.form_invalid(form_cliente)
 
@@ -2103,7 +2094,6 @@ class LojaUpdateView(PermissionRequiredMixin, UpdateView):
     def form_invalid(self, form):
         # Adiciona mensagem de erro se o formulário for inválido
         if form.errors:
-            print(form.errors)
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(self.request, f"Erro no campo {field}: {error}")
@@ -2285,7 +2275,6 @@ def gerar_qrcode_pix(chave, valor, txid, nome_loja, cidade_loja, descricao=None)
         pix.set_description(descricao[:30])
 
     payload = str(pix)
-    print("Payload Pix:", payload)
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
