@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% load static iam_tags %}
 {% block title %}
-Tipos
+Tipos de Produto
 {% endblock title %}
 
 {% block content %}
 
 <div class="container-xxl flex-grow-1 container-p-y">
-  {% include "components/page_header.html" with title="Tipos" icon="bx bx-category" subtitle="Catálogo de tipos de produtos" %}
+  {% include "components/page_header.html" with title="Tipos de Produto" icon="bx bx-category" subtitle="Catálogo de tipos de produtos" %}
 
   {% include "components/card_table_open.html" with title="Tipos" icon="bx bx-category" count=page_obj.paginator.count %}
     <div class="d-flex justify-content-end mb-3">

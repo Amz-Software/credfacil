@@ -378,3 +378,48 @@ class SemDepuracaoNoFrontTests(TestCase):
         ]
 
         self.assertEqual(com_nativo, [])
+
+
+ITEM_DO_MENU_COM_ROTULO = re.compile(r'"label":\s*"([^"]+)",\s*\n\s*"url_name":\s*"([\w:-]+)"')
+# Telas cujo template pertence a outra frente de trabalho (ainda "Editar Perfil").
+TITULOS_PENDENTES = {'accounts:my_profile_update'}
+
+
+class TitulosTests(BackofficeTestCase):
+    def test_titulo_de_cada_tela_do_menu_e_o_nome_do_menu(self):
+        fonte = (BASE_DIR / 'core' / 'context_processors.py').read_text(encoding='utf-8')
+        itens = ITEM_DO_MENU_COM_ROTULO.findall(fonte)
+        self.assertGreater(len(itens), 15)
+
+        for rotulo, nome in itens:
+            if nome in TITULOS_PENDENTES or nome.startswith('crm:'):
+                continue
+            with self.subTest(rota=nome):
+                html = self.html(nome)
+                titulo = ' '.join(re.search(r'<title>(.*?)</title>', html, re.S).group(1).split())
+                self.assertEqual(titulo, f'{rotulo} · IPIX')
+
+
+class IconesETabelasTests(TestCase):
+    def test_nenhum_template_usa_bootstrap_icons(self):
+        com_bi = [
+            str(caminho.relative_to(BASE_DIR))
+            for caminho in BASE_DIR.rglob('*.html')
+            if PASTAS_IGNORADAS.isdisjoint(caminho.relative_to(BASE_DIR).parts)
+            and re.search(r'class="bi |bootstrap-icons', caminho.read_text(encoding='utf-8', errors='ignore'))
+        ]
+
+        self.assertEqual(com_bi, [])
+
+    def test_tabelas_de_tela_ficam_em_table_responsive(self):
+        impressao = re.compile(r'pdf|folha|relatorio|contrato|carne|report|print|admin/')
+        sem_wrapper = []
+        for caminho in BASE_DIR.rglob('*.html'):
+            relativo = str(caminho.relative_to(BASE_DIR))
+            if not PASTAS_IGNORADAS.isdisjoint(caminho.relative_to(BASE_DIR).parts) or impressao.search(relativo):
+                continue
+            texto = caminho.read_text(encoding='utf-8', errors='ignore')
+            if '<table' in texto and 'table-responsive' not in texto and 'card_table_open' not in texto:
+                sem_wrapper.append(relativo)
+
+        self.assertEqual(sem_wrapper, [])

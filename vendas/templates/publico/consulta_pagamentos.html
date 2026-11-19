@@ -90,7 +90,7 @@
                   <li><strong>Azul:</strong> Quitado</li>
                 </ul>
               "
-            ><i class="bi bi-info-circle"></i></button>
+            ><i class="bx bx-info-circle"></i></button>
           </div>
           <div class="card-body p-0">
             <div class="table-responsive">
@@ -128,6 +128,8 @@
                         {% endif %}
                       </td>
                     </tr>
+                  {% empty %}
+                    {% include "components/empty_state.html" with colspan=5 message="Nenhum pagamento encontrado" icon="bx bx-search" %}
                   {% endfor %}
                 </tbody>
               </table>

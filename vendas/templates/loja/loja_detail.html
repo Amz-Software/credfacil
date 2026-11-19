@@ -558,6 +558,8 @@ Detalhes da Loja
                     </a>
                   </td>
                 </tr>
+              {% empty %}
+                {% include "components/empty_state.html" with colspan=5 message="Nenhum repasse registrado" icon="bx bx-transfer" %}
               {% endfor %}
             </tbody>
           </table>

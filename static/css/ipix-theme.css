@@ -316,6 +316,14 @@ a:hover { color: var(--bs-link-hover-color); }
 .ipix-hero .ipix-hero-title { color: var(--ipix-on-yellow); font-weight: 700; }
 .ipix-hero .ipix-hero-subtitle { color: rgba(43, 44, 64, .85); }
 
+/* Estado vazio (templates/components/empty_state.html) */
+.empty-state-icon {
+  font-size: 2.5rem;
+  opacity: .35;
+  display: block;
+  margin-bottom: .5rem;
+}
+
 /* Cantos de cartão levemente mais suaves para um visual mais limpo */
 .card { border-radius: var(--ipix-radius); }
 

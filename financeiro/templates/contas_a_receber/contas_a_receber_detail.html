@@ -537,6 +537,8 @@
                         {% endif %}
                       </td>
                     </tr>
+                  {% empty %}
+                    {% include "components/empty_state.html" with colspan=8 message="Nenhuma parcela cadastrada" icon="bx bx-list-check" %}
                   {% endfor %}
                 </tbody>
                 <tfoot class="table-light fw-bold">
