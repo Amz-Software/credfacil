@@ -77,6 +77,12 @@ from vendas.models import (
 from produtos.models import Parcelamento, Produto, Marca
 from estoque.models import EstoqueImei
 from accounts.models import User
+from vendas.services import ErroDeNegocio
+from vendas.services.erros import PROIBIDO
+from vendas.services import analise as servico_analise
+from vendas.services.kpis import contar_por_status
+from vendas.services.lojas import replicar_qr_code_aplicativo, status_repasses_por_loja
+from vendas.services.venda import gerar_venda_da_analise
 
 from .pagination import SolicitacaoPagination
 from .permissions import LojaPermission, SolicitacaoCreditoPermission, ProdutoPermission, VendaPermission, PreAnaliseRapidaPermission
@@ -110,6 +116,10 @@ from rest_framework import mixins
 from rest_framework import filters
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from drf_spectacular.utils import extend_schema, extend_schema_view
+
+
+def _resposta_de_erro(erro: ErroDeNegocio) -> Response:
+    return Response({"detail": erro.mensagem}, status=erro.status_http)
 
 
 @api_view(["GET"])
@@ -280,34 +290,6 @@ def buscar_lojas_by_username(request):
 
 
 
-def calcular_data_primeira_parcela(data_pagamento_str):
-    hoje = timezone.now().date()
-    dia_escolhido = int(data_pagamento_str)
-    max_dias = 30
-    ano, mes = hoje.year, hoje.month
-
-    melhor_data = None
-    maior_diferenca = -1
-
-    for i in range(3):
-        novo_mes = mes + i
-        novo_ano = ano + (novo_mes - 1) // 12
-        novo_mes = ((novo_mes - 1) % 12) + 1
-
-        ultimo_dia_mes = calendar.monthrange(novo_ano, novo_mes)[1]
-        dia_real = min(dia_escolhido, ultimo_dia_mes)
-
-        data_candidata = date(novo_ano, novo_mes, dia_real)
-        dias_ate_parcela = (data_candidata - hoje).days
-
-        if 0 < dias_ate_parcela <= max_dias:
-            if dias_ate_parcela > maior_diferenca:
-                melhor_data = data_candidata
-                maior_diferenca = dias_ate_parcela
-
-    return melhor_data
-
-
 def gerar_qrcode_instalacao(cliente_id, loja_id=None, device_id=None):
     """
     Gera um QR code contendo dados de instalação do app.
@@ -355,30 +337,6 @@ def gerar_qrcode_instalacao(cliente_id, loja_id=None, device_id=None):
     qr_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
     
     return qr_base64, codigo_instalacao
-
-
-def criar_parcelas(pagamento, loja):
-    Parcela.objects.filter(pagamento=pagamento).delete()
-    dia = pagamento.data_primeira_parcela.day
-
-    for n in range(1, pagamento.parcelas + 1):
-        month_offset = pagamento.data_primeira_parcela.month - 1 + (n - 1)
-        ano = pagamento.data_primeira_parcela.year + month_offset // 12
-        mes = month_offset % 12 + 1
-
-        ultimo = calendar.monthrange(ano, mes)[1]
-        venc_dia = min(dia, ultimo)
-        data_venc = date(ano, mes, venc_dia)
-
-        Parcela.objects.create(
-            loja=loja,
-            pagamento=pagamento,
-            numero_parcela=n,
-            valor=pagamento.valor_parcela,
-            data_vencimento=data_venc,
-            criado_por=pagamento.criado_por,
-            modificado_por=pagamento.modificado_por,
-        )
 
 
 def _avisos_solicitacoes_existentes(
@@ -680,7 +638,15 @@ class LojaViewSet(viewsets.ModelViewSet):
         responses=LojaListSerializer,
     )
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        lojas = list(page if page is not None else queryset)
+        context = {
+            **self.get_serializer_context(),
+            "repasses_status": status_repasses_por_loja(lojas),
+        }
+        data = LojaListSerializer(lojas, many=True, context=context).data
+        return self.get_paginated_response(data) if page is not None else Response(data)
 
     @extend_schema(responses=LojaSerializer)
     def retrieve(self, request, *args, **kwargs):
@@ -813,19 +779,11 @@ class LojaViewSet(viewsets.ModelViewSet):
         if not request.user.has_perm("vendas.change_loja"):
             return Response({"detail": "Sem permissao."}, status=status.HTTP_403_FORBIDDEN)
 
-        if not loja.qr_code_aplicativo or loja.codigo_aplicativo is None:
-            return Response(
-                {"detail": "Loja nao possui QR Code ou codigo do aplicativo configurado."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        lojas = Loja.objects.exclude(id=loja.id)
-        for l in lojas:
-            l.qr_code_aplicativo = loja.qr_code_aplicativo
-            l.codigo_aplicativo = loja.codigo_aplicativo
-            l.save(update_fields=["qr_code_aplicativo", "codigo_aplicativo"])
-
-        return Response({"detail": "QR Code e codigo do aplicativo replicados com sucesso."})
+        try:
+            replicar_qr_code_aplicativo(loja)
+        except ErroDeNegocio as erro:
+            return _resposta_de_erro(erro)
+        return Response({"detail": "QR Code e código do aplicativo replicados com sucesso."})
 
 
 MIN_DIGITOS_BUSCA_CPF = 3
@@ -888,6 +846,12 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
         if getattr(request.user, "loja_id", None):
             lojas_ids.add(request.user.loja_id)
         return lojas_ids
+
+    def _exigir_loja_do_usuario(self, request, cliente):
+        """Usuário com loja principal só age sobre clientes dessa loja."""
+        loja_do_usuario = getattr(request.user, "loja_id", None)
+        if loja_do_usuario and cliente.loja_id != loja_do_usuario:
+            raise ErroDeNegocio("Ação não autorizada para esta loja.", codigo=PROIBIDO)
 
     def _usuario_pode_acessar_cliente(self, request, cliente):
         if request.user.has_perm("vendas.view_all_analise_credito"):
@@ -1180,16 +1144,9 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
                 loja_id = request.session.get("loja_id")
                 analises = AnaliseCreditoCliente.objects.filter(loja_id=loja_id)
 
-        counts = analises.values("status").annotate(total=Count("id"))
-        kpis = {item["status"]: item["total"] for item in counts}
-        
-        # Garantir que todos os status tenham um valor (0 se não houver)
-        for code, _ in AnaliseCreditoCliente.STATUS_CHOICES:
-            kpis.setdefault(code, 0)
-
         return Response(
             {
-                "kpis": kpis,
+                "kpis": contar_por_status(analises),
                 "status_choices": AnaliseCreditoCliente.STATUS_CHOICES,
                 "status_app_choices": AnaliseCreditoCliente.STATUS_APP_CHOICES,
             }
@@ -1673,18 +1630,15 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
     )
     def status_app(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
-        new_status = request.data.get("status_app")
-        analise_credito = cliente.analise_credito
-
-        valid = dict(AnaliseCreditoCliente.STATUS_APP_CHOICES).keys()
-        if new_status in valid:
-            analise_credito.status_aplicativo = new_status
-            analise_credito.save()
-            return Response(
-                {"detail": f"Status do aplicativo atualizado para {analise_credito.get_status_aplicativo_display()}."}
+        try:
+            analise = servico_analise.atualizar_status_aplicativo(
+                cliente.analise_credito, request.data.get("status_app"),
             )
-
-        return Response({"detail": "Status invalido."}, status=400)
+        except ErroDeNegocio as erro:
+            return _resposta_de_erro(erro)
+        return Response(
+            {"detail": f"Status do aplicativo atualizado para {analise.get_status_aplicativo_display()}."}
+        )
 
     @action(detail=True, methods=["post"], url_path="instalar-app")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
@@ -1697,9 +1651,8 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             if cliente.loja_id not in lojas_usuario:
                 return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
-        analise_credito.status_aplicativo = "C"
-        analise_credito.save()
-        return Response({"detail": "Status alterado para Confirmacao Pendente."})
+        servico_analise.marcar_instalacao_pendente(analise_credito)
+        return Response({"detail": "Status alterado para Confirmação Pendente."})
 
     @action(detail=True, methods=["get"], url_path="gerar-qrcode-instalacao")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
@@ -1754,48 +1707,9 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             if cliente.loja_id not in lojas_usuario:
                 return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
-        # Ultimos 4 digitos do IMEI informados pelo vendedor (referencia para o analista).
-        digitos = "".join(filter(str.isdigit, str(request.data.get("imei_ultimos_digitos", ""))))[:4]
-        if digitos:
-            analise_credito.imei_ultimos_digitos_vendedor = digitos
-
-        # Confirmacao da leitura do QR code leva o app para confirmacao pendente.
-        analise_credito.status_aplicativo = "C"
-        analise_credito.save()
-
-        cliente_nome = cliente.nome if cliente else "Cliente"
-        loja = cliente.loja
-
-        verb = f"Vendedor confirmou instalacao do app para cliente {cliente_nome.capitalize()}."
-        description = f"Aguardando analista informar IMEI. Loja: {loja.nome.capitalize()}."
-        if digitos:
-            description += f" IMEI termina em {digitos}."
-
-        usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=["ADMINISTRADOR", "ANALISTA"]).exclude(id=request.user.id)
-        )
-
-        for user in usuarios_para_notificar:
-            notify.send(
-                analise_credito,
-                recipient=user,
-                verb=verb,
-                description=description,
-                target=cliente,
-            )
-
-            ultima_notificacao = user.notifications.unread().order_by("-timestamp").first()
-            if ultima_notificacao:
-                enviar_ws_para_usuario(
-                    usuario=user,
-                    instance=analise_credito,
-                    notification_id=ultima_notificacao.id,
-                    verb=verb,
-                    description=description,
-                    target_url=cliente.get_absolute_url(),
-                    type_notification="analise_credito_cliente",
-                )
-
+        # Últimos 4 dígitos do IMEI informados pelo vendedor (referência para o analista).
+        digitos = servico_analise.digitos_imei(request.data.get("imei_ultimos_digitos"))
+        servico_analise.confirmar_instalacao_vendedor(analise_credito, request.user, digitos=digitos)
         return Response({"detail": "Leitura do QR code confirmada. Aguardando analista informar IMEI."})
 
     @action(detail=True, methods=["post"], url_path="confirmar-app")
@@ -1826,252 +1740,52 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
             if cliente.loja_id not in lojas_usuario:
                 return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
-        # Configuracao inicial pelo vendedor: informa os 4 ultimos digitos do IMEI e confirma.
-        digitos = "".join(filter(str.isdigit, str(request.data.get("imei_ultimos_digitos", ""))))[:4]
-        if len(digitos) != 4:
-            return Response({"detail": "Informe os 4 ultimos digitos do IMEI para confirmar."}, status=400)
-
-        analise.imei_ultimos_digitos_vendedor = digitos
-        analise.icloud_configurado_vendedor = True
-        analise.save()
-
-        cliente_nome = cliente.nome if cliente else "Cliente"
-        loja = cliente.loja
-        verb = f"Vendedor confirmou configuracao inicial para cliente {cliente_nome.capitalize()}"
-        description = f"iPhone da loja {loja.nome.capitalize()}. IMEI termina em {digitos}. Aguardando analista informar IMEI."
-
-        usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=["ANALISTA", "ADMINISTRADOR"]).exclude(id=request.user.id)
-        )
-        for user in usuarios_para_notificar:
-            notify.send(
-                analise,
-                recipient=user,
-                verb=verb,
-                description=description,
-                target=cliente,
-            )
-
-            ultima_notificacao = user.notifications.unread().order_by("-timestamp").first()
-            if ultima_notificacao:
-                enviar_ws_para_usuario(
-                    usuario=user,
-                    instance=analise,
-                    notification_id=ultima_notificacao.id,
-                    verb=verb,
-                    description=description,
-                    target_url=cliente.get_absolute_url(),
-                    type_notification="analise_credito_cliente",
-                )
-
-        return Response({"detail": f"Configuracao iCloud confirmada para {cliente.nome}."})
+        try:
+            servico_analise.configurar_icloud(analise, request.user, request.data.get("imei_ultimos_digitos"))
+        except ErroDeNegocio as erro:
+            return _resposta_de_erro(erro)
+        return Response({"detail": f"Configuração iCloud confirmada para {cliente.nome}."})
 
     @action(detail=True, methods=["post"], url_path="analista-confirm-icloud")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def analista_confirm_icloud(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
-        analise = cliente.analise_credito
-
-        if not request.user.groups.filter(name="ANALISTA").exists():
-            return Response({"detail": "Apenas analistas podem confirmar o iCloud."}, status=403)
-
-        # Validar acesso à loja do cliente
-        if hasattr(request.user, 'loja_id') and request.user.loja_id:
-            if cliente.loja_id != request.user.loja_id:
-                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
-
-        if not analise.icloud_configurado_vendedor:
-            return Response({"detail": "Vendedor ainda nao confirmou a configuracao do iCloud."}, status=400)
-
-        analise.icloud_confirmado_analista = True
-        analise.save()
-
-        cliente_nome = cliente.nome if cliente else "Cliente"
-        loja = cliente.loja
-        verb = f"Analista confirmou configuracao iCloud para cliente {cliente_nome.capitalize()}"
-        description = f"iPhone da loja {loja.nome.capitalize()}. Aguardando IMEI para gerar venda."
-
-        usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=["VENDEDOR", "ADMINISTRADOR", "ANALISTA"]).exclude(id=request.user.id)
-        )
-        for user in usuarios_para_notificar:
-            notify.send(
-                analise,
-                recipient=user,
-                verb=verb,
-                description=description,
-                target=cliente,
-            )
-
-            ultima_notificacao = user.notifications.unread().order_by("-timestamp").first()
-            if ultima_notificacao:
-                enviar_ws_para_usuario(
-                    usuario=user,
-                    instance=analise,
-                    notification_id=ultima_notificacao.id,
-                    verb=verb,
-                    description=description,
-                    target_url=cliente.get_absolute_url(),
-                    type_notification="analise_credito_cliente",
-                )
-
-        return Response({"detail": f"Configuracao iCloud confirmada pelo analista para {cliente.nome}."})
+        try:
+            servico_analise.exigir_analista(request.user, "Apenas analistas podem confirmar o iCloud.")
+            self._exigir_loja_do_usuario(request, cliente)
+            servico_analise.confirmar_icloud_analista(cliente.analise_credito, request.user)
+        except ErroDeNegocio as erro:
+            return _resposta_de_erro(erro)
+        return Response({"detail": f"Configuração iCloud confirmada pelo analista para {cliente.nome}."})
 
     @action(detail=True, methods=["post"], url_path="analista-confirmar-instalacao")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def analista_confirm_installed(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
-        analise_credito = cliente.analise_credito
-
-        if not request.user.groups.filter(name="ANALISTA").exists():
-            return Response({"detail": "Apenas analistas podem confirmar a instalacao."}, status=403)
-        
-        # Validar acesso à loja do cliente
-        if hasattr(request.user, 'loja_id') and request.user.loja_id:
-            if cliente.loja_id != request.user.loja_id:
-                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
-
-        if not analise_credito.imei:
-            return Response({"detail": "IMEI deve estar informado para confirmar a instalacao."}, status=400)
-
-        if analise_credito.status_aplicativo != "C":
-            return Response(
-                {"detail": 'Status do aplicativo deve estar "Aguardando Confirmacao" para confirmar a instalacao.'},
-                status=400,
+        try:
+            servico_analise.exigir_analista(request.user, "Apenas analistas podem confirmar a instalação.")
+            self._exigir_loja_do_usuario(request, cliente)
+            servico_analise.confirmar_instalacao_analista(
+                cliente.analise_credito, request.user, target_url=f"/app/solicitacoes/{cliente.pk}",
             )
-
-        analise_credito.status_aplicativo = "I"
-        analise_credito.save()
-
-        cliente_nome = cliente.nome if cliente else "Cliente"
-        loja = cliente.loja
-        verb = f"Analista confirmou instalacao do app para cliente {cliente_nome.capitalize()}."
-        description = f"IMEI {analise_credito.imei.imei} da loja {loja.nome.capitalize()}. Venda liberada para geracao."
-
-        # O popup do VENDEDOR (event=instalacao_confirmada) e disparado pelo signal
-        # ao detectar status_aplicativo -> 'I'. Aqui notificamos apenas admin/analista.
-        usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=["ADMINISTRADOR", "ANALISTA"]).exclude(id=request.user.id)
-        )
-        for user in usuarios_para_notificar:
-            notify.send(
-                analise_credito,
-                recipient=user,
-                verb=verb,
-                description=description,
-                target=cliente,
-            )
-
-            ultima_notificacao = user.notifications.unread().order_by("-timestamp").first()
-            if ultima_notificacao:
-                enviar_ws_para_usuario(
-                    usuario=user,
-                    instance=analise_credito,
-                    notification_id=ultima_notificacao.id,
-                    verb=verb,
-                    description=description,
-                    target_url=f"/app/solicitacoes/{cliente.pk}",
-                    type_notification="analise_credito_cliente",
-                )
-
-        return Response({"detail": f"Instalacao do app confirmada para {cliente.nome}."})
+        except ErroDeNegocio as erro:
+            return _resposta_de_erro(erro)
+        return Response({"detail": f"Instalação do app confirmada para {cliente.nome}."})
 
     @action(detail=True, methods=["post"], url_path="informar-imei-analise")
     @extend_schema(request=InformarImeiAnaliseInputSerializer, responses={200: OpenApiTypes.OBJECT})
     def informar_imei_analise(self, request, pk=None):
-        if not request.user.groups.filter(name="ANALISTA").exists():
-            return Response({"detail": "Apenas analistas podem informar IMEI."}, status=403)
-
         cliente = Cliente.objects.select_related("analise_credito__produto").get(pk=pk)
-        analise = cliente.analise_credito
-        if not analise:
-            return Response({"detail": "Analise nao encontrada para este cliente."}, status=404)
-
-        if analise.produto.is_iphone:
-            if not analise.icloud_configurado_vendedor:
-                return Response(
-                    {"detail": "So e possivel informar IMEI apos o vendedor confirmar a configuracao inicial."},
-                    status=400,
-                )
-        else:
-            if analise.status_aplicativo != "C":
-                return Response(
-                    {"detail": "So e possivel informar IMEI apos o vendedor confirmar a instalacao do aplicativo."},
-                    status=400,
-                )
-
-        imei_informado = request.data.get("imei_informado")
-        if not imei_informado:
-            return Response({"detail": "IMEI e obrigatorio."}, status=400)
-
-        loja = analise.loja
-        if not loja:
-            return Response({"detail": "Loja nao encontrada para a analise."}, status=400)
-
-        estoque_imei_existente = EstoqueImei.objects.filter(
-            imei=imei_informado,
-            produto=analise.produto,
-            loja=loja,
-            vendido=False,
-            cancelado=False,
-        ).first()
-
-        if estoque_imei_existente:
-            analise.imei = estoque_imei_existente
-            analise.imei_informado = imei_informado
-            analise.save()
-        else:
-            try:
-                novo_estoque_imei = EstoqueImei(
-                    produto=analise.produto,
-                    imei=imei_informado,
-                    loja=loja,
-                    vendido=False,
-                    aplicativo_instalado=False,
-                    cancelado=False,
-                )
-                novo_estoque_imei.save(user=request.user)
-                analise.imei = novo_estoque_imei
-                analise.imei_informado = imei_informado
-                analise.save()
-            except Exception as exc:
-                return Response({"detail": f"Erro ao criar IMEI: {exc}"}, status=400)
-
-        if not analise.produto.is_iphone:
-            analise.status_aplicativo = "I"
-            analise.save()
-
-        imei_info = f"Imei {imei_informado}" if imei_informado else "IMEI nao informado"
-        verb = f"Analista informou IMEI para cliente {cliente.nome.capitalize()}."
-        description = f"{imei_info} da loja {loja.nome.capitalize()}. Venda liberada para geracao pelo vendedor."
-
-        usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=["ADMINISTRADOR", "ANALISTA"]).exclude(id=request.user.id)
-        )
-        for user in usuarios_para_notificar:
-            notify.send(
-                analise,
-                recipient=user,
-                verb=verb,
-                description=description,
-                target=cliente,
-            )
-
-            ultima_notificacao = user.notifications.unread().order_by("-timestamp").first()
-            if ultima_notificacao:
-                enviar_ws_para_usuario(
-                    usuario=user,
-                    instance=analise,
-                    notification_id=ultima_notificacao.id,
-                    verb=verb,
-                    description=description,
-                    target_url=cliente.get_absolute_url(),
-                    type_notification="analise_credito_cliente",
-                )
-
+        imei_informado = (request.data.get("imei_informado") or "").strip()
+        try:
+            servico_analise.exigir_analista(request.user, "Apenas analistas podem informar IMEI.")
+            analise = servico_analise.analise_do_cliente(cliente)
+            servico_analise.informar_imei(analise, request.user, imei_informado, analise.loja)
+        except ErroDeNegocio as erro:
+            return _resposta_de_erro(erro)
         return Response(
             {
-                "detail": "IMEI informado com sucesso. Venda liberada para geracao.",
+                "detail": "IMEI informado com sucesso. Venda liberada para geração.",
                 "cliente_id": cliente.id,
                 "analise_id": analise.id,
                 "imei_informado": imei_informado,
@@ -2082,204 +1796,40 @@ class SolicitacaoCreditoViewSet(viewsets.ViewSet):
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def aprovar(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
-        analise = cliente.analise_credito
-
-        analise.aprovar(user=request.user)
-        analise.modificado_por = request.user
-        analise.modificado_em = timezone.now()
-        analise.save()
-        return Response({"detail": "Analise de credito aprovada com sucesso."})
+        servico_analise.aprovar_analise(cliente.analise_credito, request.user)
+        return Response({"detail": "Análise de crédito aprovada com sucesso."})
 
     @action(detail=True, methods=["post"], url_path="reprovar")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def reprovar(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
-        analise = cliente.analise_credito
-        analise.reprovar()
-        analise.modificado_por = request.user
-        analise.modificado_em = timezone.now()
-        analise.save()
-        return Response({"detail": "Analise de credito reprovada com sucesso."})
+        servico_analise.reprovar_analise(cliente.analise_credito, request.user)
+        return Response({"detail": "Análise de crédito reprovada com sucesso."})
 
     @action(detail=True, methods=["post"], url_path="cancelar")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def cancelar(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
-        analise = cliente.analise_credito
-        with transaction.atomic():
-            analise.cancelar()
-            analise.modificado_por = request.user
-            analise.modificado_em = timezone.now()
-            analise.save()
-
-            venda = getattr(analise, "venda", None)
-            if venda and not venda.is_deleted:
-                venda.is_deleted = True
-                venda.save(user=request.user)
-
-            if analise.imei:
-                analise.imei.vendido = False
-                analise.imei.save(user=request.user)
-        return Response({"detail": "Analise de credito cancelada com sucesso."})
+        servico_analise.cancelar_analise(cliente.analise_credito, request.user, desfazer_venda=True)
+        return Response({"detail": "Análise de crédito cancelada com sucesso."})
 
     @action(detail=True, methods=["post"], url_path="gerar-venda")
     @extend_schema(request=None, responses=VendaSerializer)
     def gerar_venda(self, request, pk=None):
         cliente = Cliente.objects.get(pk=pk)
-        
+
         if not request.user.has_perm("vendas.view_all_analise_credito"):
             lojas_usuario = self._lojas_usuario_ids(request)
             if cliente.loja_id not in lojas_usuario:
-                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
-        
-        credfacil = Loja.objects.filter(credfacil=True).first()
-        
-        if not credfacil:
-            return Response({"detail": "Loja Credfacil nao encontrada."}, status=400)
+                return Response({"detail": "Ação não autorizada para esta loja."}, status=403)
 
-        cpf_limpo = re.sub(r"\D", "", cliente.cpf or "")
-        vendas_com_poucas_parcelas = (
-            Venda.objects.filter(cliente__cpf=cpf_limpo, is_deleted=False)
-            .annotate(
-                parcelas_pagas=Count(
-                    "pagamentos__parcelas_pagamento",
-                    filter=Q(
-                        pagamentos__tipo_pagamento__nome__iexact="IPX",
-                        pagamentos__parcelas_pagamento__pago=True,
-                    ),
-                    distinct=True,
-                )
-            )
-            .filter(parcelas_pagas__lt=3)
-        )
-
-        if vendas_com_poucas_parcelas.exists():
-            return Response(
-                {
-                    "detail": "Para gerar uma nova venda, cada venda anterior do mesmo CPF deve ter pelo menos 3 parcelas pagas."
-                },
-                status=400,
-            )
-
-        analise = cliente.analise_credito
-        if not analise or analise.status != "A":
-            return Response({"detail": "Analise de credito nao aprovada para o cliente."}, status=400)
-        if not analise.imei:
-            return Response({"detail": "Nenhum IMEI associado a analise de credito."}, status=400)
-        if not getattr(analise.produto, "is_iphone", False) and analise.status_aplicativo != "I":
-            return Response({"detail": "Aplicativo nao esta instalado."}, status=400)
-        if analise.venda:
-            return Response({"detail": "Essa solicitacao ja foi convertida em venda."}, status=400)
-
-        # Caixa aberto é opcional: associa um caixa aberto se houver, senão a venda fica sem caixa.
-        caixa = Caixa.objects.filter(loja=analise.loja, data_fechamento__isnull=True).first()
-
-        produto = analise.produto
-        imei = analise.imei
-
-        if ProdutoVenda.objects.filter(imei=imei.imei, venda__is_deleted=False).exists():
-            return Response(
-                {"detail": f"IMEI {imei.imei} ja esta sendo usado em outra venda."}, status=400
-            )
+        if not Loja.objects.filter(credfacil=True).exists():
+            return Response({"detail": "Loja CredFacil não encontrada."}, status=400)
 
         try:
-            with transaction.atomic():
-                parcelas = int(analise.numero_parcelas)
-
-                # Valor base obrigatório
-                if not produto.valor:
-                    return Response(
-                        {"detail": "Produto sem valor base cadastrado."},
-                        status=400,
-                    )
-
-                # Entrada informada pelo operador (deve ser >= entrada_cliente do produto)
-                entrada_informada = analise.entrada_informada
-                if entrada_informada is None:
-                    entrada_informada = produto.entrada_cliente
-                if entrada_informada < produto.entrada_cliente:
-                    return Response(
-                        {
-                            "detail": (
-                                f"Entrada informada (R$ {entrada_informada}) nao pode ser menor "
-                                f"que a entrada minima do produto (R$ {produto.entrada_cliente})."
-                            )
-                        },
-                        status=400,
-                    )
-
-                # Buscar percentual de juros na tabela Parcelamento vinculada à marca do produto
-                marca = produto.marca
-                parcelamento = Parcelamento.objects.filter(
-                    marca=marca, qtd_vezes=parcelas
-                ).first()
-                if not parcelamento:
-                    marca_nome = marca.nome if marca else "sem marca"
-                    return Response(
-                        {"detail": f"Nenhum parcelamento cadastrado para {parcelas}x na marca '{marca_nome}'."},
-                        status=400,
-                    )
-
-                porcentagem_juros = parcelamento.porcentagem_juros
-                porcentagem_desconto = parcelamento.porcentagem_desconto
-                valor_financiado = produto.valor - entrada_informada
-                valor_credfacil = valor_financiado + (valor_financiado * porcentagem_juros / 100)
-                repasse_logista = produto.valor - entrada_informada
-                valor_entrada = entrada_informada
-
-                venda = Venda.objects.create(
-                    loja=analise.loja,
-                    cliente=cliente,
-                    vendedor=request.user,
-                    caixa=caixa,
-                    repasse_logista=repasse_logista,
-                    observacao=analise.observacao,
-                    criado_por=request.user,
-                    modificado_por=request.user,
-                    criado_em=timezone.now(),
-                    modificado_em=timezone.now(),
-                )
-                analise.venda = venda
-                analise.save()
-
-                ProdutoVenda.objects.create(
-                    loja=analise.loja,
-                    venda=venda,
-                    produto=produto,
-                    imei=imei.imei,
-                    valor_unitario=valor_credfacil,
-                    quantidade=1,
-                    valor_desconto=0,
-                )
-
-                tipo_entrada = TipoPagamento.objects.get(nome__iexact="ENTRADA")
-                tipo_credfacil = TipoPagamento.objects.get(nome__iexact="IPX")
-
-                pagamento_entrada = Pagamento.objects.create(
-                    loja=analise.loja,
-                    venda=venda,
-                    tipo_pagamento=tipo_entrada,
-                    valor=valor_entrada,
-                    parcelas=1,
-                    data_primeira_parcela=timezone.now().date(),
-                )
-
-                data1 = calcular_data_primeira_parcela(analise.data_pagamento)
-                pagamento_credfacil = Pagamento.objects.create(
-                    loja=analise.loja,
-                    venda=venda,
-                    tipo_pagamento=tipo_credfacil,
-                    valor=valor_credfacil,
-                    parcelas=parcelas,
-                    data_primeira_parcela=data1,
-                    porcentagem_desconto=porcentagem_desconto,
-                )
-
-                criar_parcelas(pagamento_entrada, analise.loja)
-                criar_parcelas(pagamento_credfacil, analise.loja)
-        except Exception as exc:
-            return Response({"detail": f"Erro ao processar a venda: {exc}"}, status=400)
-
+            venda = gerar_venda_da_analise(cliente, request.user, bloquear_imei_de_venda_cancelada=False)
+        except ErroDeNegocio as erro:
+            return _resposta_de_erro(erro)
         return Response(VendaSerializer(venda).data, status=201)
 
 
