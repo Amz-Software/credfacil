@@ -287,8 +287,11 @@ def painel(conversa: Conversa, usuario) -> dict:
     """Dados dos clientes vinculados que o usuário pode ver; vendas só com view_venda."""
     from vendas.models import AnaliseCreditoCliente, Venda
 
+    from crm.services import pagamentos
+
     lojas = _lojas_do_usuario(usuario)
     ve_vendas = usuario.has_perm('vendas.view_venda')
+    ve_pagamentos = usuario.has_perm('vendas.view_pagamento')
     resultado = []
     for cliente in conversa.clientes.all():
         if not pode_ver_cliente(usuario, cliente, lojas):
@@ -306,9 +309,46 @@ def painel(conversa: Conversa, usuario) -> dict:
             'vinculado': True, 'solicitacoes': solicitacoes[:MAX_SOLICITACOES_PAINEL],
             'vendas': [{'id': v.pk, 'data': v.data_venda, 'valor_total': v.pagamentos_valor_total,
                         'cancelada': v.is_deleted} for v in vendas],
+            'pagamentos': pagamentos.resumo_do_cliente(cliente) if ve_pagamentos else [],
         })
     sugeridos = [{'id': c.pk, 'nome': c.nome, 'telefone': c.telefone} for c in clientes_sugeridos(conversa, usuario)]
     return {'clientes': resultado, 'sugeridos': sugeridos}
+
+
+MIN_BUSCA_CLIENTE = 3
+MAX_BUSCA_CLIENTE = 10
+
+
+def buscar_clientes(usuario, termo: str) -> list[dict]:
+    """Busca por CPF (dígitos) ou nome, no mesmo escopo de lojas do resto do sistema."""
+    from vendas.models import Cliente
+
+    termo = (termo or '').strip()
+    digitos = ''.join(c for c in termo if c.isdigit())
+    if not usuario.has_perm('vendas.view_cliente'):
+        return []
+    if len(digitos) >= MIN_BUSCA_CLIENTE:
+        clientes = Cliente.objects.filter(cpf__contains=digitos)
+    elif len(termo) >= MIN_BUSCA_CLIENTE:
+        clientes = Cliente.objects.filter(nome__icontains=termo)
+    else:
+        return []
+    if not _ve_todas_as_lojas(usuario):
+        clientes = clientes.filter(loja_id__in=_lojas_do_usuario(usuario))
+    return [{'id': c.pk, 'nome': c.nome, 'cpf': mascarar_cpf(c.cpf), 'telefone': c.telefone}
+            for c in clientes.order_by('nome')[:MAX_BUSCA_CLIENTE]]
+
+
+def texto_resumo_pagamentos(usuario, cliente_id: int) -> str:
+    from crm.services import pagamentos
+    from vendas.models import Cliente
+
+    cliente = Cliente.objects.filter(pk=cliente_id).first()
+    if cliente is None or not pode_ver_cliente(usuario, cliente):
+        raise ConflitoCRM('Cliente não encontrado ou fora das suas lojas.')
+    if not usuario.has_perm('vendas.view_pagamento'):
+        raise ConflitoCRM('Você não tem permissão para ver pagamentos.')
+    return pagamentos.texto_resumo(cliente.nome, pagamentos.resumo_do_cliente(cliente))
 
 
 @transaction.atomic

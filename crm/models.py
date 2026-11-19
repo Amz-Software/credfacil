@@ -54,6 +54,8 @@ class Conversa(models.Model):
 
     processando = models.BooleanField(default=False)
     processando_desde = models.DateTimeField(null=True, blank=True)
+    # Estado livre do atendimento automático (etapa do menu de autoatendimento, tentativas).
+    contexto = models.JSONField(default=dict, blank=True)
 
     etiquetas = models.ManyToManyField(Etiqueta, blank=True, related_name='conversas')
 
@@ -298,6 +300,13 @@ class ConfiguracaoCRM(models.Model):
     )
     retorno_automatico_horas = models.PositiveSmallIntegerField(default=24)
     nome_empresa = models.CharField(max_length=80, default='IPX')
+    autoatendimento_ativo = models.BooleanField(
+        default=True, help_text='Menu no WhatsApp: o cliente consulta as parcelas pelo CPF e data de nascimento.',
+    )
+    url_publica = models.CharField(
+        max_length=200, blank=True, default='',
+        help_text='Endereço público do sistema, usado no link de pagamento (ex.: https://credfacil.mobconnects.com).',
+    )
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:

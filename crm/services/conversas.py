@@ -223,17 +223,20 @@ def _tratar_lote(conversa_id: int, pendentes: list[Mensagem]) -> None:
     conversa = Conversa.objects.get(pk=conversa_id)
     avaliar_retorno_automatico(conversa)
     if conversa.modo == Conversa.Modo.AUTOMATICO:
-        atendimento_automatico(conversa)
+        atendimento_automatico(conversa, pendentes)
 
 
-def atendimento_automatico(conversa: Conversa) -> None:
-    """Sem robô de IA: boas-vindas (no máximo 1 a cada 24 h) e passa para a equipe.
+def atendimento_automatico(conversa: Conversa, pendentes: list[Mensagem] | None = None) -> None:
+    """Autoatendimento de pagamentos (se ligado) ou boas-vindas + fila da equipe.
 
     Ponto de extensão para um agente de IA no futuro (arquitetura §7).
     """
-    from crm.services import envio
+    from crm.services import autoatendimento, envio
 
     config = ConfiguracaoCRM.obter()
+    if config.autoatendimento_ativo:
+        autoatendimento.tratar(conversa, pendentes or [])
+        return
     agora = timezone.now()
     enviou = False
     recente = conversa.boas_vindas_em and agora - conversa.boas_vindas_em < INTERVALO_BOAS_VINDAS

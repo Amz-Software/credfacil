@@ -34,6 +34,9 @@ class CrmTestCase(TestCase):
         self.ws = mock.patch('notificacao.utils._despachar')
         self.ws.start()
         self.addCleanup(self.ws.stop)
+        # Os testes antigos cobrem o atendimento sem menu; os de pagamentos ligam o autoatendimento.
+        from crm.models import ConfiguracaoCRM
+        ConfiguracaoCRM.objects.update_or_create(pk=1, defaults={'autoatendimento_ativo': False})
         self.atendente = self.criar_usuario('ana', acessar=True)
         self.outro = self.criar_usuario('bruno', acessar=True)
         self.gestor = self.criar_usuario('carla', acessar=True, gerenciar=True)

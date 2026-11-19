@@ -242,5 +242,12 @@ def abertura_dict(modelo: ModeloAbertura) -> dict:
 class ConfiguracaoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConfiguracaoCRM
-        fields = ['boas_vindas_ativa', 'mensagem_boas_vindas', 'retorno_automatico_horas', 'nome_empresa']
+        fields = ['boas_vindas_ativa', 'mensagem_boas_vindas', 'retorno_automatico_horas', 'nome_empresa',
+                  'autoatendimento_ativo', 'url_publica']
         extra_kwargs = {'retorno_automatico_horas': {'min_value': 0, 'max_value': 720}}
+
+    def validate_url_publica(self, valor: str) -> str:
+        valor = (valor or '').strip().rstrip('/')
+        if valor and not valor.startswith('https://'):
+            raise serializers.ValidationError('Use um endereço que comece com https://')
+        return valor

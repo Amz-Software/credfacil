@@ -151,6 +151,17 @@ class ConversaViewSet(TrataConflitoMixin, viewsets.GenericViewSet):
     def painel(self, request, pk=None):
         return Response(organizacao.painel(self.get_object(), request.user))
 
+    @action(detail=True, methods=['get'], url_path='buscar-cliente')
+    def buscar_cliente(self, request, pk=None):
+        self.get_object()
+        return Response(organizacao.buscar_clientes(request.user, request.query_params.get('q', '')))
+
+    @action(detail=True, methods=['post'], url_path='resumo-pagamentos')
+    def resumo_pagamentos(self, request, pk=None):
+        self.get_object()
+        cliente_id = ler_inteiro(request.data.get('cliente'), 'cliente')
+        return Response({'texto': organizacao.texto_resumo_pagamentos(request.user, cliente_id)})
+
     # --- posse e situação ------------------------------------------------------------
     def _detalhe(self, conversa, codigo=status.HTTP_200_OK):
         conversa.refresh_from_db()

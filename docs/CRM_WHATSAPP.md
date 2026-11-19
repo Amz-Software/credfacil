@@ -55,6 +55,14 @@ CRM **não** é liberado por `is_admin`/`is_staff`: só pela flag.
 - **Atendimento automático:** mensagem nova em `AUTOMATICO` → envia a boas-vindas
   (se ligada, no máximo uma vez a cada 24 h por conversa) e passa a conversa para
   `AGUARDANDO`, com nota interna. A estrutura comporta um robô de IA no futuro.
+- **Autoatendimento de pagamentos** (ligado em Configuração → Atendimento automático):
+  em `AUTOMATICO`, o cliente recebe o menu *1 – Ver minhas parcelas* / *2 – Falar com um
+  atendente*. Na opção 1 informa CPF e data de nascimento (mesma regra da consulta pública
+  `/consultar-pagamentos/`) e recebe as parcelas em aberto, as atrasadas, a próxima e o link
+  `<url_publica>/pagamento/<id>/` com PIX. Os clientes encontrados ficam vinculados à conversa.
+  Após 3 tentativas erradas, arquivo/áudio, opção inválida duas vezes ou pedido de atendente,
+  vai para a equipe com nota. A etapa expira em 30 min. Só responde a quem pediu (nada de
+  cobrança ativa, proibida pela política do WhatsApp).
 - **Janela de 24 h:** texto livre e mídia só até 24 h depois da última mensagem do
   cliente. Fora dela, só **mensagem de abertura** (template aprovado pela Meta).
 - **Trava de resposta** (texto, mídia, reação, reenvio, programada): conversa em
@@ -155,7 +163,7 @@ type ConversaDetalhe = ConversaResumo & {
 | Método e rota | Corpo | Resposta | Permissão |
 |---|---|---|---|
 | `GET integracao/` | — | `{modo: "real"\|"simulado", configurado: {token, phone_number_id, waba_id, app_secret, verify_token, transcricao}: bool, api_version, webhook_url, pendencias: string[]}` | gerenciar |
-| `GET configuracao/` | — | `{boas_vindas_ativa, mensagem_boas_vindas, retorno_automatico_horas, nome_empresa}` | acessar |
+| `GET configuracao/` | — | `{boas_vindas_ativa, mensagem_boas_vindas, retorno_automatico_horas, nome_empresa, autoatendimento_ativo, url_publica}` | acessar |
 | `PATCH configuracao/` | mesmos campos | idem | gerenciar |
 | `GET atendentes/` | — | `Usuario[]` (ativos com `acessar_crm`) | acessar |
 
@@ -170,6 +178,8 @@ type ConversaDetalhe = ConversaResumo & {
 | `GET conversas/{id}/mensagens/` | `antes=<id>&limite=50` ou `em_torno_de=<id>` | `{results: Mensagem[], tem_mais_antigas}` |
 | `GET conversas/{id}/busca/` | `q` (≥ 3 caracteres) | `{mensagem_id, trecho, criado_em, direcao}[]` (até 50) |
 | `GET conversas/{id}/painel/` | — | `{clientes: PainelCliente[], sugeridos: {id, nome, telefone}[]}` |
+| `GET conversas/{id}/buscar-cliente/` | `q` (CPF ou nome, ≥ 3 caracteres) | `{id, nome, cpf (mascarado), telefone}[]` no escopo de lojas |
+| `POST conversas/{id}/resumo-pagamentos/` | `{cliente}` | `{texto}` pronto para o compositor (exige `vendas.view_pagamento`) |
 | `POST conversas/{id}/assumir/` | — | `ConversaDetalhe` · 409 se está com outra pessoa |
 | `POST conversas/{id}/puxar/` | `{de: user_id}` | `ConversaDetalhe` · 409 se o dono mudou |
 | `POST conversas/{id}/atribuir/` | `{usuario}` | `ConversaDetalhe` · o dono atual ou quem gerencia |
@@ -191,7 +201,8 @@ type ConversaDetalhe = ConversaResumo & {
 | `POST programadas/{id}/cancelar/` | — | `Programada` |
 | `POST conversas/{id}/respostas-rapidas/{rid}/previa/` | — | `{texto, avisos: string[]}` |
 
-`PainelCliente = {id, nome, cpf, telefone, vinculado, solicitacoes: {id, status, status_display, produto, data}[], vendas: {id, data, valor_total, cancelada}[]}`
+`PainelCliente = {id, nome, cpf, telefone, vinculado, solicitacoes: {id, status, status_display, produto, data}[], vendas: {id, data, valor_total, cancelada}[], pagamentos: PagamentoAberto[]}`
+`PagamentoAberto = {pagamento_id, venda_id, produto, parcelas_abertas, total_aberto, parcelas_atrasadas, total_atrasado, em_confirmacao, proxima: {numero, valor, vencimento} | null, link_publico}` (vazio sem `vendas.view_pagamento`)
 (`id` da solicitação = id do cliente, como na SPA em `/app/solicitacoes/{id}`).
 
 ### 4.4 Mensagens
