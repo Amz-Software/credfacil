@@ -19,16 +19,25 @@
 
 .chart-container {
   position: relative;
-  height: 400px;
   padding: 30px;
+  margin-bottom: 2rem;
   background: var(--ipix-surface-muted);
   border-radius: var(--ipix-radius);
 }
 
+/* Área de altura fixa (gráfico da página inicial) */
+.chart-container--fixo { height: 400px; margin-bottom: 0; }
+.grafico-dash { max-height: 500px; }
+
+.kpi-card .avatar { transition: transform .3s ease; }
+.kpi-card:hover .avatar { transform: scale(1.1); }
+
 @media (max-width: 768px) {
-  .chart-container { height: 350px; padding: 20px; }
+  .chart-container { padding: 20px; }
+  .chart-container--fixo { height: 350px; }
 }
 
 @media (max-width: 576px) {
-  .chart-container { height: 320px; padding: 15px; }
+  .chart-container { padding: 15px; }
+  .chart-container--fixo { height: 320px; }
 }

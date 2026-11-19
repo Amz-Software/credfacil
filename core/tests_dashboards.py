@@ -32,3 +32,16 @@ class PaginaInicialTests(TemplateLimpoMixin, BackofficeTestCase):
 
     def test_template_sem_css_js_inline_nem_hex(self):
         self.assert_template_limpo('vendas/templates/index.html')
+
+
+class DashboardDeGraficosTests(TemplateLimpoMixin, BackofficeTestCase):
+    def test_indicadores_usam_kpi_card_e_graficos_vem_de_arquivo(self):
+        html = self.html('vendas:grafico')
+
+        self.assertGreaterEqual(html.count('kpi-card'), 22)
+        self.assertTem('css/dashboard.css', html)
+        self.assertTem('js/dash-graficos.js', html)
+        self.assertTem('id="graficoLojas" class="grafico-dash" data-dados="', html)
+
+    def test_template_sem_css_js_inline_nem_hex(self):
+        self.assert_template_limpo('vendas/templates/dash/index.html')
