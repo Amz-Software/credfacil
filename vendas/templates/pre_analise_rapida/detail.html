@@ -79,10 +79,11 @@
 
         {% if pode_decidir and pre_analise.status == "P" %}
         <div class="card-footer d-flex gap-2">
-          <form action="{% url 'vendas:pre_analise_rapida_aprovar' pre_analise.pk %}" method="post" class="flex-fill">
+          <form action="{% url 'vendas:pre_analise_rapida_aprovar' pre_analise.pk %}" method="post" class="flex-fill"
+                data-confirm-title="Pré-aprovar análise" data-confirm-message="Confirmar pré-aprovação desta análise?"
+                data-confirm-label="Pré-aprovar" data-confirm-variant="success">
             {% csrf_token %}
-            <button type="submit" class="btn btn-success w-100"
-                    onclick="return confirm('Confirmar pré-aprovação desta análise?')">
+            <button type="submit" class="btn btn-success w-100">
               <i class="bx bx-check me-1"></i> Pré-aprovar
             </button>
           </form>
@@ -194,10 +195,11 @@
 
             {% if pre_analise.consulta_serasa %}
             <form action="{% url 'vendas:pre_analise_rapida_consulta_serasa_remover' pre_analise.pk %}"
-                  method="post" class="mt-2">
+                  method="post" class="mt-2"
+                  data-confirm-title="Remover consulta Serasa" data-confirm-message="Remover a consulta Serasa desta análise?"
+                  data-confirm-label="Remover" data-confirm-variant="danger">
               {% csrf_token %}
-              <button type="submit" class="btn btn-sm btn-outline-danger"
-                      onclick="return confirm('Remover a consulta Serasa desta análise?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger">
                 <i class="bx bx-trash me-1"></i> Remover consulta
               </button>
             </form>

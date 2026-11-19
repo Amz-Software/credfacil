@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
@@ -85,16 +86,10 @@ MIDDLEWARE = [
     'simple_history.middleware.HistoryRequestMiddleware',
 ]
 
-CACHES = {
-    # … default cache config and others
-    "select2": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/2",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
-    }
-}
+# Redis: um único endereço para o cache do select2 e para o channel layer.
+REDIS_HOST = os.environ.get('REDIS_HOST') or 'redis'
+REDIS_PORT = os.environ.get('REDIS_PORT') or '6379'
+REDIS_DB = os.environ.get('REDIS_DB') or '0'
 
 ASGI_APPLICATION = 'core.asgi.application'
 CHANNEL_LAYERS = {
@@ -105,7 +100,7 @@ CHANNEL_LAYERS = {
             # (incidente de 2026-11-12). socket_timeout > brpop_timeout (5s) do
             # channels_redis, para não derrubar a leitura bloqueante do consumer.
             "hosts": [{
-                "address": "redis://redis:6379",
+                "address": f"redis://{REDIS_HOST}:{REDIS_PORT}",
                 "socket_connect_timeout": 3,
                 "socket_timeout": 15,
                 "socket_keepalive": True,
@@ -117,9 +112,6 @@ CHANNEL_LAYERS = {
 
 # Envio WS de notificações: timeout por envio (s).
 NOTIFICACAO_WS_TIMEOUT = float(os.environ.get("NOTIFICACAO_WS_TIMEOUT", "3"))
-
-# Tell select2 which cache configuration to use:
-SELECT2_CACHE_BACKEND = "select2"
 
 STORAGES = {
     'default': {
@@ -183,13 +175,14 @@ CACHES = {
     },
     "select2": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"redis://{os.environ.get('REDIS_HOST')}:{os.environ.get('REDIS_PORT')}/{os.environ.get('REDIS_DB')}",
+        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     }
 }
 
+# Cache usado pelos widgets do django-select2.
 SELECT2_CACHE_BACKEND = "select2"
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
@@ -260,9 +253,10 @@ DATABASES = {
     },
 }
 
-db_used = os.environ.get('DB_USED')
-
-# Set the default database to the one selected by DB_USED
+# DB_USED escolhe o banco ('sqlite' ou 'mysql'); sem a variável, usa sqlite.
+db_used = os.environ.get('DB_USED') or 'sqlite'
+if db_used not in DATABASES:
+    raise ImproperlyConfigured(f"DB_USED inválido: {db_used!r} (use 'sqlite' ou 'mysql')")
 DATABASES['default'] = DATABASES[db_used]
 
 
@@ -334,12 +328,18 @@ LOGGING = {
     },
 }
 
-sentry_sdk.init(
-    dsn="https://4f00ce347bbfc855105b131f702032b2@o4509403596062720.ingest.us.sentry.io/4510964474052608",
-    # Add data like request headers and IP for users,
-    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
-    send_default_pii=True,
+# Sentry: DSN pelo ambiente (o valor antigo fica como padrão para não quebrar o
+# deploy atual); SENTRY_DSN vazio desliga. Dados pessoais (IP, cookies, cabeçalhos)
+# só vão para o Sentry com SENTRY_SEND_DEFAULT_PII=True.
+_SENTRY_DSN_PADRAO = (
+    "https://4f00ce347bbfc855105b131f702032b2@o4509403596062720.ingest.us.sentry.io/4510964474052608"
 )
+SENTRY_DSN = os.environ.get('SENTRY_DSN', _SENTRY_DSN_PADRAO)
+SENTRY_SEND_DEFAULT_PII = os.environ.get('SENTRY_SEND_DEFAULT_PII', 'False').lower() == 'true'
+# A suíte de testes (manage.py test) não envia eventos para o Sentry de produção.
+_RODANDO_TESTES = len(sys.argv) > 1 and sys.argv[1] == 'test'
+if SENTRY_DSN and not _RODANDO_TESTES:
+    sentry_sdk.init(dsn=SENTRY_DSN, send_default_pii=SENTRY_SEND_DEFAULT_PII)
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/

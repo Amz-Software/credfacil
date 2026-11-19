@@ -1,226 +1,12 @@
 {% extends "base.html" %}
 {% load static iam_tags %}
 {% block title %}
-Clientes
+Solicitações de Crédito
 {% endblock title %}
 
 {% block extra_head %}
   <link rel="stylesheet" href="{% static 'sneat-template/assets/vendor/libs/select2/select2.css' %}" />
-  <style>
-    /* Modo Dark Support */
-    :root {
-      --kpi-card-bg-approved: #e6f4ea;
-      --kpi-card-bg-rejected: #fdecea;
-      --kpi-card-bg-cancelled: #f0f0f0;
-      --kpi-card-bg-pending: #fff8e1;
-      --alert-info-bg: rgba(13, 110, 253, 0.1);
-      --alert-info-border: rgba(13, 110, 253, 0.2);
-      --alert-info-color: #0c63e4;
-    }
-
-    .dark-style {
-      --kpi-card-bg-approved: rgba(113, 221, 55, 0.15);
-      --kpi-card-bg-rejected: rgba(161, 172, 184, 0.15);
-      --kpi-card-bg-cancelled: rgba(161, 172, 184, 0.15);
-      --kpi-card-bg-pending: rgba(255, 171, 0, 0.15);
-      --alert-info-bg: rgba(3, 195, 236, 0.15);
-      --alert-info-border: rgba(3, 195, 236, 0.3);
-      --alert-info-color: #03c3ec;
-    }
-
-    /* Estilos do Modal de QR Code */
-    .bg-gradient-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-    }
-
-    .qr-icon-wrapper {
-      display: inline-block;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 50%;
-      width: 80px;
-      height: 80px;
-      line-height: 80px;
-      text-align: center;
-      backdrop-filter: blur(10px);
-    }
-
-    .qr-image {
-      transition: box-shadow 0.3s ease;
-    }
-
-    .qr-image:hover {
-      box-shadow: 0 12px 40px rgba(0,0,0,0.15) !important;
-    }
-
-    .code-display {
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
-      border: 2px solid #dee2e6 !important;
-      transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .code-display:hover {
-      border-color: #667eea !important;
-      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
-    }
-
-
-
-    .btn-success {
-      background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
-      border: none !important;
-      transition: all 0.3s ease !important;
-    }
-
-    .btn-success:hover {
-      box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3) !important;
-    }
-
-    /* Animações do Modal */
-    .modal.fade .modal-dialog {
-      transition: transform 0.3s ease-out;
-      transform: scale(0.8);
-    }
-
-    .modal.show .modal-dialog {
-      transform: scale(1);
-    }
-
-    .modal-content {
-      animation: modalSlideIn 0.3s ease-out;
-    }
-
-    @keyframes modalSlideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-50px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @keyframes pulse {
-      0% {
-        transform: scale(1);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-      }
-      50% {
-        transform: scale(1.05);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.2);
-      }
-      100% {
-        transform: scale(1);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-      }
-    }
-
-    .modal-opening .modal-content {
-      animation: modalSlideIn 0.3s ease-out;
-    }
-
-    /* Responsividade */
-    @media (max-width: 768px) {
-      .qr-image {
-        max-width: 220px !important;
-      }
-      
-      .code-display span {
-        font-size: 1.5rem !important;
-      }
-      
-      .modal-body {
-        padding: 1.5rem !important;
-      }
-    }
-
-    /* CSS personalizado para aumentar a largura do offcanvas */
-    .offcanvas-large {
-        width: 50%!important; /* Aumente para 100% ou qualquer largura desejada */
-        max-width: none!important; /* Remove o limite padrão */
-    }
-
-    /* KPI Cards com melhor suporte ao dark mode */
-    .kpi-card {
-      transition: all 0.2s ease-in-out;
-    }
-
-    .kpi-card[data-status="A"] .card-body {
-      background-color: var(--kpi-card-bg-approved) !important;
-    }
-
-    .kpi-card[data-status="R"] .card-body {
-      background-color: var(--kpi-card-bg-rejected) !important;
-    }
-
-    .kpi-card[data-status="C"] .card-body {
-      background-color: var(--kpi-card-bg-cancelled) !important;
-    }
-
-    .kpi-card[data-status=""] .card-body,
-    .kpi-card[data-status="P"] .card-body {
-      background-color: var(--kpi-card-bg-pending) !important;
-    }
-
-    /* Alert melhorado para dark mode */
-    .alert-info {
-      background-color: var(--alert-info-bg) !important;
-      border: 1px solid var(--alert-info-border) !important;
-      color: var(--alert-info-color) !important;
-    }
-
-    /* Badge pequeno para status secundários */
-    .badge-sm {
-      font-size: 0.7rem;
-      padding: 0.2rem 0.4rem;
-    }
-
-    /* Tooltip customizado */
-    .tooltip-inner {
-      text-align: left;
-      max-width: 300px;
-    }
-
-    /* Estilos para etapas do fluxo */
-    .etapa-concluida {
-      background-color: rgba(40, 167, 69, 0.1) !important;
-      border-left: 3px solid #28a745 !important;
-      position: relative;
-    }
-
-    .dark-style .etapa-concluida {
-      background-color: rgba(113, 221, 55, 0.15) !important;
-      border-left: 3px solid #71dd37 !important;
-    }
-
-    .etapa-pendente {
-      border-left: 3px solid transparent !important;
-      position: relative;
-    }
-
-    .etapa-concluida::before {
-      content: '✓';
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #28a745;
-      font-weight: bold;
-      font-size: 1.2em;
-    }
-
-    .dark-style .etapa-concluida::before {
-      color: #71dd37;
-    }
-
-    .etapa-concluida:hover {
-      background-color: rgba(40, 167, 69, 0.2) !important;
-    }
-
-    .dark-style .etapa-concluida:hover {
-      background-color: rgba(113, 221, 55, 0.25) !important;
-    }
-  </style>
+  <link rel="stylesheet" href="{% static 'css/cliente-list.css' %}" />
 {% endblock extra_head %}
 
 {% block content %}
@@ -231,7 +17,7 @@ Clientes
     <div class="card">
       <div class="card-header">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
-          <h4 class="card-title mb-0 text-center text-md-start w-100">Solicitações</h4>
+          <h4 class="card-title mb-0 text-center text-md-start w-100">Solicitações de Crédito</h4>
       
           <div class="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 w-100">
             <form id="filterAppForm" method="get" class="w-100">
@@ -265,7 +51,7 @@ Clientes
         </div>
       </div>
       
-      <div class="row mb-4 mx-3" id="kpi-row">
+      <div class="row mb-4 mx-3" id="kpi-row" data-current-status="{{ current_status }}" data-kpis-url="{% url 'vendas:caixa_kpis' %}">
         {% for code, label in status_choices %}
           <div class="col-6 col-md-3">
             <div
@@ -278,13 +64,13 @@ Clientes
               <div class="card-body py-3 rounded">
                 <div class="mb-2">
                   {% if code == 'A' %}
-                    <i class="bi bi-check-circle-fill text-success fs-3"></i>
+                    <i class="bx bxs-check-circle text-success fs-3"></i>
                   {% elif code == 'R' %}
-                    <i class="bi bi-x-circle-fill text-danger fs-3"></i>
+                    <i class="bx bxs-x-circle text-danger fs-3"></i>
                   {% elif code == 'C' %}
-                    <i class="bi bi-hourglass-split text-secondary fs-3"></i>
+                    <i class="bx bx-hourglass text-secondary fs-3"></i>
                   {% else %}
-                    <i class="bi bi-question-circle-fill text-warning fs-3"></i>
+                    <i class="bx bxs-help-circle text-warning fs-3"></i>
                   {% endif %}
                 </div>
                 <h6 class="card-title text-muted mb-1">{{ label }}</h6>
@@ -720,7 +506,7 @@ Clientes
                     {# Etapa 3: Gerar Venda (Vendedor) - Para iPhone #}
                     {% if cliente.analise_credito.status == 'A' and user|has_perm:"vendas.add_venda" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
                     <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}"
-                          onsubmit="return confirm('Gerar venda para {{ cliente.nome }}?');" class="m-0">
+                          data-confirm-title="Gerar venda" data-confirm-message="Gerar venda para {{ cliente.nome }}?" data-confirm-label="Gerar venda" data-confirm-variant="success" class="m-0">
                       {% csrf_token %}
                       <button type="submit" class="dropdown-item {% if cliente.analise_credito.venda_gerada %}etapa-concluida{% else %}etapa-pendente{% endif %}">
                         <i class="bx bx-cart me-1"></i>🛒 3. Gerar Venda (Vendedor)
@@ -785,7 +571,7 @@ Clientes
                     
                     {# FLUXO DE TRABALHO - Etapa 4: Gerar Venda #}
                     {% if cliente.analise_credito.status == 'A' and user|has_perm:"vendas.add_venda" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
-                    <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}" onsubmit="return confirm('Gerar venda para {{ cliente.nome }}?');" class="m-0">
+                    <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}" data-confirm-title="Gerar venda" data-confirm-message="Gerar venda para {{ cliente.nome }}?" data-confirm-label="Gerar venda" data-confirm-variant="success" class="m-0">
                       {% csrf_token %}
                       <button type="submit" class="dropdown-item {% if cliente.analise_credito.venda_gerada %}etapa-concluida{% else %}etapa-pendente{% endif %}">
                         <i class="bx bx-cart me-1"></i>🛒 4. Gerar Venda (Vendedor)
@@ -979,181 +765,6 @@ Clientes
 
 {% block extra_scripts %}
   <script src="{% static 'sneat-template/assets/vendor/libs/select2/select2.js' %}"></script>
-  <script>
-    // Filtro de lojas com seleção múltipla
-    document.addEventListener('DOMContentLoaded', function () {
-      if (window.jQuery && jQuery.fn.select2) {
-        jQuery('.select2-lojas').select2({
-          placeholder: jQuery('.select2-lojas').data('placeholder'),
-          width: '100%',
-          allowClear: true
-        });
-      }
-    });
-  </script>
-
   {{ status_choices|json_script:"statusChoices" }}
-  <script>
-    const statusChoices = JSON.parse(
-      document.getElementById('statusChoices').textContent
-    );
-    const currentStatus = "{{ current_status }}";
-
-    // atualiza o highlight do card ativo
-    function markActive() {
-      document.querySelectorAll('.kpi-card').forEach(card => {
-        card.classList.toggle('border-primary', card.dataset.status === currentStatus);
-      });
-    }
-
-    // clique num card => seta o GET ?status=<code>
-    document.querySelectorAll('.kpi-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const code = card.dataset.status;
-        const url = new URL(window.location);
-        if (url.searchParams.get('status') === code) {
-          url.searchParams.delete('status');  // clicar de novo limpa o filtro
-        } else {
-          url.searchParams.set('status', code);
-        }
-        window.location = url.toString();
-      });
-    });
-
-    // mantém o card ativo destacado
-    markActive();
-
-    // (opcional) atualização dos KPIs via AJAX continua igual
-    function refreshKpis() {
-      fetch("{% url 'vendas:caixa_kpis' %}", {
-        credentials: 'same-origin',
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
-      })
-      .then(r => r.json())
-      .then(data => {
-        statusChoices.forEach(([code, _]) => {
-          const el = document.getElementById(`kpi-${code}`);
-          if (el) el.textContent = data[code] || 0;
-        });
-      })
-      .catch(console.error);
-    }
-    document.addEventListener('DOMContentLoaded', refreshKpis);
-    setInterval(refreshKpis, 15000);
-
-    // Cronômetro de solicitações
-    function formatDuration(ms) {
-      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-      const days = Math.floor(totalSeconds / 86400);
-      const hours = Math.floor((totalSeconds % 86400) / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      const hh = String(hours).padStart(2, '0');
-      const mm = String(minutes).padStart(2, '0');
-      const ss = String(seconds).padStart(2, '0');
-      return (days > 0 ? days + 'd ' : '') + `${hh}:${mm}:${ss}`;
-    }
-
-    function updateCronometros() {
-      const elements = document.querySelectorAll('.cronometro');
-      const now = Date.now();
-      elements.forEach(el => {
-        const status = el.getAttribute('data-status');
-        const startStr = el.getAttribute('data-start');
-        const endStr = el.getAttribute('data-end');
-        if (!startStr) { el.textContent = '—'; return; }
-        const start = new Date(startStr).getTime();
-        if (['A','R','C'].includes(status) && endStr) {
-          const end = new Date(endStr).getTime();
-          el.textContent = formatDuration(end - start);
-        } else {
-          el.textContent = formatDuration(now - start);
-        }
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', function(){
-      updateCronometros();
-      setInterval(updateCronometros, 1000);
-      
-      // Inicializar tooltips do Bootstrap
-      const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-      tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl, {
-          html: true,
-          sanitize: false
-        });
-      });
-    });
-
-    // Melhorias para o Modal de QR Code
-    document.addEventListener('DOMContentLoaded', function() {
-      // Adiciona efeitos visuais aos modais de QR Code
-      const qrModals = document.querySelectorAll('[id^="installModal"]');
-      
-      qrModals.forEach(modal => {
-        const modalElement = new bootstrap.Modal(modal);
-        
-        // Quando o modal é aberto
-        modal.addEventListener('show.bs.modal', function() {
-          // Adiciona classe para animação
-          this.querySelector('.modal-content').classList.add('modal-opening');
-          
-          // Efeito de destaque no QR Code
-          const qrImage = this.querySelector('.qr-image');
-          if (qrImage) {
-            setTimeout(() => {
-              qrImage.style.animation = 'pulse 2s infinite';
-            }, 300);
-          }
-        });
-        
-        // Quando o modal é fechado
-        modal.addEventListener('hidden.bs.modal', function() {
-          // Remove classes de animação
-          this.querySelector('.modal-content').classList.remove('modal-opening');
-          
-          // Para animação do QR Code
-          const qrImage = this.querySelector('.qr-image');
-          if (qrImage) {
-            qrImage.style.animation = '';
-          }
-        });
-        
-
-      });
-      
-      // Adiciona funcionalidade de copiar código (se suportado)
-      const codeDisplays = document.querySelectorAll('.code-display');
-      codeDisplays.forEach(display => {
-        // Não adiciona funcionalidade de copiar se tiver botão de toggle senha
-        if (display.querySelector('.toggle-password')) {
-          return;
-        }
-        
-        display.style.cursor = 'pointer';
-        display.title = 'Clique para copiar o código';
-        
-        display.addEventListener('click', function() {
-          const code = this.querySelector('span').textContent;
-          if (navigator.clipboard && code !== 'Código não disponível') {
-            navigator.clipboard.writeText(code).then(() => {
-              // Feedback visual
-              const originalText = this.querySelector('span').textContent;
-              this.querySelector('span').textContent = 'Código copiado!';
-              this.style.background = 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%) !important';
-              this.style.borderColor = '#28a745 !important';
-              
-              setTimeout(() => {
-                this.querySelector('span').textContent = originalText;
-                this.style.background = 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important';
-                this.style.borderColor = '#dee2e6 !important';
-              }, 2000);
-            });
-          }
-        });
-      });
-      
-    });
-  </script>
+  <script src="{% static 'js/cliente-list.js' %}"></script>
 {% endblock %}

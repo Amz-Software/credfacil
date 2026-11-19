@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static iam_tags %}
-{% block title %}Editar Venda{% endblock title %}
+{% block title %}Edição especial · Venda #{{ object.pk }}{% endblock title %}
 
 {% block extra_head %}
   {{ produto_venda_formset.media.css }}
@@ -12,7 +12,7 @@
     <div class="col-12">
       <div class="card">
         <div class="container-xxl flex-grow-1 container-p-y">
-          <h4 class="py-3 mb-4"><span class="text-muted fw-light">Venda/</span> Editar</h4>
+          <h4 class="py-3 mb-4"><span class="text-muted fw-light">Vendas /</span> Edição especial da venda #{{ object.pk }}</h4>
           <div class="row">
             <div class="col-xl">
               <div class="card mb-4">
@@ -22,6 +22,8 @@
                 <div class="card-body">
                   <form method="post">
                     {% csrf_token %}
+                    {% include "snippets/form_errors.html" with formset=produto_venda_formset rotulo="Produto" %}
+                    {% include "snippets/form_errors.html" with formset=pagamento_formset rotulo="Pagamento" %}
                     {{ form }}
 
                     <div class="form-section">
@@ -99,4 +101,5 @@
 
 {% block extra_scripts %}
 {{ produto_venda_formset.media.js }}
+<script src="{% static 'js/venda-edit.js' %}"></script>
 {% endblock %}

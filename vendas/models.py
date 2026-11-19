@@ -226,86 +226,11 @@ class Loja(Base):
         return qs.distinct()
 
     def get_repasses_status(self, meses_atras=0, limite_meses=6):
-        hoje = date.today()
-        resultados = []
+        """(resultados, atrasados) do calendário de repasses; ver vendas.services.lojas."""
+        from vendas.services.lojas import status_repasses_por_loja
 
-        # Limita quantos meses olhar para trás
-        meses_atras = min(meses_atras, limite_meses)
+        return status_repasses_por_loja([self], meses_atras=meses_atras, limite_meses=limite_meses)[self.id]
 
-        # Queryset base de Vendas
-        vendas_qs = self.venda_loja.all()
-
-        for delta in range(meses_atras, -1, -1):
-            ano = hoje.year
-            mes = hoje.month - delta
-            while mes <= 0:
-                mes += 12
-                ano -= 1
-
-            for idx, dia in enumerate(self.REPASSES_DIAS):
-                # Data do repasse (data de pagamento)
-                try:
-                    data_repasse = date(ano, mes, dia)
-                except ValueError:
-                    continue
-
-                # Intervalos de competência por regra:
-                # - Repasse do dia 06: período 26 do mês anterior até 05 do mês atual
-                # - Repasse do dia 16: período 06 até 15 do mês atual
-                # - Repasse do dia 26: período 16 até 25 do mês atual
-                if dia == 6:
-                    prev_mes, prev_ano = (mes - 1, ano)
-                    if prev_mes == 0:
-                        prev_mes, prev_ano = 12, ano - 1
-                    inicio = date(prev_ano, prev_mes, 26)
-                    fim = date(ano, mes, 5)
-                elif dia == 16:
-                    inicio = date(ano, mes, 6)
-                    fim = date(ano, mes, 15)
-                else:  # dia == 26
-                    inicio = date(ano, mes, 16)
-                    fim = date(ano, mes, 25)
-
-                vendas_periodo = vendas_qs.filter(
-                    data_venda__date__gte=inicio,
-                    data_venda__date__lte=fim,
-                    is_deleted=False
-                )
-
-                qtd = vendas_periodo.count()
-                if qtd == 0:
-                    continue
-
-                # Soma de valor_repasse_logista de cada venda
-                valor = Decimal('0.00')
-                for venda in vendas_periodo:
-                    valor_repasse = venda.repasse_logista
-                    valor += valor_repasse
-
-                feito = self.repasse.filter(data__date=data_repasse).exists()
-
-                # Verifica se o valor do repasse é menor que o calculado
-                if feito:
-                    repasses = self.repasse.filter(data__date=data_repasse)
-                    for repasse in repasses:
-                        if repasse.valor < valor:
-                            # Se o valor do repasse for menor que o calculado, marca como parcial
-                            repasse.status = 'parcial'
-                            repasse.save()
-
-                resultados.append({
-                    'data': data_repasse,
-                    'inicio_periodo': inicio,
-                    'fim_periodo': fim,
-                    'qtd_vendas': qtd,
-                    'valor_total_repasse': valor,
-                    'feito': feito,
-                })
-
-        atrasados = sum(1 for rep in resultados if not rep['feito'] and rep['data'] < hoje)
-        return resultados, atrasados
-
-        
     def calcular_valor_repasse(self, data_inicio, data_fim):
         if data_inicio and data_fim:
             vendas = self.venda_loja.filter(data_venda__date__gte=data_inicio, data_venda__date__lte=data_fim, is_deleted=False)

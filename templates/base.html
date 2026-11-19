@@ -18,11 +18,8 @@
   <meta property="og:description"
     content="O sistema de loja de celular oferece uma plataforma completa para gerenciar vendas, estoque, clientes e serviços de assistência técnica, proporcionando uma experiência de compra eficiente e integrada." />
   <meta charset="utf-8" />
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
-  <title>
-    {% block title %}{{ loja_atual|default:"IPIX" }} - IPIX{% endblock %}
-  </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}{{ loja_atual|default:"Painel"|title }}{% endblock %} · IPIX</title>
   <!-- Favicon -->
   <link rel="icon" type="image/x-icon" href="{% static 'icons/favicon.ico' %}">
   <link rel="icon" type="image/png" sizes="96x96" href="{% static 'icons/favicon-96x96.png' %}">
@@ -45,8 +42,7 @@
     href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
     rel="stylesheet" />
 
-  <!-- Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <!-- Icons (conjunto único: Boxicons) -->
   <link rel="stylesheet" href="{% static 'sneat-template/assets/vendor/fonts/boxicons.css' %}" />
 
   <!-- Core CSS -->
@@ -61,11 +57,10 @@
   <link rel="stylesheet"
     href="{% static 'sneat-template/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
 
-  <!-- Page CSS -->
-  <!-- Melhorias para modo dark personalizado -->
-  <link rel="stylesheet" href="{% static 'css/dark-mode-improvements.css' %}" />
-  <!-- Tema IPIX: recoloração de marca (amarelo) + sidebar escura + tokens. DEVE vir por último. -->
+  <!-- Tema IPIX: tokens --ipix-*, recoloração de marca (amarelo), sidebar escura e modo escuro.
+       DEVE vir depois dos CSS do Sneat. -->
   <link rel="stylesheet" href="{% static 'css/ipix-theme.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/base.css' %}" />
 
   <!-- Helpers -->
   <script src="{% static 'sneat-template/assets/vendor/js/helpers.js' %}"></script>
@@ -82,32 +77,6 @@
 
 
   {% block extra_head %}{% endblock extra_head %}
-  <style>
-    .navbar-brand-ribbon img {
-      height: 32px;
-      width: auto;
-      object-fit: contain;
-      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
-    }
-    .navbar-brand-ribbon {
-      padding: 0.35rem 0.75rem;
-      border-radius: 40px;
-      background: rgba(255, 255, 255, 0.25);
-      backdrop-filter: blur(6px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-    .footer-brand-logos img {
-      height: 36px;
-      width: auto;
-      object-fit: contain;
-      opacity: 0.85;
-    }
-    .footer-brand-logos {
-      background: rgba(255, 255, 255, 0.4);
-      border-radius: 999px;
-      padding: 0.25rem 1rem;
-    }
-  </style>
 
 </head>
 
@@ -118,13 +87,10 @@
       <!-- Menu -->
 
       <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
-        <div class="app-brand demo d-flex align-items-center justify-content-between flex-nowrap" id="brand-container"
-          style="padding: 0.5rem 1rem;">
-          <a href="{% url 'vendas:index' %}" class="app-brand-link d-flex align-items-center flex-nowrap"
-            style="text-decoration: none;">
-            <img src="{% static 'images/logo.png' %}" style="max-width: 100px; height: auto; flex-shrink: 0;">
-            <span class="app-brand-text text-truncate fw-medium text-capitalize ms-2"
-              style="font-size: 18px; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+        <div class="app-brand app-brand-container demo d-flex align-items-center justify-content-between flex-nowrap" id="brand-container">
+          <a href="{% url 'vendas:index' %}" class="app-brand-link d-flex align-items-center flex-nowrap">
+            <img src="{% static 'images/logo.png' %}" class="app-brand-logo-img" alt="IPIX">
+            <span class="app-brand-text text-truncate fw-medium text-capitalize ms-2">
               {{ loja_atual|title }}
             </span>
           </a>
@@ -188,23 +154,24 @@
           <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
             <div class="navbar-nav align-items-center">
               <div class="nav-item dropdown-style-switcher dropdown me-2 me-xl-0">
-                <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown"
+                  title="Tema" aria-label="Alterar tema">
                   <i class="bx bx-sm"></i>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-start dropdown-styles">
                   <li>
                     <a class="dropdown-item" href="javascript:void(0);" data-theme="light">
-                      <span class="align-middle"><i class="bx bx-sun me-2"></i>Light</span>
+                      <span class="align-middle"><i class="bx bx-sun me-2"></i>Claro</span>
                     </a>
                   </li>
                   <li>
                     <a class="dropdown-item" href="javascript:void(0);" data-theme="dark">
-                      <span class="align-middle"><i class="bx bx-moon me-2"></i>Dark</span>
+                      <span class="align-middle"><i class="bx bx-moon me-2"></i>Escuro</span>
                     </a>
                   </li>
                   <li>
                     <a class="dropdown-item" href="javascript:void(0);" data-theme="system">
-                      <span class="align-middle"><i class="bx bx-desktop me-2"></i>System</span>
+                      <span class="align-middle"><i class="bx bx-desktop me-2"></i>Sistema</span>
                     </a>
                   </li>
                 </ul>
@@ -220,22 +187,21 @@
 
               <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle position-relative hide-arrow" href="javascript:void(0);" id="notificacaoDropdown" role="button"
-                  data-bs-toggle="dropdown" aria-expanded="false">
-                  <i class="bi bi-bell fs-5"></i>
+                  data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notificações">
+                  <i class="bx bx-bell bx-sm"></i>
                   {% if notificacoes_nao_lidas %}
                   <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                    {{ notificacoes_nao_lidas|length }}
-                    <span class="visually-hidden">notificações não lidas</span>
+                    <span data-notificacoes-contador>{{ notificacoes_nao_lidas|length }}</span>
+                    <span class="visually-hidden"> notificações não lidas</span>
                   </span>
                   {% endif %}
                 </a>
 
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm p-2" aria-labelledby="notificacaoDropdown"
-                  style="width: 300px; max-height: 400px; overflow-y: auto;">
-                  <li class="dropdown-header fw-bold text-dark border-bottom pb-2 mb-2 d-flex justify-content-between align-items-center">
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm p-2 notificacoes-menu" aria-labelledby="notificacaoDropdown">
+                  <li class="dropdown-header fw-bold text-body border-bottom pb-2 mb-2 d-flex justify-content-between align-items-center">
                     <span>Notificações</span>
-                    <a href="{% url 'notificacao_list' %}" class="btn btn-sm btn-outline-primary px-2 py-0 d-flex align-items-center" style="font-size: 0.75rem;">
-                      <i class="bi bi-list-ul me-1"></i> Ver todas
+                    <a href="{% url 'notificacao_list' %}" class="btn btn-sm btn-outline-primary px-2 py-0 d-flex align-items-center btn-ver-todas">
+                      <i class="bx bx-list-ul me-1"></i> Ver todas
                     </a>
                   </li>
 
@@ -244,15 +210,14 @@
                   <li class="mb-1">
                     <a class="dropdown-item d-flex flex-column small text-wrap text-break"
                       href="{{ n.target.get_absolute_url }}"
-                      onclick="event.preventDefault(); marcarComoLida('{{ n.id }}', '{{ n.target.get_absolute_url }}')">
-
-                      <span class="fw-semibold text-dark text-wrap text-break">{{ n.verb }}</span>
+                      data-notificacao-id="{{ n.id }}" data-notificacao-url="{{ n.target.get_absolute_url }}">
+                      <span class="fw-semibold text-body text-wrap text-break">{{ n.verb }}</span>
                       <span class="text-muted text-wrap text-break">{{ n.description|truncatechars:40 }}</span>
                       <small class="text-muted mt-1">{{ n.timestamp|date:"d M, H:i" }}</small>
                     </a>
                   </li>
                   {% empty %}
-                  <li>
+                  <li data-notificacoes-vazio>
                     <span class="dropdown-item text-muted">Sem notificações</span>
                   </li>
                   {% endfor %}
@@ -268,26 +233,26 @@
               </li>
 
               <!-- User -->
+              {% with nome_usuario=user.get_full_name|default:user.username grupo_usuario=user.groups.all.0.name %}
               <li class="nav-item navbar-dropdown dropdown-user dropdown">
-                <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown"
+                  aria-label="Menu do usuário">
                   <div class="avatar avatar-online">
-                    <img src="{% static 'sneat-template/assets/img/avatars/1.png' %}" alt
-                      class="w-px-40 h-auto rounded-circle" />
+                    <span class="avatar-iniciais" aria-hidden="true">{% include 'snippets/iniciais_usuario.html' %}</span>
                   </div>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li>
-                    <a class="dropdown-item" href="#">
+                    <a class="dropdown-item" href="{% url 'accounts:my_profile_update' %}">
                       <div class="d-flex">
                         <div class="flex-shrink-0 me-3">
                           <div class="avatar avatar-online">
-                            <img src="{% static 'sneat-template/assets/img/avatars/1.png' %}" alt
-                              class="w-px-40 h-auto rounded-circle" />
+                            <span class="avatar-iniciais" aria-hidden="true">{% include 'snippets/iniciais_usuario.html' %}</span>
                           </div>
                         </div>
                         <div class="flex-grow-1">
-                          <span class="fw-medium d-block">{{ user.get_full_name|default:user.username }}</span>
-                          <small class="text-muted">{{ user.profile.role|default:"User" }}</small>
+                          <span class="fw-medium d-block">{{ nome_usuario }}</span>
+                          <small class="text-muted">{% if grupo_usuario %}{{ grupo_usuario|title }}{% elif user.is_superuser %}Superusuário{% else %}Usuário{% endif %}</small>
                         </div>
                       </div>
                     </a>
@@ -296,16 +261,22 @@
                     <div class="dropdown-divider"></div>
                   </li>
                   <li>
-                    <a class="dropdown-item" href="#">
+                    <a class="dropdown-item" href="{% url 'accounts:my_profile_update' %}">
                       <i class="bx bx-user me-2"></i>
                       <span class="align-middle">Meu Perfil</span>
                     </a>
                   </li>
-                  {% if 'Admin' in user.groups.all %}
                   <li>
-                    <a class="dropdown-item" href="#">
+                    <a class="dropdown-item" href="{% url 'accounts:password_change' %}">
+                      <i class="bx bx-lock-alt me-2"></i>
+                      <span class="align-middle">Alterar senha</span>
+                    </a>
+                  </li>
+                  {% if perms.accounts.view_user %}
+                  <li>
+                    <a class="dropdown-item" href="{% url 'accounts:user_list' %}">
                       <i class="bx bx-cog me-2"></i>
-                      <span class="align-middle">Settings</span>
+                      <span class="align-middle">Usuários e permissões</span>
                     </a>
                   </li>
                   {% endif %}
@@ -320,23 +291,15 @@
                   </li>
                 </ul>
               </li>
+              {% endwith %}
               <!--/ User -->
             </ul>
           </div>
         </nav>
 
         <!-- / Navbar -->
-        {% if messages %}
-        <!-- Alert messages -->
-        <div class="container my-3">
-          <div class="row">
-            <div class="col-12">
-              {% include 'snippets/alert_messages.html' %}
-            </div>
-          </div>
-        </div>
-        <!-- / Alert messages -->
-        {% endif %}
+        <!-- Mensagens (toasts) -->
+        {% include 'snippets/toast_messages.html' %}
 
 
         <!-- Content wrapper -->
@@ -352,7 +315,7 @@
             <div class="container-xxl d-flex flex-wrap justify-content-between py-2 flex-md-row flex-column">
               <div class="mb-2 mb-md-0">
                 © {% now "Y" %} IPIX — feito com ❤️ por
-                <a href="" target="_blank" class="footer-link fw-medium">Amz Software</a>
+                <span class="footer-link fw-medium">Amz Software</span>
               </div>
               <div class="footer-brand-logos d-flex align-items-center gap-3 mt-2 mt-md-0">
                 <img src="{% static 'images/IPIX.png' %}" alt="IPIX" loading="lazy">
@@ -401,257 +364,23 @@
   <!-- Main JS -->
   <script src="{% static 'sneat-template/assets/js/main.js' %}"></script>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(function (el) {
-        try { new bootstrap.Dropdown(el); } catch (e) { console.error('Dropdown init error:', e); }
-      });
-    });
-  </script>
-
-
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      // Função para desabilitar os botões
-      function disableButtons() {
-        const buttons = document.querySelectorAll('button');
-        buttons.forEach(function (button) {
-          button.disabled = true;
-        });
-      }
-
-      // Função para habilitar os botões
-      function enableButtons() {
-        const buttons = document.querySelectorAll('button');
-        buttons.forEach(function (button) {
-          button.disabled = false;
-        });
-      }
-
-      // Sempre habilitar os botões quando a página carregar completamente
-      // Isso garante que os botões funcionem após retorno com erros de validação
-      enableButtons();
-
-      // Limpar o estado de desabilitação ao recarregar ou voltar na navegação
-      window.addEventListener('pageshow', function (event) {
-        // Verifica se a navegação foi feita via cache (navegação 'voltar')
-        if (event.persisted) {
-          enableButtons();  // Garante que os botões serão habilitados
-        }
-      });
-
-      // Não desabilitar botões no envio do formulário
-      document.querySelectorAll('form').forEach(function (form) {
-        form.addEventListener('submit', function () {
-          // intencionalmente vazio
-        });
-      });
-
-      // Desabilitar botões durante requisições AJAX
-      document.addEventListener('ajaxStart', function () {
-        disableButtons();
-      });
-
-      document.addEventListener('ajaxStop', function () {
-        enableButtons();
-      });
-
-      // Para lidar com navegação de página (recarregamento)
-      window.addEventListener('beforeunload', function () {
-        disableButtons();
-      });
-    });
-  </script>
+  <script src="{% static 'js/base.js' %}"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-
-  <script>
-    // Função para pegar o CSRF Token
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === (name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
-      }
-      return cookieValue;
-    }
-
-    // 🔔 Marcar como lida via fetch
-    function marcarComoLida(notificationId, targetUrl) {
-      const csrf = getCookie('csrftoken');
-      console.log(`[WS] Marcando notificação ${notificationId} como lida...`);
-
-      fetch(`/notificacao/marcar-como-lida/${notificationId}/`, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': csrf,
-        },
-      })
-        .then((res) => {
-          console.log(`[WS] Resposta do servidor: ${res.status}`);
-          if (res.status === 200) {
-            console.log("[WS] Notificação marcada como lida com sucesso.");
-          } else {
-            console.warn("[WS] Falha ao marcar como lida.");
-          }
-          window.location.href = targetUrl;
-        })
-        .catch((err) => {
-          console.error("[WS] Erro ao marcar como lida:", err);
-          window.location.href = targetUrl;
-        });
-    }
-
-    const ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
-    const WS_ESPERA_MAXIMA_MS = 30000;
-    let wsTentativas = 0;
-
-    // Reconecta sozinho quando o servidor reinicia (deploy, reciclagem de
-    // worker): sem isso o analista deixava de receber o modal até dar F5.
-    function conectarWs() {
-      console.log("[WS] Conectando...");
-      const socket = new WebSocket(ws_scheme + '://' + window.location.host + '/ws/notifications/');
-
-      socket.onopen = function () {
-        wsTentativas = 0;
-        console.log("[WS] Conectado com sucesso!");
-      };
-
-      socket.onerror = function (error) {
-        console.error("[WS] Erro na conexão:", error);
-      };
-
-      socket.onclose = function () {
-        const espera = Math.min(WS_ESPERA_MAXIMA_MS, 1000 * 2 ** wsTentativas);
-        wsTentativas += 1;
-        console.warn(`[WS] Conexão encerrada; nova tentativa em ${espera / 1000}s.`);
-        setTimeout(conectarWs, espera);
-      };
-
-      socket.onmessage = tratarMensagemWs;
-    }
-
-    conectarWs();
-
-    function tratarMensagemWs(e) {
-      console.log("[WS] Mensagem recebida:", e.data);
-      const data = JSON.parse(e.data);
-
-      // Verifica ID
-      console.log("[WS] ID da notificação recebida:", data.notification_id);
-
-      // 🪟 Modal central — somente ANALISTA/ADMIN quando uma NOVA proposta é criada
-      console.log("[WS][modal] event=", data.event, "| podeVerModal=", window.__podeVerModalProposta);
-      if (window.__podeVerModalProposta && (data.event === 'proposta_criada' || data.event === 'pre_analise_criada' || data.event === 'instalacao_aguardando_confirmacao')) {
-        mostrarModalProposta(data);
-      }
-
-      // 🔊 Som de notificação baseado no tipo
-      let soundFile = "notification.mp3"; // som padrão
-      
-      if(data.type_notification === "analise_credito_cliente") {
-        soundFile = "notification.mp3";
-      } else if(data.type_notification === "entrada_estoque") {
-        soundFile = "notification-alert.mp3";
-      }
-      
-      const audio = new Audio(`{% static 'sounds/' %}${soundFile}`);
-      audio.volume = 1.0;
-      audio.play().then(() => {
-        console.log("[WS] Som tocado:", soundFile);
-      }).catch((error) => {
-        console.warn("[WS] Som bloqueado pelo navegador até haver interação do usuário:", error);
-      });
-
-      // 🔴 Atualiza badge
-      const badge = document.querySelector('#notificacaoDropdown .badge');
-      if (badge) {
-        badge.textContent = parseInt(badge.textContent || "0") + 1;
-      } else {
-        const newBadge = document.createElement('span');
-        newBadge.className = "position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger";
-        newBadge.textContent = "1";
-        document.getElementById("notificacaoDropdown").appendChild(newBadge);
-      }
-
-      // 📦 Localiza menu
-      const dropdownAnchor = document.querySelector("#notificacaoDropdown");
-      const dropdownLi = dropdownAnchor?.closest("li.dropdown");
-      const dropdownMenu = dropdownLi?.querySelector(".dropdown-menu");
-      if (!dropdownMenu) {
-        console.error("[WS] Dropdown menu não encontrado.");
-        return;
-      }
-
-      // ❌ Remove "sem notificações"
-      const emptyMsg = dropdownMenu.querySelector(".text-muted");
-      if (emptyMsg && emptyMsg.innerText.includes("Sem notificações")) {
-        emptyMsg.parentElement.remove();
-      }
-
-      // ✏️ Cria novo item
-      const novaNotificacao = document.createElement('li');
-      novaNotificacao.innerHTML = `
-            <a class="dropdown-item d-flex flex-column small fade show"
-               style="animation: fadeIn 0.4s;"
-               href="${data.target_url}"
-               onclick="event.preventDefault(); marcarComoLida('${data.notification_id}', '${data.target_url}')">
-              <span class="fw-semibold text-dark text-wrap text-break">${data.verb}</span>
-              <span class="text-muted text-wrap text-break">${data.description}</span>
-              <small class="text-muted mt-1">${data.timestamp}</small>
-            </a>
-          `;
-
-      // 🧩 Insere após o título
-      const header = dropdownMenu.querySelector(".dropdown-header");
-      let insertAfterHeader = header?.nextElementSibling;
-      if (insertAfterHeader?.classList.contains('dropdown-divider')) {
-        insertAfterHeader = null;
-      }
-
-      if (insertAfterHeader) {
-        dropdownMenu.insertBefore(novaNotificacao, insertAfterHeader);
-      } else {
-        dropdownMenu.appendChild(novaNotificacao);
-      }
-
-      // ⬆️ Scroll suave
-      dropdownMenu.scrollTo({ top: 0, behavior: 'smooth' });
-
-      // 🌫️ Adiciona fade-in
-      if (!document.getElementById('fadeStyle')) {
-        const style = document.createElement("style");
-        style.id = "fadeStyle";
-        style.innerHTML = `
-              @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(-5px); }
-                to { opacity: 1; transform: translateY(0); }
-              }
-            `;
-        document.head.appendChild(style);
-      }
-    }
-  </script>
 
   <!-- 🪟 Modal central de NOVA PROPOSTA (somente ANALISTA / ADMINISTRADOR) -->
   {% if perms.vendas.change_status_analise %}
   <div class="modal fade" id="modalNovaProposta" tabindex="-1" aria-labelledby="modalNovaPropostaLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white">
+        <div class="modal-header bg-primary">
           <h5 class="modal-title d-flex align-items-center gap-2" id="modalNovaPropostaLabel">
             <i class="bx bx-bell bx-tada"></i> <span id="modalNovaPropostaTitulo">Nova proposta recebida</span>
           </h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
         </div>
         <div class="modal-body text-center py-4">
           <div class="mb-3">
-            <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-label-primary" style="width:64px;height:64px;">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-label-primary modal-proposta-icone">
               <i class="bx bx-file bx-md text-primary"></i>
             </span>
           </div>
@@ -666,62 +395,20 @@
     </div>
   </div>
 
-  <script>
-    // Flag de permissão para exibir o modal central de nova proposta
-    window.__podeVerModalProposta = true;
-
-    let __bsModalNovaProposta = null;
-
-    function mostrarModalProposta(data) {
-      const el = document.getElementById('modalNovaProposta');
-      if (!el || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
-        console.warn('[WS] Modal de proposta indisponível.');
-        return;
-      }
-
-      const tituloEl = document.getElementById('modalNovaPropostaTitulo');
-      const verbEl = document.getElementById('modalNovaPropostaVerb');
-      const descEl = document.getElementById('modalNovaPropostaDescription');
-      const linkEl = document.getElementById('modalNovaPropostaLink');
-
-      // Título e rótulo do botão variam conforme o evento
-      let titulo = 'Nova proposta recebida';
-      let linkLabel = 'Ver proposta';
-      if (data.event === 'instalacao_aguardando_confirmacao') {
-        titulo = 'Instalação aguardando confirmação';
-        linkLabel = 'Ver solicitação';
-      } else if (data.event === 'pre_analise_criada') {
-        titulo = 'Nova análise rápida';
-        linkLabel = 'Ver análise';
-      }
-
-      if (tituloEl) tituloEl.textContent = titulo;
-      if (verbEl) verbEl.textContent = data.verb || 'Uma nova proposta foi criada.';
-      if (descEl) descEl.textContent = data.description || '';
-      if (linkEl) {
-        linkEl.textContent = linkLabel;
-        linkEl.href = data.target_url || '#';
-        linkEl.style.display = data.target_url ? '' : 'none';
-      }
-
-      __bsModalNovaProposta = bootstrap.Modal.getOrCreateInstance(el);
-      __bsModalNovaProposta.show();
-    }
-  </script>
-  {% else %}
-  <script>window.__podeVerModalProposta = false;</script>
   {% endif %}
+  <script src="{% static 'js/notificacoes.js' %}" data-sons-url="{% static 'sounds/' %}"
+    data-pode-ver-modal="{% if perms.vendas.change_status_analise %}1{% else %}0{% endif %}"></script>
 
-
+  <script src="{% static 'js/toasts.js' %}"></script>
   {% include "components/confirm_modal.html" %}
   <script src="{% static 'js/confirm-action.js' %}"></script>
 
   {% block extra_scripts %}{% endblock %}
 
   <!-- Botão Flutuante de WhatsApp Suporte -->
-  <a href="https://w.app/suporte-ipx" target="_blank" class="whatsapp-float" id="whatsapp-button" title="Suporte via WhatsApp">
+  <a href="https://w.app/suporte-ipx" target="_blank" rel="noopener" class="whatsapp-float" id="whatsapp-button" title="Suporte via WhatsApp">
     <div class="whatsapp-icon-wrapper">
-      <i class="bi bi-whatsapp"></i>
+      <i class="bx bxl-whatsapp" aria-hidden="true"></i>
     </div>
     <div class="whatsapp-text">
       <span class="support-label">Suporte</span>
@@ -729,122 +416,6 @@
     </div>
   </a>
 
-  <style>
-    .whatsapp-float {
-      position: fixed;
-      bottom: 25px;
-      right: 25px;
-      z-index: 9999;
-      display: flex;
-      align-items: center;
-      background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
-      color: white;
-      border-radius: 50px;
-      padding: 12px 20px 12px 12px;
-      text-decoration: none;
-      box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4);
-      transition: all 0.3s ease;
-      font-family: 'Public Sans', sans-serif;
-      max-width: 200px;
-      overflow: hidden;
-    }
-
-    .whatsapp-float:hover {
-      transform: translateY(-5px) scale(1.05);
-      box-shadow: 0 6px 30px rgba(37, 211, 102, 0.6);
-      text-decoration: none;
-      color: white;
-    }
-
-    .whatsapp-icon-wrapper {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 45px;
-      height: 45px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 50%;
-      margin-right: 12px;
-      flex-shrink: 0;
-    }
-
-    .whatsapp-icon-wrapper i {
-      font-size: 28px;
-      animation: pulse 2s infinite;
-    }
-
-    .whatsapp-text {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.2;
-    }
-
-    .support-label {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 2px;
-    }
-
-    .support-subtitle {
-      font-size: 11px;
-      opacity: 0.9;
-      font-weight: 400;
-    }
-
-    @keyframes pulse {
-      0%, 100% {
-        transform: scale(1);
-      }
-      50% {
-        transform: scale(1.1);
-      }
-    }
-
-    /* Responsivo para mobile */
-    @media (max-width: 768px) {
-      .whatsapp-float {
-        bottom: 20px;
-        right: 20px;
-        padding: 10px 15px 10px 10px;
-        max-width: 170px;
-      }
-
-      .whatsapp-icon-wrapper {
-        width: 40px;
-        height: 40px;
-        margin-right: 10px;
-      }
-
-      .whatsapp-icon-wrapper i {
-        font-size: 24px;
-      }
-
-      .support-label {
-        font-size: 14px;
-      }
-
-      .support-subtitle {
-        font-size: 10px;
-      }
-    }
-
-    /* Para telas muito pequenas, mostrar apenas o ícone */
-    @media (max-width: 480px) {
-      .whatsapp-float {
-        padding: 12px;
-        border-radius: 50%;
-        max-width: unset;
-      }
-
-      .whatsapp-text {
-        display: none;
-      }
-
-      .whatsapp-icon-wrapper {
-        margin-right: 0;
-      }
-    }
-  </style>
 
 </body>
 

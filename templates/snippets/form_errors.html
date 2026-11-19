@@ -1,0 +1,29 @@
+{% comment %}
+Resumo dos erros de um formulário montado à mão (sem {{ form }}).
+Uso: {% include "snippets/form_errors.html" with form=form %}
+     {% include "snippets/form_errors.html" with formset=pagamento_formset rotulo="Pagamento" %}
+{% endcomment %}
+{% if form and form.errors %}
+<div class="alert alert-danger" role="alert">
+  <div class="fw-semibold mb-1"><i class="bx bx-error-circle me-1"></i>Corrija os campos abaixo:</div>
+  <ul class="mb-0 ps-3">
+    {% for erro in form.non_field_errors %}<li>{{ erro }}</li>{% endfor %}
+    {% for campo in form %}{% for erro in campo.errors %}<li><strong>{{ campo.label }}:</strong> {{ erro }}</li>{% endfor %}{% endfor %}
+    {% for campo in form.hidden_fields %}{% for erro in campo.errors %}<li>{{ erro }}</li>{% endfor %}{% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% if formset %}
+{% if formset.non_form_errors or formset.total_error_count %}
+<div class="alert alert-danger" role="alert">
+  <div class="fw-semibold mb-1"><i class="bx bx-error-circle me-1"></i>{{ rotulo|default:"Itens" }}: verifique os dados</div>
+  <ul class="mb-0 ps-3">
+    {% for erro in formset.non_form_errors %}<li>{{ erro }}</li>{% endfor %}
+    {% for f in formset %}
+      {% for erro in f.non_field_errors %}<li><strong>{{ rotulo|default:"Item" }} {{ forloop.parentloop.counter }}:</strong> {{ erro }}</li>{% endfor %}
+      {% for campo in f %}{% for erro in campo.errors %}<li><strong>{{ rotulo|default:"Item" }} {{ forloop.parentloop.parentloop.counter }} · {{ campo.label }}:</strong> {{ erro }}</li>{% endfor %}{% endfor %}
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endif %}

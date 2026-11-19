@@ -14,11 +14,11 @@
     .table-purple,
     .table-purple th,
     .table-purple td {
-      background-color: #6f42c1 !important;
-      color: #fff            !important;
+      background-color: var(--ipix-ink) !important;
+      color: var(--ipix-yellow) !important;
     }
     .alert-quitacao {
-      border-left: .25rem solid #28a745;
+      border-left: .25rem solid var(--ipix-success);
     }
     /* animação pulse infinita no botão de quitação */
     .btn-quitacao {
@@ -119,7 +119,7 @@
                   <li><strong>Azul:</strong> Em Confirmação</li>
                 </ul>
               ">
-        <i class="bi bi-info-circle"></i>
+        <i class="bx bx-info-circle"></i>
       </button>
     </div>
   </div>
@@ -166,6 +166,8 @@
         </div>
       </div>
       {% endwith %}
+    {% empty %}
+      {% include "components/empty_state.html" with message="Nenhuma parcela disponível" icon="bx bx-receipt" %}
     {% endfor %}
   </div>
 
@@ -224,6 +226,8 @@
                     </td>
                   </tr>
                   {% endwith %}
+                {% empty %}
+                  {% include "components/empty_state.html" with colspan=6 message="Nenhuma parcela disponível" icon="bx bx-receipt" %}
                 {% endfor %}
               </tbody>
             </table>

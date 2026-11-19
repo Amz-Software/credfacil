@@ -1,0 +1,87 @@
+/* Solicitações de Crédito (vendas/templates/cliente/cliente_list.html).
+   Cores pelos tokens --ipix-* do tema (já redefinidos no modo escuro). */
+
+/* Cartões de status (filtro por clique) */
+.kpi-card { transition: all .2s ease-in-out; cursor: pointer; }
+.kpi-card[data-status="A"] .card-body { background-color: var(--ipix-success-soft) !important; }
+.kpi-card[data-status="R"] .card-body { background-color: var(--ipix-danger-soft) !important; }
+.kpi-card[data-status="C"] .card-body { background-color: var(--ipix-secondary-soft) !important; }
+.kpi-card[data-status=""] .card-body,
+.kpi-card[data-status="P"] .card-body { background-color: var(--ipix-warning-soft) !important; }
+
+/* Modal do QR code de instalação */
+.bg-gradient-primary { background: var(--ipix-dark-grad) !important; }
+
+.qr-icon-wrapper {
+  display: inline-block;
+  background: rgba(255, 255, 255, .2);
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  line-height: 80px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+.qr-image { transition: box-shadow .3s ease; }
+.qr-image:hover { box-shadow: var(--ipix-shadow) !important; }
+.qr-image--pulsando { animation: qr-pulso 2s infinite; }
+
+.code-display {
+  background: var(--ipix-surface-muted) !important;
+  border: 2px solid var(--ipix-border) !important;
+  transition: border-color .3s ease, box-shadow .3s ease, background-color .3s ease;
+}
+.code-display:hover { border-color: var(--ipix-primary) !important; box-shadow: var(--ipix-shadow-sm); }
+.code-display--copiavel { cursor: pointer; }
+.code-display--copiado {
+  background: var(--ipix-success-soft) !important;
+  border-color: var(--ipix-success) !important;
+}
+
+.modal.fade .modal-dialog { transition: transform .3s ease-out; transform: scale(.8); }
+.modal.show .modal-dialog { transform: scale(1); }
+.modal-opening .modal-content { animation: modal-entrada .3s ease-out; }
+
+@keyframes modal-entrada {
+  from { opacity: 0; transform: translateY(-50px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes qr-pulso {
+  0%, 100% { transform: scale(1); box-shadow: var(--ipix-shadow-sm); }
+  50% { transform: scale(1.05); box-shadow: var(--ipix-shadow); }
+}
+
+@media (max-width: 768px) {
+  .qr-image { max-width: 220px !important; }
+  .code-display span { font-size: 1.5rem !important; }
+  .modal-body { padding: 1.5rem !important; }
+}
+
+/* Painel lateral mais largo */
+.offcanvas-large { width: 50% !important; max-width: none !important; }
+@media (max-width: 768px) {
+  .offcanvas-large { width: 100% !important; }
+}
+
+.badge-sm { font-size: .7rem; padding: .2rem .4rem; }
+.tooltip-inner { text-align: left; max-width: 300px; }
+
+/* Etapas do fluxo (app, iCloud, IMEI) */
+.etapa-pendente { border-left: 3px solid transparent !important; position: relative; }
+.etapa-concluida {
+  background-color: var(--ipix-success-soft) !important;
+  border-left: 3px solid var(--ipix-success) !important;
+  position: relative;
+}
+.etapa-concluida::before {
+  content: '✓';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ipix-success);
+  font-weight: bold;
+  font-size: 1.2em;
+}

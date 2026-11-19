@@ -1,0 +1,22 @@
+{% comment %}
+Mensagens do Django (django.contrib.messages) exibidas como toasts do
+Bootstrap. Erros e avisos ficam até o usuário fechar; sucesso/info somem
+sozinhos. Ver static/js/toasts.js (também expõe window.ipixToast).
+{% endcomment %}
+<div class="toast-container ipix-toast-container position-fixed top-0 end-0 p-3" id="ipixToastContainer"
+  aria-live="polite" aria-atomic="false">
+  {% for message in messages %}
+  {% with nivel=message.level_tag %}
+  <div class="toast align-items-center border-0 text-bg-{% if nivel == 'error' %}danger{% elif nivel == 'debug' %}secondary{% else %}{{ nivel|default:'info' }}{% endif %}"
+    role="{% if nivel == 'error' or nivel == 'warning' %}alert{% else %}status{% endif %}"
+    aria-live="{% if nivel == 'error' or nivel == 'warning' %}assertive{% else %}polite{% endif %}" aria-atomic="true"
+    data-ipix-toast data-bs-autohide="{% if nivel == 'error' or nivel == 'warning' %}false{% else %}true{% endif %}"
+    data-bs-delay="6000">
+    <div class="d-flex">
+      <div class="toast-body">{{ message }}</div>
+      <button type="button" class="btn-close{% if nivel != 'warning' %} btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
+    </div>
+  </div>
+  {% endwith %}
+  {% endfor %}
+</div>

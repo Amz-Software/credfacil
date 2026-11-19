@@ -5,133 +5,7 @@
 
 {% block extra_head %}
   <link rel="stylesheet" href="{% static 'sneat-template/assets/vendor/libs/select2/select2.css' %}" />
-  <style>
-    /* ====== Contas a Receber — listagem ====== */
-    .cr-table { margin-bottom: 0; }
-    .cr-table > thead > tr > th {
-      font-size: .72rem;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      color: var(--ipix-gray-500, #a1acb8);
-      font-weight: 600;
-      white-space: nowrap;
-      border-bottom: 1px solid var(--ipix-gray-200, #eaeaef);
-    }
-    .cr-table > tbody > tr > td { vertical-align: middle; }
-    /* Barra de acento à esquerda (status da linha) */
-    .cr-row > td:first-child { border-left: 3px solid var(--cr-accent, transparent); }
-    .cr-row.is-desativado { opacity: .72; }
-    .cr-row.is-desativado  { --cr-accent: #8592a3; }
-    .cr-row.is-devolucao   { --cr-accent: #ffab00; }
-    .cr-row.is-bloqueado   { --cr-accent: #6f42c1; }
-    .cr-row.is-semcontato  { --cr-accent: #2f80ed; }
-    .cr-row.is-maisprazo   { --cr-accent: #20c997; }
-    .cr-row.is-atrasado    { --cr-accent: #ea5455; }
-    .cr-row.is-pendente    { --cr-accent: #ffab00; }
-    .cr-row.is-pago        { --cr-accent: #28c76f; }
-    .cr-row.is-quitado     { --cr-accent: #03c3ec; }
-    .cr-row.is-default     { --cr-accent: #eaeaef; }
-
-    /* Pílula de status principal */
-    .cr-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: .35rem;
-      font-size: .72rem;
-      font-weight: 600;
-      padding: .28rem .6rem;
-      border-radius: 50rem;
-      white-space: nowrap;
-      line-height: 1;
-    }
-    .cr-pill .cr-dot {
-      width: .5rem; height: .5rem; border-radius: 50%;
-      background: currentColor; flex-shrink: 0;
-    }
-    .cr-pill.is-desativado { background: rgba(133,146,163,.16); color: #6c757d; }
-    .cr-pill.is-devolucao  { background: rgba(255,171,0,.16);  color: #b97900; }
-    .cr-pill.is-bloqueado  { background: rgba(111,66,193,.14); color: #6f42c1; }
-    .cr-pill.is-semcontato { background: rgba(47,128,237,.14); color: #1c5fc0; }
-    .cr-pill.is-maisprazo  { background: rgba(32,201,151,.16); color: #149e78; }
-    .cr-pill.is-atrasado   { background: rgba(234,84,85,.16);  color: #ea5455; }
-    .cr-pill.is-pendente   { background: rgba(255,171,0,.16);  color: #b97900; }
-    .cr-pill.is-pago       { background: rgba(40,199,111,.16); color: #1a9e57; }
-    .cr-pill.is-quitado    { background: rgba(3,195,236,.16);  color: #0a8aa8; }
-    .cr-pill.is-default    { background: var(--ipix-gray-100,#f5f5f9); color: #8592a3; }
-
-    /* Sinalizações (BO, Cobrança, etc.) */
-    .cr-flag {
-      display: inline-flex;
-      align-items: center;
-      gap: .25rem;
-      font-size: .68rem;
-      font-weight: 600;
-      padding: .2rem .45rem;
-      border-radius: .4rem;
-      line-height: 1;
-      border: 1px solid transparent;
-    }
-    .cr-flag.f-bo        { background: rgba(234,84,85,.12);  color: #ea5455; }
-    .cr-flag.f-cobranca  { background: rgba(253,126,20,.14); color: #d9650b; }
-    .cr-flag.f-conexao   { background: rgba(133,146,163,.16); color: #6c757d; }
-    .cr-flag.f-roubo     { background: rgba(0,0,0,.08);       color: #2b2c40; }
-
-    /* Status personalizados (StatusPagamento.cor_hex) */
-    .cr-status-tag {
-      display: inline-flex; align-items: center;
-      font-size: .68rem; font-weight: 600;
-      padding: .2rem .5rem; border-radius: 50rem;
-      color: #1f2230; line-height: 1;
-    }
-
-    /* Cliente / produto */
-    .cr-client-name { font-weight: 600; color: var(--ipix-heading,#384551); }
-    .cr-client-name:hover { color: var(--ipix-yellow-700,#c79b00); }
-    .cr-sub { font-size: .78rem; color: #8592a3; }
-    .cr-sub a { color: #8592a3; }
-    .cr-sub a:hover { color: var(--ipix-yellow-700,#c79b00); }
-    .cr-wa-btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 22px; height: 22px; margin-left: 4px; border-radius: 50%;
-      background: #25d366; color: #fff !important; font-size: .95rem;
-      line-height: 1; vertical-align: middle; transition: background .15s ease;
-    }
-    .cr-wa-btn:hover { background: #1da851; color: #fff !important; }
-
-    /* Valores */
-    .cr-amount { font-weight: 600; white-space: nowrap; }
-    .cr-amount-warn { color: #b97900; }
-    .cr-amount-date { font-size: .72rem; color: #8592a3; white-space: nowrap; }
-    .cr-table > tbody > tr > td.cr-money { min-width: 118px; }
-    .cr-actions-dropdown .dropdown-menu { min-width: 220px; z-index: 1080; }
-    .cr-actions-dropdown .dropdown-toggle {
-      align-items: center;
-      display: inline-flex;
-      height: 44px;
-      justify-content: center;
-      width: 44px;
-    }
-    .cr-actions-dropdown .dropdown-toggle::after { display: none; }
-
-    /* Progresso de parcelas */
-    .cr-progress {
-      height: 6px; width: 90px; border-radius: 50rem;
-      background: var(--ipix-gray-200,#eaeaef); overflow: hidden; margin: 0 auto;
-    }
-    .cr-progress-bar { height: 100%; border-radius: 50rem; background: #28c76f; }
-
-    /* Legenda */
-    .cr-legend { display: flex; flex-wrap: wrap; gap: .5rem .9rem; }
-    .cr-legend .item { display: inline-flex; align-items: center; gap: .35rem; font-size: .75rem; color: #6b7785; }
-    .cr-legend .swatch { width: .8rem; height: .8rem; border-radius: 3px; flex-shrink: 0; }
-
-    /* Filtros: switches em grade */
-    .cr-switch-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: .35rem 1rem;
-    }
-  </style>
+  <link rel="stylesheet" href="{% static 'css/contas-a-receber.css' %}" />
 {% endblock %}
 
 
@@ -144,15 +18,15 @@
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-2">
       <div class="cr-legend">
-        <span class="item"><span class="swatch" style="background:#28c76f"></span>Pago</span>
-        <span class="item"><span class="swatch" style="background:#03c3ec"></span>Quitado</span>
-        <span class="item"><span class="swatch" style="background:#ffab00"></span>A vencer</span>
-        <span class="item"><span class="swatch" style="background:#ea5455"></span>Atrasado</span>
-        <span class="item"><span class="swatch" style="background:#6f42c1"></span>Bloqueado</span>
-        <span class="item"><span class="swatch" style="background:#2f80ed"></span>Sem contato</span>
-        <span class="item"><span class="swatch" style="background:#20c997"></span>Mais prazo</span>
-        <span class="item"><span class="swatch" style="background:#8592a3"></span>Desativado</span>
-        <span class="item"><span class="swatch" style="background:#ffab00;border:1px dashed #d9a400"></span>Devolução</span>
+        <span class="item"><span class="swatch is-pago"></span>Pago</span>
+        <span class="item"><span class="swatch is-quitado"></span>Quitado</span>
+        <span class="item"><span class="swatch is-pendente"></span>A vencer</span>
+        <span class="item"><span class="swatch is-atrasado"></span>Atrasado</span>
+        <span class="item"><span class="swatch is-bloqueado"></span>Bloqueado</span>
+        <span class="item"><span class="swatch is-semcontato"></span>Sem contato</span>
+        <span class="item"><span class="swatch is-maisprazo"></span>Mais prazo</span>
+        <span class="item"><span class="swatch is-desativado"></span>Desativado</span>
+        <span class="item"><span class="swatch is-devolucao"></span>Devolução</span>
       </div>
     </div>
   </div>
@@ -288,9 +162,9 @@
                   <div class="d-flex align-items-start gap-2">
                     <span class="mt-1" title="{% if conta.lembrete %}Lembrete ativo{% else %}Sem lembrete{% endif %}">
                       {% if conta.lembrete %}
-                        <i class="bi bi-bell-fill text-warning"></i>
+                        <i class="bx bxs-bell text-warning"></i>
                       {% else %}
-                        <i class="bi bi-bell text-muted opacity-50"></i>
+                        <i class="bx bx-bell text-muted opacity-50"></i>
                       {% endif %}
                     </span>
                     <div>
@@ -298,22 +172,26 @@
                         {{ conta.venda.cliente.nome|title }}
                       </a>
                       {% if conta.devolucao %}
-                        <span class="cr-flag" style="background:rgba(255,171,0,.16);color:#b97900;border:1px dashed #d9a400" title="Devolução – ignora parcelas futuras">Devolução</span>
+                        <span class="cr-flag is-devolucao" title="Devolução – ignora parcelas futuras">Devolução</span>
                       {% endif %}
+                      {% with item=conta.venda.itens_venda.first %}
+                      {% if item %}
                       <div class="cr-sub">
-                        <a href="{% url 'produtos:produto_detail' conta.venda.itens_venda.first.produto.id %}">
-                          {{ conta.venda.itens_venda.first.produto.nome|title }}
+                        <a href="{% url 'produtos:produto_detail' item.produto_id %}">
+                          {{ item.produto.nome|title }}
                         </a>
-                        {% if conta.venda.itens_venda.first.imei %}
-                          <span class="mx-1">·</span><i class="bx bx-barcode"></i> {{ conta.venda.itens_venda.first.imei }}
+                        {% if item.imei %}
+                          <span class="mx-1">·</span><i class="bx bx-barcode"></i> {{ item.imei }}
                         {% endif %}
                       </div>
+                      {% endif %}
+                      {% endwith %}
                       {% if conta.venda.cliente.telefone %}
                         <div class="cr-sub">
                           <i class="bx bx-phone"></i> {{ conta.venda.cliente.telefone }}
                           {% with wa=conta.venda.cliente.telefone|whatsapp_url %}
                             {% if wa %}
-                              <a href="{{ wa }}" target="_blank" rel="noopener" class="cr-wa-btn" title="Abrir conversa no WhatsApp" onclick="event.stopPropagation();">
+                              <a href="{{ wa }}" target="_blank" rel="noopener" class="cr-wa-btn" title="Abrir conversa no WhatsApp">
                                 <i class="bx bxl-whatsapp"></i>
                               </a>
                             {% endif %}
@@ -337,7 +215,7 @@
                 {% endif %}
 
                 <!-- SITUAÇÃO -->
-                <td style="min-width: 170px;">
+                <td class="cr-situacao">
                   {% if conta.desativado %}
                     <span class="cr-pill is-desativado"><span class="cr-dot"></span>Desativado</span>
                   {% elif conta.devolucao %}
@@ -363,10 +241,10 @@
                   <!-- Sinalizações -->
                   {% if conta.bo or conta.flag_atrasado or conta.sem_conexao or conta.roubo %}
                     <div class="d-flex flex-wrap gap-1 mt-1">
-                      {% if conta.bo %}<span class="cr-flag f-bo"><i class="bx bx-error-circle"></i>BO</span>{% endif %}
-                      {% if conta.flag_atrasado %}<span class="cr-flag f-cobranca"><i class="bx bx-phone-call"></i>Cobrança</span>{% endif %}
-                      {% if conta.sem_conexao %}<span class="cr-flag f-conexao"><i class="bx bx-wifi-off"></i>Desabilitado</span>{% endif %}
-                      {% if conta.roubo %}<span class="cr-flag f-roubo"><i class="bx bx-shield-x"></i>Roubo</span>{% endif %}
+                      {% if conta.bo %}<span class="cr-flag is-bo"><i class="bx bx-error-circle"></i>BO</span>{% endif %}
+                      {% if conta.flag_atrasado %}<span class="cr-flag is-cobranca"><i class="bx bx-phone-call"></i>Cobrança</span>{% endif %}
+                      {% if conta.sem_conexao %}<span class="cr-flag is-semconexao"><i class="bx bx-wifi-off"></i>Desabilitado</span>{% endif %}
+                      {% if conta.roubo %}<span class="cr-flag is-roubo"><i class="bx bx-shield-x"></i>Roubo</span>{% endif %}
                     </div>
                   {% endif %}
 

@@ -1,0 +1,43 @@
+/* Página inicial e dashboards: cartões de navegação e área dos gráficos.
+   Cores sempre pelos tokens --ipix-* (ipix-theme.css), que já mudam no modo escuro. */
+
+.nav-card { border-left: 4px solid var(--ipix-secondary) !important; }
+.nav-card--success { border-left-color: var(--ipix-success) !important; }
+.nav-card--info { border-left-color: var(--ipix-info) !important; }
+.nav-card--warning { border-left-color: var(--ipix-warning) !important; }
+.nav-card--primary { border-left-color: var(--ipix-primary) !important; }
+.nav-card .card-title { font-size: 1.1rem; }
+
+.nav-card-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-container {
+  position: relative;
+  padding: 30px;
+  margin-bottom: 2rem;
+  background: var(--ipix-surface-muted);
+  border-radius: var(--ipix-radius);
+}
+
+/* Área de altura fixa (gráfico da página inicial) */
+.chart-container--fixo { height: 400px; margin-bottom: 0; }
+.grafico-dash { max-height: 500px; }
+
+.kpi-card .avatar { transition: transform .3s ease; }
+.kpi-card:hover .avatar { transform: scale(1.1); }
+
+@media (max-width: 768px) {
+  .chart-container { padding: 20px; }
+  .chart-container--fixo { height: 350px; }
+}
+
+@media (max-width: 576px) {
+  .chart-container { padding: 15px; }
+  .chart-container--fixo { height: 320px; }
+}

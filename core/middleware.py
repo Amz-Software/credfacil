@@ -24,6 +24,7 @@ ROTAS_PUBLICAS = frozenset({
     'accounts:buscar_lojas',
     'accounts:password_reset',
     'accounts:password_reset_done',
+    'accounts:password_reset_confirm',
     'accounts:password_reset_complete',
     'vendas:consulta_pagamentos',
     'vendas:pagamento_detail',

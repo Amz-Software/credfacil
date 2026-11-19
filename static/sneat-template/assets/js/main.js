@@ -162,19 +162,19 @@ if (document.getElementById('layout-menu')) {
     if (storedStyle === 'light') {
       styleSwitcherIcon.classList.add('bx-sun');
       new bootstrap.Tooltip(styleSwitcherIcon, {
-        title: 'Light Mode',
+        title: 'Tema claro',
         fallbackPlacements: ['bottom']
       });
     } else if (storedStyle === 'dark') {
       styleSwitcherIcon.classList.add('bx-moon');
       new bootstrap.Tooltip(styleSwitcherIcon, {
-        title: 'Dark Mode',
+        title: 'Tema escuro',
         fallbackPlacements: ['bottom']
       });
     } else {
       styleSwitcherIcon.classList.add('bx-desktop');
       new bootstrap.Tooltip(styleSwitcherIcon, {
-        title: 'System Mode',
+        title: 'Tema do sistema',
         fallbackPlacements: ['bottom']
       });
     }

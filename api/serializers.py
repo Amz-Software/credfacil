@@ -97,7 +97,9 @@ class LojaListSerializer(LojaSerializer):
         fields = "__all__"
 
     def get_repasses_info(self, obj):
-        repasses, atrasados = obj.get_repasses_status()
+        # A listagem calcula o status de todas as lojas da página de uma vez.
+        em_lote = self.context.get("repasses_status")
+        repasses, atrasados = em_lote[obj.id] if em_lote and obj.id in em_lote else obj.get_repasses_status()
         return {"repasses": repasses, "atrasados": atrasados}
 
 

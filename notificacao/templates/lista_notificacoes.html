@@ -130,7 +130,6 @@
       const li = this.closest('li');
       const id = this.dataset.id;
       const targetUrl = this.dataset.url;
-      console.log("[Notificações] clicou em id =", id);
 
       // Chama o marker e só redireciona após sucesso
       fetch(`/notificacao/marcar-como-lida/${id}/`, {
@@ -138,7 +137,6 @@
         headers: { 'X-CSRFToken': getCSRFToken() },
       })
       .then(res => {
-        console.log("[Notificações] status", res.status);
         if (res.ok) {
           // Remove o ponto amarelo
           li.querySelector('.status-indicator').classList.remove('bg-warning');
@@ -146,7 +144,7 @@
           li.querySelector('.status-indicator').classList.add('bg-transparent');
         }
       })
-      .catch(err => console.error("[Notificações] erro ao marcar:", err))
+      .catch(() => { /* segue para o destino mesmo se falhar */ })
       .finally(() => {
         // Redireciona no fim
         window.location.href = targetUrl;

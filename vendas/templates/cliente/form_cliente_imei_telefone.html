@@ -3,49 +3,19 @@
 
 {% block extra_head %}
   {{ form_analise_credito.media.css }}
-  <style>
-    .card-footer {
-      position: sticky;
-      bottom: 0;
-      background: white;
-      padding: 1rem;
-      border-top: 1px solid #ddd;
-      z-index: 10;
-    }
-
-    /* Estilos para botões de download de arquivos */
-    .btn-outline-primary {
-      border: 2px solid #007bff;
-      color: #007bff;
-      background-color: transparent;
-      transition: all 0.3s ease;
-    }
-
-    .btn-outline-primary:hover {
-      background-color: #007bff;
-      color: white;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-    }
-
-    .btn-outline-primary i {
-      font-size: 1.1em;
-    }
-  </style>
+  <link rel="stylesheet" href="{% static 'css/form-cliente.css' %}" />
 {% endblock extra_head %}
 
-{% block title %}
-  {% if cliente.pk %}Editar Análise de Crédito{% else %}Criar Análise de Crédito{% endif %}
-{% endblock title %}
+{% block title %}{% if cliente.pk %}Editar Solicitação de Crédito{% else %}Nova Solicitação de Crédito{% endif %}{% endblock title %}
 
 {% block content %}
-<div class="container-xxl mt-4">
+<div class="container-xxl mt-4 form-cliente">
   <div class="card">
     <!-- aqui -->
     {# dentro de card-header, no lugar do badge estático #}
     <div class="card-header d-flex align-items-center p-3">
       <h4 class="mb-0">
-        {% if cliente.pk %}Editar Análise de Crédito{% else %}Criar Análise de Crédito{% endif %}
+        {% if cliente.pk %}Editar Solicitação de Crédito{% else %}Nova Solicitação de Crédito{% endif %}
       </h4>
 
       {# badge de análise de crédito continua igual… #}
@@ -74,7 +44,7 @@
           <select name="status_app"
                   id="statusAppSelect{{ cliente.pk }}"
                   class="form-select"
-                  onchange="this.form.submit()">
+                  data-auto-submit>
             <option value="" disabled>—</option>
             {% for code,label in status_app_choices %}
               <option value="{{ code }}"
@@ -99,7 +69,13 @@
 
     <form method="post" enctype="multipart/form-data" id="clienteForm">
       {% csrf_token %}
+      <div id="clienteFormDados" hidden
+           data-produtos="{{ produtos_json }}"
+           data-parcelamentos="{{ parcelamentos_json }}"
+           data-entrada-informada="{{ analise_credito.entrada_informada|default_if_none:''|unlocalize }}"></div>
       <div class="card-body">
+        {% include "snippets/form_errors.html" with form=form_cliente %}
+        {% include "snippets/form_errors.html" with form=form_analise_credito %}
         <!-- Nav tabs -->
         <ul class="nav nav-tabs mb-3" id="clienteTabs" role="tablist">
           <li class="nav-item" role="presentation">
@@ -129,14 +105,16 @@
                 {% elif field.label == 'Nascimento' %}
                   <div class="col-md-6">
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                    <input type="date" class="form-control" id="{{ field.id_for_label }}" name="{{ field.name }}"
+                    <input type="date" class="form-control{% if field.errors %} is-invalid{% endif %}" id="{{ field.id_for_label }}" name="{{ field.name }}"
                            value="{{ field.value|date:'Y-m-d' }}">
+                    {% for erro in field.errors %}<div class="invalid-feedback d-block">{{ erro }}</div>{% endfor %}
                   </div>
                 {% else %}
                   <div class="col-md-6">
                     <div class="mb-3">
                       <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                       {{ field }}
+                      {% for erro in field.errors %}<div class="invalid-feedback d-block">{{ erro }}</div>{% endfor %}
                     </div>
                   </div>
                 {% endif %}
@@ -180,7 +158,7 @@
                 {% if form_comprovantes.documento_identificacao_frente.value %}
                   {% if form_comprovantes.documento_identificacao_frente.value|is_image_file %}
                     <a href="{{ form_comprovantes.documento_identificacao_frente.value.url }}" target="_blank" class="d-block mb-2">
-                      <img src="{{ form_comprovantes.documento_identificacao_frente.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                      <img src="{{ form_comprovantes.documento_identificacao_frente.value.url }}" class="img-thumbnail comprovante-preview">
                     </a>
                   {% else %}
                     <div class="d-block mb-2">
@@ -209,7 +187,7 @@
                 {% if form_comprovantes.documento_identificacao_verso.value %}
                   {% if form_comprovantes.documento_identificacao_verso.value|is_image_file %}
                     <a href="{{ form_comprovantes.documento_identificacao_verso.value.url }}" target="_blank" class="d-block mb-2">
-                      <img src="{{ form_comprovantes.documento_identificacao_verso.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                      <img src="{{ form_comprovantes.documento_identificacao_verso.value.url }}" class="img-thumbnail comprovante-preview">
                     </a>
                   {% else %}
                     <div class="d-block mb-2">
@@ -238,7 +216,7 @@
                 {% if form_comprovantes.comprovante_residencia.value %}
                   {% if form_comprovantes.comprovante_residencia.value|is_image_file %}
                     <a href="{{ form_comprovantes.comprovante_residencia.value.url }}" target="_blank" class="d-block mb-2">
-                      <img src="{{ form_comprovantes.comprovante_residencia.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                      <img src="{{ form_comprovantes.comprovante_residencia.value.url }}" class="img-thumbnail comprovante-preview">
                     </a>
                   {% else %}
                     <div class="d-block mb-2">
@@ -267,7 +245,7 @@
                 {% if form_comprovantes.foto_cliente.value %}
                   {% if form_comprovantes.foto_cliente.value|is_image_file %}
                     <a href="{{ form_comprovantes.foto_cliente.value.url }}" target="_blank" class="d-block mb-2">
-                      <img src="{{ form_comprovantes.foto_cliente.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                      <img src="{{ form_comprovantes.foto_cliente.value.url }}" class="img-thumbnail comprovante-preview">
                     </a>
                   {% else %}
                     <div class="d-block mb-2">
@@ -281,7 +259,7 @@
                   <small>Escolha um novo arquivo se quiser substituir.</small>
                 {% else %}
                   <div class="d-flex flex-column align-items-center justify-content-center border border-dashed rounded p-3 mb-2 bg-light">
-                    <img src="{% static 'images/IPIX.png' %}" alt="IPX" style="max-height:70px; width:auto; opacity:.7;">
+                    <img src="{% static 'images/IPIX.png' %}" alt="IPIX" class="comprovante-placeholder">
                     <small class="text-muted mt-1">Sem foto anexada</small>
                   </div>
                 {% endif %}
@@ -299,7 +277,7 @@
                   {% if form_comprovantes.consulta_serasa.value %}
                     {% if form_comprovantes.consulta_serasa.value|is_image_file %}
                       <a href="{{ form_comprovantes.consulta_serasa.value.url }}" target="_blank" class="d-block mb-2">
-                        <img src="{{ form_comprovantes.consulta_serasa.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                        <img src="{{ form_comprovantes.consulta_serasa.value.url }}" class="img-thumbnail comprovante-preview">
                       </a>
                     {% else %}
                       <div class="d-block mb-2">
@@ -340,7 +318,7 @@
                   {% if form_comprovantes.consulta_serasa_2.value %}
                     {% if form_comprovantes.consulta_serasa_2.value|is_image_file %}
                       <a href="{{ form_comprovantes.consulta_serasa_2.value.url }}" target="_blank" class="d-block mb-2">
-                        <img src="{{ form_comprovantes.consulta_serasa_2.value.url }}" class="img-thumbnail" style="max-height:100px;">
+                        <img src="{{ form_comprovantes.consulta_serasa_2.value.url }}" class="img-thumbnail comprovante-preview">
                       </a>
                     {% else %}
                       <div class="d-block mb-2">
@@ -387,6 +365,7 @@
                     {% endif %}
                   </label>
                   {{ field }}
+                  {% for erro in field.errors %}<div class="invalid-feedback d-block">{{ erro }}</div>{% endfor %}
                 </div>
               {% endfor %}
               <div class="row text-center mb-4" id="parcelas-info">
@@ -476,108 +455,6 @@
 
 {% block extra_scripts %}
   {{ form_analise_credito.media.js }}
-  <script>
-    $(function(){
-      // Parse defensivo: um JSON ausente ou malformado não pode derrubar o
-      // restante do bloco (o handler do botão Aprovar vive aqui embaixo).
-      let produtos = [];
-      try {
-        produtos = JSON.parse('{{ produtos_json|escapejs }}');
-      } catch (e) {
-        console.error('Erro ao parsear produtos_json:', e);
-      }
-
-      let parcelamentos = [];
-      try {
-        parcelamentos = JSON.parse('{{ parcelamentos_json|escapejs }}');
-      } catch (e) {
-        console.error('Erro ao parsear parcelamentos_json:', e);
-      }
-
-      const ENTRADA_INFORMADA = parseFloat('{{ analise_credito.entrada_informada|default_if_none:"" }}');
-
-      function formatBRL(v) {
-        return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-      }
-
-      // Mesmo cálculo de gerar_venda e das demais telas: juros vêm de
-      // Parcelamento (por marca), não dos antigos campos valor_{n}_vezes.
-      function atualizaInfo() {
-        const prodId = $('#id_produto').val();
-        const np     = $('#id_numero_parcelas').val();
-
-        // se não houver produto selecionado, limpa tudo
-        if (!prodId) {
-          $('#info-entrada, #info-total, #info-parcela').text('—');
-          return;
-        }
-
-        const p = produtos.find(x => x.id == prodId) || {};
-        const valorBase = p.valor || 0;
-        const entrada = !isNaN(ENTRADA_INFORMADA) ? ENTRADA_INFORMADA : (p.entrada || 0);
-        $('#info-entrada').text(formatBRL(entrada));
-
-        const parcelas = parseInt(np, 10);
-        if (!np || isNaN(parcelas)) {
-          $('#info-total').text('—');
-          $('#info-parcela').text('—');
-          return;
-        }
-
-        const parc = parcelamentos.find(x => x.marca_id == p.marca_id && x.qtd_vezes === parcelas);
-        if (!parc) {
-          $('#info-total').text('Parcelamento ' + np + 'x não cadastrado para esta marca');
-          $('#info-parcela').text('—');
-          return;
-        }
-
-        const valorFinanciado = Math.max(valorBase - entrada, 0);
-        const total = valorFinanciado + (valorFinanciado * parc.porcentagem_juros / 100);
-
-        $('#info-total').text(formatBRL(total));
-        $('#info-parcela').text(np + '× de ' + formatBRL(total / parcelas));
-      }
-
-      // dispara ao mudar produto (Select2) ou número de parcelas
-      $('#id_produto')
-        .on('change select2:select', atualizaInfo);
-      $('#id_numero_parcelas')
-        .on('change', atualizaInfo);
-
-      // inicializa ao carregar a página
-      atualizaInfo();
-      
-      // Botão Aprovar - salvar formulário antes de redirecionar
-      const aprovarBtn = document.getElementById('aprovarBtn');
-      if (aprovarBtn) {
-        aprovarBtn.addEventListener('click', function(e) {
-          e.preventDefault();
-          const form = document.getElementById('clienteForm');
-          const aprovarUrl = this.getAttribute('data-url');
-          
-          form.querySelectorAll('input[name="aprovar_apos_salvar"]').forEach(function(input) {
-            input.remove();
-          });
-
-          // Cria um campo hidden para identificar que é uma aprovação
-          const hiddenField = document.createElement('input');
-          hiddenField.type = 'hidden';
-          hiddenField.name = 'aprovar_apos_salvar';
-          hiddenField.value = aprovarUrl;
-          form.appendChild(hiddenField);
-          
-          // Usa o fluxo normal de submit para manter validações e handlers ativos.
-          if (form.requestSubmit) {
-            form.requestSubmit();
-          } else {
-            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-            if (form.dispatchEvent(submitEvent) && form.checkValidity()) {
-              form.submit();
-            }
-          }
-        });
-      }
-    });
-  </script>
+  <script src="{% static 'js/form-cliente-imei-telefone.js' %}"></script>
 
 {% endblock extra_scripts %}

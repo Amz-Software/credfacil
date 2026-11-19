@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Guia do Sistema - IPIX{% endblock %}
+{% block title %}Guia do Sistema{% endblock %}
 
 {% block content %}
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -474,8 +474,8 @@
       </div>
 
       <!-- Dicas Finais -->
-      <div class="card shadow-sm border-0 mb-4" style="border-radius: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <div class="card-body p-4 text-white">
+      <div class="card shadow-sm border-0 mb-4 ipix-hero">
+        <div class="card-body p-4">
           <h4 class="fw-bold mb-3">
             <i class="bx bx-bulb me-2"></i>
             Dicas Importantes
@@ -530,13 +530,10 @@
 <style>
   .section-title {
     padding-bottom: 0.75rem;
-    border-bottom: 2px solid #e9ecef;
+    border-bottom: 2px solid var(--ipix-border);
     margin-bottom: 1.5rem;
   }
   
-  .dark-style .section-title {
-    border-bottom-color: #3b3f52;
-  }
   
   a[href^="#"] {
     scroll-behavior: smooth;

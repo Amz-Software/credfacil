@@ -38,7 +38,7 @@ Detalhes da Loja
     <div class="card-body">
 
       <!-- Nav Tabs -->
-      <ul class="nav nav-tabs" id="lojaTabs" role="tablist">
+      <ul class="nav nav-tabs" id="lojaTabs" role="tablist" data-loja-id="{{ loja.pk }}">
         <li class="nav-item" role="presentation">
           <button class="nav-link active"
                   id="info-tab"
@@ -316,37 +316,13 @@ Detalhes da Loja
             <!-- KPIs -->
             <div class="row mb-4 g-3">
               <div class="col-md-4">
-                <div class="card text-bg-info shadow-sm">
-                  <div class="card-body d-flex align-items-center">
-                    <i class="bx bx-cart fs-1 me-3"></i>
-                    <div>
-                      <h6 class="card-subtitle mb-1">Total de Vendas</h6>
-                      <h2 class="card-title m-0 text-white">{{ kpi.qtd_vendas }}</h2>
-                    </div>
-                  </div>
-                </div>
+                {% include "components/kpi_card.html" with icon="bx bx-cart" label="Total de Vendas" value=kpi.qtd_vendas accent="info" %}
               </div>
               <div class="col-md-4">
-                <div class="card text-bg-success shadow-sm">
-                  <div class="card-body d-flex align-items-center">
-                    <i class="bx bx-dollar fs-1 me-3"></i>
-                    <div>
-                      <h6 class="card-subtitle mb-1">Valor Total</h6>
-                      <h2 class="card-title m-0 text-white">R$ {{ kpi.valor_total|floatformat:2 }}</h2>
-                    </div>
-                  </div>
-                </div>
+                {% include "components/kpi_card.html" with icon="bx bx-dollar" label="Valor Total" value=kpi.valor_total|floatformat:2 is_money=True accent="success" %}
               </div>
               <div class="col-md-4">
-                <div class="card text-bg-warning shadow-sm">
-                  <div class="card-body d-flex align-items-center">
-                    <i class="bx bx-transfer-alt fs-1 me-3"></i>
-                    <div>
-                      <h6 class="card-subtitle mb-1">Valor de Repasse</h6>
-                      <h2 class="card-title m-0 text-white">R$ {{ kpi.valor_repasse|floatformat:2 }}</h2>
-                    </div>
-                  </div>
-                </div>
+                {% include "components/kpi_card.html" with icon="bx bx-transfer-alt" label="Valor de Repasse" value=kpi.valor_repasse|floatformat:2 is_money=True accent="warning" %}
               </div>
             </div>
 
@@ -367,8 +343,7 @@ Detalhes da Loja
                     <tr>
                     <td>{{ venda.data_venda|date:"d/m/Y" }}</td>
                     <td>{{ venda.cliente.nome }}</td>
-                    <td>
-                        {{ venda.repasse_logista|floatformat:2 }}
+                    <td>R$ {{ venda.repasse_logista|floatformat:2 }}</td>
                     <td>R$ {{ venda.pagamentos_valor_total|floatformat:2 }}</td>
                     <td>
                         <a href="{% url 'vendas:venda_detail' venda.pk %}"
@@ -378,9 +353,7 @@ Detalhes da Loja
                     </td>
                     </tr>
                 {% empty %}
-                    <tr>
-                    <td colspan="4" class="text-center">Nenhuma venda encontrada</td>
-                    </tr>
+                {% include "components/empty_state.html" with colspan=5 message="Nenhuma venda encontrada" icon="bx bx-receipt" %}
                 {% endfor %}
                 </tbody>
             </table>
@@ -558,6 +531,8 @@ Detalhes da Loja
                     </a>
                   </td>
                 </tr>
+              {% empty %}
+                {% include "components/empty_state.html" with colspan=5 message="Nenhum repasse registrado" icon="bx bx-transfer" %}
               {% endfor %}
             </tbody>
           </table>
@@ -615,71 +590,5 @@ Detalhes da Loja
 
 {% block extra_scripts %}
 <script src="{% static 'js/formatarTextoEditor.js' %}"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    // Formatar texto do contrato
-    const divContrato = document.getElementById('texto_contrato');
-    if (divContrato) {
-      formatarTexto(divContrato.getAttribute('data-texto'), divContrato);
-    }
-
-    // Persistir aba ativa por loja em sessionStorage (não polui a URL/histórico)
-    const tabStorageKey = 'lojaDetailActiveTab_{{ loja.pk }}';
-
-    // Restaurar última aba salva
-    const savedTab = sessionStorage.getItem(tabStorageKey);
-    if (savedTab) {
-      const triggerEl = document.querySelector(`#lojaTabs button[data-bs-target="${savedTab}"]`);
-      if (triggerEl) {
-        new bootstrap.Tab(triggerEl).show();
-      }
-    }
-
-    // Salvar aba ao trocar
-    document.querySelectorAll('#lojaTabs button[data-bs-toggle="tab"]').forEach(btn => {
-      btn.addEventListener('shown.bs.tab', e => {
-        sessionStorage.setItem(tabStorageKey, e.target.getAttribute('data-bs-target'));
-      });
-    });
-
-    // Reforço: salvar aba ativa imediatamente antes do envio do form de repasse
-    const repasseForm = document.querySelector('#offcanvasRepasse form');
-    if (repasseForm) {
-      repasseForm.addEventListener('submit', () => {
-        const activeBtn = document.querySelector('#lojaTabs button.active');
-        if (activeBtn) {
-          sessionStorage.setItem(tabStorageKey, activeBtn.getAttribute('data-bs-target'));
-        }
-      });
-
-      // Enter envia o form a partir do textarea de observação (Shift+Enter quebra linha)
-      const obsField = repasseForm.querySelector('textarea[name="observacao"]');
-      if (obsField) {
-        obsField.addEventListener('keydown', e => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (typeof repasseForm.requestSubmit === 'function') {
-              repasseForm.requestSubmit();
-            } else {
-              repasseForm.submit();
-            }
-          }
-        });
-      }
-    }
-  });
-</script>
-
-<script>
-  // Seleciona o botão de limpar e os campos de data
-  const limparBtn = document.getElementById('limparFiltro');
-  const dataInicio = document.getElementById('data_inicio');
-  const dataFim = document.getElementById('data_fim');
-
-  // Adiciona o evento de clique para limpar os campos de data
-  limparBtn.addEventListener('click', function() {
-    dataInicio.value = ''; // Limpa o campo Data Início
-    dataFim.value = '';    // Limpa o campo Data Fim
-  });
-</script>
+<script src="{% static 'js/loja-detail.js' %}"></script>
 {% endblock %}

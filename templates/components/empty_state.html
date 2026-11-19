@@ -8,14 +8,14 @@
 {% if colspan %}
 <tr>
   <td colspan="{{ colspan }}" class="text-center text-muted py-5">
-    <i class="{{ icon|default:'bx bx-inbox' }}" style="font-size:2.5rem;opacity:.35;display:block;margin-bottom:.5rem;"></i>
+    <i class="{{ icon|default:'bx bx-inbox' }} empty-state-icon" aria-hidden="true"></i>
     <div class="fw-medium">{{ message|default:'Nenhum registro encontrado' }}</div>
     {% if hint %}<small class="text-muted">{{ hint }}</small>{% endif %}
   </td>
 </tr>
 {% else %}
 <div class="text-center text-muted py-5">
-  <i class="{{ icon|default:'bx bx-inbox' }}" style="font-size:2.5rem;opacity:.35;display:block;margin-bottom:.5rem;"></i>
+  <i class="{{ icon|default:'bx bx-inbox' }} empty-state-icon" aria-hidden="true"></i>
   <div class="fw-medium">{{ message|default:'Nenhum registro encontrado' }}</div>
   {% if hint %}<small class="text-muted">{{ hint }}</small>{% endif %}
 </div>
