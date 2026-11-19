@@ -29,6 +29,17 @@
 | `crm` | CRM de WhatsApp (API oficial da Meta): conversas, webhook, aberturas, rotinas. Ver `docs/CRM_WHATSAPP.md` |
 | `core` | Configurações do projeto |
 
+### Organização do código
+
+| Onde | O quê |
+|------|-------|
+| `vendas/services/` | Regra de negócio única, usada pelas telas e pela API: `parcelas.py` (1ª parcela e geração), `venda.py` (venda a partir da análise), `analise.py` (status, app, iCloud, IMEI), `notificacoes.py`, `kpis.py`, `lojas.py` (QR code e calendário de repasses em lote). Erros de regra levantam `ErroDeNegocio` (mensagem pronta; `status_http` para a API, `corrigir_na_edicao` para a tela). |
+| `vendas/views/` | Views do backoffice por domínio (`index`, `clientes`, `analise`, `pre_analise`, `vendas`, `lojas`, `relatorios`, `pagamentos`, `publico`, `base`); o `__init__` reexporta tudo para `vendas/urls.py`. |
+| `api/views/` | Views da API por domínio; `SolicitacaoCreditoViewSet` = `CadastroDeSolicitacaoMixin` + `EtapasDaAnaliseMixin`. |
+| `templates/components/` | `page_header`, `hero_card`, `kpi_card`, `card_table_*`, `filter_bar_*`, `empty_state`, `status_badge`, `confirm_modal`. |
+| `static/css/ipix-theme.css` | Único conjunto de tokens `--ipix-*` (claro e `.dark-style`); telas não usam cor hex fixa (exceto impressos/PDF). |
+| `static/js/` | Scripts das telas (sem `<script>` inline); valores do servidor chegam por `data-*` ou `json_script`. |
+
 ---
 
 ## Modelos e Relacionamentos
@@ -191,8 +202,10 @@ Este é o fluxo principal do produto CredFacil (financiamento próprio).
 
 ### Cálculo do Valor — Unificado
 
-O cálculo é **o mesmo para todos os produtos**, iPhone ou não. Implementado de
-forma idêntica em `vendas/views.py:gerar_venda` e `api/views.py:gerar_venda`:
+O cálculo é **o mesmo para todos os produtos**, iPhone ou não. Implementado uma
+única vez em `vendas/services/venda.py:gerar_venda_da_analise`, chamado pela tela
+(`vendas/views/analise.py:gerar_venda`) e pela API
+(`api/views/solicitacoes_etapas.py:gerar_venda`):
 
 ```
 parcelamento     = Parcelamento.objects.get(marca=produto.marca, qtd_vezes=parcelas)
@@ -208,7 +221,7 @@ Pagamento IPX     = valor_credfacil (n parcelas, porcentagem_desconto do Parcela
 
 Se não existir `Parcelamento` para `(marca do produto, qtd_vezes)`, a geração da
 venda é abortada. A criação da solicitação também é bloqueada antes disso, em
-`api/views._validar_parcelamento`.
+`api/views/solicitacoes_regras.py:_validar_parcelamento`.
 
 **Campos legados, não lidos por nenhum cálculo**: `Produto.valor_{n}_vezes`,
 `Produto.valor_repasse_logista` e `Loja.porcentagem_desconto_{4,6,8,10}`.
@@ -295,6 +308,11 @@ pendente → cancelado
 |--------|-----|
 | Session | Interface web Django |
 | JWT | API REST externa |
+
+Recuperação de senha por e-mail: `accounts:password_reset` → e-mail com
+`accounts:password_reset_confirm` (`reset/<uidb64>/<token>/`, público) →
+`accounts:password_reset_complete`. A troca de senha do próprio usuário logado
+(tela do perfil) é `accounts:resetar_senha`.
 
 **Tokens JWT**:
 - Access token: 15 minutos
@@ -505,7 +523,7 @@ Consomem essa tabela:
 - React `NovaSolicitacaoPage` — opções do select e simulação de valores
 - Templates `cliente/form_cliente.html` e `cliente/form_cliente_imei_telefone.html`
 - `_validar_parcelamento` (criação/edição via API)
-- Ambos os `gerar_venda`
+- `vendas/services/venda.py` (geração da venda, tela e API)
 
 > `Loja.porcentagem_desconto_{4,6,8,10}` **não** participa de nenhum cálculo.
 > É coluna legada mantida só por compatibilidade de dados.
@@ -538,18 +556,24 @@ DEBUG=True              # padrão: True
 ALLOWED_HOSTS=...
 
 # Banco de dados
-DB_USED=sqlite          # 'sqlite' ou 'mysql'
+DB_USED=sqlite          # 'sqlite' (padrão) ou 'mysql'
 DB_NAME=...             # apenas mysql
 DB_USER=...
 DB_PASSWORD=...
 DB_HOST=...
 DB_PORT=...
 
-# Redis
-REDIS_HOST=localhost
+# Redis (cache do select2 e channel layer do WebSocket); padrão: redis:6379/0
+REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_DB=0
+
+# Sentry (padrão: DSN atual; vazio desliga; não roda em manage.py test)
+SENTRY_DSN=...
+SENTRY_SEND_DEFAULT_PII=False   # True envia IP/cookies/cabeçalhos
 ```
+
+`DB_USED` ausente usa sqlite; valor diferente de `sqlite`/`mysql` impede a subida.
 
 ---
 
