@@ -19,6 +19,7 @@ recebidas.
 | `WHATSAPP_VERIFY_TOKEN` | sim | Texto livre combinado entre o sistema e o painel da Meta no cadastro do webhook |
 | `WHATSAPP_API_VERSION` | não | Padrão `v23.0` |
 | `OPENAI_API_KEY` | não | Liga a transcrição de áudios recebidos (`whisper-1`) |
+| `CRM_MIDIA_ROOT` | não | Pasta privada da mídia quando não há S3. Padrão `mediafiles_privado/` no projeto (fora de `/mediafiles/`, que é público) |
 
 O modo real só liga com **token e ID do número**. Com só um dos dois, continua simulado.
 
@@ -60,6 +61,13 @@ CRM **não** é liberado por `is_admin`/`is_staff`: só pela flag.
   `HUMANO`, o dono é quem envia, janela aberta. Senão `409` com `detail` legível.
 - **Retorno automático:** conversa `RESOLVIDA` e parada há `retorno_automatico_horas`
   volta ao atendimento automático (0 = nunca).
+- **Antispam de abertura:** `409` se já saiu uma abertura nas últimas 24 h e o cliente
+  não respondeu. Abertura com erro é reenviada como template (`mensagens/{id}/reenviar/`).
+- **Painel do cliente:** só mostra e deixa vincular clientes que o usuário vê no resto do
+  sistema (`vendas.view_cliente` e lojas dele, ou todas com `view_all_analise_credito`);
+  vendas só com `vendas.view_venda`; CPF mascarado.
+- **Mídia:** fica no S3 privado ou em `CRM_MIDIA_ROOT`; acesso só por URL assinada de 1 h,
+  com registro em `LogAcessoMidia`.
 
 ## 4. API
 
