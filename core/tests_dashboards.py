@@ -45,3 +45,16 @@ class DashboardDeGraficosTests(TemplateLimpoMixin, BackofficeTestCase):
 
     def test_template_sem_css_js_inline_nem_hex(self):
         self.assert_template_limpo('vendas/templates/dash/index.html')
+
+
+class SolicitacoesDeCreditoTelaTests(TemplateLimpoMixin, BackofficeTestCase):
+    def test_lista_carrega_css_e_js_proprios_com_dados_por_atributo(self):
+        html = self.html('vendas:cliente_list')
+
+        self.assertTem('css/cliente-list.css', html)
+        self.assertTem('js/cliente-list.js', html)
+        self.assertTem('data-kpis-url="/caixas/kpis/"', html)
+        self.assertTem('id="statusChoices"', html)
+
+    def test_template_sem_css_js_inline_nem_hex(self):
+        self.assert_template_limpo('vendas/templates/cliente/cliente_list.html')
