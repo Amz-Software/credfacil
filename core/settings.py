@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
@@ -335,7 +336,9 @@ _SENTRY_DSN_PADRAO = (
 )
 SENTRY_DSN = os.environ.get('SENTRY_DSN', _SENTRY_DSN_PADRAO)
 SENTRY_SEND_DEFAULT_PII = os.environ.get('SENTRY_SEND_DEFAULT_PII', 'False').lower() == 'true'
-if SENTRY_DSN:
+# A suíte de testes (manage.py test) não envia eventos para o Sentry de produção.
+_RODANDO_TESTES = len(sys.argv) > 1 and sys.argv[1] == 'test'
+if SENTRY_DSN and not _RODANDO_TESTES:
     sentry_sdk.init(dsn=SENTRY_DSN, send_default_pii=SENTRY_SEND_DEFAULT_PII)
 
 # Internationalization
