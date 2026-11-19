@@ -82,7 +82,7 @@ class AnonimoNaoAcessaBackofficeTests(AcessoBaseTestCase):
             reverse('accounts:group_create'),
             reverse('accounts:permissions_list'),
             reverse('accounts:profile'),
-            reverse('accounts:password_reset_confirm'),
+            reverse('accounts:resetar_senha'),
             reverse('accounts:autorizacao_user'),
         ]
         for url in urls:

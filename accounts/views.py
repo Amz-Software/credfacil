@@ -59,6 +59,7 @@ class CustomPasswordResetDoneView(PasswordResetDoneView):
 
 class CustomPasswordResetConfirmView(PasswordResetConfirmView):
     template_name = 'login/password_reset_confirm.html'
+    success_url = reverse_lazy('accounts:password_reset_complete')
 
 class CustomPasswordResetCompleteView(PasswordResetCompleteView):
     template_name = 'login/password_reset_complete.html'
@@ -74,6 +75,8 @@ class ResetarSenhaView(LoginRequiredMixin, FormView):
         password = form.cleaned_data.get('password')
         user.set_password(password)
         user.save()
+        # Mantém o usuário logado depois de trocar a própria senha.
+        update_session_auth_hash(self.request, user)
         messages.success(self.request, 'Senha alterada com sucesso.')
         return super().form_valid(form)
 

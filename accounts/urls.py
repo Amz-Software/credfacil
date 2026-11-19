@@ -11,10 +11,13 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', logout_view, name='logout'),
     path('buscar-lojas/', get_lojas_by_username, name='buscar_lojas'),
+    # Recuperação de senha por e-mail (link com uidb64/token, público).
     path('password-reset/', PasswordResetView.as_view(), name='password_reset'),
-    path('password-reset/done/', PasswordResetDoneView.as_view(), name='password_reset_done'),
-    path('reset/', ResetarSenhaView.as_view(), name='password_reset_confirm'),
-    path('reset/done/', PasswordResetCompleteView.as_view(), name='password_reset_complete'),
+    path('password-reset/done/', CustomPasswordResetDoneView.as_view(), name='password_reset_done'),
+    path('reset/<uidb64>/<token>/', CustomPasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('reset/done/', CustomPasswordResetCompleteView.as_view(), name='password_reset_complete'),
+    # Troca de senha do próprio usuário logado (tela do perfil).
+    path('reset/', ResetarSenhaView.as_view(), name='resetar_senha'),
     
     path('profile/', MyProfileView.as_view(), name='profile'),
     
