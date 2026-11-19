@@ -1,8 +1,47 @@
-from urllib import request
-
 from django.urls import reverse
 
 from vendas.models import Loja
+
+
+RAIZ = "/"
+
+
+def _corresponde(caminho: str, url: str | None) -> bool:
+    """A tela pertence ao item: mesma URL ou subcaminho dela (detalhe, edição...).
+
+    A raiz só vale para a própria página inicial.
+    """
+    if not url:
+        return False
+    if caminho == url or url == RAIZ:
+        return caminho == url
+    base = url if url.endswith("/") else f"{url}/"
+    return caminho.startswith(base)
+
+
+def _marcar_item_ativo(itens: list[dict], caminho: str) -> None:
+    """Marca como ativo o item (e o pai, se for subitem) com a URL mais longa que contém o caminho."""
+    candidatos = [
+        (item, sub_item)
+        for item in itens
+        for sub_item in (item.get("sub_items") or [None])
+    ]
+    for item, sub_item in candidatos:
+        item["active"] = False
+        if sub_item is not None:
+            sub_item["active"] = False
+
+    correspondentes = [
+        (item, sub_item)
+        for item, sub_item in candidatos
+        if _corresponde(caminho, (sub_item or item).get("url"))
+    ]
+    if not correspondentes:
+        return
+    item, sub_item = max(correspondentes, key=lambda par: len((par[1] or par[0])["url"]))
+    item["active"] = True
+    if sub_item is not None:
+        sub_item["active"] = True
 
 
 def menu_items(request):
@@ -188,41 +227,27 @@ def menu_items(request):
         },
     ]
 
-    current_path = request.path
-
+    permissoes = request.user.get_all_permissions()
     filtered_items = []
-    sections = {}
-
     for item in items:
-        item["active"] = False
         if "sub_items" in item:
-            visible_sub_items = []
-            for sub_item in item["sub_items"]:
-                sub_item["url"] = reverse(sub_item["url_name"])
-                if sub_item.get("permission") in request.user.get_all_permissions():
-                    visible_sub_items.append(sub_item)
-                    if sub_item["url"] == current_path:
-                        item["active"] = True
-                        sub_item["active"] = True
-                    else:
-                        sub_item["active"] = False
-            item["sub_items"] = visible_sub_items
-            if visible_sub_items:
+            item["sub_items"] = [
+                {**sub_item, "url": reverse(sub_item["url_name"])}
+                for sub_item in item["sub_items"]
+                if sub_item.get("permission") in permissoes
+            ]
+            if item["sub_items"]:
                 filtered_items.append(item)
         else:
             item["url"] = reverse(item["url_name"]) if "url_name" in item else None
-            if item.get("permission") in request.user.get_all_permissions():
-                filtered_items.append(item)
-                if item["url"] == current_path:
-                    item["active"] = True
-            elif "header" in item:
+            if item.get("permission") in permissoes or "header" in item:
                 filtered_items.append(item)
 
+    _marcar_item_ativo(filtered_items, request.path)
+
+    sections = {}
     for item in filtered_items:
-        section = item["section"]
-        if section not in sections:
-            sections[section] = []
-        sections[section].append(item)
+        sections.setdefault(item["section"], []).append(item)
 
     return {"menu_items": sections}
 
