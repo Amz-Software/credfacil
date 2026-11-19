@@ -1,4 +1,5 @@
 from datetime import date
+import logging
 import re
 import calendar
 import json
@@ -116,6 +117,11 @@ from rest_framework import mixins
 from rest_framework import filters
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from drf_spectacular.utils import extend_schema, extend_schema_view
+
+
+logger = logging.getLogger(__name__)
+
+ERRO_INESPERADO_VENDA = "Não foi possível salvar a venda. Tente novamente ou fale com o suporte."
 
 
 def _resposta_de_erro(erro: ErroDeNegocio) -> Response:
@@ -2284,8 +2290,9 @@ class VendaViewSet(viewsets.ModelViewSet):
                     pagamento.venda = venda
                     pagamento.loja = loja
                     pagamento.save()
-        except Exception as exc:
-            return Response({"detail": f"Erro ao processar a venda: {exc}"}, status=400)
+        except Exception:
+            logger.exception("Erro ao processar a venda pela API")
+            return Response({"detail": ERRO_INESPERADO_VENDA}, status=400)
 
         return Response(VendaSerializer(venda).data, status=201)
 
@@ -2379,8 +2386,9 @@ class VendaViewSet(viewsets.ModelViewSet):
                     pagamento.loja = loja
                     pagamento.save()
                 pagamento_formset.save_m2m()
-        except Exception as exc:
-            return Response({"detail": f"Erro ao processar a venda: {exc}"}, status=400)
+        except Exception:
+            logger.exception("Erro ao processar a venda pela API")
+            return Response({"detail": ERRO_INESPERADO_VENDA}, status=400)
 
         return Response(VendaSerializer(venda).data)
 
@@ -2498,8 +2506,9 @@ class VendaViewSet(viewsets.ModelViewSet):
                     pagamento.loja = loja
                     pagamento.save()
                 pagamento_formset.save_m2m()
-        except Exception as exc:
-            return Response({"detail": f"Erro ao processar a venda: {exc}"}, status=400)
+        except Exception:
+            logger.exception("Erro ao processar a venda pela API")
+            return Response({"detail": ERRO_INESPERADO_VENDA}, status=400)
 
         return Response(VendaSerializer(venda).data)
 
@@ -2524,8 +2533,8 @@ class VendaViewSet(viewsets.ModelViewSet):
         try:
             produto_atual = ProdutoVenda.objects.get(id=produto_atual_id, venda=venda)
             novo_produto = Produto.objects.get(id=novo_produto_id)
-        except Exception as exc:
-            return Response({"detail": f"Erro ao trocar produto: {exc}"}, status=400)
+        except (ProdutoVenda.DoesNotExist, Produto.DoesNotExist, ValueError):
+            return Response({"detail": "Produto da venda ou novo produto não encontrado."}, status=400)
 
         produto_antigo_nome = produto_atual.produto.nome
         produto_antigo_imei = produto_atual.imei

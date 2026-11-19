@@ -1254,9 +1254,9 @@ class VendaUpdateView(PermissionRequiredMixin, UpdateView):
                 self._processar_pagamentos(pagamento_formset, loja)
                 messages.success(self.request, 'Venda atualizada com sucesso')
             return super().form_valid(form)
-        except Exception as e:
-            messages.error(self.request, f"Erro ao processar a venda: {str(e)}")
-            logger.exception("Erro ao processar a venda: %s", e)
+        except Exception:
+            logger.exception("Erro ao processar a venda %s", self.object.pk)
+            messages.error(self.request, "❌ Não foi possível salvar a venda. Tente novamente ou fale com o suporte.")
             return self.form_invalid(form)
 
     def _atualizar_venda(self, form, loja):
@@ -1368,9 +1368,9 @@ class VendaEdicaoEspecialView(PermissionRequiredMixin, UpdateView):
                     self._processar_pagamentos(pagamento_formset, loja)
                 messages.success(self.request, 'Venda atualizada com sucesso')
             return super().form_valid(form)
-        except Exception as e:
-            messages.error(self.request, f"Erro ao processar a venda: {str(e)}")
-            logger.exception("Erro ao processar a venda: %s", e)
+        except Exception:
+            logger.exception("Erro ao processar a venda %s", self.object.pk)
+            messages.error(self.request, "❌ Não foi possível salvar a venda. Tente novamente ou fale com o suporte.")
             return self.form_invalid(form)
 
     def _atualizar_venda(self, form, loja):
@@ -1539,9 +1539,9 @@ class VendaTrocarProdutoView(PermissionRequiredMixin, View):
             messages.success(request, 'Produto trocado com sucesso!')
         except ValueError as e:
             messages.error(request, str(e))
-        except Exception as e:
-            logger.exception("Erro ao trocar produto: %s", e)
-            messages.error(request, "Erro ao trocar produto: %s" % e)
+        except Exception:
+            logger.exception("Erro ao trocar produto da venda %s", pk)
+            messages.error(request, "❌ Não foi possível trocar o produto. Tente novamente ou fale com o suporte.")
 
         return redirect('vendas:venda_detail', pk=pk)
 
@@ -2593,8 +2593,9 @@ class ConfirmarQuitacaoView(PermissionRequiredMixin, View):
 
                 messages.success(request, f"Quitação do Pagamento #{pagamento.pk} confirmada! {num_parcelas} parcelas foram ajustadas e marcadas como pagas.")
 
-        except Exception as e:
-            messages.error(request, f"Ocorreu um erro ao confirmar a quitação: {e}")
+        except Exception:
+            logger.exception("Erro ao confirmar a quitação do pagamento %s", pagamento.pk)
+            messages.error(request, "❌ Não foi possível confirmar a quitação. Tente novamente ou fale com o suporte.")
 
         return redirect('financeiro:contas_a_receber_update', pk=pagamento.pk)    
     
