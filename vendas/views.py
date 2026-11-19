@@ -56,7 +56,11 @@ from .models import (
 )
 from produtos.models import Marca
 from pypix import Pix
-#import q
+from vendas.services import ErroDeNegocio
+from vendas.services import analise as servico_analise
+from vendas.services.kpis import analises_visiveis, contar_por_status, resumo_carteira_loja
+from vendas.services.lojas import replicar_qr_code_aplicativo, status_repasses_por_loja
+from vendas.services.venda import gerar_venda_da_analise
 
 
 
@@ -162,147 +166,10 @@ class IndexView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
         loja = self._get_active_loja()
-        caixa_diario_loja = Caixa.objects.filter(loja=loja).order_by('-data_abertura').first()
-        caixa_total = Caixa.objects.all().filter(loja=loja)
-
-        valor_caixa_total = 0
-        for caixa in caixa_total:
-            valor_caixa_total += caixa.saldo_total_dinheiro
-            valor_caixa_total += caixa.entradas
-            valor_caixa_total -= caixa.saidas
-
-        caixa_diario_lucro = 0
-        if caixa_diario_loja:
-            caixa_diario_lucro = (caixa_diario_loja.saldo_total_dinheiro + caixa_diario_loja.entradas) - caixa_diario_loja.saidas
-
-        entrada_caixa_total = LancamentoCaixaTotal.objects.filter(tipo_lancamento='1', loja=loja)
-        saida_caixa_total = LancamentoCaixaTotal.objects.filter(tipo_lancamento='2', loja=loja)
-
-        for entrada in entrada_caixa_total:
-            valor_caixa_total += entrada.valor
-
-        for saida in saida_caixa_total:
-            valor_caixa_total -= saida.valor
-
         if self.request.user.has_perm('vendas.can_view_your_dashboard'):
-            vendas = Venda.objects.filter(loja=loja)
-
-            total_vendas = vendas.count()
-            total_de_parcelas_vencidas = 0
-            total_de_parcelas_pagas = 0
-            total_de_parcelas_a_vencer = 0
-            total_pagas = 0
-            total_vencidas = 0
-            total_a_vencer = 0
-            total_geral_parcelas = 0
-
-            for venda in vendas: 
-                parcelas = list(Parcela.objects.filter(
-                    pagamento__venda=venda,
-                    pagamento__tipo_pagamento__nome='IPX',
-                    pagamento__desativado=False,
-                ).order_by('data_vencimento')[:3])
-
-                # Em devolução: manter pagas; ignorar futuras (vencidas/a vencer)
-                parcelas_vencidas = [
-                    p for p in parcelas
-                    if p.data_vencimento < timezone.now().date()
-                    and not p.pago
-                    and not p.pagamento_efetuado
-                    and not p.pagamento.devolucao
-                ]
-                parcelas_pagas = [p for p in parcelas if p.pago and not p.pagamento_efetuado]
-                parcelas_a_vencer = [
-                    p for p in parcelas
-                    if p.data_vencimento >= timezone.now().date()
-                    and not p.pago
-                    and not p.pagamento_efetuado
-                    and not p.pagamento.devolucao
-                ]
-
-                total_geral_parcelas += len(parcelas)
-
-                qtd_vencidas = len(parcelas_vencidas)
-                qtd_pagas = len(parcelas_pagas)
-                qtd_a_vencer = len(parcelas_a_vencer)
-
-                total_de_parcelas_vencidas += qtd_vencidas
-                total_de_parcelas_pagas += qtd_pagas
-                total_de_parcelas_a_vencer += qtd_a_vencer
-
-                valor_vencidas = sum(p.valor for p in parcelas_vencidas)
-                valor_pagas = sum(p.valor_pago_efetivo for p in parcelas_pagas)
-                valor_a_vencer = sum(p.valor for p in parcelas_a_vencer)
-
-                total_pagas += valor_pagas
-                total_vencidas += valor_vencidas
-                total_a_vencer += valor_a_vencer
-
-
-            context['total_vendas_loja'] = total_vendas # quantidade de vendas
-            context['total_de_parcelas_geral'] = total_geral_parcelas # quantidade total de parcelas
-            context['parcelas_vencidas'] = total_de_parcelas_vencidas # quantidade de parcelas vencidas
-            context['parcelas_pagas'] = total_de_parcelas_pagas # quantidade de parcelas pagas
-            context['parcelas_a_vencer'] = total_de_parcelas_a_vencer  # quantidade de parcelas a vencer
-
-            context['total_geral_parcelas'] = total_pagas + total_vencidas + total_a_vencer # valor total de parcelas
-            context['total_pagas'] = total_pagas # valor total de parcelas pagas
-            context['total_vencidas'] = total_vencidas # valor total de parcelas vencidas
-            context['total_a_vencer'] = total_a_vencer # valor total de parcelas a vencer
-
-            # --- CÁLCULO DOS CLIENTES DESATIVADOS ---
-            total_desativados_vencidas = 0
-            total_desativados_a_vencer = 0
-            qtd_desativados_vencidas = 0
-            qtd_desativados_a_vencer = 0
-
-            # Busca parcelas de clientes desativados (apenas não pagas)
-            parcelas_desativadas = Parcela.objects.filter(
-                pagamento__venda__loja=loja,
-                pagamento__tipo_pagamento__nome='IPX',
-                pagamento__desativado=True,
-                pago=False  # Apenas parcelas não pagas
-            )
-
-            for parcela in parcelas_desativadas:
-                if parcela.data_vencimento < timezone.now().date():
-                    total_desativados_vencidas += parcela.valor
-                    qtd_desativados_vencidas += 1
-                else:
-                    total_desativados_a_vencer += parcela.valor
-                    qtd_desativados_a_vencer += 1
-
-            # Total de pagamentos desativados
-            total_pagamentos_desativados = Pagamento.objects.filter(
-                venda__loja=loja,
-                tipo_pagamento__nome='IPX',
-                desativado=True
-            ).count()
-
-            context['total_desativados_vencidas'] = total_desativados_vencidas
-            context['total_desativados_a_vencer'] = total_desativados_a_vencer
-            context['qtd_desativados_vencidas'] = qtd_desativados_vencidas
-            context['qtd_desativados_a_vencer'] = qtd_desativados_a_vencer
-            context['total_pagamentos_desativados'] = total_pagamentos_desativados
-
-            # Incluir desativados no gráfico
-            total_geral_grafico = float(total_pagas) + float(total_vencidas) + float(total_a_vencer) + float(total_desativados_vencidas) + float(total_desativados_a_vencer)
-            pct_pagas = round((float(total_pagas) / total_geral_grafico * 100), 2) if total_geral_grafico else 0
-            pct_vencidas = round((float(total_vencidas) / total_geral_grafico * 100), 2) if total_geral_grafico else 0
-            pct_desativados = round(((float(total_desativados_vencidas) + float(total_desativados_a_vencer)) / total_geral_grafico * 100), 2) if total_geral_grafico else 0
-
-            context['dash'] = json.dumps({
-                'labels': ['Pagas', 'Vencidas', 'Desativados'],
-                'data': [pct_pagas, pct_vencidas, pct_desativados],
-            })
-
+            context.update(resumo_carteira_loja(loja))
         context['loja'] = loja
-        context['caixa_diario'] = caixa_diario_loja
-        context['caixa_diario_lucro'] = caixa_diario_lucro
-        context['caixa_total'] = valor_caixa_total
-
         return context
 
     def _get_active_loja(self):
@@ -332,21 +199,8 @@ from io import BytesIO
 
 class CaixaKpiCountsView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
-        if request.user.has_perm('vendas.view_all_analise_credito'):
-            qs = AnaliseCreditoCliente.objects.all()
-        else:
-            loja_id = request.session.get('loja_id')
-            qs = AnaliseCreditoCliente.objects.filter(loja_id=loja_id)
-
-        status_counts = (
-            qs.values('status')
-              .annotate(total=Count('id'))
-        )
-        data = {item['status']: item['total'] for item in status_counts}
-        # garantia de zeros
-        for code, _ in AnaliseCreditoCliente.STATUS_CHOICES:
-            data.setdefault(code, 0)
-        return JsonResponse(data)
+        analises = analises_visiveis(request.user, request.session.get('loja_id'))
+        return JsonResponse(contar_por_status(analises))
 
 
     
@@ -378,18 +232,7 @@ class ClienteListView(BaseView, PermissionRequiredMixin, ListView):
         context['lojas'] = Loja.objects.all()
         context['loja_credfacil'] = Loja.objects.filter(credfacil=True).first()
 
-        if self.request.user.has_perm('vendas.view_all_analise_credito'):
-            analises = AnaliseCreditoCliente.objects.all()
-        else:
-            loja_id = self.request.session.get('loja_id')
-            analises = AnaliseCreditoCliente.objects.filter(loja_id=loja_id)
-
-        counts = analises.values('status').annotate(total=Count('id'))
-        kpis = {item['status']: item['total'] for item in counts}
-        for code, _ in AnaliseCreditoCliente.STATUS_CHOICES:
-            kpis.setdefault(code, 0)
-
-        context['kpis'] = kpis
+        context['kpis'] = contar_por_status(analises_visiveis(self.request.user, loja_id))
         context['status_choices'] = AnaliseCreditoCliente.STATUS_CHOICES
         context['current_status'] = self.request.GET.get('status', '')
         context['status_app_choices'] = AnaliseCreditoCliente.STATUS_APP_CHOICES
@@ -924,20 +767,24 @@ class ClienteUpdateImeiTelefoneView(PermissionRequiredMixin, UpdateView):
         return self.render_to_response(context)
     
 
+def _redirecionar_com_erro(request, erro: ErroDeNegocio, cliente_pk):
+    """Mostra o erro de negócio e leva à edição da solicitação quando o dado é corrigível lá."""
+    messages.error(request, f'❌ {erro.mensagem}')
+    if erro.corrigir_na_edicao and cliente_pk:
+        return redirect('vendas:cliente_update', pk=cliente_pk)
+    return redirect('vendas:cliente_list')
+
+
 class ClienteInstallAppView(PermissionRequiredMixin, View):
     permission_required = 'vendas.change_cliente'
 
     def post(self, request, pk):
         cliente = get_object_or_404(Cliente, pk=pk)
-        analise_credito = cliente.analise_credito
-        loja_id = request.session.get('loja_id')
-        # opcional: valida se é da mesma loja
-        if cliente.loja_id != loja_id:
+        if cliente.loja_id != request.session.get('loja_id'):
             messages.error(request, "Ação não autorizada para esta loja.")
             return redirect('vendas:cliente_list')
 
-        analise_credito.status_aplicativo = 'C'
-        analise_credito.save()
+        servico_analise.marcar_instalacao_pendente(cliente.analise_credito)
         messages.success(request, "Status alterado para Confirmação Pendente.")
         return redirect('vendas:cliente_list')
 
@@ -947,375 +794,82 @@ class ClienteConfirmInstalledView(PermissionRequiredMixin, View):
 
     def post(self, request, pk):
         cliente = get_object_or_404(Cliente, pk=pk)
-        analise_credito = cliente.analise_credito
-        
-        # Marcar como confirmação pendente (aguardando analista informar IMEI)
-        analise_credito.status_aplicativo = 'C'
-        analise_credito.save()
-        
-        # Enviar notificação para analistas
-        from notifications.signals import notify
-        from notificacao.utils import enviar_ws_para_usuario
-        
-        cliente_nome = cliente.nome if cliente else "Cliente"
-        loja = cliente.loja
-        
-        verb = f'Vendedor confirmou instalação do app para cliente {cliente_nome.capitalize()}.'
-        description = f'Aguardando analista informar IMEI. Loja: {loja.nome.capitalize()}.'
-        
-        # Notificar analistas e administradores
-        usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=['ADMINISTRADOR', 'ANALISTA']).exclude(id=request.user.id)
-        )
-        
-        for user in usuarios_para_notificar:
-            notify.send(
-                analise_credito,
-                recipient=user,
-                verb=verb,
-                description=description,
-                target=cliente,
-            )
-
-            # WebSocket
-            ultima_notificacao = user.notifications.unread().order_by('-timestamp').first()
-            if ultima_notificacao:
-                enviar_ws_para_usuario(
-                    usuario=user,
-                    instance=analise_credito,
-                    notification_id=ultima_notificacao.id,
-                    verb=verb,
-                    description=description,
-                    target_url=cliente.get_absolute_url(),
-                    type_notification='analise_credito_cliente',
-                )
-        
+        servico_analise.confirmar_instalacao_vendedor(cliente.analise_credito, request.user)
         messages.success(request, "✅ Instalação confirmada! Aguardando analista informar IMEI.")
         return redirect('vendas:cliente_list')
-    
+
 
 class ClienteStatusAppUpdateView(PermissionRequiredMixin, View):
     permission_required = 'vendas.change_cliente'
 
     def post(self, request, pk):
         cliente = get_object_or_404(Cliente, pk=pk)
-        new_status = request.POST.get('status_app')
-        analise_credito = cliente.analise_credito
-
-        valid = dict(AnaliseCreditoCliente.STATUS_APP_CHOICES).keys()
-        if new_status in valid:
-            analise_credito.status_aplicativo = new_status
-            analise_credito.save()
-            messages.success(request, "Status do aplicativo atualizado para %s." %
-                              analise_credito.get_status_aplicativo_display())
+        try:
+            analise = servico_analise.atualizar_status_aplicativo(
+                cliente.analise_credito, request.POST.get('status_app'),
+            )
+        except ErroDeNegocio as erro:
+            messages.error(request, erro.mensagem)
         else:
-            messages.error(request, "Status inválido.")
-        # volta para a página de edição
+            messages.success(
+                request,
+                f"Status do aplicativo atualizado para {analise.get_status_aplicativo_display()}.",
+            )
         return redirect('vendas:cliente_update', pk=pk)
 
 
-
-def calcular_data_primeira_parcela(data_pagamento_str):
-    """
-    Retorna a data com o dia escolhido (01, 10 ou 20) mais distante possível,
-    mas ainda dentro de até 30 dias após a data da compra.
-    """
-    hoje = timezone.now().date()
-    dia_escolhido = int(data_pagamento_str)
-    max_dias = 30
-    ano, mes = hoje.year, hoje.month
-
-    melhor_data = None
-    maior_diferenca = -1
-
-    # Verifica até 3 meses à frente
-    for i in range(3):
-        novo_mes = mes + i
-        novo_ano = ano + (novo_mes - 1) // 12
-        novo_mes = ((novo_mes - 1) % 12) + 1
-
-        # Verifica se o mês tem o dia escolhido
-        ultimo_dia_mes = calendar.monthrange(novo_ano, novo_mes)[1]
-        dia_real = min(dia_escolhido, ultimo_dia_mes)
-
-        data_candidata = date(novo_ano, novo_mes, dia_real)
-        dias_ate_parcela = (data_candidata - hoje).days
-
-        # Valida se está dentro do prazo
-        if 0 < dias_ate_parcela <= max_dias:
-            if dias_ate_parcela > maior_diferenca:
-                melhor_data = data_candidata
-                maior_diferenca = dias_ate_parcela
-
-    return melhor_data
-
-
-def criar_parcelas(pagamento, loja):
-    """
-    Gera cada vencimento mantendo o dia fixo (ou último do mês se faltar).
-    """
-    Parcela.objects.filter(pagamento=pagamento).delete()
-    dia = pagamento.data_primeira_parcela.day
-
-    for n in range(1, pagamento.parcelas + 1):
-        # calcula ano/mes de cada parcela
-        month_offset = pagamento.data_primeira_parcela.month - 1 + (n - 1)
-        ano = pagamento.data_primeira_parcela.year + month_offset // 12
-        mes = month_offset % 12 + 1
-
-        ultimo = calendar.monthrange(ano, mes)[1]
-        venc_dia = min(dia, ultimo)
-        data_venc = date(ano, mes, venc_dia)
-
-        Parcela.objects.create(
-            loja=loja,
-            pagamento=pagamento,
-            numero_parcela=n,
-            valor=pagamento.valor_parcela,
-            data_vencimento=data_venc,
-            criado_por=pagamento.criado_por,
-            modificado_por=pagamento.modificado_por
-        )
-        
-
-@transaction.atomic
 @permission_required('vendas.add_venda', raise_exception=True)
 def gerar_venda(request, cliente_id):
     if request.method != 'POST':
         return redirect('vendas:cliente_list')
-
     cliente = get_object_or_404(Cliente, id=cliente_id)
-    loja = get_object_or_404(Loja, id=request.session.get('loja_id'))
-    credfacil = get_object_or_404(Loja, credfacil=True)
-    
-    if not credfacil or not loja or not cliente:
-        messages.error(request, "❌ Loja ou cliente não encontrado.")
-        return redirect('vendas:cliente_list')
+    get_object_or_404(Loja, id=request.session.get('loja_id'))
+    if not Loja.objects.filter(credfacil=True).exists():
+        raise Http404("Loja CredFacil não encontrada.")
 
-    # --- Validação: clientes com mesmo CPF precisam ter ao menos 3 parcelas pagas em cada venda anterior ---
-    cpf_limpo = re.sub(r'\D', '', cliente.cpf)
-
-    vendas_com_poucas_parcelas = (
-        Venda.objects
-        .filter(cliente__cpf=cpf_limpo, is_deleted=False)
-        .annotate(
-            parcelas_pagas=Count(
-                'pagamentos__parcelas_pagamento',
-                filter=Q(
-                    pagamentos__tipo_pagamento__nome__iexact='IPX',
-                    pagamentos__parcelas_pagamento__pago=True
-                ),
-                distinct=True
-            )
-        )
-        .filter(parcelas_pagas__lt=3)
-    )
-
-    if vendas_com_poucas_parcelas.exists():
-        messages.error(
-            request,
-            "❌ Para gerar uma nova venda, cada venda anterior do mesmo CPF deve ter pelo menos 3 parcelas pagas."
-        )
-        return redirect('vendas:cliente_list')
-
-    # Valida análise de crédito
-    analise = cliente.analise_credito
-    if not analise or analise.status != 'A':
-        messages.error(request, "❌ Análise de crédito não aprovada para o cliente.")
-        return redirect('vendas:cliente_list')
-    if not analise.imei:
-        messages.error(request, "❌ Nenhum IMEI associado à análise de crédito. Informe o IMEI antes de gerar a venda.")
-        return redirect('vendas:cliente_update', pk=cliente.pk)
-    # Para produtos que não são iPhone, exigimos que o app esteja instalado ('I')
-    if not getattr(analise.produto, 'is_iphone', False) and analise.status_aplicativo != 'I':
-        messages.error(request, "❌ Aplicativo não está instalado. Confirme a instalação antes de gerar a venda.")
-        return redirect('vendas:cliente_update', pk=cliente.pk)
-    if analise.venda:
-        messages.error(request, "❌ Essa solicitação já foi convertida em venda.")
-        return redirect('vendas:cliente_list')
-
-    # Caixa aberto é opcional: associa um caixa aberto se houver, senão a venda fica sem caixa.
-    caixa = Caixa.objects.filter(
-        loja=analise.loja,
-        data_fechamento__isnull=True
-    ).first()
-    if not analise or analise.status != 'A':
-        messages.error(request, "❌ Análise de crédito não aprovada para o cliente.")
-        return redirect('vendas:cliente_list')
-    if not analise.imei:
-        messages.error(request, "❌ Nenhum IMEI associado à análise de crédito. Informe o IMEI antes de gerar a venda.")
-        return redirect('vendas:cliente_update', pk=cliente.pk)
-    # Para produtos que não são iPhone, exigimos que o app esteja instalado ('I')
-    if not getattr(analise.produto, 'is_iphone', False) and analise.status_aplicativo != 'I':
-        messages.error(request, "❌ Aplicativo não está instalado. Confirme a instalação antes de gerar a venda.")
-        return redirect('vendas:cliente_update', pk=cliente.pk)
-    if analise.venda:
-        messages.error(request, "❌ Essa solicitação já foi convertida em venda.")
-        return redirect('vendas:cliente_list')
-
-    produto = analise.produto
-    imei = analise.imei
-
-    # Verifica se o IMEI já está sendo usado em outra venda (único)
-    if ProdutoVenda.objects.filter(imei=imei.imei).exists():
-        messages.error(request, f"❌ IMEI {imei.imei} já está sendo usado em outra venda. IMEI deve ser único.")
-        return redirect('vendas:cliente_update', pk=cliente.pk)
-
-    if not analise.data_pagamento:
-        messages.error(request, "❌ Data de pagamento não informada. Informe o dia de pagamento (1, 10 ou 20) antes de gerar a venda.")
-        return redirect('vendas:cliente_update', pk=cliente.pk)
-    
-    if not analise.numero_parcelas:
-        messages.error(request, "❌ Número de parcelas não informado. Informe o número de parcelas antes de gerar a venda.")
-        return redirect('vendas:cliente_update', pk=cliente.pk)
-
-    parcelas = int(analise.numero_parcelas)
-
-    # --- Lógica unificada para todos os produtos ---
-    if not produto.valor:
-        messages.error(request, "❌ Produto sem valor base cadastrado.")
-        return redirect('vendas:cliente_update', pk=cliente.pk)
-
-    entrada_informada = analise.entrada_informada
-    if entrada_informada is None:
-        entrada_informada = produto.entrada_cliente
-    if entrada_informada < produto.entrada_cliente:
-        messages.error(
-            request,
-            f"❌ Entrada informada (R$ {entrada_informada}) não pode ser menor que a entrada mínima do produto (R$ {produto.entrada_cliente})."
-        )
-        return redirect('vendas:cliente_update', pk=cliente.pk)
-
-    marca = produto.marca
-    parcelamento = Parcelamento.objects.filter(marca=marca, qtd_vezes=parcelas).first()
-    if not parcelamento:
-        marca_nome = marca.nome if marca else "sem marca"
-        messages.error(request, f"❌ Nenhum parcelamento cadastrado para {parcelas}x na marca '{marca_nome}'.")
-        return redirect('vendas:cliente_update', pk=cliente.pk)
-
-    porcentagem_desconto = parcelamento.porcentagem_desconto
-    valor_financiado = produto.valor - entrada_informada
-    valor_credfacil = valor_financiado + (valor_financiado * parcelamento.porcentagem_juros / 100)
-    repasse_logista = produto.valor - entrada_informada
-    valor_entrada = entrada_informada
-
-    # Cria venda
-    venda = Venda.objects.create(
-        loja=analise.loja,
-        cliente=cliente,
-        vendedor=request.user,
-        caixa=caixa,
-        repasse_logista=repasse_logista,
-        observacao=analise.observacao,
-        criado_por=request.user,
-        modificado_por=request.user,
-        criado_em=timezone.now(),
-        modificado_em=timezone.now()
-    )
-    analise.venda = venda
-    analise.save()
-
-    # Cria ProdutoVenda
-    ProdutoVenda.objects.create(
-        loja=analise.loja,
-        venda=venda,
-        produto=produto,
-        imei=imei.imei,
-        valor_unitario=valor_credfacil,
-        quantidade=1,
-        valor_desconto=0
-    )
-
-    # IMEI é automaticamente marcado como vendido via signal
-
-    # Pagamentos
-    tipo_entrada = TipoPagamento.objects.get(nome__iexact='ENTRADA')
-    tipo_credfacil = TipoPagamento.objects.get(nome__iexact='IPX')
-
-    pagamento_entrada = Pagamento.objects.create(
-        loja=analise.loja,
-        venda=venda,
-        tipo_pagamento=tipo_entrada,
-        valor=valor_entrada,
-        parcelas=1,
-        data_primeira_parcela=timezone.now().date()
-    )
-
-    data1 = calcular_data_primeira_parcela(analise.data_pagamento)
-    pagamento_credfacil = Pagamento.objects.create(
-        loja=analise.loja,  # Usa a loja da análise de crédito
-        venda=venda,
-        tipo_pagamento=tipo_credfacil,
-        valor=valor_credfacil,
-        parcelas=parcelas,
-        data_primeira_parcela=data1,
-        porcentagem_desconto=porcentagem_desconto
-    )
-
-    criar_parcelas(pagamento_entrada, analise.loja)
-    criar_parcelas(pagamento_credfacil, analise.loja)
+    try:
+        gerar_venda_da_analise(cliente, request.user, bloquear_imei_de_venda_cancelada=True)
+    except ErroDeNegocio as erro:
+        return _redirecionar_com_erro(request, erro, cliente.pk)
 
     messages.success(request, f"✅ Venda criada para o cliente {cliente.nome}!")
     return redirect('vendas:cliente_list')
 
 
+def _mudar_status_analise(request, id, transicao, mensagem_sucesso):
+    analise = AnaliseCreditoCliente.objects.filter(id=id).first()
+    if analise is None:
+        messages.error(request, 'Análise de crédito não encontrada')
+    else:
+        transicao(analise, request.user)
+        messages.success(request, mensagem_sucesso)
+    return redirect('vendas:cliente_list')
+
+
 @permission_required('vendas.change_status_analise', raise_exception=True)
 def aprovar_analise_credito(request, id):
-    user = request.user
-    if not user.has_perm('vendas.change_status_analise'):
-        messages.error(request, 'Você não tem permissão para aprovar análises de crédito')
-        return redirect('vendas:cliente_list')
-    try:
-        analise = AnaliseCreditoCliente.objects.get(id=id)
-
-        analise.aprovar(user=request.user)
-        analise.modificado_por = request.user
-        analise.modificado_em = timezone.now()
-        analise.save()
-        messages.success(request, '✅ Análise de crédito aprovada com sucesso')
-    except AnaliseCreditoCliente.DoesNotExist:
-        messages.error(request, 'Análise de crédito não encontrada')
-
-    return redirect('vendas:cliente_list')
+    return _mudar_status_analise(
+        request, id, servico_analise.aprovar_analise, '✅ Análise de crédito aprovada com sucesso',
+    )
 
 
 @require_POST
 @permission_required('vendas.change_analisecreditocliente', raise_exception=True)
 def cancelar_analise_credito(request, id):
-    user = request.user
-    if not user.has_perm('vendas.change_status_analise'):
+    if not request.user.has_perm('vendas.change_status_analise'):
         messages.error(request, 'Você não tem permissão para cancelar análises de crédito')
         return redirect('vendas:cliente_list')
-    try:
-        analise = AnaliseCreditoCliente.objects.get(id=id)
-        analise.cancelar()
-        analise.modificado_por = request.user
-        analise.modificado_em = timezone.now()
-        analise.save()
-        messages.success(request, 'Análise de crédito cancelada com sucesso')
-    except AnaliseCreditoCliente.DoesNotExist:
-        messages.error(request, 'Análise de crédito não encontrada')
+    return _mudar_status_analise(
+        request, id, servico_analise.cancelar_analise, 'Análise de crédito cancelada com sucesso',
+    )
 
-    return redirect('vendas:cliente_list')
 
 @require_POST
 @permission_required('vendas.change_status_analise', raise_exception=True)
 def reprovar_analise_credito(request, id):
-    user = request.user
-    if not user.has_perm('vendas.change_status_analise'):
-        messages.error(request, 'Você não tem permissão para reprovar análises de crédito')
-        return redirect('vendas:cliente_list')
-    try:
-        analise = AnaliseCreditoCliente.objects.get(id=id)
-        analise.reprovar()
-        analise.modificado_por = request.user
-        analise.modificado_em = timezone.now()
-        analise.save()
-        messages.success(request, 'Análise de crédito reprovada com sucesso')
-    except AnaliseCreditoCliente.DoesNotExist:
-        messages.error(request, 'Análise de crédito não encontrada')
-
-    return redirect('vendas:cliente_list')
+    return _mudar_status_analise(
+        request, id, servico_analise.reprovar_analise, 'Análise de crédito reprovada com sucesso',
+    )
 
 
 # ─── Pré-análise rápida (backoffice do analista) ────────────────────────────
@@ -2016,6 +1570,7 @@ class LojaListView(BaseView, PermissionRequiredMixin, ListView):
     template_name = 'loja/loja_list.html'
     context_object_name = 'lojas'
     permission_required = 'vendas.view_loja'
+    paginate_by = 20
 
     def get_queryset(self):
         user = self.request.user
@@ -2039,14 +1594,13 @@ class LojaListView(BaseView, PermissionRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Adiciona as informações de repasses para cada loja no contexto
-        for loja in context['lojas']:
-            repasses, atrasados = loja.get_repasses_status()
-            loja.repasses_info = {
-                'repasses': repasses,
-                'atrasados': atrasados
-            }
-        context['filter'] = self.request.GET.get('filter', '')  # Passa o filtro para o template
+        lojas = list(context['lojas'])
+        status = status_repasses_por_loja(lojas)
+        for loja in lojas:
+            repasses, atrasados = status[loja.id]
+            loja.repasses_info = {'repasses': repasses, 'atrasados': atrasados}
+        context['lojas'] = lojas
+        context['filter'] = self.request.GET.get('filter', '')
         return context
 
 
@@ -2108,21 +1662,14 @@ class LojaUpdateView(PermissionRequiredMixin, UpdateView):
 @permission_required('vendas.change_loja', raise_exception=True)
 def replicar_qr_code_codigo_aplicativo(request, pk):
     loja = get_object_or_404(Loja, id=pk)
-    if not loja.qr_code_aplicativo or loja.codigo_aplicativo is None:
-        messages.error(request, '❌ Loja não possui QR Code ou código do aplicativo configurado.')
-        return redirect('vendas:loja_list')
-
-    lojas = Loja.objects.exclude(id=pk)
-    for l in lojas:
-        l.qr_code_aplicativo = loja.qr_code_aplicativo
-        l.codigo_aplicativo = loja.codigo_aplicativo
-        l.save()
-    
-    messages.success(request, '✅ QR Code e código do aplicativo replicados com sucesso para outras lojas.')
+    try:
+        replicar_qr_code_aplicativo(loja)
+    except ErroDeNegocio as erro:
+        messages.error(request, f'❌ {erro.mensagem}')
+    else:
+        messages.success(request, '✅ QR Code e código do aplicativo replicados com sucesso para outras lojas.')
     return redirect('vendas:loja_list')
 
-from django.db.models import Count, Sum
-from django.utils.dateparse import parse_date
 
 class LojaDetailView(PermissionRequiredMixin, DetailView):
     model = Loja
@@ -3359,311 +2906,68 @@ class GraficoTemplateView(PermissionRequiredMixin, TemplateView):
 
 @permission_required('vendas.change_analisecreditocliente', raise_exception=True)
 def informar_imei_analise(request, pk):
-    """View para analista informar o IMEI na análise de crédito"""
-    # Verificar se o usuário é analista
-    if not request.user.groups.filter(name='ANALISTA').exists():
-        messages.error(request, 'Apenas analistas podem informar o IMEI.')
-        return redirect('vendas:cliente_list')
-    """View para informar o IMEI na análise de crédito antes de gerar a venda"""
+    """Analista informa o IMEI da análise (GET mostra o formulário)."""
     analise = get_object_or_404(AnaliseCreditoCliente, pk=pk)
-    
-    # Verificar se o status está correto para informar IMEI
-    # Para iPhone: verificar se o vendedor confirmou a configuração inicial
-    # Para Android: verificar se o aplicativo foi confirmado pelo vendedor
-    if analise.produto.is_iphone:
-        if not analise.icloud_configurado_vendedor:
-            messages.error(request, 'Só é possível informar IMEI após o vendedor confirmar a configuração inicial.')
-            return redirect('vendas:cliente_list')
-    else:
-        if analise.status_aplicativo != 'C':
-            messages.error(request, 'Só é possível informar IMEI após o vendedor confirmar a instalação do aplicativo.')
-            return redirect('vendas:cliente_list')
-    
-    if request.method == 'POST':
-        imei_informado = request.POST.get('imei_informado')
-        
-        if not imei_informado:
-            messages.error(request, 'IMEI é obrigatório.')
-            return redirect('vendas:cliente_update', pk=analise.cliente.pk)
-        
-        # Verificar se o IMEI já existe no estoque
+    try:
+        servico_analise.exigir_analista(request.user, 'Apenas analistas podem informar o IMEI.')
+        servico_analise.validar_pode_informar_imei(analise)
+        if request.method != 'POST':
+            return render(request, 'vendas/informar_imei_analise.html', {
+                'analise': analise, 'cliente': analise.cliente,
+            })
         loja = get_object_or_404(Loja, id=request.session.get('loja_id'))
-        estoque_imei_existente = EstoqueImei.objects.filter(
-            imei=imei_informado,
-            produto=analise.produto,
-            loja=loja,
-            vendido=False,
-            cancelado=False
-        ).first()
-        
-        if estoque_imei_existente:
-            # IMEI já existe no estoque
-            analise.imei = estoque_imei_existente
-            analise.imei_informado = imei_informado
-            analise.save()
-            messages.success(request, f'IMEI {imei_informado} associado com sucesso à análise.')
-        else:
-            # IMEI não existe, criar novo registro no estoque
-            try:
-                # Criar novo registro no EstoqueImei
-                novo_estoque_imei = EstoqueImei(
-                    produto=analise.produto,
-                    imei=imei_informado,
-                    loja=loja,
-                    vendido=False,
-                    aplicativo_instalado=False,
-                    cancelado=False
-                )
-                # Salvar com o usuário para preencher criado_por
-                novo_estoque_imei.save(user=request.user)
-                
-                # Associar à análise
-                analise.imei = novo_estoque_imei
-                analise.imei_informado = imei_informado
-                analise.save()
-                
-                messages.success(request, f'IMEI {imei_informado} criado e associado com sucesso à análise.')
-            except Exception as e:
-                messages.error(request, f'Erro ao criar IMEI: {str(e)}')
-                return redirect('vendas:cliente_update', pk=analise.cliente.pk)
-        
-        # Marcar aplicativo como instalado quando o analista informar o IMEI (apenas para Android)
-        if not analise.produto.is_iphone:
-            analise.status_aplicativo = 'I'
-            analise.save()
-        messages.success(request, 'IMEI informado com sucesso! Venda liberada para geração pelo vendedor.')
-        
-        # Enviar notificação para analistas e administradores
-        from notifications.signals import notify
-        from notificacao.utils import enviar_ws_para_usuario
-        
-        cliente_nome = analise.cliente.nome if analise.cliente else "Cliente"
-        imei_info = f'Imei {imei_informado}' if imei_informado else 'IMEI não informado'
-        
-        verb = f'Analista informou IMEI para cliente {cliente_nome.capitalize()}.'
-        description = f'{imei_info} da loja {loja.nome.capitalize()}. Venda liberada para geração pelo vendedor.'
-        
-        # Notificar analistas e administradores
-        usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=['ADMINISTRADOR', 'ANALISTA']).exclude(id=request.user.id)
-        )
-        
-        for user in usuarios_para_notificar:
-            notify.send(
-                analise,
-                recipient=user,
-                verb=verb,
-                description=description,
-                target=analise.cliente,
-            )
+        imei = (request.POST.get('imei_informado') or '').strip()
+        _, criado = servico_analise.informar_imei(analise, request.user, imei, loja)
+    except ErroDeNegocio as erro:
+        return _redirecionar_com_erro(request, erro, analise.cliente_id)
 
-            # WebSocket
-            ultima_notificacao = user.notifications.unread().order_by('-timestamp').first()
-            if ultima_notificacao:
-                enviar_ws_para_usuario(
-                    usuario=user,
-                    instance=analise,
-                    notification_id=ultima_notificacao.id,
-                    verb=verb,
-                    description=description,
-                    target_url=analise.cliente.get_absolute_url(),
-                    type_notification='analise_credito_cliente',
-                )
-        
-        return redirect('vendas:cliente_list')
-    
-    # GET request - mostrar formulário
-    context = {
-        'analise': analise,
-        'cliente': analise.cliente,
-    }
-    return render(request, 'vendas/informar_imei_analise.html', context)
+    acao = 'criado e associado' if criado else 'associado'
+    messages.success(request, f'IMEI {imei} {acao} com sucesso à análise.')
+    messages.success(request, 'IMEI informado com sucesso! Venda liberada para geração pelo vendedor.')
+    return redirect('vendas:cliente_list')
 
-class AnalistaConfirmInstalledView(PermissionRequiredMixin, View):
-    permission_required = 'vendas.change_status_analise'
+
+class _AcaoNaAnaliseView(PermissionRequiredMixin, View):
+    """POST que aplica uma transição do serviço à análise do cliente e volta para a lista."""
+
+    def executar(self, request, analise):
+        raise NotImplementedError
 
     def post(self, request, pk):
         cliente = get_object_or_404(Cliente, pk=pk)
-        analise_credito = cliente.analise_credito
-        
-        # Verificar se o usuário é analista
-        if not request.user.groups.filter(name='ANALISTA').exists():
-            messages.error(request, 'Apenas analistas podem confirmar a instalação.')
-            return redirect('vendas:cliente_list')
-        
-        # Verificar se o IMEI está informado
-        if not analise_credito.imei:
-            messages.error(request, 'IMEI deve estar informado para confirmar a instalação.')
-            return redirect('vendas:cliente_list')
-        
-        # Verificar se o status está correto
-        if analise_credito.status_aplicativo != 'C':
-            messages.error(request, 'Status do aplicativo deve estar "Aguardando Confirmação" para confirmar a instalação.')
-            return redirect('vendas:cliente_list')
-        
-        # Marcar como instalado
-        analise_credito.status_aplicativo = 'I'
-        analise_credito.save()
-        
-        # Enviar notificação para vendedores
-        from notifications.signals import notify
-        from notificacao.utils import enviar_ws_para_usuario
-        
-        cliente_nome = cliente.nome if cliente else "Cliente"
-        loja = cliente.loja
-        
-        verb = f'Analista confirmou instalação do app para cliente {cliente_nome.capitalize()}.'
-        description = f'IMEI {analise_credito.imei.imei} da loja {loja.nome.capitalize()}. Venda liberada para geração.'
-
-        # O popup do VENDEDOR (event=instalacao_confirmada) e disparado pelo signal
-        # ao detectar status_aplicativo -> 'I'. Aqui notificamos apenas admin/analista.
-        usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=['ADMINISTRADOR', 'ANALISTA']).exclude(id=request.user.id)
-        )
-        
-        for user in usuarios_para_notificar:
-            notify.send(
-                analise_credito,
-                recipient=user,
-                verb=verb,
-                description=description,
-                target=cliente,
-            )
-
-            # WebSocket
-            ultima_notificacao = user.notifications.unread().order_by('-timestamp').first()
-            if ultima_notificacao:
-                enviar_ws_para_usuario(
-                    usuario=user,
-                    instance=analise_credito,
-                    notification_id=ultima_notificacao.id,
-                    verb=verb,
-                    description=description,
-                    target_url=cliente.get_absolute_url(),
-                    type_notification='analise_credito_cliente',
-                )
-        
-        messages.success(request, "✅ Instalação confirmada pelo analista! Venda liberada para geração.")
+        try:
+            mensagem = self.executar(request, cliente.analise_credito)
+        except ErroDeNegocio as erro:
+            messages.error(request, f'❌ {erro.mensagem}')
+        else:
+            messages.success(request, mensagem)
         return redirect('vendas:cliente_list')
 
 
-class ClienteConfigurarIcloudView(PermissionRequiredMixin, View):
+class AnalistaConfirmInstalledView(_AcaoNaAnaliseView):
+    permission_required = 'vendas.change_status_analise'
+
+    def executar(self, request, analise):
+        servico_analise.confirmar_instalacao_analista(analise, request.user)
+        return "✅ Instalação confirmada pelo analista! Venda liberada para geração."
+
+
+class ClienteConfigurarIcloudView(_AcaoNaAnaliseView):
     """Vendedor confirma a configuração inicial do iPhone e informa os 4 últimos dígitos do IMEI"""
     permission_required = 'vendas.change_cliente'
 
-    def post(self, request, pk):
-        cliente = get_object_or_404(Cliente, pk=pk)
-        analise = cliente.analise_credito
-
-        digitos = ''.join(filter(str.isdigit, str(request.POST.get('imei_ultimos_digitos', ''))))[:4]
-        if len(digitos) != 4:
-            messages.error(request, '❌ Informe os 4 últimos dígitos do IMEI para confirmar.')
-            return redirect('vendas:cliente_list')
-
-        analise.imei_ultimos_digitos_vendedor = digitos
-        analise.icloud_configurado_vendedor = True
-        analise.save()
-
-        # Enviar notificação para analistas
-        from notifications.signals import notify
-        from notificacao.utils import enviar_ws_para_usuario
-
-        cliente_nome = cliente.nome if cliente else "Cliente"
-        loja = cliente.loja
-
-        verb = f'Vendedor confirmou configuração inicial para cliente {cliente_nome.capitalize()}'
-        description = f'iPhone da loja {loja.nome.capitalize()}. IMEI termina em {digitos}. Aguardando analista informar IMEI.'
-        
-        # Notificar analistas
-        usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=['ANALISTA', 'ADMINISTRADOR']).exclude(id=request.user.id)
-        )
-        
-        for user in usuarios_para_notificar:
-            notify.send(
-                analise,
-                recipient=user,
-                verb=verb,
-                description=description,
-                target=cliente,
-            )
-
-            # WebSocket
-            ultima_notificacao = user.notifications.unread().order_by('-timestamp').first()
-            if ultima_notificacao:
-                enviar_ws_para_usuario(
-                    usuario=user,
-                    instance=analise,
-                    notification_id=ultima_notificacao.id,
-                    verb=verb,
-                    description=description,
-                    target_url=cliente.get_absolute_url(),
-                    type_notification='analise_credito_cliente',
-                )
-        
-        messages.success(request, f'✅ Configuração iCloud confirmada para {cliente.nome}')
-        return redirect('vendas:cliente_list')
+    def executar(self, request, analise):
+        servico_analise.configurar_icloud(analise, request.user, request.POST.get('imei_ultimos_digitos'))
+        return f'✅ Configuração iCloud confirmada para {analise.cliente.nome}'
 
 
-class AnalistaConfirmIcloudView(PermissionRequiredMixin, View):
+class AnalistaConfirmIcloudView(_AcaoNaAnaliseView):
     """Analista confirma que o iCloud foi configurado corretamente"""
     permission_required = 'vendas.change_status_analise'
 
-    def post(self, request, pk):
-        cliente = get_object_or_404(Cliente, pk=pk)
-        analise = cliente.analise_credito
-        
-        # Verificar se o usuário é analista
-        if not request.user.groups.filter(name='ANALISTA').exists():
-            messages.error(request, 'Apenas analistas podem confirmar a configuração do iCloud.')
-            return redirect('vendas:cliente_list')
-        
-        if not analise.icloud_configurado_vendedor:
-            messages.error(request, '❌ Vendedor ainda não confirmou a configuração do iCloud.')
-            return redirect('vendas:cliente_list')
-
-        analise.icloud_confirmado_analista = True
-        analise.save()
-        
-        # Enviar notificação para vendedores
-        from notifications.signals import notify
-        from notificacao.utils import enviar_ws_para_usuario
-        
-        cliente_nome = cliente.nome if cliente else "Cliente"
-        loja = cliente.loja
-        
-        verb = f'Analista confirmou configuração iCloud para cliente {cliente_nome.capitalize()}'
-        description = f'iPhone da loja {loja.nome.capitalize()}. Aguardando IMEI para gerar venda.'
-        
-        # Notificar vendedores e outros analistas
-        usuarios_para_notificar = list(
-            User.objects.filter(groups__name__in=['VENDEDOR', 'ADMINISTRADOR', 'ANALISTA']).exclude(id=request.user.id)
-        )
-        
-        for user in usuarios_para_notificar:
-            notify.send(
-                analise,
-                recipient=user,
-                verb=verb,
-                description=description,
-                target=cliente,
-            )
-
-            # WebSocket
-            ultima_notificacao = user.notifications.unread().order_by('-timestamp').first()
-            if ultima_notificacao:
-                enviar_ws_para_usuario(
-                    usuario=user,
-                    instance=analise,
-                    notification_id=ultima_notificacao.id,
-                    verb=verb,
-                    description=description,
-                    target_url=cliente.get_absolute_url(),
-                    type_notification='analise_credito_cliente',
-                )
-        
-        messages.success(request, f'✅ Configuração iCloud confirmada pelo analista para {cliente.nome}')
-        return redirect('vendas:cliente_list')
+    def executar(self, request, analise):
+        servico_analise.confirmar_icloud_analista(analise, request.user)
+        return f'✅ Configuração iCloud confirmada pelo analista para {analise.cliente.nome}'
 
 
 class DashboardReportPDFView(PermissionRequiredMixin, View):
