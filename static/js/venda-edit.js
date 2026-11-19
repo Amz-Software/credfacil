@@ -9,7 +9,7 @@
  * - Linhas de pagamento (.pagamento-form): habilita parcelas conforme o tipo
  *   (/info-payment/) e calcula o valor da parcela.
  *
- * Erros de API viram toasts (window.ipixToast) — sem alert().
+ * Erros de API viram toasts (window.ipixToast), sem alert nativo.
  * Depende de jQuery, jquery.mask e select2 (carregados pela página).
  */
 (function () {

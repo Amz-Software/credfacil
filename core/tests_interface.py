@@ -316,3 +316,65 @@ class EdicaoComErrosTests(BackofficeTestCase):
         self.assertTem('css/form-cliente.css', html)
         self.assertNaoTem('<style>', html)
         self.assertNaoTem('JSON.parse(', html)
+
+
+class FormularioSolicitacaoTests(BackofficeTestCase):
+    def setUp(self):
+        super().setUp()
+        from unittest import mock
+
+        from django.core.cache.backends.locmem import LocMemCache
+
+        patcher = mock.patch('django_select2.forms.cache', LocMemCache('select2-testes', {}))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_nova_solicitacao_sem_css_e_js_inline(self):
+        from produtos.models import Marca
+
+        Marca.objects.create(nome='Samsung', loja=self.loja)
+
+        html = self.html('vendas:cliente_create')
+
+        self.assertTem('id="formClienteDados"', html)
+        self.assertTem('js/form-cliente.js', html)
+        self.assertTem('css/form-cliente.css', html)
+        self.assertNaoTem('<style>', html)
+        self.assertNaoTem('JSON.parse(', html)
+        self.assertTem('Nova Solicitação de Crédito · IPIX', ' '.join(html.split()))
+
+    def test_editar_solicitacao_passa_parcelamento_salvo_por_data_attribute(self):
+        from produtos.models import Marca
+
+        Marca.objects.create(nome='Samsung', loja=self.loja)
+        cliente = _criar_solicitacao(self.loja)
+        cliente.analise_credito.numero_parcelas = '6'
+        cliente.analise_credito.save()
+
+        html = self.html('vendas:cliente_update', cliente.id)
+
+        self.assertTem('data-parcelas-salvas="6"', html)
+        self.assertTem(f'data-produto-salvo-id="{cliente.analise_credito.produto_id}"', html)
+
+
+class SemDepuracaoNoFrontTests(TestCase):
+    def test_templates_e_scripts_nao_tem_console_log(self):
+        com_log = [
+            str(caminho.relative_to(BASE_DIR))
+            for caminho in _templates_e_scripts()
+            if 'console.log(' in caminho.read_text(encoding='utf-8', errors='ignore')
+            and 'accounts/templates/login' not in str(caminho)
+        ]
+
+        self.assertEqual(com_log, [])
+
+    def test_templates_nao_usam_alert_nem_confirm_nativos(self):
+        nativo = re.compile(r'(?<![\w.])(?:window\.)?(?:alert|confirm)\(')
+        com_nativo = [
+            str(caminho.relative_to(BASE_DIR))
+            for caminho in _templates_e_scripts()
+            if caminho.name != 'confirm-action.js'
+            and nativo.search(caminho.read_text(encoding='utf-8', errors='ignore'))
+        ]
+
+        self.assertEqual(com_nativo, [])

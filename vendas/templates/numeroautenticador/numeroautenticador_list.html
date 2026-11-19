@@ -54,7 +54,11 @@
                         </a></li>
                         <li><a class="dropdown-item text-danger"
                            href="{% url 'vendas:numeroautenticador_delete' item.pk %}"
-                           onclick="return confirm('Confirma a exclusão deste número?')">
+                           data-post-url="{% url 'vendas:numeroautenticador_delete' item.pk %}"
+                           data-confirm-title="Excluir número autenticador"
+                           data-confirm-message="Confirma a exclusão deste número? A ação não pode ser desfeita."
+                           data-confirm-label="Excluir"
+                           data-confirm-variant="danger">
                           <i class="bx bx-trash me-1"></i> Excluir
                         </a></li>
                     {% include "components/action_menu_close.html" %}

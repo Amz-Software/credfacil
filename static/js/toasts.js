@@ -4,7 +4,7 @@
  * - Mostra os toasts renderizados pelo Django (mensagens de `messages`) que
  *   estão em #ipixToastContainer com [data-ipix-toast].
  * - Expõe window.ipixToast(mensagem, variante) para feedback em scripts de
- *   página (substitui alert()). Variantes: success | danger | warning | info.
+ *   página (no lugar do alert nativo). Variantes: success | danger | warning | info.
  *
  * A mensagem entra via textContent (nunca innerHTML).
  */

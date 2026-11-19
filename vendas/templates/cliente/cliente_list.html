@@ -720,7 +720,7 @@ Clientes
                     {# Etapa 3: Gerar Venda (Vendedor) - Para iPhone #}
                     {% if cliente.analise_credito.status == 'A' and user|has_perm:"vendas.add_venda" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
                     <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}"
-                          onsubmit="return confirm('Gerar venda para {{ cliente.nome }}?');" class="m-0">
+                          data-confirm-title="Gerar venda" data-confirm-message="Gerar venda para {{ cliente.nome }}?" data-confirm-label="Gerar venda" data-confirm-variant="success" class="m-0">
                       {% csrf_token %}
                       <button type="submit" class="dropdown-item {% if cliente.analise_credito.venda_gerada %}etapa-concluida{% else %}etapa-pendente{% endif %}">
                         <i class="bx bx-cart me-1"></i>🛒 3. Gerar Venda (Vendedor)
@@ -785,7 +785,7 @@ Clientes
                     
                     {# FLUXO DE TRABALHO - Etapa 4: Gerar Venda #}
                     {% if cliente.analise_credito.status == 'A' and user|has_perm:"vendas.add_venda" or user.is_superuser or user|has_group:"ADMINISTRADOR" %}
-                    <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}" onsubmit="return confirm('Gerar venda para {{ cliente.nome }}?');" class="m-0">
+                    <form method="post" action="{% url 'vendas:gerar_venda' cliente.pk %}" data-confirm-title="Gerar venda" data-confirm-message="Gerar venda para {{ cliente.nome }}?" data-confirm-label="Gerar venda" data-confirm-variant="success" class="m-0">
                       {% csrf_token %}
                       <button type="submit" class="dropdown-item {% if cliente.analise_credito.venda_gerada %}etapa-concluida{% else %}etapa-pendente{% endif %}">
                         <i class="bx bx-cart me-1"></i>🛒 4. Gerar Venda (Vendedor)
@@ -1036,7 +1036,7 @@ Clientes
           if (el) el.textContent = data[code] || 0;
         });
       })
-      .catch(console.error);
+      .catch(function () { /* mantém os números atuais até a próxima tentativa */ });
     }
     document.addEventListener('DOMContentLoaded', refreshKpis);
     setInterval(refreshKpis, 15000);

@@ -1,6 +1,5 @@
 function formatarTexto(texto, div) {
     const data = JSON.parse(texto);
-    console.log(data);
     let element;
     data.blocks.forEach(block => {
         switch(block.type) {
@@ -23,8 +22,8 @@ function formatarTexto(texto, div) {
                 element.innerHTML = block.data.text;
                 break;
             default:
-                console.warn(`Tipo de bloco desconhecido: ${block.type}`);
-                break;
+                // Tipo de bloco desconhecido: ignora.
+                return;
         }
         div.appendChild(element);
     });

@@ -101,14 +101,14 @@ Produtos
               {% endif %}
               {% if user|has_perm:"produtos.delete_produto" %}
                 {% if produto.ativo %}
-                <form method="post" action="{% url 'produtos:produto_delete' produto.id %}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja desativar este produto?');">
+                <form method="post" action="{% url 'produtos:produto_delete' produto.id %}" class="d-inline" data-confirm-title="Desativar produto" data-confirm-message="Tem certeza que deseja desativar este produto?" data-confirm-label="Desativar" data-confirm-variant="danger">
                   {% csrf_token %}
                   <button type="submit" class="dropdown-item text-danger" style="border: none; background: none; width: 100%; text-align: left;">
                     <i class="bx bx-trash me-1"></i> Desativar
                   </button>
                 </form>
                 {% else %}
-                <form method="post" action="{% url 'produtos:produto_activate' produto.id %}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja ativar este produto?');">
+                <form method="post" action="{% url 'produtos:produto_activate' produto.id %}" class="d-inline" data-confirm-title="Ativar produto" data-confirm-message="Tem certeza que deseja ativar este produto?" data-confirm-label="Ativar" data-confirm-variant="success">
                   {% csrf_token %}
                   <button type="submit" class="dropdown-item text-success" style="border: none; background: none; width: 100%; text-align: left;">
                     <i class="bx bx-check-circle me-1"></i> Ativar
