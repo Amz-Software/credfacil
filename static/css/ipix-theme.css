@@ -53,9 +53,24 @@
   --ipix-secondary-soft: rgba(133, 146, 163, .16);
 
   /* Cores auxiliares (gráficos e destaques que precisam de mais de 5 tons) */
-  --ipix-accent-purple: #7367F0;
-  --ipix-accent-orange: #FF9F43;
+  --ipix-accent-purple: #6F42C1;
+  --ipix-accent-orange: #FD7E14;
   --ipix-accent-teal:   #20C997;
+  --ipix-accent-blue:   #2F80ED;
+  --ipix-accent-indigo: #0D6EFD;
+  --ipix-accent-pink:   #F5576C;
+
+  /* Situações de cobrança (contas a receber) — mesma cor em lista e detalhe */
+  --ipix-sit-lembrete: var(--ipix-accent-indigo);
+  --ipix-sit-bo: var(--ipix-danger);
+  --ipix-sit-cobranca: var(--ipix-accent-orange);
+  --ipix-sit-sem-conexao: var(--ipix-secondary);
+  --ipix-sit-roubo: var(--ipix-ink);
+  --ipix-sit-sem-contato: var(--ipix-accent-blue);
+  --ipix-sit-mais-prazo: var(--ipix-accent-teal);
+  --ipix-sit-bloqueado: var(--ipix-accent-purple);
+  --ipix-sit-desativado: var(--ipix-secondary);
+  --ipix-sit-devolucao: var(--ipix-warning);
 
   /* Marcas de terceiros */
   --ipix-whatsapp: #25D366;

@@ -179,3 +179,66 @@ class TemaTests(TrechoMixin, TestCase):
         for token in ('--ipix-body-bg', '--ipix-surface', '--ipix-border', '--ipix-text', '--ipix-heading'):
             with self.subTest(token=token):
                 self.assertTem(f'{token}:', bloco_escuro)
+
+
+def _criar_pagamento(loja, vendedor):
+    from datetime import date, timedelta
+    from decimal import Decimal
+
+    from vendas.models import Cliente, ComprovantesCliente, Pagamento, Parcela, TipoPagamento, Venda
+
+    cliente = Cliente.objects.create(
+        nome='Cliente <script>x</script>', telefone='91999999999', cpf='12345678900',
+        nascimento=date(1990, 1, 1), rg='123', cep='66000000',
+        endereco='Rua A', bairro='Centro', cidade='Belém',
+        comprovantes=ComprovantesCliente.objects.create(),
+    )
+    venda = Venda.objects.create(
+        cliente=cliente, vendedor=vendedor, loja=loja, repasse_logista=Decimal('100.00'),
+    )
+    tipo = TipoPagamento.objects.get_or_create(nome='IPX', defaults={'parcelas': True, 'caixa': False})[0]
+    pagamento = Pagamento.objects.create(
+        venda=venda, tipo_pagamento=tipo, valor=Decimal('1000.00'),
+        parcelas=10, loja=loja, data_primeira_parcela=date.today(),
+    )
+    Parcela.objects.create(
+        pagamento=pagamento, numero_parcela=1, valor=Decimal('100.00'),
+        data_vencimento=date.today() - timedelta(days=30), pago=False, loja=loja,
+    )
+    return pagamento
+
+
+class ContasAReceberTelasTests(BackofficeTestCase):
+    def setUp(self):
+        super().setUp()
+        self.pagamento = _criar_pagamento(self.loja, self.user)
+
+    def test_detalhe_pede_confirmacao_nas_situacoes_destrutivas(self):
+        html = self.html('financeiro:contas_a_receber_update', self.pagamento.id)
+
+        self.assertNaoTem('onchange="this.form.submit()"', html)
+        for campo in ('sitBo', 'sitRoubo', 'sitBloqueado', 'sitDesativado', 'sitDevolucao', 'sitSemConexao'):
+            with self.subTest(campo=campo):
+                inicio = html.index(f'id="{campo}"')
+                tag = html[inicio:html.index('>', inicio)]
+                self.assertTem('data-auto-submit', tag)
+                self.assertTem('data-confirmar-ligar=', tag)
+                self.assertTem('data-confirmar-desligar=', tag)
+        self.assertTem('id="confirmActionModal"', html)
+        self.assertTem('js/contas-a-receber-detail.js', html)
+        self.assertTem('css/contas-a-receber.css', html)
+
+    def test_detalhe_sem_css_e_js_inline(self):
+        html = self.html('financeiro:contas_a_receber_update', self.pagamento.id)
+
+        self.assertNaoTem('<style>', html)
+        self.assertNaoTem('function setupAddParcela', html)
+        self.assertNaoTem('class="bi ', html)
+        self.assertTem('data-arquivo="conta_', html)
+
+    def test_lista_usa_css_compartilhado_e_tokens(self):
+        html = self.html('financeiro:contas_a_receber_list')
+
+        self.assertTem('css/contas-a-receber.css', html)
+        self.assertNaoTem('<style>', html)
+        self.assertNaoTem('style="background:#', html)

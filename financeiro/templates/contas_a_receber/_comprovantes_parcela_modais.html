@@ -13,7 +13,7 @@
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title" id="comprovanteModalLabel-{{ parcela.instance.pk }}">
-                <i class="bi bi-paperclip me-1"></i>
+                <i class="bx bx-paperclip me-1"></i>
                 Comprovantes — Parcela {{ parcela.instance.numero_parcela }}
               </h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -36,9 +36,9 @@
                              alt="Comprovante {{ comprovante.nome_arquivo }}" loading="lazy">
                       </a>
                     {% elif comprovante.is_pdf %}
-                      <i class="bi bi-file-earmark-pdf"></i>
+                      <i class="bx bxs-file-pdf"></i>
                     {% else %}
-                      <i class="bi bi-file-earmark-image"></i>
+                      <i class="bx bx-image"></i>
                     {% endif %}
                   </div>
 
@@ -56,19 +56,19 @@
                     <div class="d-flex flex-wrap gap-2 mt-2">
                       <a href="{% url 'financeiro:comprovante_parcela_download' conta_a_receber.id parcela.instance.pk comprovante.pk %}"
                          target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-eye me-1"></i> Visualizar
+                        <i class="bx bx-show me-1"></i> Visualizar
                       </a>
                       <a href="{% url 'financeiro:comprovante_parcela_download' conta_a_receber.id parcela.instance.pk comprovante.pk %}?download=1"
                          class="btn btn-sm btn-outline-secondary">
-                        <i class="bi bi-download me-1"></i> Baixar
+                        <i class="bx bx-download me-1"></i> Baixar
                       </a>
                       {% if pode_gerenciar_comprovante and user|has_perm:"vendas.change_pagamento" %}
                         <form method="post"
                               action="{% url 'financeiro:comprovante_parcela_delete' conta_a_receber.id parcela.instance.pk comprovante.pk %}"
-                              onsubmit="return confirm('Remover este comprovante? A ação não pode ser desfeita.');">
+                              data-confirm-title="Remover comprovante" data-confirm-message="Remover este comprovante? A ação não pode ser desfeita." data-confirm-label="Remover" data-confirm-variant="danger">
                           {% csrf_token %}
                           <button type="submit" class="btn btn-sm btn-outline-danger">
-                            <i class="bi bi-trash me-1"></i> Remover
+                            <i class="bx bx-trash me-1"></i> Remover
                           </button>
                         </form>
                       {% endif %}
@@ -77,7 +77,7 @@
                 </div>
               {% empty %}
                 <div class="alert alert-light border text-center mb-3" role="status">
-                  <i class="bi bi-inbox fs-4 d-block mb-1 text-muted"></i>
+                  <i class="bx bx-inbox fs-4 d-block mb-1 text-muted"></i>
                   Nenhum comprovante anexado a esta parcela.
                 </div>
               {% endfor %}
@@ -103,7 +103,7 @@
                     </div>
                     <div class="col-12 col-md-2 d-grid">
                       <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-upload me-1"></i> Enviar
+                        <i class="bx bx-upload me-1"></i> Enviar
                       </button>
                     </div>
                   </div>

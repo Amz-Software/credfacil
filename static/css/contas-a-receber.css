@@ -1,0 +1,333 @@
+/* ==========================================================================
+   Contas a Receber — listagem e detalhe
+   (financeiro/templates/contas_a_receber/contas_a_receber_{list,detail}.html)
+   Cores das situações vêm de --ipix-sit-* (ipix-theme.css): a mesma
+   situação tem a mesma cor na lista, na legenda e no detalhe.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Situações: classe utilitária que define --cr-cor para pílulas, pontos,
+   barras de acento e legenda.
+   -------------------------------------------------------------------------- */
+.is-desativado  { --cr-cor: var(--ipix-sit-desativado); }
+.is-devolucao   { --cr-cor: var(--ipix-sit-devolucao); }
+.is-bloqueado   { --cr-cor: var(--ipix-sit-bloqueado); }
+.is-semcontato  { --cr-cor: var(--ipix-sit-sem-contato); }
+.is-maisprazo   { --cr-cor: var(--ipix-sit-mais-prazo); }
+.is-atrasado    { --cr-cor: var(--ipix-danger); }
+.is-pendente    { --cr-cor: var(--ipix-warning); }
+.is-pago        { --cr-cor: var(--ipix-success); }
+.is-quitado     { --cr-cor: var(--ipix-info); }
+.is-default     { --cr-cor: var(--ipix-muted); }
+.is-lembrete    { --cr-cor: var(--ipix-sit-lembrete); }
+.is-bo          { --cr-cor: var(--ipix-sit-bo); }
+.is-cobranca    { --cr-cor: var(--ipix-sit-cobranca); }
+.is-semconexao  { --cr-cor: var(--ipix-sit-sem-conexao); }
+.is-roubo       { --cr-cor: var(--ipix-sit-roubo); }
+
+/* Pílula de situação (texto escurecido para contraste sobre fundo suave) */
+.cr-pill,
+.cr-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-weight: 600;
+  border-radius: 50rem;
+  white-space: nowrap;
+  line-height: 1;
+  background: color-mix(in srgb, var(--cr-cor, var(--ipix-muted)) 16%, transparent);
+  color: color-mix(in srgb, var(--cr-cor, var(--ipix-muted)) 80%, var(--ipix-heading));
+}
+.cr-pill { font-size: .72rem; padding: .28rem .6rem; }
+.cr-status-pill { font-size: .8rem; padding: .35rem .75rem; }
+.cr-pill .cr-dot,
+.cr-status-pill .dot {
+  width: .5rem;
+  height: .5rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.cr-pill.is-default { background: var(--ipix-gray-100); color: var(--ipix-muted); }
+
+/* Sinalizações (BO, Cobrança, etc.) */
+.cr-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  font-size: .68rem;
+  font-weight: 600;
+  padding: .2rem .45rem;
+  border-radius: .4rem;
+  line-height: 1;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--cr-cor, var(--ipix-muted)) 14%, transparent);
+  color: color-mix(in srgb, var(--cr-cor, var(--ipix-muted)) 85%, var(--ipix-heading));
+}
+.cr-flag.is-devolucao { border: 1px dashed var(--ipix-warning); }
+
+/* Status personalizados (StatusPagamento.cor_hex vem do banco) */
+.cr-status-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: .68rem;
+  font-weight: 600;
+  padding: .2rem .5rem;
+  border-radius: 50rem;
+  color: #1F2230;
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Listagem
+   -------------------------------------------------------------------------- */
+.cr-table { margin-bottom: 0; }
+.cr-table > thead > tr > th {
+  font-size: .72rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ipix-gray-500);
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--ipix-border);
+}
+.cr-table > tbody > tr > td { vertical-align: middle; }
+.cr-table > tbody > tr > td.cr-money { min-width: 118px; }
+.cr-table > tbody > tr > td.cr-situacao { min-width: 170px; }
+
+/* Barra de acento à esquerda (situação da linha) */
+.cr-row > td:first-child { border-left: 3px solid var(--cr-cor, transparent); }
+.cr-row.is-default > td:first-child { border-left-color: var(--ipix-border); }
+.cr-row.is-desativado { opacity: .72; }
+
+.cr-client-name { font-weight: 600; color: var(--ipix-heading); }
+.cr-client-name:hover { color: var(--ipix-primary-text); }
+.cr-sub { font-size: .78rem; color: var(--ipix-muted); }
+.cr-sub a { color: var(--ipix-muted); }
+.cr-sub a:hover { color: var(--ipix-primary-text); }
+
+.cr-amount { font-weight: 600; white-space: nowrap; }
+.cr-amount-warn { color: var(--ipix-warning-text); }
+.cr-amount-date { font-size: .72rem; color: var(--ipix-muted); white-space: nowrap; }
+
+.cr-actions-dropdown .dropdown-menu { min-width: 220px; z-index: 1080; }
+.cr-actions-dropdown .dropdown-toggle {
+  align-items: center;
+  display: inline-flex;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+.cr-actions-dropdown .dropdown-toggle::after { display: none; }
+
+.cr-progress {
+  height: 6px;
+  width: 90px;
+  border-radius: 50rem;
+  background: var(--ipix-border);
+  overflow: hidden;
+  margin: 0 auto;
+}
+.cr-progress-bar { height: 100%; border-radius: 50rem; background: var(--ipix-success); }
+
+.cr-legend { display: flex; flex-wrap: wrap; gap: .5rem .9rem; }
+.cr-legend .item { display: inline-flex; align-items: center; gap: .35rem; font-size: .75rem; color: var(--ipix-text); }
+.cr-legend .swatch { width: .8rem; height: .8rem; border-radius: 3px; flex-shrink: 0; background: var(--cr-cor); }
+.cr-legend .swatch.is-devolucao { border: 1px dashed var(--ipix-yellow-700); }
+
+.cr-switch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: .35rem 1rem;
+}
+
+/* Botão WhatsApp ao lado de telefones (lista e detalhe) */
+.cr-wa-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--ipix-whatsapp);
+  color: #fff !important;
+  font-size: 1rem;
+  line-height: 1;
+  vertical-align: middle;
+  transition: background .15s ease;
+}
+.cr-wa-btn:hover { background: var(--ipix-whatsapp-dark); color: #fff !important; }
+.cr-table .cr-wa-btn { width: 22px; height: 22px; margin-left: 4px; font-size: .95rem; }
+
+/* --------------------------------------------------------------------------
+   Detalhe
+   -------------------------------------------------------------------------- */
+.status-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--cr-cor, var(--ipix-muted));
+}
+
+.cr-field { margin-bottom: .25rem; }
+.cr-field .cr-label {
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--ipix-gray-500);
+  font-weight: 600;
+  display: block;
+  margin-bottom: .1rem;
+}
+.cr-field .cr-value { color: var(--ipix-heading); font-weight: 500; }
+
+.cr-kpi {
+  border: 1px solid var(--ipix-border);
+  border-radius: var(--ipix-radius);
+  padding: 1rem 1.1rem;
+  height: 100%;
+  background: var(--ipix-surface);
+}
+.cr-kpi .cr-kpi-label {
+  font-size: .75rem;
+  color: var(--ipix-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.cr-kpi .cr-kpi-value { font-size: 1.35rem; font-weight: 700; color: var(--ipix-heading); margin-top: .15rem; }
+.cr-kpi .cr-kpi-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+.cr-kpi-icon.is-primary { background: var(--ipix-yellow-soft); color: var(--ipix-primary-text); }
+.cr-kpi-icon.is-success { background: var(--ipix-success-soft); color: var(--ipix-success); }
+.cr-kpi-icon.is-warning { background: var(--ipix-warning-soft); color: var(--ipix-warning-text); }
+.cr-kpi-icon.is-info    { background: var(--ipix-info-soft); color: var(--ipix-info); }
+
+.sit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: .65rem;
+}
+.sit-item {
+  border: 1px solid var(--ipix-border);
+  border-radius: .6rem;
+  padding: .6rem .8rem;
+  transition: border-color .15s ease, box-shadow .15s ease;
+  background: var(--ipix-surface);
+}
+.sit-item:hover { border-color: var(--ipix-yellow); box-shadow: var(--ipix-shadow-sm); }
+.sit-item form { margin: 0; }
+.sit-item .form-check-label { font-weight: 600; color: var(--ipix-heading); cursor: pointer; }
+.sit-item .sit-hint { font-size: .72rem; color: var(--ipix-gray-500); display: block; margin-top: .2rem; }
+
+.sub-heading {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ipix-muted);
+  font-weight: 700;
+  margin-bottom: .6rem;
+}
+
+.contact-row {
+  border: 1px solid var(--ipix-border);
+  border-radius: .6rem;
+  padding: .75rem .9rem;
+  margin-bottom: .6rem;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.contact-row:hover { border-color: var(--ipix-yellow); background: color-mix(in srgb, var(--ipix-yellow) 6%, transparent); }
+.contact-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--ipix-yellow-soft);
+  color: var(--ipix-primary-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#parcelas-table td input:not([type="checkbox"]),
+#parcelas-table td select {
+  padding: .25rem .5rem;
+  font-size: .85rem;
+  height: auto;
+  max-width: 165px;
+  display: inline-block;
+}
+#parcelas-table td { white-space: nowrap; }
+
+.cr-comprovante-btn { white-space: nowrap; }
+.cr-comprovante-item {
+  border: 1px solid var(--ipix-border);
+  border-radius: .6rem;
+  padding: .75rem .9rem;
+  margin-bottom: .6rem;
+}
+.cr-comprovante-thumb {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  border-radius: .5rem;
+  overflow: hidden;
+  background: var(--ipix-secondary-soft);
+  color: var(--ipix-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.9rem;
+}
+.cr-comprovante-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.min-w-0 { min-width: 0; }
+
+/* --------------------------------------------------------------------------
+   Relatório escondido capturado pelo html2pdf (sempre claro: vai para papel)
+   -------------------------------------------------------------------------- */
+#report-content {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 210mm;
+  font-family: sans-serif;
+  font-size: 12px;
+  color: #333;
+  background: #fff;
+}
+#report-content h1 {
+  font-size: 18px;
+  margin-bottom: .5em;
+  border-bottom: 2px solid #444;
+  padding-bottom: .2em;
+}
+#report-content h2 {
+  font-size: 14px;
+  margin-top: 1.2em;
+  margin-bottom: .3em;
+  color: #555;
+  border-bottom: 1px solid #bbb;
+  padding-bottom: .2em;
+}
+#report-content .contact-item {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #f7f7f7;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+#report-content .contact-item .meta { font-size: 10px; color: #666; margin-bottom: 4px; }
+#report-content table { width: 100%; border-collapse: collapse; margin-bottom: 1em; }
+#report-content th,
+#report-content td { border: 1px solid #999; padding: 4px; text-align: left; }
+#report-content th { background: #eaeaea; }

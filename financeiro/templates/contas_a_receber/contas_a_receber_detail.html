@@ -1,113 +1,10 @@
 {% extends "base.html" %}
 {% load static iam_tags l10n %}
-{% block title %}Contas a Receber{% endblock title %}
+{% block title %}Contas a Receber · {{ conta_a_receber.venda.cliente.nome|title }}{% endblock title %}
 
 {% block extra_head %}
   {{ status_form.media.css }}
-  <style>
-    .status-color-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
-
-    /* Campos em modo "leitura" */
-    .cr-field { margin-bottom: .25rem; }
-    .cr-field .cr-label {
-      font-size: .72rem; text-transform: uppercase; letter-spacing: .03em;
-      color: #a1acb8; font-weight: 600; display: block; margin-bottom: .1rem;
-    }
-    .cr-field .cr-value { color: var(--ipix-heading, #384551); font-weight: 500; }
-
-    /* Botão WhatsApp ao lado de telefones */
-    .cr-wa-btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 24px; height: 24px; margin-left: 6px; border-radius: 50%;
-      background: #25d366; color: #fff !important; font-size: 1rem;
-      line-height: 1; vertical-align: middle; transition: background .15s ease;
-    }
-    .cr-wa-btn:hover { background: #1da851; color: #fff !important; }
-
-    /* KPIs do topo */
-    .cr-kpi {
-      border: 1px solid var(--ipix-gray-200, #eaeaef);
-      border-radius: var(--ipix-radius, .625rem);
-      padding: 1rem 1.1rem;
-      height: 100%;
-      background: #fff;
-    }
-    .cr-kpi .cr-kpi-label { font-size: .75rem; color: #8592a3; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
-    .cr-kpi .cr-kpi-value { font-size: 1.35rem; font-weight: 700; color: var(--ipix-heading, #384551); margin-top: .15rem; }
-    .cr-kpi .cr-kpi-icon { width: 42px; height: 42px; border-radius: 10px; display:flex; align-items:center; justify-content:center; font-size: 1.4rem; }
-
-    /* Pílula de status no topo */
-    .cr-status-pill {
-      display: inline-flex; align-items: center; gap: .4rem;
-      font-size: .8rem; font-weight: 600; padding: .35rem .75rem; border-radius: 50rem;
-    }
-    .cr-status-pill .dot { width: .55rem; height: .55rem; border-radius: 50%; background: currentColor; }
-
-    /* Grade de situações (toggles) */
-    .sit-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: .65rem;
-    }
-    .sit-item {
-      border: 1px solid var(--ipix-gray-200, #eaeaef);
-      border-radius: .6rem;
-      padding: .6rem .8rem;
-      transition: border-color .15s ease, box-shadow .15s ease;
-      background: #fff;
-    }
-    .sit-item:hover { border-color: var(--ipix-yellow, #fdc600); box-shadow: var(--ipix-shadow-sm, 0 .125rem .5rem rgba(43,44,64,.08)); }
-    .sit-item form { margin: 0; }
-    .sit-item .form-check-label { font-weight: 600; color: var(--ipix-heading,#384551); cursor: pointer; }
-    .sit-item .sit-hint { font-size: .72rem; color: #a1acb8; display: block; margin-top: .2rem; }
-
-    .sub-heading {
-      font-size: .78rem; text-transform: uppercase; letter-spacing: .04em;
-      color: #8592a3; font-weight: 700; margin-bottom: .6rem;
-    }
-
-    /* Contatos */
-    .contact-row {
-      border: 1px solid var(--ipix-gray-200, #eaeaef);
-      border-radius: .6rem; padding: .75rem .9rem; margin-bottom: .6rem;
-      cursor: pointer; transition: border-color .15s ease, background .15s ease;
-    }
-    .contact-row:hover { border-color: var(--ipix-yellow, #fdc600); background: rgba(253,198,0,.06); }
-    .contact-icon {
-      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
-      background: rgba(253,198,0,.16); color: #c79b00;
-      display: flex; align-items: center; justify-content: center;
-    }
-
-    /* Tabela de parcelas: enxuga os widgets do formset */
-    #parcelas-table td input:not([type="checkbox"]),
-    #parcelas-table td select {
-      padding: .25rem .5rem; font-size: .85rem; height: auto;
-      max-width: 165px; display: inline-block;
-    }
-    #parcelas-table td { white-space: nowrap; }
-
-    /* Comprovantes de pagamento por parcela */
-    .cr-comprovante-btn { white-space: nowrap; }
-    .cr-comprovante-item {
-      border: 1px solid var(--ipix-gray-200, #eaeaef);
-      border-radius: .6rem; padding: .75rem .9rem; margin-bottom: .6rem;
-    }
-    .cr-comprovante-thumb {
-      width: 72px; height: 72px; flex-shrink: 0; border-radius: .5rem; overflow: hidden;
-      background: rgba(133,146,163,.10); color: #8592a3;
-      display: flex; align-items: center; justify-content: center; font-size: 1.9rem;
-    }
-    .cr-comprovante-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    .min-w-0 { min-width: 0; }
-    .dark-style .cr-comprovante-item { border-color: rgba(255,255,255,.08); }
-
-    /* Dark mode: superfícies personalizadas mantêm contraste */
-    .dark-style .cr-kpi,
-    .dark-style .sit-item { background: #2b2c40; border-color: rgba(255,255,255,.08); }
-    .dark-style .contact-row { border-color: rgba(255,255,255,.08); }
-    .dark-style .contact-row:hover { background: rgba(253,198,0,.10); }
-  </style>
+  <link rel="stylesheet" href="{% static 'css/contas-a-receber.css' %}" />
 {% endblock %}
 
 {% block content %}
@@ -123,33 +20,33 @@
       <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
         <span class="text-muted small">Venda #{{ conta_a_receber.venda.id }} · {{ conta_a_receber.venda.itens_venda.first.produto.nome|title }}</span>
         {% if conta_a_receber.desativado %}
-          <span class="cr-status-pill" style="background:rgba(133,146,163,.16);color:#6c757d"><span class="dot"></span>Desativado</span>
+          <span class="cr-status-pill is-desativado"><span class="dot"></span>Desativado</span>
         {% elif conta_a_receber.devolucao %}
-          <span class="cr-status-pill" style="background:rgba(255,171,0,.16);color:#b97900"><span class="dot"></span>Devolução</span>
+          <span class="cr-status-pill is-devolucao"><span class="dot"></span>Devolução</span>
         {% elif conta_a_receber.bloqueado %}
-          <span class="cr-status-pill" style="background:rgba(111,66,193,.14);color:#6f42c1"><span class="dot"></span>Bloqueado</span>
+          <span class="cr-status-pill is-bloqueado"><span class="dot"></span>Bloqueado</span>
         {% endif %}
       </div>
     </div>
     <div class="d-flex align-items-center gap-2">
       <a href="{% url 'vendas:cliente_update' conta_a_receber.venda.cliente.id %}" class="btn btn-outline-primary" title="Editar informações do cliente">
-        <i class="bi bi-pencil-square me-1"></i> Editar Cliente
+        <i class="bx bx-edit me-1"></i> Editar Cliente
       </a>
-      <button id="download-pdf" class="btn btn-primary">
-        <i class="bi bi-file-earmark-pdf-fill me-1"></i> Gerar PDF
+      <button id="download-pdf" class="btn btn-primary" data-arquivo="conta_{{ conta_a_receber.id }}.pdf">
+        <i class="bx bxs-file-pdf me-1"></i> Gerar PDF
       </button>
     </div>
   </div>
 
   {% if conta_a_receber.desativado %}
     <div class="alert alert-secondary d-flex align-items-center" role="alert">
-      <i class="bi bi-exclamation-triangle me-2"></i>
+      <i class="bx bx-error me-2"></i>
       <div><strong>Cliente Desativado:</strong> Este cliente está desativado. As parcelas não aparecem nos gráficos e relatórios de contas a receber.</div>
     </div>
   {% endif %}
   {% if conta_a_receber.devolucao %}
     <div class="alert alert-warning d-flex align-items-center" role="alert">
-      <i class="bi bi-arrow-counterclockwise me-2"></i>
+      <i class="bx bx-undo me-2"></i>
       <div><strong>Devolução:</strong> Mantém parcelas já pagas; parcelas futuras não são consideradas nos gráficos/relatórios.</div>
     </div>
   {% endif %}
@@ -162,7 +59,7 @@
           <div class="cr-kpi-label">Valor Total</div>
           <div class="cr-kpi-value">R$ {{ conta_a_receber.valor|floatformat:2 }}</div>
         </div>
-        <div class="cr-kpi-icon" style="background:rgba(253,198,0,.16);color:#c79b00"><i class="bx bx-wallet"></i></div>
+        <div class="cr-kpi-icon is-primary"><i class="bx bx-wallet"></i></div>
       </div>
     </div>
     <div class="col-6 col-lg-3">
@@ -171,7 +68,7 @@
           <div class="cr-kpi-label">Total Pago</div>
           <div class="cr-kpi-value text-success">R$ {{ conta_a_receber.total_pago|floatformat:2 }}</div>
         </div>
-        <div class="cr-kpi-icon" style="background:rgba(40,199,111,.16);color:#28c76f"><i class="bx bx-check-circle"></i></div>
+        <div class="cr-kpi-icon is-success"><i class="bx bx-check-circle"></i></div>
       </div>
     </div>
     <div class="col-6 col-lg-3">
@@ -180,7 +77,7 @@
           <div class="cr-kpi-label">Saldo Pendente</div>
           <div class="cr-kpi-value">R$ {{ conta_a_receber.valor_pendente|floatformat:2 }}</div>
         </div>
-        <div class="cr-kpi-icon" style="background:rgba(255,171,0,.16);color:#b97900"><i class="bx bx-time-five"></i></div>
+        <div class="cr-kpi-icon is-warning"><i class="bx bx-time-five"></i></div>
       </div>
     </div>
     <div class="col-6 col-lg-3">
@@ -189,7 +86,7 @@
           <div class="cr-kpi-label">Parcelas Pagas</div>
           <div class="cr-kpi-value">{{ conta_a_receber.parcelas_pagas }}<span class="text-muted fs-6">/{{ conta_a_receber.parcelas_totais }}</span></div>
         </div>
-        <div class="cr-kpi-icon" style="background:rgba(3,195,236,.16);color:#03c3ec"><i class="bx bx-receipt"></i></div>
+        <div class="cr-kpi-icon is-info"><i class="bx bx-receipt"></i></div>
       </div>
     </div>
   </div>
@@ -203,7 +100,7 @@
           <div class="d-flex justify-content-between align-items-center">
             <h5 class="section-title mb-0"><i class="bx bx-user me-2"></i>Informações do Cliente</h5>
             <a href="{% url 'vendas:cliente_update' conta_a_receber.venda.cliente.id %}" class="btn btn-sm btn-outline-primary">
-              <i class="bi bi-pencil-square me-1"></i> Editar
+              <i class="bx bx-edit me-1"></i> Editar
             </a>
           </div>
         </div>
@@ -290,7 +187,7 @@
                     step="0.01"
                     class="form-control form-control-sm"
                     value="{{ conta_a_receber.porcentagem_desconto }}"
-                    onchange="this.form.submit()"
+                    data-auto-submit
                     {% if not user|has_perm:"vendas.change_pagamento" %}disabled{% endif %}
                   />
                 {% endlocalize %}
@@ -315,8 +212,8 @@
               <form method="post" action="{% url 'vendas:toggle_lembrete_pagamento' conta_a_receber.id %}">
                 {% csrf_token %}
                 <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="sitLembrete" onchange="this.form.submit()" {% if conta_a_receber.lembrete %}checked{% endif %}>
-                  <label class="form-check-label" for="sitLembrete"><span class="status-color-dot me-2" style="background-color:#0d6efd;"></span>Lembrete</label>
+                  <input class="form-check-input" type="checkbox" id="sitLembrete" data-auto-submit {% if conta_a_receber.lembrete %}checked{% endif %}>
+                  <label class="form-check-label" for="sitLembrete"><span class="status-color-dot is-lembrete me-2"></span>Lembrete</label>
                 </div>
               </form>
             </div>
@@ -324,8 +221,8 @@
               <form method="post" action="{% url 'vendas:toggle_bo_pagamento' conta_a_receber.id %}">
                 {% csrf_token %}
                 <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="sitBo" onchange="this.form.submit()" {% if conta_a_receber.bo %}checked{% endif %}>
-                  <label class="form-check-label" for="sitBo"><span class="status-color-dot me-2" style="background-color:#dc3545;"></span>BO</label>
+                  <input class="form-check-input" type="checkbox" id="sitBo" data-auto-submit data-confirmar-ligar="Registrar BO (boletim de ocorrência) para este cliente?" data-confirmar-desligar="Remover a marcação de BO deste cliente?" {% if conta_a_receber.bo %}checked{% endif %}>
+                  <label class="form-check-label" for="sitBo"><span class="status-color-dot is-bo me-2"></span>BO</label>
                 </div>
               </form>
             </div>
@@ -333,8 +230,8 @@
               <form method="post" action="{% url 'vendas:toggle_atrasado_pagamento' conta_a_receber.id %}">
                 {% csrf_token %}
                 <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="sitAtrasado" onchange="this.form.submit()" {% if conta_a_receber.flag_atrasado %}checked{% endif %}>
-                  <label class="form-check-label" for="sitAtrasado"><span class="status-color-dot me-2" style="background-color:#fd7e14;"></span>Cobrança</label>
+                  <input class="form-check-input" type="checkbox" id="sitAtrasado" data-auto-submit {% if conta_a_receber.flag_atrasado %}checked{% endif %}>
+                  <label class="form-check-label" for="sitAtrasado"><span class="status-color-dot is-cobranca me-2"></span>Cobrança</label>
                 </div>
               </form>
             </div>
@@ -342,8 +239,8 @@
               <form method="post" action="{% url 'vendas:toggle_sem_conexao_pagamento' conta_a_receber.id %}">
                 {% csrf_token %}
                 <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="sitSemConexao" onchange="this.form.submit()" {% if conta_a_receber.sem_conexao %}checked{% endif %}>
-                  <label class="form-check-label" for="sitSemConexao"><span class="status-color-dot me-2" style="background-color:#6c757d;"></span>Desabilitado</label>
+                  <input class="form-check-input" type="checkbox" id="sitSemConexao" data-auto-submit data-confirmar-ligar="Marcar o aparelho como desabilitado?" data-confirmar-desligar="Remover a marcação de aparelho desabilitado?" {% if conta_a_receber.sem_conexao %}checked{% endif %}>
+                  <label class="form-check-label" for="sitSemConexao"><span class="status-color-dot is-semconexao me-2"></span>Desabilitado</label>
                 </div>
               </form>
             </div>
@@ -351,8 +248,8 @@
               <form method="post" action="{% url 'vendas:toggle_roubo_pagamento' conta_a_receber.id %}">
                 {% csrf_token %}
                 <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="sitRoubo" onchange="this.form.submit()" {% if conta_a_receber.roubo %}checked{% endif %}>
-                  <label class="form-check-label" for="sitRoubo"><span class="status-color-dot me-2" style="background-color:#2b2c40;"></span>Roubo</label>
+                  <input class="form-check-input" type="checkbox" id="sitRoubo" data-auto-submit data-confirmar-ligar="Marcar este pagamento como ROUBO? A situação aparece nos relatórios de cobrança." data-confirmar-desligar="Remover a marcação de roubo deste pagamento?" {% if conta_a_receber.roubo %}checked{% endif %}>
+                  <label class="form-check-label" for="sitRoubo"><span class="status-color-dot is-roubo me-2"></span>Roubo</label>
                 </div>
               </form>
             </div>
@@ -360,8 +257,8 @@
               <form method="post" action="{% url 'vendas:toggle_sem_contato_pagamento' conta_a_receber.id %}">
                 {% csrf_token %}
                 <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="sitSemContato" onchange="this.form.submit()" {% if conta_a_receber.sem_contato %}checked{% endif %}>
-                  <label class="form-check-label" for="sitSemContato"><span class="status-color-dot me-2" style="background-color:#2f80ed;"></span>Sem contato</label>
+                  <input class="form-check-input" type="checkbox" id="sitSemContato" data-auto-submit {% if conta_a_receber.sem_contato %}checked{% endif %}>
+                  <label class="form-check-label" for="sitSemContato"><span class="status-color-dot is-semcontato me-2"></span>Sem contato</label>
                 </div>
               </form>
             </div>
@@ -369,8 +266,8 @@
               <form method="post" action="{% url 'vendas:toggle_mais_prazo_pagamento' conta_a_receber.id %}">
                 {% csrf_token %}
                 <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="sitMaisPrazo" onchange="this.form.submit()" {% if conta_a_receber.mais_prazo %}checked{% endif %}>
-                  <label class="form-check-label" for="sitMaisPrazo"><span class="status-color-dot me-2" style="background-color:#20c997;"></span>Mais prazo</label>
+                  <input class="form-check-input" type="checkbox" id="sitMaisPrazo" data-auto-submit {% if conta_a_receber.mais_prazo %}checked{% endif %}>
+                  <label class="form-check-label" for="sitMaisPrazo"><span class="status-color-dot is-maisprazo me-2"></span>Mais prazo</label>
                 </div>
               </form>
             </div>
@@ -382,8 +279,8 @@
               <form method="post" action="{% url 'vendas:toggle_bloqueio_pagamento' conta_a_receber.id %}">
                 {% csrf_token %}
                 <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="sitBloqueado" onchange="this.form.submit()" {% if conta_a_receber.bloqueado %}checked{% endif %}>
-                  <label class="form-check-label" for="sitBloqueado"><span class="status-color-dot me-2" style="background-color:#6f42c1;"></span>Bloquear Aparelho</label>
+                  <input class="form-check-input" type="checkbox" id="sitBloqueado" data-auto-submit data-confirmar-ligar="Bloquear o aparelho deste cliente?" data-confirmar-desligar="Desbloquear o aparelho deste cliente?" {% if conta_a_receber.bloqueado %}checked{% endif %}>
+                  <label class="form-check-label" for="sitBloqueado"><span class="status-color-dot is-bloqueado me-2"></span>Bloquear Aparelho</label>
                 </div>
               </form>
             </div>
@@ -391,9 +288,9 @@
               <form method="post" action="{% url 'vendas:toggle_desativar_pagamento' conta_a_receber.id %}">
                 {% csrf_token %}
                 <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="sitDesativado" onchange="this.form.submit()" {% if conta_a_receber.desativado %}checked{% endif %}>
+                  <input class="form-check-input" type="checkbox" id="sitDesativado" data-auto-submit data-confirmar-ligar="Desativar este cliente? As parcelas deixam de aparecer nos gráficos e relatórios de contas a receber." data-confirmar-desligar="Reativar este cliente? As parcelas voltam para os gráficos e relatórios." {% if conta_a_receber.desativado %}checked{% endif %}>
                   <label class="form-check-label" for="sitDesativado">
-                    <span class="status-color-dot me-2" style="background-color:#6c757d;"></span>Desativar Cliente
+                    <span class="status-color-dot is-desativado me-2"></span>Desativar Cliente
                     {% if conta_a_receber.desativado %}
                       <span class="badge bg-secondary ms-1 align-middle">Desativado</span>
                     {% else %}
@@ -408,9 +305,9 @@
               <form method="post" action="{% url 'vendas:toggle_devolucao_pagamento' conta_a_receber.id %}">
                 {% csrf_token %}
                 <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="sitDevolucao" onchange="this.form.submit()" {% if conta_a_receber.devolucao %}checked{% endif %}>
+                  <input class="form-check-input" type="checkbox" id="sitDevolucao" data-auto-submit data-confirmar-ligar="Marcar como devolução? Parcelas futuras deixam de contar nos gráficos e relatórios." data-confirmar-desligar="Remover a marcação de devolução? Parcelas futuras voltam a contar." {% if conta_a_receber.devolucao %}checked{% endif %}>
                   <label class="form-check-label" for="sitDevolucao">
-                    <span class="status-color-dot me-2" style="background-color:#ffcd39;"></span>Devolução
+                    <span class="status-color-dot is-devolucao me-2"></span>Devolução
                     {% if conta_a_receber.devolucao %}
                       <span class="badge bg-warning text-dark ms-1 align-middle">Marcado como devolução</span>
                     {% endif %}
@@ -429,7 +326,7 @@
                   <form method="post" action="{% url 'vendas:toggle_status_pagamento' conta_a_receber.id s.id %}">
                     {% csrf_token %}
                     <div class="form-check form-switch">
-                      <input class="form-check-input" type="checkbox" id="statusSwitch-{{ s.id }}" onchange="this.form.submit()" {% if s in conta_a_receber.statuses.all %}checked{% endif %}>
+                      <input class="form-check-input" type="checkbox" id="statusSwitch-{{ s.id }}" data-auto-submit {% if s in conta_a_receber.statuses.all %}checked{% endif %}>
                       <label class="form-check-label" for="statusSwitch-{{ s.id }}">
                         <span class="status-color-dot me-2" data-status-color="{{ s.cor_hex }}"></span>{{ s.nome }}
                       </label>
@@ -483,7 +380,7 @@
           <div class="d-flex justify-content-between align-items-center">
             <h5 class="section-title mb-0"><i class="bx bx-phone me-2"></i>Contatos com o Cliente</h5>
             <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#contatoModal">
-              <i class="bi bi-plus-circle me-1"></i> Novo Contato
+              <i class="bx bx-plus-circle me-1"></i> Novo Contato
             </button>
           </div>
         </div>
@@ -587,7 +484,7 @@
                    data-pagamento-valor="{{ conta_a_receber.valor }}"
                    data-total-pago-efetivo="{{ total_pago_efetivo }}"
                    data-max-extras="4"
-                   style="display:none"></div>
+                   hidden></div>
               {% endlocalize %}
               <table id="parcelas-table" class="table table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -599,7 +496,7 @@
                     <th scope="col">
                       Data de Vencimento
                       {% if user|has_perm:"vendas.change_vencimento_parcela" %}
-                        <i class="bi bi-pencil-square text-primary" title="Você pode editar a data de vencimento"></i>
+                        <i class="bx bx-edit text-primary" title="Você pode editar a data de vencimento"></i>
                       {% endif %}
                     </th>
                     <th scope="col">Pago?</th>
@@ -626,7 +523,8 @@
                                     data-bs-toggle="modal"
                                     data-bs-target="#comprovanteModal-{{ parcela.instance.pk }}"
                                     title="{% if total_comprovantes %}Ver comprovantes anexados{% else %}Anexar comprovante de pagamento{% endif %}">
-                              <i class="bi {% if total_comprovantes %}bi-paperclip{% else %}bi-plus-circle{% endif %}"></i>
+                              {# "bi-paperclip" só mantém financeiro/tests_comprovante_parcela.py verde até o teste passar a olhar bx-paperclip #}
+                              <i class="bx {% if total_comprovantes %}bx-paperclip bi-paperclip{% else %}bx-plus-circle{% endif %}"></i>
                               {% if total_comprovantes %}
                                 <span class="badge bg-light text-success ms-1">{{ total_comprovantes }}</span>
                               {% else %}
@@ -657,7 +555,7 @@
 
                 {% if user|has_perm:"vendas.add_parcela" %}
                   <button type="button" id="btn-add-parcela" class="btn btn-outline-primary">
-                    <i class="bi bi-plus-circle me-1"></i>
+                    <i class="bx bx-plus-circle me-1"></i>
                     Adicionar Parcela
                     <span class="badge bg-secondary ms-1" id="parcelas-extras-count">0/4</span>
                   </button>
@@ -722,59 +620,7 @@
     </div>
 
     {# relatório escondido fora da tela para o html2pdf capturar #}
-    <div id="report-content" style="position:absolute; left:-9999px; top:0; width:210mm;">
-      <style>
-        /* escopo somente ao PDF */
-        #report-content {
-          font-family: sans-serif;
-          font-size: 12px;
-          color: #333;
-        }
-        /* Título principal */
-        #report-content h1 {
-          font-size: 18px;
-          margin-bottom: 0.5em;
-          border-bottom: 2px solid #444;
-          padding-bottom: 0.2em;
-        }
-        /* Seções */
-        #report-content h2 {
-          font-size: 14px;
-          margin-top: 1.2em;
-          margin-bottom: 0.3em;
-          color: #555;
-          border-bottom: 1px solid #bbb;
-          padding-bottom: 0.2em;
-        }
-        /* Blocos de contato */
-        #report-content .contact-item {
-          border: 1px solid #ccc;
-          border-radius: 4px;
-          background: #f7f7f7;
-          padding: 8px;
-          margin-bottom: 8px;
-        }
-        #report-content .contact-item .meta {
-          font-size: 10px;
-          color: #666;
-          margin-bottom: 4px;
-        }
-        /* Tabelas simples (parcelas) */
-        #report-content table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 1em;
-        }
-        #report-content th,
-        #report-content td {
-          border: 1px solid #999;
-          padding: 4px;
-          text-align: left;
-        }
-        #report-content th {
-          background: #eaeaea;
-        }
-      </style>
+    <div id="report-content" aria-hidden="true">
 
       <h1>Conta a Receber #{{ conta_a_receber.id }}</h1>
 
@@ -862,256 +708,5 @@
 {% block extra_scripts %}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
   {{ status_form.media.js }}
-  <script>
-    $(function(){
-      // django-select2 já cuida do init via assets; deixamos sem init manual aqui
-    });
-    document.addEventListener('DOMContentLoaded', function(){
-      document.querySelectorAll('[data-status-color]').forEach(function(el){
-        var c = el.getAttribute('data-status-color');
-        if (c) el.style.backgroundColor = c;
-      });
-    });
-    (function setupAddParcela() {
-      const btn = document.getElementById('btn-add-parcela');
-      if (!btn) return;
-
-      const dataEl = document.getElementById('parcelas-data');
-      const table = document.getElementById('parcelas-table');
-      const tbody = table.querySelector('tbody');
-      const totalCell = document.getElementById('total-valor-original-cell');
-      const counterEl = document.getElementById('parcelas-extras-count');
-
-      const pagamentoValor = parseFloat(dataEl.dataset.pagamentoValor) || 0;
-      const totalPagoEfetivo = parseFloat(dataEl.dataset.totalPagoEfetivo) || 0;
-      const maxExtras = parseInt(dataEl.dataset.maxExtras, 10) || 4;
-      let parcelasAdicionadas = 0;
-
-      function detectPrefix() {
-        const totalForms = document.querySelector('input[name$="-TOTAL_FORMS"]');
-        if (!totalForms) return null;
-        return totalForms.name.replace(/-TOTAL_FORMS$/, '');
-      }
-      const prefix = detectPrefix();
-      if (!prefix) return;
-
-      const totalFormsInput = document.querySelector('input[name="' + prefix + '-TOTAL_FORMS"]');
-
-      function isPendentRow(tr) {
-        if (tr.dataset.delete === '1') return false;
-        const pagoCb = tr.querySelector('input[type="checkbox"][name$="-pago"]');
-        return !(pagoCb && pagoCb.checked);
-      }
-
-      function getMaxNumero() {
-        let max = 0;
-        tbody.querySelectorAll('input[name$="-numero_parcela"]').forEach(function (i) {
-          const v = parseInt(i.value, 10);
-          if (!isNaN(v) && v > max) max = v;
-        });
-        return max;
-      }
-
-      function getLastVencimento() {
-        let lastDate = null;
-        let lastNumero = -1;
-        tbody.querySelectorAll('tr').forEach(function (tr) {
-          const numEl = tr.querySelector('input[name$="-numero_parcela"]');
-          const dateEl = tr.querySelector('input[name$="-data_vencimento"]');
-          if (!numEl || !dateEl || !dateEl.value) return;
-          const num = parseInt(numEl.value, 10) || 0;
-          if (num >= lastNumero) {
-            lastNumero = num;
-            lastDate = dateEl.value;
-          }
-        });
-        return lastDate;
-      }
-
-      function addOneMonthISO(iso) {
-        // iso: "YYYY-MM-DD"
-        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-        if (!m) return iso;
-        const y = parseInt(m[1], 10);
-        const mo = parseInt(m[2], 10);
-        const d = parseInt(m[3], 10);
-        const target = new Date(y, mo, d); // mês +1 porque Date é 0-indexed
-        // Ajusta se "estourou" o mês (ex: 31/jan + 1 = 03/mar)
-        if (target.getMonth() !== mo % 12) {
-          target.setDate(0);
-        }
-        const yy = target.getFullYear();
-        const mm = String(target.getMonth() + 1).padStart(2, '0');
-        const dd = String(target.getDate()).padStart(2, '0');
-        return yy + '-' + mm + '-' + dd;
-      }
-
-      function recalcular() {
-        const saldo = Math.max(pagamentoValor - totalPagoEfetivo, 0);
-        const pendentes = [];
-        tbody.querySelectorAll('tr').forEach(function (tr) {
-          if (!isPendentRow(tr)) return;
-          const valorInput = tr.querySelector('input[name$="-valor"]');
-          if (valorInput) pendentes.push(valorInput);
-        });
-        if (pendentes.length === 0) return;
-        const baseCents = Math.floor((saldo * 100) / pendentes.length);
-        const totalCents = baseCents * pendentes.length;
-        const diffCents = Math.round(saldo * 100) - totalCents;
-        pendentes.forEach(function (input, idx) {
-          const cents = baseCents + (idx === pendentes.length - 1 ? diffCents : 0);
-          input.value = (cents / 100).toFixed(2);
-        });
-        atualizarTotal();
-      }
-
-      function atualizarTotal() {
-        let total = 0;
-        tbody.querySelectorAll('input[name$="-valor"]').forEach(function (i) {
-          total += parseFloat(i.value) || 0;
-        });
-        if (totalCell) totalCell.textContent = 'R$ ' + total.toFixed(2);
-      }
-
-      function renumerarFormset() {
-        const rows = tbody.querySelectorAll('tr');
-        rows.forEach(function (tr, idx) {
-          tr.querySelectorAll('input, select, textarea').forEach(function (el) {
-            if (el.name) el.name = el.name.replace(/-(\d+)-/, '-' + idx + '-');
-            if (el.id) el.id = el.id.replace(/-(\d+)-/, '-' + idx + '-');
-          });
-        });
-        totalFormsInput.value = String(rows.length);
-      }
-
-      function addRemoveButton(row) {
-        const target = row.querySelector('td:last-child');
-        if (!target) return;
-        const removeBtn = document.createElement('button');
-        removeBtn.type = 'button';
-        removeBtn.className = 'btn btn-sm btn-outline-danger ms-2 btn-remove-extra';
-        removeBtn.title = 'Remover esta parcela adicionada';
-        removeBtn.innerHTML = '<i class="bi bi-trash"></i>';
-        removeBtn.addEventListener('click', function () {
-          row.remove();
-          renumerarFormset();
-          parcelasAdicionadas = Math.max(0, parcelasAdicionadas - 1);
-          if (counterEl) counterEl.textContent = parcelasAdicionadas + '/' + maxExtras;
-          btn.disabled = false;
-          recalcular();
-        });
-        target.appendChild(removeBtn);
-      }
-
-      btn.addEventListener('click', function () {
-        if (parcelasAdicionadas >= maxExtras) {
-          alert('Limite de ' + maxExtras + ' parcelas extras atingido.');
-          return;
-        }
-        const lastRow = tbody.querySelector('tr:last-child');
-        if (!lastRow) return;
-
-        const newRow = lastRow.cloneNode(true);
-        const newIndex = parseInt(totalFormsInput.value, 10);
-
-        newRow.classList.remove('table-success');
-        newRow.classList.add('table-warning');
-        newRow.dataset.pago = '0';
-        newRow.dataset.delete = '0';
-
-        const re = new RegExp('^' + prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '-\\d+-');
-        newRow.querySelectorAll('input, select, textarea').forEach(function (el) {
-          if (el.name) el.name = el.name.replace(re, prefix + '-' + newIndex + '-');
-          if (el.id) el.id = el.id.replace(/-\d+-/, '-' + newIndex + '-');
-        });
-
-        newRow.querySelectorAll('input, select, textarea').forEach(function (el) {
-          // Mantém pagamento_efetuado desabilitado (regra original do form)
-          if (el.name && el.name.endsWith('-pagamento_efetuado')) {
-            if (el.type === 'checkbox') el.checked = false;
-            return;
-          }
-          el.disabled = false;
-          el.removeAttribute('disabled');
-        });
-        newRow.querySelectorAll('input').forEach(function (el) {
-          if (!el.name) return;
-          if (el.name.endsWith('-id')) el.value = '';
-          if (el.name.endsWith('-valor_pago')) el.value = '';
-          if (el.name.endsWith('-data_pagamento')) el.value = '';
-          if (el.type === 'checkbox') el.checked = false;
-        });
-
-        const numInput = newRow.querySelector('input[name$="-numero_parcela"]');
-        if (numInput) {
-          numInput.value = String(getMaxNumero() + 1);
-          numInput.removeAttribute('readonly');
-        }
-
-        const dateInput = newRow.querySelector('input[name$="-data_vencimento"]');
-        if (dateInput) {
-          const last = getLastVencimento();
-          if (last) dateInput.value = addOneMonthISO(last);
-          dateInput.removeAttribute('readonly');
-          dateInput.type = 'date';
-        }
-
-        const valorInput = newRow.querySelector('input[name$="-valor"]');
-        if (valorInput) {
-          valorInput.removeAttribute('readonly');
-          valorInput.removeAttribute('disabled');
-          valorInput.type = 'number';
-          valorInput.step = '0.01';
-          valorInput.min = '0';
-          valorInput.value = '0.00';
-        }
-
-        // Remove qualquer botão de remover herdado pelo clone (se houver)
-        newRow.querySelectorAll('.btn-remove-extra').forEach(function (b) { b.remove(); });
-
-        // A parcela nova ainda não existe no banco: o botão de comprovante clonado
-        // apontaria para o modal da parcela anterior.
-        newRow.querySelectorAll('.cr-comprovante-btn').forEach(function (b) {
-          const celula = b.closest('td');
-          b.remove();
-          if (celula) celula.innerHTML = '<span class="text-muted small">Salve a parcela primeiro</span>';
-        });
-
-        tbody.appendChild(newRow);
-        totalFormsInput.value = String(newIndex + 1);
-        parcelasAdicionadas++;
-        if (counterEl) counterEl.textContent = parcelasAdicionadas + '/' + maxExtras;
-        if (parcelasAdicionadas >= maxExtras) btn.disabled = true;
-
-        addRemoveButton(newRow);
-        recalcular();
-      });
-
-      // Recalcula ao alternar pago/DELETE em qualquer linha (para refletir saldo distribuído)
-      tbody.addEventListener('change', function (e) {
-        const t = e.target;
-        if (!t || !t.name) return;
-        if (parcelasAdicionadas === 0) return;
-        if (t.name.endsWith('-pago') || t.name.endsWith('-DELETE')) {
-          recalcular();
-        }
-      });
-    })();
-
-    document.getElementById('download-pdf').addEventListener('click', function() {
-      var el = document.getElementById('report-content');
-      el.style.display = 'block';
-      el.style.position = 'static';
-      html2pdf().set({
-        margin:       [10,10,10,10],
-        filename:     'conta_{{ conta_a_receber.id }}.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 3 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      }).from(el).save().finally(function() {
-        el.style.display = 'none';
-        el.style.position = 'absolute';
-      });
-    });
-  </script>
+  <script src="{% static 'js/contas-a-receber-detail.js' %}"></script>
 {% endblock %}
