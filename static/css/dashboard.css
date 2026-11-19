@@ -1,0 +1,34 @@
+/* Página inicial e dashboards: cartões de navegação e área dos gráficos.
+   Cores sempre pelos tokens --ipix-* (ipix-theme.css), que já mudam no modo escuro. */
+
+.nav-card { border-left: 4px solid var(--ipix-secondary) !important; }
+.nav-card--success { border-left-color: var(--ipix-success) !important; }
+.nav-card--info { border-left-color: var(--ipix-info) !important; }
+.nav-card--warning { border-left-color: var(--ipix-warning) !important; }
+.nav-card--primary { border-left-color: var(--ipix-primary) !important; }
+.nav-card .card-title { font-size: 1.1rem; }
+
+.nav-card-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-container {
+  position: relative;
+  height: 400px;
+  padding: 30px;
+  background: var(--ipix-surface-muted);
+  border-radius: var(--ipix-radius);
+}
+
+@media (max-width: 768px) {
+  .chart-container { height: 350px; padding: 20px; }
+}
+
+@media (max-width: 576px) {
+  .chart-container { height: 320px; padding: 15px; }
+}
