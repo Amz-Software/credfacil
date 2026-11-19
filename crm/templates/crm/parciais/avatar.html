@@ -1,0 +1,1 @@
+{% load crm_tags %}{% with letras=nome|iniciais %}<span class="crm-avatar crm-avatar--{{ chave|cor_avatar }}{% if tamanho %} crm-avatar--{{ tamanho }}{% endif %}" aria-hidden="true">{% if letras %}{{ letras }}{% else %}<i class="bx bx-user"></i>{% endif %}</span>{% endwith %}

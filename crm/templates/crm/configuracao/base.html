@@ -3,6 +3,7 @@
 {% block title %}Configuração do CRM{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/crm.css' %}" />{% endblock extra_head %}
 {% block content %}
+<div class="container-xxl mt-4">
 {% url 'crm:caixa' as url_caixa %}
 {% include "components/page_header.html" with title="Configuração" parent="CRM WhatsApp" icon="bx bx-cog" subtitle="Atendimento, cadastros e mensagens de abertura." action_url=url_caixa action_label="Voltar às conversas" action_icon="bx bx-conversation" %}
 
@@ -22,4 +23,5 @@
 </ul>
 
 {% block aba %}{% endblock %}
+</div>
 {% endblock content %}

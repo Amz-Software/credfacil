@@ -1,39 +1,46 @@
 {% load crm_tags %}
 <div class="crm-lista__topo">
-  <form method="get" action="{% url 'crm:caixa' %}" class="d-flex gap-2" role="search">
-    <input type="hidden" name="fila" value="{{ filtros.fila }}">
-    {% if filtros.situacao %}<input type="hidden" name="situacao" value="{{ filtros.situacao }}">{% endif %}
-    {% if filtros.etiqueta %}<input type="hidden" name="etiqueta" value="{{ filtros.etiqueta }}">{% endif %}
-    {% if filtros.nao_lidas %}<input type="hidden" name="nao_lidas" value="1">{% endif %}
-    {% if filtros.ordem != 'recentes' %}<input type="hidden" name="ordem" value="{{ filtros.ordem }}">{% endif %}
-    <label class="visually-hidden" for="crmBusca">Buscar conversa</label>
-    <input type="search" class="form-control form-control-sm" id="crmBusca" name="q" value="{{ filtros.busca }}"
-           placeholder="Nome, telefone ou texto" autocomplete="off">
-    <button type="button" class="btn btn-sm btn-outline-secondary{% if filtros.situacao or filtros.etiqueta or filtros.nao_lidas or filtros.ordem != 'recentes' %} active{% endif %}"
+  <div class="d-flex gap-2">
+    <form method="get" action="{% url 'crm:caixa' %}" class="crm-busca flex-grow-1" role="search">
+      <input type="hidden" name="fila" value="{{ filtros.fila }}">
+      {% if filtros.situacao %}<input type="hidden" name="situacao" value="{{ filtros.situacao }}">{% endif %}
+      {% if filtros.etiqueta %}<input type="hidden" name="etiqueta" value="{{ filtros.etiqueta }}">{% endif %}
+      {% if filtros.nao_lidas %}<input type="hidden" name="nao_lidas" value="1">{% endif %}
+      {% if filtros.ordem != 'recentes' %}<input type="hidden" name="ordem" value="{{ filtros.ordem }}">{% endif %}
+      <i class="bx bx-search crm-busca__icone" aria-hidden="true"></i>
+      <label class="visually-hidden" for="crmBusca">Buscar conversa</label>
+      <input type="search" class="form-control" id="crmBusca" name="q" value="{{ filtros.busca }}"
+             placeholder="Buscar conversa" title="Nome, telefone ou texto da mensagem" autocomplete="off">
+    </form>
+    {% with ativos=filtros.situacao|default:filtros.etiqueta|default:filtros.nao_lidas %}
+    <button type="button" class="btn btn-icon btn-outline-secondary crm-filtro-botao{% if ativos or filtros.ordem != 'recentes' %} crm-filtro-botao--ativo{% endif %}"
             data-bs-toggle="collapse" data-bs-target="#crmFiltrosExtras" aria-expanded="false" aria-controls="crmFiltrosExtras"
-            title="Mais filtros"><i class="bx bx-filter-alt"></i><span class="visually-hidden">Mais filtros</span></button>
-  </form>
+            title="Filtros">
+      <i class="bx bx-slider-alt"></i><span class="visually-hidden">Filtros</span>
+    </button>
+    {% endwith %}
+  </div>
 
-  <form method="get" action="{% url 'crm:caixa' %}" class="collapse mt-2" id="crmFiltrosExtras">
+  <form method="get" action="{% url 'crm:caixa' %}" class="collapse crm-filtros" id="crmFiltrosExtras">
     <input type="hidden" name="fila" value="{{ filtros.fila }}">
     {% if filtros.busca %}<input type="hidden" name="q" value="{{ filtros.busca }}">{% endif %}
     <div class="row g-2">
       <div class="col-6">
-        <label class="form-label small mb-0" for="crmFiltroSituacao">Situação</label>
+        <label class="form-label" for="crmFiltroSituacao">Situação</label>
         <select class="form-select form-select-sm" id="crmFiltroSituacao" name="situacao">
           <option value="">Todas</option>
           {% for valor, rotulo in situacoes %}<option value="{{ valor }}"{% if filtros.situacao == valor %} selected{% endif %}>{{ rotulo }}</option>{% endfor %}
         </select>
       </div>
       <div class="col-6">
-        <label class="form-label small mb-0" for="crmFiltroEtiqueta">Etiqueta</label>
+        <label class="form-label" for="crmFiltroEtiqueta">Etiqueta</label>
         <select class="form-select form-select-sm" id="crmFiltroEtiqueta" name="etiqueta">
           <option value="">Todas</option>
           {% for etiqueta in etiquetas_filtro %}<option value="{{ etiqueta.pk }}"{% if filtros.etiqueta == etiqueta.pk %} selected{% endif %}>{{ etiqueta.nome }}</option>{% endfor %}
         </select>
       </div>
       <div class="col-6">
-        <label class="form-label small mb-0" for="crmFiltroOrdem">Ordem</label>
+        <label class="form-label" for="crmFiltroOrdem">Ordem</label>
         <select class="form-select form-select-sm" id="crmFiltroOrdem" name="ordem">
           {% for valor, rotulo in ordens %}<option value="{{ valor }}"{% if filtros.ordem == valor %} selected{% endif %}>{{ rotulo }}</option>{% endfor %}
         </select>
@@ -45,62 +52,72 @@
         </div>
       </div>
     </div>
-    <div class="d-flex justify-content-end gap-2 mt-2">
-      <a href="{% url 'crm:caixa' %}?fila={{ filtros.fila }}" class="btn btn-sm btn-outline-secondary">Limpar</a>
-      <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
+    <div class="d-flex justify-content-end gap-2 mt-3">
+      <a href="{% url 'crm:caixa' %}?fila={{ filtros.fila }}" class="btn btn-sm btn-text-secondary">Limpar</a>
+      <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
     </div>
   </form>
-
-  <nav class="nav nav-pills crm-filas mt-2" aria-label="Filas">
-    {% for valor, rotulo in filas %}
-    <a class="nav-link{% if filtros.fila == valor %} active{% endif %}" href="{% url 'crm:caixa' %}?{% filtros_com filtros fila=valor %}"
-       {% if filtros.fila == valor %}aria-current="page"{% endif %}>
-      {{ rotulo }} <span class="badge rounded-pill crm-filas__contador">{{ contadores|chave:valor }}</span>
-    </a>
-    {% endfor %}
-  </nav>
 </div>
 
-<div class="list-group list-group-flush crm-lista__itens">
+<nav class="crm-abas" aria-label="Filas">
+  {% for valor, rotulo in filas %}
+  <a class="crm-aba{% if filtros.fila == valor %} crm-aba--ativa{% endif %}" href="{% url 'crm:caixa' %}?{% filtros_com filtros fila=valor %}"
+     {% if filtros.fila == valor %}aria-current="page"{% endif %}>
+    <span class="crm-aba__numero">{{ contadores|chave:valor }}</span>
+    <span class="crm-aba__rotulo">{{ rotulo }}</span>
+  </a>
+  {% endfor %}
+</nav>
+
+<div class="crm-lista__itens">
   {% for item in conversas %}
   <a href="{% url 'crm:conversa' item.id %}?{% filtros_com filtros %}"
-     class="list-group-item list-group-item-action crm-item{% if item.id == conversa_atual %} crm-item--atual{% endif %}{% if item.nao_lidas %} crm-item--nao-lida{% endif %}"
+     class="crm-item{% if item.id == conversa_atual %} crm-item--atual{% endif %}{% if item.nao_lidas %} crm-item--nao-lida{% endif %}"
      {% if item.id == conversa_atual %}aria-current="true"{% endif %}>
-    <div class="d-flex justify-content-between gap-2">
-      <span class="crm-item__nome text-truncate">{{ item.nome_exibicao }}</span>
-      <small class="text-muted text-nowrap">{{ item.ultima_mensagem_em|quando }}</small>
-    </div>
-    <div class="d-flex justify-content-between gap-2 align-items-center">
-      <small class="text-muted text-truncate crm-item__previa">
-        {% if item.ultima_mensagem_direcao == 'SAIDA' %}<i class="bx bx-reply" aria-label="Enviada"></i>{% endif %}
-        {{ item.ultima_mensagem_texto|default:"—" }}
-      </small>
-      {% if item.nao_lidas %}<span class="badge rounded-pill bg-success" title="Não lidas">{{ item.nao_lidas }}</span>{% endif %}
-    </div>
-    <div class="d-flex flex-wrap gap-1 mt-1">
-      {% if item.modo != 'HUMANO' %}
-        <span class="badge bg-label-{{ item.modo|estado_modo }}">{{ item.modo_display }}</span>
-      {% elif item.assumida_por %}
-        <span class="badge bg-label-success"><i class="bx bx-user me-1"></i>{{ item.assumida_por.nome }}</span>
+    {% include "crm/parciais/avatar.html" with nome=item.nome_exibicao chave=item.id %}
+    <span class="crm-item__corpo">
+      <span class="crm-item__linha">
+        <span class="crm-item__nome">{{ item.nome_exibicao }}</span>
+        <time class="crm-item__hora">{{ item.ultima_mensagem_em|quando }}</time>
+      </span>
+      <span class="crm-item__linha">
+        <span class="crm-item__previa">
+          {% if item.ultima_mensagem_direcao == 'SAIDA' %}<i class="bx bx-check-double" aria-label="Enviada"></i>{% endif %}
+          {{ item.ultima_mensagem_texto|default:"Sem mensagens" }}
+        </span>
+        {% if item.nao_lidas %}<span class="crm-item__nao-lidas" title="Não lidas">{{ item.nao_lidas }}</span>{% endif %}
+      </span>
+      <span class="crm-item__meta">
+        {% if item.modo != 'HUMANO' %}
+          <span class="crm-chip crm-chip--{{ item.modo|estado_modo }}">{{ item.modo_display }}</span>
+        {% elif item.assumida_por %}
+          <span class="crm-chip crm-chip--neutro"><i class="bx bx-user"></i>{{ item.assumida_por.nome }}</span>
+        {% endif %}
+        {% if item.situacao != 'ABERTA' %}<span class="crm-chip crm-chip--{{ item.situacao|estado_situacao }}">{{ item.situacao_display }}</span>{% endif %}
+        {% for etiqueta in item.etiquetas %}<span class="crm-ponto crm-etiqueta--{{ etiqueta.cor|lower }}" title="{{ etiqueta.nome }}"></span>{% endfor %}
+        {% if item.lembrete %}<i class="bx bx-alarm crm-item__icone{% if item.lembrete.vencido %} text-danger{% endif %}" title="Lembrete: {{ item.lembrete.texto }}"></i>{% endif %}
+        {% if item.tem_programada %}<i class="bx bx-time-five crm-item__icone" title="Mensagem programada"></i>{% endif %}
+        {% if not item.janela_aberta %}<i class="bx bx-lock-alt crm-item__icone" title="Fora da janela de 24 h"></i>{% endif %}
+      </span>
+      {% if item.motivo_transferencia %}
+      <span class="crm-item__motivo" title="{{ item.motivo_transferencia.texto }}"><i class="bx bx-transfer-alt"></i>{{ item.motivo_transferencia.texto }}</span>
       {% endif %}
-      {% if item.situacao != 'ABERTA' %}<span class="badge bg-label-{{ item.situacao|estado_situacao }}">{{ item.situacao_display }}</span>{% endif %}
-      {% for etiqueta in item.etiquetas %}<span class="badge crm-etiqueta crm-etiqueta--{{ etiqueta.cor|lower }}">{{ etiqueta.nome }}</span>{% endfor %}
-      {% if item.lembrete %}<span class="badge bg-label-{% if item.lembrete.vencido %}danger{% else %}info{% endif %}" title="Lembrete: {{ item.lembrete.texto }}"><i class="bx bx-alarm"></i></span>{% endif %}
-      {% if item.tem_programada %}<span class="badge bg-label-info" title="Mensagem programada"><i class="bx bx-time"></i></span>{% endif %}
-      {% if not item.janela_aberta %}<span class="badge bg-label-secondary" title="Fora da janela de 24 h"><i class="bx bx-lock-alt"></i></span>{% endif %}
-    </div>
-    {% if item.motivo_transferencia %}
-    <small class="d-block text-warning-emphasis text-truncate mt-1" title="{{ item.motivo_transferencia.texto }}"><i class="bx bx-transfer"></i> {{ item.motivo_transferencia.texto }}</small>
-    {% endif %}
+    </span>
   </a>
   {% empty %}
-  {% if filtros.fila == 'minhas' %}
-    {% include "components/empty_state.html" with icon="bx bx-check-circle" message="Nenhuma conversa com você" hint="Veja a fila “Sem dono” para pegar o próximo atendimento." %}
-  {% else %}
-    {% include "components/empty_state.html" with icon="bx bx-search" message="Nenhuma conversa encontrada" %}
-  {% endif %}
+  <div class="crm-lista__vazia">
+    {% if filtros.fila == 'minhas' %}
+      <i class="bx bx-check-circle"></i>
+      <strong>Nada com você agora</strong>
+      <span>Veja a fila “Sem dono” para pegar o próximo atendimento.</span>
+    {% else %}
+      <i class="bx bx-search"></i>
+      <strong>Nenhuma conversa encontrada</strong>
+      <span>Ajuste a busca ou os filtros.</span>
+    {% endif %}
+  </div>
   {% endfor %}
   {% if total_lista > conversas|length %}
-  <div class="list-group-item small text-muted text-center">Mostrando {{ conversas|length }} de {{ total_lista }}. Use a busca para achar as demais.</div>
+  <div class="crm-lista__rodape">Mostrando {{ conversas|length }} de {{ total_lista }}. Use a busca para achar as demais.</div>
   {% endif %}
 </div>

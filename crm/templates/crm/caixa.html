@@ -4,52 +4,71 @@
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/crm.css' %}" />{% endblock extra_head %}
 
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 mb-2">
-  <h4 class="mb-0 d-flex align-items-center fw-bold">
-    <i class="bx bxl-whatsapp me-2 text-success" aria-hidden="true"></i>CRM WhatsApp
-    {% if simulado %}<span class="badge bg-label-warning ms-2" title="Sem credenciais da Meta: nada sai para o WhatsApp de verdade.">Modo simulado</span>{% endif %}
-  </h4>
-  <div class="d-flex gap-2">
-    {% if perms.crm.gerenciar_crm %}
-    <a href="{% url 'crm:configuracao' %}" class="btn btn-outline-secondary"><i class="bx bx-cog me-1"></i>Configuração</a>
-    {% endif %}
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#crmModalIniciar">
-      <i class="bx bx-message-square-add me-1"></i>Nova conversa
-    </button>
-  </div>
-</div>
-
-<div class="crm-caixa{% if conversa %} crm-caixa--com-conversa{% endif %}" id="crmCaixa"
-     data-conversa="{{ conversa.id|default:'' }}"
-     data-url-lista="{% url 'crm:lista' %}"
-     data-filtros="{% filtros_com filtros %}"
-     {% if conversa %}data-url-parte="{% url 'crm:parte' conversa.id '__parte__' %}"{% endif %}>
-  <section class="card crm-coluna crm-coluna--lista" id="crmLista" aria-label="Conversas">
-    {% include "crm/parciais/lista.html" %}
-  </section>
-
-  <section class="card crm-coluna crm-coluna--conversa" aria-label="Conversa">
-    {% if conversa %}
-      <div data-crm-parte="cabecalho">{% include "crm/parciais/cabecalho.html" %}</div>
-      <div class="crm-mensagens" id="crmMensagens" data-crm-parte="mensagens" tabindex="0" aria-live="polite">
-        {% include "crm/parciais/mensagens.html" %}
-      </div>
-      <button type="button" class="btn btn-sm btn-primary rounded-pill crm-novas d-none" data-crm-novas>
-        <i class="bx bx-down-arrow-alt me-1"></i>Novas mensagens
+<div class="container-xxl crm-pagina crm-pagina--caixa">
+  <header class="crm-topo">
+    <div class="min-w-0">
+      <h4 class="crm-topo__titulo">
+        <span class="crm-topo__icone"><i class="bx bxl-whatsapp" aria-hidden="true"></i></span>
+        CRM WhatsApp
+      </h4>
+      <p class="crm-topo__subtitulo">Atendimento dos clientes pelo WhatsApp oficial da empresa.</p>
+    </div>
+    <div class="crm-topo__acoes">
+      {% if simulado %}
+      <span class="crm-chip crm-chip--warning" title="Sem as credenciais da Meta: nada sai para o WhatsApp de verdade.">
+        <i class="bx bx-test-tube"></i>Modo simulado
+      </span>
+      {% endif %}
+      {% if perms.crm.gerenciar_crm %}
+      <a href="{% url 'crm:configuracao' %}" class="btn btn-outline-secondary"><i class="bx bx-cog me-1"></i>Configuração</a>
+      {% endif %}
+      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#crmModalIniciar">
+        <i class="bx bx-plus me-1"></i>Nova conversa
       </button>
-      <div data-crm-parte="compositor">{% include "crm/parciais/compositor.html" %}</div>
-    {% else %}
-      <div class="m-auto">
-        {% include "components/empty_state.html" with icon="bx bx-conversation" message="Escolha uma conversa" hint="As novas mensagens dos clientes chegam na fila “Sem dono”." %}
-      </div>
-    {% endif %}
-  </section>
+    </div>
+  </header>
 
-  {% if conversa %}
-  <aside class="card crm-coluna crm-coluna--painel" id="crmPainel" data-crm-parte="painel" aria-label="Dados do cliente">
-    {% include "crm/parciais/painel.html" %}
-  </aside>
-  {% endif %}
+  <div class="card crm-caixa{% if conversa %} crm-caixa--com-conversa{% endif %}" id="crmCaixa"
+       data-conversa="{{ conversa.id|default:'' }}"
+       data-url-lista="{% url 'crm:lista' %}"
+       data-filtros="{% filtros_com filtros %}"
+       {% if conversa %}data-url-parte="{% url 'crm:parte' conversa.id '__parte__' %}"{% endif %}>
+    <section class="crm-coluna crm-coluna--lista" id="crmLista" aria-label="Conversas">
+      {% include "crm/parciais/lista.html" %}
+    </section>
+
+    <section class="crm-coluna crm-coluna--conversa" aria-label="Conversa">
+      {% if conversa %}
+        <div data-crm-parte="cabecalho">{% include "crm/parciais/cabecalho.html" %}</div>
+        <div class="crm-mensagens" id="crmMensagens" data-crm-parte="mensagens" tabindex="0" aria-live="polite">
+          {% include "crm/parciais/mensagens.html" %}
+        </div>
+        <button type="button" class="btn btn-sm btn-primary rounded-pill crm-novas d-none" data-crm-novas>
+          <i class="bx bx-down-arrow-alt me-1"></i>Novas mensagens
+        </button>
+        <div data-crm-parte="compositor">{% include "crm/parciais/compositor.html" %}</div>
+      {% else %}
+        <div class="crm-vazio">
+          <span class="crm-vazio__icone"><i class="bx bx-conversation"></i></span>
+          <h5 class="mb-1">Escolha uma conversa</h5>
+          <p class="text-muted mb-3">As mensagens novas dos clientes chegam na fila “Sem dono”.</p>
+          <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#crmModalIniciar">
+            <i class="bx bx-plus me-1"></i>Começar uma conversa
+          </button>
+        </div>
+      {% endif %}
+    </section>
+
+    {% if conversa %}
+    <aside class="crm-coluna crm-coluna--painel offcanvas-xxl offcanvas-end" id="crmPainel" tabindex="-1" aria-labelledby="crmPainelTitulo">
+      <div class="offcanvas-header d-xxl-none">
+        <h5 class="offcanvas-title" id="crmPainelTitulo">Cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#crmPainel" aria-label="Fechar"></button>
+      </div>
+      <div class="crm-painel-corpo" data-crm-parte="painel">{% include "crm/parciais/painel.html" %}</div>
+    </aside>
+    {% endif %}
+  </div>
 </div>
 
 {% include "crm/parciais/modais.html" %}

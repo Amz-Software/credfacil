@@ -52,7 +52,7 @@
     <form method="post" action="{% url 'crm:resumo_pagamentos' conversa.id %}" data-crm-acao data-crm-texto-pronto>
       {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
       <input type="hidden" name="cliente" value="{{ cliente.id }}">
-      <button type="submit" class="btn btn-sm btn-outline-primary w-100 mt-1">
+      <button type="submit" class="btn btn-sm btn-primary w-100 mt-2">
         <i class="bx bx-receipt me-1"></i>Preparar resumo de pagamentos
       </button>
     </form>

@@ -19,7 +19,8 @@
         {% if m.tipo == 'IMAGEM' or m.tipo == 'FIGURINHA' %}
           <a href="{{ url_midia }}" target="_blank" rel="noopener" class="d-block">
             <img src="{{ url_midia }}{% if m.midia.tem_miniatura %}?versao=miniatura{% endif %}" class="crm-msg__imagem{% if m.tipo == 'FIGURINHA' %} crm-msg__imagem--figurinha{% endif %}"
-                 alt="{% if m.tipo == 'FIGURINHA' %}Figurinha{% else %}Imagem{% endif %}" loading="lazy">
+                 alt="{% if m.tipo == 'FIGURINHA' %}Figurinha{% else %}Imagem{% endif %}"
+                 {% if m.midia.largura and m.midia.altura %}width="{{ m.midia.largura }}" height="{{ m.midia.altura }}"{% endif %}>
           </a>
         {% elif m.tipo == 'AUDIO' %}
           <audio controls preload="none" src="{{ url_midia }}" class="crm-msg__audio"></audio>

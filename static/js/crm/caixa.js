@@ -30,6 +30,7 @@
   var carregando = {};
   var repetir = {};
   var ultimoHtml = {};
+  var mensagensPendentes = null;
   var temBusca = /(^|&)q=/.test(filtros);
   var ultimoDigitando = 0;
   var timerEvento = null;
@@ -110,6 +111,21 @@
     }
   }
 
+  function maiorIdMensagem(raizBusca) {
+    var maior = 0;
+    raizBusca.querySelectorAll('[data-mensagem-id]').forEach(function (el) {
+      maior = Math.max(maior, parseInt(el.getAttribute('data-mensagem-id'), 10) || 0);
+    });
+    return maior;
+  }
+
+  /** O HTML recebido traz mensagem que ainda não está na tela? */
+  function temMensagemNova(el, html) {
+    var modelo = document.createElement('template');
+    modelo.innerHTML = html;
+    return maiorIdMensagem(modelo.content) > maiorIdMensagem(el);
+  }
+
   function mostrarNovas(mostrar) {
     var botao = document.querySelector('[data-crm-novas]');
     if (botao) {
@@ -158,11 +174,12 @@
     if (nome === 'painel') {
       return !painelEmUso(el);
     }
-    if (nome === 'mensagens' && !forcar && (!pertoDoFim(el) || midiaTocando(el))) {
-      mostrarNovas(true);
-      return false;
-    }
     return true;
+  }
+
+  /** Lendo mensagens antigas ou ouvindo um áudio: não arrasta a tela; avisa se chegou algo novo. */
+  function mensagensOcupadas(el, forcar) {
+    return !forcar && (!pertoDoFim(el) || midiaTocando(el));
   }
 
   function aplicarParte(nome, el, html) {
@@ -197,8 +214,16 @@
     var url = urlParte.replace('__parte__', nome) + (filtros ? '?' + filtros : '');
     buscarHtml(url)
       .then(function (html) {
+        if (nome === 'mensagens' && mensagensOcupadas(el, forcar)) {
+          if (temMensagemNova(el, html)) {
+            mensagensPendentes = html;
+            mostrarNovas(true);
+          }
+          return;
+        }
         // Reavalia: o usuário pode ter começado a digitar enquanto a resposta vinha.
         if (podeAtualizar(nome, el, forcar)) {
+          mensagensPendentes = nome === 'mensagens' ? null : mensagensPendentes;
           aplicarParte(nome, el, html);
         }
       })
@@ -501,7 +526,14 @@
       return;
     }
     if (alvo.closest('[data-crm-novas]')) {
-      atualizarParte('mensagens', true);
+      var el = document.querySelector('[data-crm-parte="mensagens"]');
+      if (mensagensPendentes && el) {
+        var html = mensagensPendentes;
+        mensagensPendentes = null;
+        aplicarParte('mensagens', el, html);
+      } else {
+        atualizarParte('mensagens', true);
+      }
     }
   });
 
@@ -534,8 +566,14 @@
   var mensagens = elMensagens();
   if (mensagens) {
     mensagens.addEventListener('scroll', function () {
-      if (pertoDoFim(mensagens)) {
-        mostrarNovas(false);
+      if (!pertoDoFim(mensagens)) {
+        return;
+      }
+      mostrarNovas(false);
+      if (mensagensPendentes && !midiaTocando(mensagens)) {
+        var html = mensagensPendentes;
+        mensagensPendentes = null;
+        aplicarParte('mensagens', mensagens, html);
       }
     });
   }
@@ -561,5 +599,7 @@
   }, INTERVALO_MS);
 
   rolarParaFim();
+  // As imagens terminam de carregar depois: desce de novo para a última mensagem.
+  window.addEventListener('load', rolarParaFim);
   ajustarAltura(document.querySelector('[data-crm-texto]'));
 })();

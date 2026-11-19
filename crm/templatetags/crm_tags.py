@@ -119,3 +119,26 @@ def filtros_com(filtros: Filtros, **trocas) -> str:
 @register.simple_tag
 def reacoes() -> tuple[str, ...]:
     return REACOES_RAPIDAS
+
+
+CORES_AVATAR = ('amarelo', 'azul', 'verde', 'roxo', 'laranja', 'rosa')
+
+
+@register.filter
+def iniciais(nome: str) -> str:
+    """'Maria da Silva' -> 'MS'; sem letras (só telefone) -> ''."""
+    palavras = [p for p in (nome or '').split() if p[:1].isalpha()]
+    if not palavras:
+        return ''
+    if len(palavras) == 1:
+        return palavras[0][:2].upper()
+    return (palavras[0][0] + palavras[-1][0]).upper()
+
+
+@register.filter
+def cor_avatar(chave) -> str:
+    """Cor estável por conversa (mesma pessoa, mesma cor em toda tela)."""
+    try:
+        return CORES_AVATAR[int(chave) % len(CORES_AVATAR)]
+    except (TypeError, ValueError):
+        return CORES_AVATAR[0]
