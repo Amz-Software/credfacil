@@ -1,5 +1,7 @@
 """Base dos testes do CRM: WhatsApp simulado, tarefas síncronas, usuários com e sem permissão."""
 import os
+import shutil
+import tempfile
 from contextlib import contextmanager
 from datetime import timedelta
 from unittest import mock
@@ -21,6 +23,11 @@ SEM_META = {chave: '' for chave in (
 @override_settings(CRM_TAREFAS_SINCRONAS=True, NOTIFICACAO_WS_SINCRONO=False)
 class CrmTestCase(TestCase):
     def setUp(self):
+        self.pasta_midia = tempfile.mkdtemp(prefix='crm-testes-')
+        self.addCleanup(shutil.rmtree, self.pasta_midia, ignore_errors=True)
+        midia = override_settings(CRM_MIDIA_ROOT=self.pasta_midia, MEDIA_ROOT=self.pasta_midia)
+        midia.enable()
+        self.addCleanup(midia.disable)
         self.env = mock.patch.dict(os.environ, SEM_META)
         self.env.start()
         self.addCleanup(self.env.stop)
@@ -39,6 +46,9 @@ class CrmTestCase(TestCase):
         if codigos:
             usuario.user_permissions.add(*Permission.objects.filter(content_type__app_label='crm', codename__in=codigos))
         return User.objects.get(pk=usuario.pk)
+
+    def criar_usuario_recarregado(self, usuario) -> User:
+        return User.objects.get(pk=usuario.pk)  # descarta o cache de permissões
 
     def api(self, usuario) -> APIClient:
         cliente = APIClient()

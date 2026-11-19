@@ -129,6 +129,15 @@ jobs:
             fi
             echo "==> [10] swap de container ok"
 
+            echo "==> [10b] conferindo o crm-worker"
+            sleep 5
+            WORKER_ID=$(docker compose ps -q crm-worker || true)
+            if [ -z "$WORKER_ID" ] || [ "$(docker inspect -f '{{.State.Running}}' "$WORKER_ID" 2>/dev/null)" != "true" ]; then
+              echo "!! crm-worker não está rodando — últimos logs:"
+              docker compose logs --tail=80 crm-worker || true
+              exit 1
+            fi
+
             echo "==> [11] Healthcheck (até $((HEALTHCHECK_TRIES * 2))s)"
             ok=0
             i=0

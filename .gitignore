@@ -165,6 +165,7 @@ cython_debug/
 /media/
 
 /mediafiles/
+/mediafiles_privado/
 
 pixqrcodegen.png
 .DS_Store

@@ -1,4 +1,5 @@
 """Organização do CRM: etiquetas, notas, lembretes, programadas, respostas rápidas, clientes."""
+import logging
 import re
 from datetime import timedelta
 
@@ -20,12 +21,13 @@ MAX_SOLICITACOES_PAINEL = 5
 MAX_VENDAS_PAINEL = 5
 MAX_SUGERIDOS = 5
 MARCADOR = re.compile(r'\{(\w+)\}')
+logger = logging.getLogger(__name__)
 
 
 def definir_etiquetas(conversa: Conversa, ids: list[int]) -> None:
     """Substitui o conjunto; só aplica etiqueta ativa (ou que já estava na conversa)."""
     atuais = set(conversa.etiquetas.values_list('id', flat=True))
-    pedidas = {int(i) for i in ids}
+    pedidas = {int(i) for i in ids if i is not None}
     validas = set(Etiqueta.objects.filter(Q(ativo=True) | Q(id__in=atuais), id__in=pedidas).values_list('id', flat=True))
     if validas != pedidas:
         raise ConflitoCRM('Alguma etiqueta não existe ou foi desativada.')
@@ -105,43 +107,70 @@ def cancelar_programada(programada: MensagemProgramada, usuario) -> MensagemProg
     return programada
 
 
+PROGRAMADA_TRAVADA = timedelta(minutes=10)
+
+
+def recuperar_programadas_travadas() -> int:
+    """ENVIANDO há muito tempo (o worker caiu no meio) vira ERRO, com nota e aviso."""
+    travadas = MensagemProgramada.objects.filter(
+        status=MensagemProgramada.Status.ENVIANDO, enviar_em__lt=timezone.now() - PROGRAMADA_TRAVADA,
+        mensagem__isnull=True,
+    ).select_related('conversa', 'criado_por')
+    total = 0
+    for programada in travadas:
+        if MensagemProgramada.objects.filter(pk=programada.pk, status=MensagemProgramada.Status.ENVIANDO).update(
+                status=MensagemProgramada.Status.ERRO, erro='O envio foi interrompido. Programe de novo.'):
+            nota_automatica(programada.conversa, 'A mensagem programada foi interrompida e não saiu.')
+            avisos.notificar_usuario(programada.criado_por, 'Uma mensagem programada não foi enviada',
+                                     programada.conversa)
+            total += 1
+    return total
+
+
 def enviar_programadas_vencidas() -> int:
     """Cron: AGENDADA → ENVIANDO por compare-and-set; envia se a janela está aberta e em HUMANO."""
-    from crm.services import envio
-
     enviadas = 0
     vencidas = MensagemProgramada.objects.filter(
         status=MensagemProgramada.Status.AGENDADA, enviar_em__lte=timezone.now(),
     ).select_related('conversa', 'criado_por')
     for programada in vencidas:
-        travou = MensagemProgramada.objects.filter(
-            pk=programada.pk, status=MensagemProgramada.Status.AGENDADA,
-        ).update(status=MensagemProgramada.Status.ENVIANDO)
-        if not travou:
-            continue
-        conversa = programada.conversa
-        motivo = ''
-        if conversa.modo != Conversa.Modo.HUMANO:
-            motivo = 'a conversa não está mais com a equipe'
-        elif not conversa.janela_aberta():
-            motivo = 'a janela de 24 h fechou'
-        mensagem = None
-        if not motivo:
-            mensagem = envio.enviar_texto(conversa, programada.texto, usuario=programada.criado_por,
-                                          origem=Mensagem.Origem.PROGRAMADA, exigir_trava=False)
-            if mensagem.status == Mensagem.Status.ERRO:
-                motivo = mensagem.erro
-        programada.mensagem = mensagem
-        programada.status = MensagemProgramada.Status.ERRO if motivo else MensagemProgramada.Status.ENVIADA
-        programada.erro = motivo
-        programada.save(update_fields=['mensagem', 'status', 'erro'])
-        if motivo:
-            nota_automatica(conversa, f'A mensagem programada não foi enviada: {motivo}.')
-            avisos.notificar_usuario(programada.criado_por,
-                                     f'Mensagem programada para {conversa.nome_exibicao} não foi enviada', conversa)
-        else:
-            enviadas += 1
+        try:
+            enviadas += _enviar_programada(programada)
+        except Exception:  # noqa: BLE001 — uma programada com problema não segura as outras
+            logger.exception('Falha ao enviar a programada %s.', programada.pk)
     return enviadas
+
+
+def _enviar_programada(programada: MensagemProgramada) -> int:
+    from crm.services import envio
+
+    travou = MensagemProgramada.objects.filter(
+        pk=programada.pk, status=MensagemProgramada.Status.AGENDADA,
+    ).update(status=MensagemProgramada.Status.ENVIANDO)
+    if not travou:
+        return 0
+    conversa = programada.conversa
+    motivo = ''
+    if conversa.modo != Conversa.Modo.HUMANO:
+        motivo = 'a conversa não está mais com a equipe'
+    elif not conversa.janela_aberta():
+        motivo = 'a janela de 24 h fechou'
+    mensagem = None
+    if not motivo:
+        mensagem = envio.enviar_texto(conversa, programada.texto, usuario=programada.criado_por,
+                                      origem=Mensagem.Origem.PROGRAMADA, exigir_trava=False)
+        if mensagem.status == Mensagem.Status.ERRO:
+            motivo = mensagem.erro
+    programada.mensagem = mensagem
+    programada.status = MensagemProgramada.Status.ERRO if motivo else MensagemProgramada.Status.ENVIADA
+    programada.erro = motivo
+    programada.save(update_fields=['mensagem', 'status', 'erro'])
+    if motivo:
+        nota_automatica(conversa, f'A mensagem programada não foi enviada: {motivo}.')
+        avisos.notificar_usuario(programada.criado_por,
+                                 f'Mensagem programada para {conversa.nome_exibicao} não foi enviada', conversa)
+        return 0
+    return 1
 
 
 def avisar_lembretes_vencidos() -> int:
@@ -149,11 +178,14 @@ def avisar_lembretes_vencidos() -> int:
     agora = timezone.now()
     vencidos = Conversa.objects.filter(lembrete_em__lte=agora, lembrete_avisado_em__isnull=True)
     for conversa in vencidos.select_related('lembrete_para'):
-        if Conversa.objects.filter(pk=conversa.pk, lembrete_avisado_em__isnull=True).update(lembrete_avisado_em=agora):
-            texto = conversa.lembrete_texto or 'retornar a conversa'
-            avisos.notificar_usuario(conversa.lembrete_para, f'Lembrete: {texto} ({conversa.nome_exibicao})', conversa)
-            avisos.emitir(conversa, 'conversa_atualizada')
-            avisados += 1
+        try:
+            if Conversa.objects.filter(pk=conversa.pk, lembrete_avisado_em__isnull=True).update(lembrete_avisado_em=agora):
+                texto = conversa.lembrete_texto or 'retornar a conversa'
+                avisos.notificar_usuario(conversa.lembrete_para, f'Lembrete: {texto} ({conversa.nome_exibicao})', conversa)
+                avisos.emitir(conversa, 'conversa_atualizada')
+                avisados += 1
+        except Exception:  # noqa: BLE001
+            logger.exception('Falha ao avisar o lembrete da conversa %s.', conversa.pk)
     return avisados
 
 
@@ -165,12 +197,39 @@ def definir_apelido(conversa: Conversa, apelido: str) -> None:
     avisos.emitir(conversa, 'conversa_atualizada')
 
 
-def vincular_cliente(conversa: Conversa, cliente_id: int, vincular: bool = True) -> None:
+def _lojas_do_usuario(usuario) -> set[int]:
+    lojas = set(usuario.lojas.values_list('id', flat=True)) | set(usuario.lojas_gerenciadas.values_list('id', flat=True))
+    if getattr(usuario, 'loja_id', None):
+        lojas.add(usuario.loja_id)
+    return lojas
+
+
+def _ve_todas_as_lojas(usuario) -> bool:
+    return usuario.has_perm('vendas.view_all_analise_credito') or usuario.has_perm('vendas.can_view_all_stores')
+
+
+def pode_ver_cliente(usuario, cliente, lojas: set[int] | None = None) -> bool:
+    """Mesmo escopo do resto do sistema: permissão de cliente e loja do usuário."""
+    if not usuario.has_perm('vendas.view_cliente'):
+        return False
+    if _ve_todas_as_lojas(usuario):
+        return True
+    return cliente.loja_id in (lojas if lojas is not None else _lojas_do_usuario(usuario))
+
+
+def mascarar_cpf(cpf: str) -> str:
+    digitos = ''.join(c for c in cpf or '' if c.isdigit())
+    if len(digitos) != 11:
+        return ''
+    return f'***.{digitos[3:6]}.{digitos[6:9]}-**'
+
+
+def vincular_cliente(conversa: Conversa, cliente_id: int, vincular: bool = True, usuario=None) -> None:
     from vendas.models import Cliente
 
     cliente = Cliente.objects.filter(pk=cliente_id).first()
-    if cliente is None:
-        raise ConflitoCRM('Cliente não encontrado.')
+    if cliente is None or (usuario is not None and vincular and not pode_ver_cliente(usuario, cliente)):
+        raise ConflitoCRM('Cliente não encontrado ou fora das suas lojas.')
     (conversa.clientes.add if vincular else conversa.clientes.remove)(cliente)
     avisos.emitir(conversa, 'conversa_atualizada')
 
@@ -204,26 +263,36 @@ def previa_resposta(conversa: Conversa, resposta: RespostaRapida, usuario) -> di
     return {'texto': MARCADOR.sub(trocar, resposta.texto), 'avisos': sorted(set(avisos_faltando))}
 
 
-def clientes_sugeridos(conversa: Conversa):
+def clientes_sugeridos(conversa: Conversa, usuario=None):
     """Clientes cujo telefone casa com o número da conversa (comparação pela chave)."""
     from vendas.models import Cliente
+
+    if usuario is not None and not usuario.has_perm('vendas.view_cliente'):
+        return []
 
     sufixo = sufixo_busca(conversa.telefone)
     if not sufixo:
         return []
     chave = chave_telefone(conversa.telefone)
     candidatos = Cliente.objects.filter(Q(telefone__endswith=sufixo) | Q(telefone_secundario__endswith=sufixo))
+    if usuario is not None and not _ve_todas_as_lojas(usuario):
+        candidatos = candidatos.filter(loja_id__in=_lojas_do_usuario(usuario))
     vinculados = set(conversa.clientes.values_list('id', flat=True))
     return [c for c in candidatos[:50]
             if c.pk not in vinculados
             and chave in (chave_telefone(c.telefone), chave_telefone(c.telefone_secundario))][:MAX_SUGERIDOS]
 
 
-def painel(conversa: Conversa) -> dict:
+def painel(conversa: Conversa, usuario) -> dict:
+    """Dados dos clientes vinculados que o usuário pode ver; vendas só com view_venda."""
     from vendas.models import AnaliseCreditoCliente, Venda
 
+    lojas = _lojas_do_usuario(usuario)
+    ve_vendas = usuario.has_perm('vendas.view_venda')
     resultado = []
-    for cliente in conversa.clientes.all().select_related('analise_credito__produto'):
+    for cliente in conversa.clientes.all():
+        if not pode_ver_cliente(usuario, cliente, lojas):
+            continue
         analise = AnaliseCreditoCliente.objects.filter(cliente=cliente).select_related('produto').first()
         solicitacoes = []
         if analise:
@@ -231,14 +300,14 @@ def painel(conversa: Conversa) -> dict:
                 'id': cliente.pk, 'status': analise.status, 'status_display': analise.get_status_display(),
                 'produto': analise.produto.nome if analise.produto_id else '', 'data': analise.data_analise,
             })
-        vendas = Venda.objects.filter(cliente=cliente).order_by('-data_venda')[:MAX_VENDAS_PAINEL]
+        vendas = Venda.objects.filter(cliente=cliente).order_by('-data_venda')[:MAX_VENDAS_PAINEL] if ve_vendas else []
         resultado.append({
-            'id': cliente.pk, 'nome': cliente.nome, 'cpf': cliente.cpf, 'telefone': cliente.telefone,
+            'id': cliente.pk, 'nome': cliente.nome, 'cpf': mascarar_cpf(cliente.cpf), 'telefone': cliente.telefone,
             'vinculado': True, 'solicitacoes': solicitacoes[:MAX_SOLICITACOES_PAINEL],
             'vendas': [{'id': v.pk, 'data': v.data_venda, 'valor_total': v.pagamentos_valor_total,
                         'cancelada': v.is_deleted} for v in vendas],
         })
-    sugeridos = [{'id': c.pk, 'nome': c.nome, 'telefone': c.telefone} for c in clientes_sugeridos(conversa)]
+    sugeridos = [{'id': c.pk, 'nome': c.nome, 'telefone': c.telefone} for c in clientes_sugeridos(conversa, usuario)]
     return {'clientes': resultado, 'sugeridos': sugeridos}
 
 

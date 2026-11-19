@@ -12,8 +12,8 @@ from datetime import timedelta
 
 import requests
 from django.core import signing
+from django.core.files import File
 from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 from django.utils import timezone
 
 from crm.models import Mensagem, Midia
@@ -81,7 +81,7 @@ def validar_anexo(conteudo: bytes, nome: str) -> tuple[str, str]:
     mime = _mime_pelos_bytes(conteudo) or mimetypes.guess_type(nome or '')[0] or 'application/octet-stream'
     if mime in MIMES_HEIC:
         raise ErroMidia('Fotos HEIC/HEIF não são aceitas. Envie em JPG ou PNG.')
-    if mime.startswith('image/'):
+    if mime in ('image/jpeg', 'image/png', 'image/webp', 'image/gif'):
         return Mensagem.Tipo.IMAGEM, mime
     if mime.startswith('video/') and mime != 'video/webm':
         return Mensagem.Tipo.VIDEO, mime
@@ -92,11 +92,26 @@ def validar_anexo(conteudo: bytes, nome: str) -> tuple[str, str]:
 
 # --- recebida --------------------------------------------------------------------
 
-def _confere_sha(conteudo: bytes, anunciado: str) -> bool:
+TIPOS_COM_MINIATURA = (Mensagem.Tipo.IMAGEM, Mensagem.Tipo.FIGURINHA, Mensagem.Tipo.VIDEO)
+
+
+def _sha256_do_arquivo(caminho: str) -> bytes:
+    resumo = hashlib.sha256()
+    with open(caminho, 'rb') as arquivo:
+        for bloco in iter(lambda: arquivo.read(MB), b''):
+            resumo.update(bloco)
+    return resumo.digest()
+
+
+def _confere_sha(digest: bytes, anunciado: str) -> bool:
     if not anunciado:
         return True
-    digest = hashlib.sha256(conteudo).digest()
     return anunciado in (digest.hex(), base64.b64encode(digest).decode())
+
+
+def _falhar(midia: Midia, motivo: str) -> None:
+    midia.status, midia.erro, midia.tentativas = Midia.Status.ERRO, motivo, midia.tentativas + 1
+    midia.save(update_fields=['status', 'erro', 'tentativas'])
 
 
 def baixar(midia: Midia) -> None:
@@ -106,23 +121,31 @@ def baixar(midia: Midia) -> None:
     mensagem = midia.mensagem
     limite = LIMITE_RECEBIDO.get(mensagem.tipo, LIMITE_ENVIO)
     try:
-        conteudo, mime, sha = obter_provider().baixar_midia(midia.wa_media_id, limite)
-        if not conteudo:
-            raise ErroMidia('A Meta entregou um arquivo vazio.')
-        if not _confere_sha(conteudo, midia.sha256 or sha):
-            raise ErroMidia('O arquivo chegou corrompido (SHA-256 diferente).')
-    except (ErroWhatsApp, ErroMidia) as exc:
-        midia.status, midia.erro, midia.tentativas = Midia.Status.ERRO, str(exc), midia.tentativas + 1
-        midia.save(update_fields=['status', 'erro', 'tentativas'])
+        caminho, mime, sha = obter_provider().baixar_midia(midia.wa_media_id, limite)
+    except ErroWhatsApp as exc:
+        _falhar(midia, str(exc))
         return
-    midia.mime = midia.mime or mime
-    extensao = mimetypes.guess_extension((midia.mime or '').split(';')[0]) or '.bin'
-    nome = midia.nome_original or f'{mensagem.tipo.lower()}{extensao}'
-    midia.arquivo.save(nome, ContentFile(conteudo), save=False)
-    midia.tamanho_bytes = len(conteudo)
-    _metadados_e_miniatura(midia, conteudo)
-    midia.status, midia.erro, midia.baixado_em = Midia.Status.OK, '', timezone.now()
-    midia.save()
+    try:
+        tamanho = os.path.getsize(caminho)
+        if not tamanho:
+            _falhar(midia, 'A Meta entregou um arquivo vazio.')
+            return
+        if not _confere_sha(_sha256_do_arquivo(caminho), midia.sha256 or sha):
+            _falhar(midia, 'O arquivo chegou corrompido (SHA-256 diferente).')
+            return
+        midia.mime = midia.mime or mime
+        extensao = mimetypes.guess_extension((midia.mime or '').split(';')[0]) or '.bin'
+        nome = midia.nome_original or f'{mensagem.tipo.lower()}{extensao}'
+        with open(caminho, 'rb') as arquivo:
+            midia.arquivo.save(nome, File(arquivo), save=False)
+        midia.tamanho_bytes = tamanho
+        if mensagem.tipo in TIPOS_COM_MINIATURA:
+            with open(caminho, 'rb') as arquivo:
+                _metadados_e_miniatura(midia, arquivo.read())
+        midia.status, midia.erro, midia.baixado_em = Midia.Status.OK, '', timezone.now()
+        midia.save()
+    finally:
+        os.unlink(caminho)
 
 
 def _metadados_e_miniatura(midia: Midia, conteudo: bytes) -> None:
@@ -173,8 +196,11 @@ def _rodar_ffmpeg(conteudo: bytes, argumentos: list[str], extensao: str) -> byte
 def _converter_imagem(conteudo: bytes) -> bytes:
     from PIL import Image
 
-    with Image.open(io.BytesIO(conteudo)) as imagem:
-        copia = imagem.convert('RGB')
+    try:
+        with Image.open(io.BytesIO(conteudo)) as imagem:
+            copia = imagem.convert('RGB')
+    except Exception as exc:  # noqa: BLE001 — Pillow lança vários tipos para arquivo inválido
+        raise ErroMidia('A imagem está corrompida ou em formato não suportado.') from exc
     for lado, qualidade in ((2560, 85), (1920, 75), (1280, 65)):
         reduzida = copia.copy()
         reduzida.thumbnail((lado, lado))
@@ -267,8 +293,8 @@ def url_assinada(midia: Midia, versao: str, request) -> str:
     campo = _campo(midia, versao)
     if not campo:
         raise ErroMidia('A mídia ainda não foi baixada.')
-    if getattr(default_storage, 'querystring_auth', False):
-        return default_storage.url(campo.name, expire=int(VALIDADE_URL.total_seconds()))
+    if getattr(campo.storage, 'querystring_auth', False):
+        return campo.storage.url(campo.name, expire=int(VALIDADE_URL.total_seconds()))
     token = signing.dumps({'m': midia.pk, 'v': versao}, salt=SAL_ASSINATURA)
     return request.build_absolute_uri(f'/api/crm/midia/{token}/')
 

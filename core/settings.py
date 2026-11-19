@@ -362,6 +362,8 @@ LOGIN_REDIRECT_URL = 'vendas:index'
 
 MEDIA_URL = '/mediafiles/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'mediafiles')
+# Mídia do CRM de WhatsApp sem S3: fora do MEDIA_ROOT, que é servido publicamente.
+CRM_MIDIA_ROOT = os.environ.get('CRM_MIDIA_ROOT', os.path.join(BASE_DIR, 'mediafiles_privado'))
 
 STATIC_URL = '/static/'
 # Add these new lines

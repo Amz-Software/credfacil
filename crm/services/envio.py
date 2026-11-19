@@ -145,6 +145,9 @@ def processar_envio_midia(mensagem_id: int) -> None:
         mensagem.status, mensagem.wa_message_id, mensagem.erro = Mensagem.Status.ENVIADO, wamid or None, ''
     except (ErroWhatsApp, midias.ErroMidia) as exc:
         mensagem.status, mensagem.erro = Mensagem.Status.ERRO, str(exc)
+    except Exception:  # noqa: BLE001 — nunca deixa o envio preso em PENDENTE
+        logger.exception('Falha inesperada ao enviar a mídia da mensagem %s.', mensagem.pk)
+        mensagem.status, mensagem.erro = Mensagem.Status.ERRO, 'Não foi possível enviar o arquivo. Reenvie.'
     mensagem.save(update_fields=['status', 'wa_message_id', 'erro'])
     _apos_envio(mensagem.conversa, mensagem)
 
@@ -152,6 +155,9 @@ def processar_envio_midia(mensagem_id: int) -> None:
 def reenviar(mensagem: Mensagem, usuario) -> Mensagem:
     if mensagem.direcao != Mensagem.Direcao.SAIDA or mensagem.status != Mensagem.Status.ERRO:
         raise ConflitoCRM('Só mensagens enviadas com erro podem ser reenviadas.')
+    if mensagem.origem == Mensagem.Origem.ABERTURA:
+        from crm.services.aberturas import reenviar_abertura
+        return reenviar_abertura(mensagem, usuario)
     exigir_resposta_liberada(mensagem.conversa, usuario)
     mensagem.status, mensagem.erro, mensagem.envio_iniciado_em = Mensagem.Status.PENDENTE, '', timezone.now()
     mensagem.save(update_fields=['status', 'erro', 'envio_iniciado_em'])

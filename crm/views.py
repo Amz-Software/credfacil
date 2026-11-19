@@ -1,6 +1,6 @@
 """API das conversas e mensagens do CRM (docs/CRM_WHATSAPP.md §4.3 e §4.4)."""
 from django.contrib.auth import get_user_model
-from django.db.models import Case, F, IntegerField, OuterRef, Q, Subquery, Value, When
+from django.db.models import Case, Exists, F, IntegerField, OuterRef, Q, Subquery, Value, When
 from django.db.models.functions import Coalesce
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
@@ -59,21 +59,22 @@ class ConversaViewSet(TrataConflitoMixin, viewsets.GenericViewSet):
             qs = qs.filter(situacao=params['situacao'])
         if params.get('etiqueta'):
             ids = [ler_inteiro(i, 'etiqueta') for i in params['etiqueta'].split(',') if i.strip()]
-            qs = qs.filter(etiquetas__id__in=ids)
+            qs = qs.filter(Exists(Conversa.etiquetas.through.objects.filter(conversa_id=OuterRef('pk'), etiqueta_id__in=ids)))
         if params.get('nao_lidas') == '1':
             qs = qs.filter(nao_lidas__gt=0)
         if params.get('lembrete') == 'vencido':
             qs = qs.filter(lembrete_em__lte=timezone.now())
         termo = (params.get('search') or '').strip()
         if termo:
-            filtro = Q(contato_nome__icontains=termo) | Q(apelido__icontains=termo) | Q(clientes__nome__icontains=termo)
+            # Exists em vez de join: sem DISTINCT (caro no MySQL e incompatível com o ORDER BY por espera).
+            clientes = Conversa.clientes.through.objects.filter(conversa_id=OuterRef('pk'), cliente__nome__icontains=termo)
+            filtro = Q(contato_nome__icontains=termo) | Q(apelido__icontains=termo) | Q(Exists(clientes))
             digitos = somente_digitos(termo)
             if digitos:
                 filtro |= Q(telefone__contains=digitos)
             if len(termo) >= MIN_BUSCA_TEXTO:
-                filtro |= Q(mensagens__texto__icontains=termo)
+                filtro |= Q(Exists(Mensagem.objects.filter(conversa_id=OuterRef('pk'), texto__icontains=termo)))
             qs = qs.filter(filtro)
-        qs = qs.distinct()
         if params.get('ordem') == 'espera':
             espera = (Mensagem.objects
                       .filter(conversa=OuterRef('pk'), direcao=Mensagem.Direcao.ENTRADA,
@@ -97,11 +98,11 @@ class ConversaViewSet(TrataConflitoMixin, viewsets.GenericViewSet):
         usuario = request.user
         base = Conversa.objects.all()
         return Response({
-            'minhas': base.filter(_filtro_fila('minhas', usuario)).distinct().count(),
+            'minhas': base.filter(_filtro_fila('minhas', usuario)).count(),
             'sem_dono': base.filter(_filtro_fila('sem_dono', usuario)).count(),
             'automatico': base.filter(modo=Conversa.Modo.AUTOMATICO).count(),
             'todas': base.count(),
-            'nao_lidas_minhas': base.filter(_filtro_fila('minhas', usuario), nao_lidas__gt=0).distinct().count(),
+            'nao_lidas_minhas': base.filter(_filtro_fila('minhas', usuario), nao_lidas__gt=0).count(),
         })
 
     def retrieve(self, request, pk=None):
@@ -122,7 +123,7 @@ class ConversaViewSet(TrataConflitoMixin, viewsets.GenericViewSet):
             lista = list(reversed(antes)) + depois
             return Response({'results': mensagens_dicts(lista), 'tem_mais_antigas': qs.filter(
                 id__lt=lista[0].pk).exists() if lista else False})
-        limite = min(ler_inteiro(request.query_params.get('limite'), 'limite') or LIMITE_MENSAGENS_DETALHE, 100)
+        limite = max(1, min(ler_inteiro(request.query_params.get('limite'), 'limite') or LIMITE_MENSAGENS_DETALHE, 100))
         antes_de = ler_inteiro(request.query_params.get('antes'), 'antes')
         if antes_de:
             qs = qs.filter(id__lt=antes_de)
@@ -148,7 +149,7 @@ class ConversaViewSet(TrataConflitoMixin, viewsets.GenericViewSet):
 
     @action(detail=True, methods=['get'])
     def painel(self, request, pk=None):
-        return Response(organizacao.painel(self.get_object()))
+        return Response(organizacao.painel(self.get_object(), request.user))
 
     # --- posse e situação ------------------------------------------------------------
     def _detalhe(self, conversa, codigo=status.HTTP_200_OK):
@@ -196,7 +197,7 @@ class ConversaViewSet(TrataConflitoMixin, viewsets.GenericViewSet):
         ids = request.data.get('etiquetas')
         if not isinstance(ids, list):
             raise ConflitoCRM('Envie a lista de etiquetas.')
-        organizacao.definir_etiquetas(conversa, ids)
+        organizacao.definir_etiquetas(conversa, [ler_inteiro(i, 'etiquetas') for i in ids])
         return self._detalhe(conversa)
 
     @action(detail=True, methods=['patch'])
@@ -208,7 +209,7 @@ class ConversaViewSet(TrataConflitoMixin, viewsets.GenericViewSet):
     @action(detail=True, methods=['post'], url_path='vincular-cliente')
     def vincular_cliente(self, request, pk=None):
         conversa = self.get_object()
-        organizacao.vincular_cliente(conversa, ler_inteiro(request.data.get('cliente'), 'cliente'), True)
+        organizacao.vincular_cliente(conversa, ler_inteiro(request.data.get('cliente'), 'cliente'), True, request.user)
         return self._detalhe(conversa)
 
     @action(detail=True, methods=['post'], url_path='desvincular-cliente')
@@ -241,6 +242,8 @@ class ConversaViewSet(TrataConflitoMixin, viewsets.GenericViewSet):
         arquivo = request.FILES.get('arquivo')
         if arquivo is None:
             raise ConflitoCRM('Escolha um arquivo.')
+        if arquivo.size > midias.LIMITE_ENVIO:
+            raise ConflitoCRM('O arquivo passa de 25 MB.')
         mensagem = envio.preparar_envio_midia(
             self.get_object(), request.user, arquivo, legenda=request.data.get('legenda', ''),
             voz=str(request.data.get('voz', '')).lower() == 'true',
@@ -306,8 +309,9 @@ class MensagemViewSet(TrataConflitoMixin, viewsets.GenericViewSet):
             raise ConflitoCRM('A mídia ainda não foi baixada ou expirou.')
         versao = request.query_params.get('versao', '')
         url = midias.url_assinada(midia, versao, request)
+        encaminhado = (request.META.get('HTTP_X_FORWARDED_FOR') or '').split(',')[0].strip()
         LogAcessoMidia.objects.create(
-            midia=midia, usuario=request.user, ip=request.META.get('REMOTE_ADDR'),
+            midia=midia, usuario=request.user, ip=encaminhado or request.META.get('REMOTE_ADDR'),
             user_agent=(request.headers.get('User-Agent') or '')[:300],
         )
         return Response({'url': url, 'expira_em_segundos': int(midias.VALIDADE_URL.total_seconds())})
@@ -336,17 +340,21 @@ class ProgramadaViewSet(TrataConflitoMixin, viewsets.GenericViewSet):
 class MidiaDownloadView(View):
     """Entrega a mídia do storage local por um token assinado de 1 h (sem cabeçalho de auth)."""
 
+    MIMES_EM_LINHA = ('image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/', 'audio/')
+
     def get(self, request, token):
         try:
             midia, versao = midias.midia_do_token(token)
-        except (midias.ErroMidia, Exception):
+            campo = midias.campo_para_download(midia, versao)
+            arquivo = campo.open('rb') if campo else None
+        except Exception:  # noqa: BLE001 — token inválido, mídia ou arquivo inexistente
             raise Http404('Mídia não encontrada.')
-        campo = midias.campo_para_download(midia, versao)
-        if not campo:
+        if arquivo is None:
             raise Http404('Mídia não encontrada.')
-        eh_documento = midia.mensagem.tipo == Mensagem.Tipo.DOCUMENTO and versao != 'miniatura'
-        resposta = FileResponse(campo.open('rb'), as_attachment=eh_documento,
-                                filename=midia.nome_original or None,
-                                content_type=('image/jpeg' if versao == 'miniatura' else midia.mime) or None)
+        mime = 'image/jpeg' if versao == 'miniatura' else (midia.mime or 'application/octet-stream')
+        em_linha = mime.startswith(self.MIMES_EM_LINHA)  # SVG, HTML e afins só como download
+        resposta = FileResponse(arquivo, as_attachment=not em_linha, filename=midia.nome_original or None,
+                                content_type=mime if em_linha else 'application/octet-stream')
         resposta['Cache-Control'] = 'private, max-age=3600'
+        resposta['X-Content-Type-Options'] = 'nosniff'
         return resposta

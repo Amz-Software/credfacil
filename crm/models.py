@@ -6,6 +6,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from crm.storage import midia_storage
 from crm.models_cadastros import Etiqueta, ModeloAbertura, RespostaRapida, VersaoAbertura  # noqa: F401
 from crm.telefone import formatar_telefone
 
@@ -104,6 +105,7 @@ class Conversa(models.Model):
 def _caminho_midia(pasta: str):
     def gerar(instance, filename: str) -> str:
         extensao = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'bin'
+        extensao = ''.join(c for c in extensao if c.isalnum())[:10] or 'bin'
         conversa_id = instance.mensagem.conversa_id
         return f'whatsapp/{pasta}/{conversa_id}/{uuid.uuid4().hex}.{extensao}'
     return gerar
@@ -209,9 +211,9 @@ class Midia(models.Model):
         EXPIRADA = 'EXPIRADA', 'Expirada'
 
     mensagem = models.OneToOneField(Mensagem, on_delete=models.CASCADE, related_name='midia')
-    arquivo = models.FileField(upload_to=caminho_arquivo, max_length=300, blank=True)
-    miniatura = models.FileField(upload_to=caminho_miniatura, max_length=300, blank=True)
-    arquivo_envio = models.FileField(upload_to=caminho_envio, max_length=300, blank=True)
+    arquivo = models.FileField(upload_to=caminho_arquivo, storage=midia_storage, max_length=300, blank=True)
+    miniatura = models.FileField(upload_to=caminho_miniatura, storage=midia_storage, max_length=300, blank=True)
+    arquivo_envio = models.FileField(upload_to=caminho_envio, storage=midia_storage, max_length=300, blank=True)
     mime = models.CharField(max_length=120, blank=True, default='')
     nome_original = models.CharField(max_length=255, blank=True, default='')
     tamanho_bytes = models.PositiveBigIntegerField(null=True, blank=True)

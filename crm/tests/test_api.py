@@ -234,16 +234,23 @@ class ConversasApiTests(CrmTestCase):
 
         self.assertEqual(resposta.status_code, 409)
 
-    def test_painel_sugere_e_vincula_cliente_pelo_telefone(self):
-        loja = Loja.objects.create(nome='Loja')
-        cliente = Cliente.objects.create(
-            nome='Maria Souza', telefone='(91) 99999-0000', cpf='12345678900', nascimento='1990-01-01', rg='1',
+    def _cliente(self, loja, nome='Maria Souza', telefone='(91) 99999-0000'):
+        return Cliente.objects.create(
+            nome=nome, telefone=telefone, cpf='12345678900', nascimento='1990-01-01', rg='1',
             cep='66000000', endereco='Rua A', bairro='Centro', cidade='Belém', loja=loja,
             comprovantes=ComprovantesCliente.objects.create(loja=loja),
         )
+
+    def test_painel_sugere_e_vincula_cliente_pelo_telefone(self):
+        from django.contrib.auth.models import Permission
+
+        loja = Loja.objects.create(nome='Loja')
+        loja.usuarios.add(self.atendente)
+        self.atendente.user_permissions.add(Permission.objects.get(content_type__app_label='vendas', codename='view_cliente'))
+        cliente = self._cliente(loja)
         self.receber('Oi', telefone='559199990000')
         conversa = Conversa.objects.get()
-        api = self.api(self.atendente)
+        api = self.api(self.criar_usuario_recarregado(self.atendente))
 
         sugeridos = api.get(f'/api/crm/conversas/{conversa.pk}/painel/').json()['sugeridos']
         detalhe = api.post(f'/api/crm/conversas/{conversa.pk}/vincular-cliente/', {'cliente': cliente.pk}, format='json').json()
@@ -252,7 +259,34 @@ class ConversasApiTests(CrmTestCase):
         self.assertEqual([s['id'] for s in sugeridos], [cliente.pk])
         self.assertEqual(detalhe['clientes'], [{'id': cliente.pk, 'nome': 'Maria Souza'}])
         self.assertEqual(painel['clientes'][0]['nome'], 'Maria Souza')
+        self.assertEqual(painel['clientes'][0]['cpf'], '***.456.789-**')
+        self.assertEqual(painel['clientes'][0]['vendas'], [])  # sem vendas.view_venda
         self.assertEqual(painel['sugeridos'], [])
+
+    def test_painel_nao_mostra_cliente_de_outra_loja_nem_sem_permissao(self):
+        from django.contrib.auth.models import Permission
+
+        minha, outra = Loja.objects.create(nome='Minha'), Loja.objects.create(nome='Outra')
+        minha.usuarios.add(self.atendente)
+        cliente_alheio = self._cliente(outra)
+        self.receber('Oi', telefone='559199990000')
+        conversa = Conversa.objects.get()
+        sem_perm = self.api(self.atendente)
+
+        bloqueado = sem_perm.post(f'/api/crm/conversas/{conversa.pk}/vincular-cliente/', {'cliente': cliente_alheio.pk},
+                                  format='json')
+        self.atendente.user_permissions.add(Permission.objects.get(content_type__app_label='vendas', codename='view_cliente'))
+        com_perm = self.api(self.criar_usuario_recarregado(self.atendente))
+        sugeridos = com_perm.get(f'/api/crm/conversas/{conversa.pk}/painel/').json()['sugeridos']
+        fora_da_loja = com_perm.post(f'/api/crm/conversas/{conversa.pk}/vincular-cliente/',
+                                     {'cliente': cliente_alheio.pk}, format='json')
+        conversa.clientes.add(cliente_alheio)  # vinculado por alguém de outra loja
+        painel = com_perm.get(f'/api/crm/conversas/{conversa.pk}/painel/').json()
+
+        self.assertEqual(bloqueado.status_code, 409)
+        self.assertEqual(sugeridos, [])
+        self.assertEqual(fora_da_loja.status_code, 409)
+        self.assertEqual(painel['clientes'], [])
 
     def test_simulador(self):
         gestor = self.api(self.gestor)

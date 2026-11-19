@@ -21,6 +21,8 @@ LIMITE_CORPO = 1024
 MAX_EMOJIS = 6
 MIN_PALAVRAS_POR_MARCADOR = 3
 ENVIANDO_ORFA = timedelta(minutes=5)
+ANTISPAM = timedelta(hours=24)
+MAX_DIGITOS_TELEFONE = 15
 PREFIXO_NOME = 'abertura_'
 STATUS_DA_META = {
     'PENDING': VersaoAbertura.Status.EM_ANALISE,
@@ -131,17 +133,45 @@ def criar_modelo(titulo: str, corpo: str, usuario) -> ModeloAbertura:
     return modelo
 
 
-def editar_modelo(modelo: ModeloAbertura, dados: dict, usuario) -> ModeloAbertura:
-    campos = []
-    for campo in ('titulo', 'ordem', 'ativo'):
-        if campo in dados:
-            setattr(modelo, campo, dados[campo])
-            campos.append(campo)
-    if campos:
-        modelo.save(update_fields=campos)
+def _validar_edicao(modelo: ModeloAbertura, dados: dict) -> dict:
+    limpos = {}
+    if 'titulo' in dados:
+        titulo = str(dados['titulo'] or '').strip()
+        if not 3 <= len(titulo) <= 60:
+            raise ConflitoCRM('O título precisa ter de 3 a 60 caracteres.')
+        repetido = ModeloAbertura.objects.filter(titulo__iexact=titulo, ativo=True).exclude(pk=modelo.pk)
+        if repetido.exists():
+            raise ConflitoCRM('Já existe uma mensagem de abertura ativa com esse título.')
+        limpos['titulo'] = titulo
+    if 'ativo' in dados:
+        if not isinstance(dados['ativo'], bool):
+            raise ConflitoCRM('Valor inválido para ativo.')
+        limpos['ativo'] = dados['ativo']
+    if 'ordem' in dados:
+        if not isinstance(dados['ordem'], int) or not 0 <= dados['ordem'] <= 1000:
+            raise ConflitoCRM('A ordem precisa ser um número de 0 a 1000.')
+        limpos['ordem'] = dados['ordem']
     if 'corpo' in dados:
-        with transaction.atomic():
-            versao = _nova_versao(modelo, dados['corpo'], usuario)
+        erros = validar_corpo(str(dados['corpo'] or ''))
+        if erros:
+            raise ConflitoCRM(' '.join(erros))
+        limpos['corpo'] = str(dados['corpo'])
+    return limpos
+
+
+def editar_modelo(modelo: ModeloAbertura, dados: dict, usuario) -> ModeloAbertura:
+    """Valida tudo antes de gravar qualquer coisa (nada fica pela metade)."""
+    limpos = _validar_edicao(modelo, dados)
+    versao = None
+    with transaction.atomic():
+        campos = [c for c in ('titulo', 'ordem', 'ativo') if c in limpos]
+        for campo in campos:
+            setattr(modelo, campo, limpos[campo])
+        if campos:
+            modelo.save(update_fields=campos)
+        if 'corpo' in limpos:
+            versao = _nova_versao(modelo, limpos['corpo'], usuario)
+    if versao is not None:
         enviar_versao(versao)
     return modelo
 
@@ -197,7 +227,10 @@ def sincronizar(versao: VersaoAbertura) -> VersaoAbertura:
 
 
 def sincronizar_pendentes() -> int:
-    versoes = VersaoAbertura.objects.filter(status__in=EM_ANALISE + (VersaoAbertura.Status.APROVADO,))
+    """Em análise e as vigentes (podem ser pausadas ou desativadas pela Meta)."""
+    from django.db.models import Q
+
+    versoes = VersaoAbertura.objects.filter(Q(status__in=EM_ANALISE) | Q(vigente=True))
     for versao in versoes:
         sincronizar(versao)
     return versoes.count()
@@ -243,29 +276,53 @@ def _versao_para_envio(chave: str) -> VersaoAbertura:
     return vigente
 
 
+def exigir_sem_abertura_recente(conversa: Conversa, exceto_id: int | None = None) -> None:
+    """Antispam (§16.2): nada de nova abertura se já saiu uma nas últimas 24 h sem resposta."""
+    recente = (Mensagem.objects
+               .filter(conversa=conversa, origem=Mensagem.Origem.ABERTURA, direcao=Mensagem.Direcao.SAIDA,
+                       criado_em__gte=timezone.now() - ANTISPAM)
+               .exclude(status=Mensagem.Status.ERRO).exclude(pk=exceto_id).order_by('-criado_em').first())
+    if recente is None:
+        return
+    respondeu = Mensagem.objects.filter(conversa=conversa, direcao=Mensagem.Direcao.ENTRADA,
+                                        criado_em__gt=recente.criado_em).exclude(tipo=Mensagem.Tipo.REACAO)
+    if not respondeu.exists():
+        raise ConflitoCRM('Já foi enviada uma mensagem de abertura nas últimas 24 h e o cliente ainda não respondeu.')
+
+
+def _despachar_template(mensagem: Mensagem, nome_meta: str, parametros: list[str]) -> None:
+    try:
+        wamid = obter_provider().enviar_template(mensagem.conversa.telefone, nome_meta, parametros)
+        mensagem.status, mensagem.wa_message_id, mensagem.erro = Mensagem.Status.ENVIADO, wamid or None, ''
+    except ErroWhatsApp as exc:
+        mensagem.status, mensagem.erro = Mensagem.Status.ERRO, exc.mensagem
+    mensagem.save(update_fields=['status', 'wa_message_id', 'erro'])
+
+
 def enviar_abertura(conversa: Conversa, usuario, chave: str, nome: str = '') -> Conversa:
-    """Com a janela aberta só assume; fora dela envia o template e assume."""
-    conversa = assumir(conversa, usuario)
+    """Com a janela aberta só assume; fora dela envia o template e assume.
+
+    Valida modelo, nome e antispam antes de assumir: pedido inválido não muda a posse.
+    """
     if conversa.janela_aberta():
-        return conversa
+        return assumir(conversa, usuario)
     versao = _versao_para_envio(chave)
     nome = (nome or conversa.primeiro_nome).strip()
     if versao.mapa_parametros and not nome:
         raise ConflitoCRM('Informe o nome do cliente para esta mensagem.')
     parametros = [nome.split()[0]] if versao.mapa_parametros else []
     texto = versao.corpo.replace(MARCADOR, parametros[0] if parametros else '')
-    mensagem = Mensagem.objects.create(
-        conversa=conversa, direcao=Mensagem.Direcao.SAIDA, autor=Mensagem.Autor.HUMANO,
-        tipo=Mensagem.Tipo.TEXTO, texto=texto, origem=Mensagem.Origem.ABERTURA, usuario=usuario,
-        status=Mensagem.Status.PENDENTE, envio_iniciado_em=timezone.now(), processada=True,
-        dados={'abertura': {'versao': versao.nome_meta, 'valores': parametros}},
-    )
-    try:
-        wamid = obter_provider().enviar_template(conversa.telefone, versao.nome_meta, parametros)
-        mensagem.status, mensagem.wa_message_id = Mensagem.Status.ENVIADO, wamid or None
-    except ErroWhatsApp as exc:
-        mensagem.status, mensagem.erro = Mensagem.Status.ERRO, exc.mensagem
-    mensagem.save(update_fields=['status', 'wa_message_id', 'erro'])
+    with transaction.atomic():
+        Conversa.objects.select_for_update().get(pk=conversa.pk)
+        exigir_sem_abertura_recente(conversa)
+        conversa = assumir(conversa, usuario)
+        mensagem = Mensagem.objects.create(
+            conversa=conversa, direcao=Mensagem.Direcao.SAIDA, autor=Mensagem.Autor.HUMANO,
+            tipo=Mensagem.Tipo.TEXTO, texto=texto, origem=Mensagem.Origem.ABERTURA, usuario=usuario,
+            status=Mensagem.Status.PENDENTE, envio_iniciado_em=timezone.now(), processada=True,
+            dados={'abertura': {'versao': versao.nome_meta, 'valores': parametros}},
+        )
+    _despachar_template(mensagem, versao.nome_meta, parametros)
     agora = timezone.now()
     campos = {'ultima_mensagem_em': agora}
     if mensagem.status != Mensagem.Status.ERRO:
@@ -278,10 +335,36 @@ def enviar_abertura(conversa: Conversa, usuario, chave: str, nome: str = '') -> 
     return conversa
 
 
+def reenviar_abertura(mensagem: Mensagem, usuario) -> Mensagem:
+    """Reenvia o mesmo template (a janela está fechada por definição); respeita dono e antispam."""
+    from crm.services.conversas import bloqueio_de
+
+    conversa = mensagem.conversa
+    bloqueio = bloqueio_de(conversa, usuario)
+    if bloqueio and bloqueio['motivo'] != 'JANELA_FECHADA':
+        raise ConflitoCRM(bloqueio['detail'], bloqueio['motivo'])
+    abertura = (mensagem.dados or {}).get('abertura') or {}
+    if not abertura.get('versao'):
+        raise ConflitoCRM('Não foi possível identificar a mensagem de abertura original.')
+    with transaction.atomic():
+        Conversa.objects.select_for_update().get(pk=conversa.pk)
+        exigir_sem_abertura_recente(conversa, exceto_id=mensagem.pk)
+        mensagem.status, mensagem.erro, mensagem.envio_iniciado_em = Mensagem.Status.PENDENTE, '', timezone.now()
+        mensagem.save(update_fields=['status', 'erro', 'envio_iniciado_em'])
+    _despachar_template(mensagem, abertura['versao'], abertura.get('valores') or [])
+    if mensagem.status != Mensagem.Status.ERRO:
+        agora = timezone.now()
+        Conversa.objects.filter(pk=conversa.pk).update(ultima_mensagem_em=agora, ultima_humana_em=agora,
+                                                       situacao=Conversa.Situacao.PENDENTE, situacao_em=agora)
+    avisos.emitir(conversa, 'conversa_atualizada')
+    return mensagem
+
+
 def iniciar_conversa(telefone: str, usuario, chave: str, nome: str = '') -> Conversa:
     digitos = com_ddi(telefone)
-    if len(digitos) < 12:
+    if not 12 <= len(digitos) <= MAX_DIGITOS_TELEFONE:
         raise ConflitoCRM('Informe o telefone com DDD.')
+    _versao_para_envio(chave)  # valida antes de criar a conversa
     conversa = conversa_do_telefone(digitos)
     if nome and not conversa.contato_nome:
         Conversa.objects.filter(pk=conversa.pk).update(contato_nome=nome.strip()[:150])

@@ -10,6 +10,7 @@ import logging
 from datetime import datetime, timezone as dt_timezone
 
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.views.decorators.debug import sensitive_variables
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -31,11 +32,21 @@ TIPOS_MIDIA = {
 CODIGO_ARQUIVO_GRANDE = 131052
 
 
+@sensitive_variables('segredo', 'esperado')
 def assinatura_valida(corpo: bytes, cabecalho: str, segredo: str) -> bool:
+    """HMAC-SHA256 do corpo bruto. Compara bytes: texto não ASCII nunca vira exceção."""
     if not segredo or not cabecalho or not cabecalho.startswith('sha256='):
         return False
-    esperado = hmac.new(segredo.encode(), corpo, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(cabecalho.removeprefix('sha256='), esperado)
+    esperado = hmac.new(segredo.encode(), corpo, hashlib.sha256).hexdigest().encode()
+    recebido = cabecalho.removeprefix('sha256=').encode('utf-8', 'replace')
+    return hmac.compare_digest(recebido, esperado)
+
+
+@sensitive_variables('esperado', 'recebido')
+def token_verificacao_valido(recebido: str, esperado: str) -> bool:
+    if not esperado:
+        return False
+    return hmac.compare_digest((recebido or '').encode('utf-8', 'replace'), esperado.encode())
 
 
 def _quando(timestamp) -> datetime | None:
@@ -123,16 +134,18 @@ def processar_payload(payload: dict) -> None:
 @method_decorator(csrf_exempt, name='dispatch')
 class WebhookWhatsAppView(View):
     def get(self, request):
-        cred = credenciais()
         modo_ok = request.GET.get('hub.mode') == 'subscribe'
-        token = request.GET.get('hub.verify_token', '')
-        if modo_ok and cred.verify_token and hmac.compare_digest(token, cred.verify_token):
+        if modo_ok and token_verificacao_valido(request.GET.get('hub.verify_token', ''), credenciais().verify_token):
             return HttpResponse(request.GET.get('hub.challenge', ''), content_type='text/plain')
         return HttpResponseForbidden('Token de verificação inválido.')
 
     def post(self, request):
         corpo = request.body
-        if not assinatura_valida(corpo, request.headers.get('X-Hub-Signature-256', ''), credenciais().app_secret):
+        try:
+            valida = assinatura_valida(corpo, request.headers.get('X-Hub-Signature-256', ''), credenciais().app_secret)
+        except Exception:  # noqa: BLE001 — qualquer falha na conferência é recusa, nunca 500
+            valida = False
+        if not valida:
             logger.warning('Webhook do WhatsApp recusado: assinatura inválida ou WHATSAPP_APP_SECRET ausente.')
             return HttpResponseForbidden('Assinatura inválida.')
         try:

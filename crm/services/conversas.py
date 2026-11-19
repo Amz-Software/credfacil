@@ -131,13 +131,14 @@ def receber_mensagem(entrada: EntradaNormalizada) -> Mensagem | None:
             )
 
         campos = ['ultima_mensagem_em', 'telefone']
-        conversa.ultima_mensagem_em = agora
+        # Reentrega atrasada não pode encolher a janela de 24 h nem reordenar a lista.
+        conversa.ultima_mensagem_em = max(filter(None, (conversa.ultima_mensagem_em, agora)))
         conversa.telefone = somente_digitos(entrada.telefone)
         if entrada.contato_nome and entrada.contato_nome != conversa.contato_nome:
             conversa.contato_nome = entrada.contato_nome[:150]
             campos.append('contato_nome')
         if not eh_reacao:
-            conversa.ultima_entrada_em = agora
+            conversa.ultima_entrada_em = max(filter(None, (conversa.ultima_entrada_em, agora)))
             conversa.nao_lidas = F('nao_lidas') + 1
             campos += ['ultima_entrada_em', 'nao_lidas']
         _salvar(conversa, *campos)
@@ -179,7 +180,12 @@ def processar_conversa(conversa_id: int) -> None:
                 if not pendentes:
                     break
                 ciclos += 1
-                _tratar_lote(conversa_id, pendentes)
+                try:
+                    _tratar_lote(conversa_id, pendentes)
+                except Exception:  # noqa: BLE001 — na dúvida, vai para a equipe (princípio 6)
+                    logger.exception('Falha ao tratar o lote da conversa %s.', conversa_id)
+                    _transferir_por_falha(conversa_id)
+                # Marca mesmo com falha: uma mensagem com defeito não pode travar a conversa.
                 Mensagem.objects.filter(pk__in=[m.pk for m in pendentes]).update(processada=True)
                 Conversa.objects.filter(pk=conversa_id).update(processando_desde=timezone.now())
         finally:
@@ -188,14 +194,31 @@ def processar_conversa(conversa_id: int) -> None:
             break
 
 
-def _tratar_lote(conversa_id: int, pendentes: list[Mensagem]) -> None:
+def _transferir_por_falha(conversa_id: int) -> None:
+    try:
+        conversa = Conversa.objects.get(pk=conversa_id)
+        if conversa.modo == Conversa.Modo.AUTOMATICO:
+            transferir(conversa, 'Erro ao processar a mensagem do cliente. Atenda pela equipe.', silenciosa=True)
+    except Exception:  # noqa: BLE001
+        logger.exception('Falha ao transferir a conversa %s depois de um erro.', conversa_id)
+
+
+def _preparar_midia(mensagem: Mensagem) -> None:
+    """Baixa e transcreve; erro numa mídia não impede o resto do lote."""
     from crm.services import midias  # import tardio: midias depende de conversas
 
-    for mensagem in pendentes:
+    try:
         if hasattr(mensagem, 'midia'):
             midias.baixar(mensagem.midia)
         if mensagem.tipo == Mensagem.Tipo.AUDIO:
             midias.transcrever(mensagem)
+    except Exception:  # noqa: BLE001 — o cron tenta a mídia de novo
+        logger.exception('Falha ao preparar a mídia da mensagem %s.', mensagem.pk)
+
+
+def _tratar_lote(conversa_id: int, pendentes: list[Mensagem]) -> None:
+    for mensagem in pendentes:
+        _preparar_midia(mensagem)
 
     conversa = Conversa.objects.get(pk=conversa_id)
     avaliar_retorno_automatico(conversa)
@@ -229,10 +252,16 @@ def atendimento_automatico(conversa: Conversa) -> None:
     )
 
 
-def transferir(conversa: Conversa, nota: str, silenciosa: bool = False) -> None:
-    """Único caminho para a fila da equipe: modo AGUARDANDO + nota de transferência + aviso."""
+def transferir(conversa: Conversa, nota: str, silenciosa: bool = False) -> bool:
+    """Único caminho para a fila da equipe: modo AGUARDANDO + nota de transferência + aviso.
+
+    Só age se a conversa ainda estiver no automático: se alguém assumiu enquanto a
+    boas-vindas saía, a posse dessa pessoa é mantida.
+    """
     with transaction.atomic():
         conversa = Conversa.objects.select_for_update().get(pk=conversa.pk)
+        if conversa.modo != Conversa.Modo.AUTOMATICO:
+            return False
         conversa.modo = Conversa.Modo.AGUARDANDO
         conversa.assumida_por = None
         conversa.assumida_em = None
@@ -241,11 +270,10 @@ def transferir(conversa: Conversa, nota: str, silenciosa: bool = False) -> None:
         mudar_situacao(conversa, Conversa.Situacao.ABERTA)
         nota_automatica(conversa, nota, tipo=Nota.Tipo.TRANSFERENCIA, silenciosa=silenciosa)
         avisos.emitir(conversa, 'transferencia')
+    return True
 
 
-def avaliar_retorno_automatico(conversa: Conversa, agora=None) -> bool:
-    """Conversa RESOLVIDA e parada há N horas volta ao atendimento automático."""
-    horas = ConfiguracaoCRM.obter().retorno_automatico_horas
+def deve_retornar(conversa: Conversa, horas: int, agora=None) -> bool:
     if conversa.modo == Conversa.Modo.AUTOMATICO or horas <= 0:
         return False
     if conversa.situacao != Conversa.Situacao.RESOLVIDA:
@@ -254,10 +282,15 @@ def avaliar_retorno_automatico(conversa: Conversa, agora=None) -> bool:
     # em AGUARDANDO, último envio da equipe ou entrada na fila.
     inicio = conversa.assumida_em if conversa.modo == Conversa.Modo.HUMANO else conversa.aguardando_desde
     referencia = max((m for m in (conversa.ultima_humana_em, inicio) if m), default=None)
-    if referencia is None or (agora or timezone.now()) - referencia < timedelta(hours=horas):
+    return referencia is not None and (agora or timezone.now()) - referencia >= timedelta(hours=horas)
+
+
+def avaliar_retorno_automatico(conversa: Conversa, agora=None) -> bool:
+    """Conversa RESOLVIDA e parada há N horas volta ao atendimento automático."""
+    horas = ConfiguracaoCRM.obter().retorno_automatico_horas
+    if not deve_retornar(conversa, horas, agora):
         return False
-    devolver(conversa, usuario=None, automatico=True)
-    return True
+    return devolver(conversa, usuario=None, automatico=True, horas=horas) is not None
 
 
 # --- posse -------------------------------------------------------------------
@@ -326,9 +359,14 @@ def atribuir(conversa: Conversa, usuario, destino, pode_gerenciar: bool) -> Conv
     return conversa
 
 
-def devolver(conversa: Conversa, usuario=None, automatico: bool = False, pode_gerenciar: bool = False) -> Conversa:
+def devolver(conversa: Conversa, usuario=None, automatico: bool = False, pode_gerenciar: bool = False,
+             horas: int | None = None) -> Conversa | None:
+    """Volta ao automático. No retorno automático a condição é reconferida sob o lock
+    (alguém pode ter reaberto a conversa entre a leitura e a escrita); se não vale mais, None."""
     with transaction.atomic():
         conversa = Conversa.objects.select_for_update().get(pk=conversa.pk)
+        if automatico and horas is not None and not deve_retornar(conversa, horas):
+            return None
         if not automatico:
             dono = conversa.assumida_por
             eh_dono = dono is None or dono == usuario

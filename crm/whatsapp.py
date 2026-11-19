@@ -5,8 +5,9 @@ provider simulado grava ids falsos e nada sai para a Meta (princípio 9 da arqui
 """
 import logging
 import os
+import tempfile
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import requests
 
@@ -31,11 +32,12 @@ class ErroWhatsApp(Exception):
 
 @dataclass(frozen=True)
 class Credenciais:
-    token: str
+    # Segredos fora do repr: não aparecem em log nem na página de erro do Django.
+    token: str = field(repr=False)
     phone_number_id: str
     waba_id: str
-    app_secret: str
-    verify_token: str
+    app_secret: str = field(repr=False)
+    verify_token: str = field(repr=False)
     versao: str
 
     @property
@@ -63,6 +65,9 @@ class ProviderMeta:
         self.base = f'{GRAPH_URL}/{cred.versao}'
 
     # --- infraestrutura -------------------------------------------------
+    def __repr__(self) -> str:
+        return f'ProviderMeta(versao={self.cred.versao!r})'
+
     def _headers(self) -> dict:
         return {'Authorization': f'Bearer {self.cred.token}'}
 
@@ -149,25 +154,36 @@ class ProviderMeta:
         self._post(f'{self.cred.phone_number_id}/messages', json=payload)
 
     # --- mídia recebida ---------------------------------------------------
-    def baixar_midia(self, media_id: str, limite_bytes: int) -> tuple[bytes, str, str]:
-        """Devolve (conteúdo, mime, sha256 anunciado)."""
+    def baixar_midia(self, media_id: str, limite_bytes: int) -> tuple[str, str, str]:
+        """Grava em arquivo temporário, em blocos (nada inteiro na memória).
+
+        Devolve (caminho do temporário, mime, sha256 anunciado). Quem chama apaga o arquivo.
+        """
         info = self._get(media_id)
         url = info.get('url')
         if not url:
             raise ErroWhatsApp('A Meta não informou o endereço da mídia.')
+        temporario = tempfile.NamedTemporaryFile(delete=False, prefix='crm-midia-')
         try:
             with requests.get(url, headers=self._headers(), stream=True, timeout=TIMEOUT_DOWNLOAD_SEGUNDOS) as resp:
                 if not resp.ok:
                     raise ErroWhatsApp(f'Falha ao baixar a mídia (HTTP {resp.status_code}).')
-                partes, total = [], 0
+                total = 0
                 for bloco in resp.iter_content(BLOCO_DOWNLOAD):
                     total += len(bloco)
                     if total > limite_bytes:
                         raise ErroWhatsApp('Arquivo acima do limite permitido.')
-                    partes.append(bloco)
+                    temporario.write(bloco)
         except requests.RequestException as exc:
+            temporario.close()
+            os.unlink(temporario.name)
             raise ErroWhatsApp(f'Falha ao baixar a mídia: {exc.__class__.__name__}.') from exc
-        return b''.join(partes), info.get('mime_type', ''), info.get('sha256', '')
+        except Exception:
+            temporario.close()
+            os.unlink(temporario.name)
+            raise
+        temporario.close()
+        return temporario.name, info.get('mime_type', ''), info.get('sha256', '')
 
     # --- templates ----------------------------------------------------------
     def criar_template(self, nome: str, corpo_meta: str, exemplos: list[str]) -> dict:

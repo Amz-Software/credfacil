@@ -34,9 +34,12 @@ def processar_midias_pendentes() -> int:
     ).select_related('mensagem')[:LIMITE_MIDIAS_POR_RODADA]
     total = 0
     for midia in pendentes:
-        midias.baixar(midia)
-        midias.transcrever(midia.mensagem)
-        total += 1
+        try:
+            midias.baixar(midia)
+            midias.transcrever(midia.mensagem)
+            total += 1
+        except Exception:  # noqa: BLE001
+            logger.exception('Falha ao baixar a mídia %s.', midia.pk)
     return total
 
 
@@ -47,8 +50,11 @@ def reprocessar_entradas() -> int:
            .values_list('conversa_id', flat=True).distinct())
     total = 0
     for conversa_id in ids:
-        conversas.processar_conversa(conversa_id)
-        total += 1
+        try:
+            conversas.processar_conversa(conversa_id)
+            total += 1
+        except Exception:  # noqa: BLE001 — uma conversa com defeito não segura as outras
+            logger.exception('Falha ao reprocessar a conversa %s.', conversa_id)
     return total
 
 
@@ -56,7 +62,10 @@ def retornar_resolvidas() -> int:
     total = 0
     candidatas = Conversa.objects.filter(situacao=Conversa.Situacao.RESOLVIDA).exclude(modo=Conversa.Modo.AUTOMATICO)
     for conversa in candidatas:
-        total += int(conversas.avaliar_retorno_automatico(conversa))
+        try:
+            total += int(conversas.avaliar_retorno_automatico(conversa))
+        except Exception:  # noqa: BLE001
+            logger.exception('Falha no retorno automático da conversa %s.', conversa.pk)
     return total
 
 
@@ -64,6 +73,7 @@ def rodar_tudo(incluir_aberturas: bool = True) -> dict:
     resultado = {}
     etapas = [
         ('programadas', organizacao.enviar_programadas_vencidas),
+        ('programadas_travadas', organizacao.recuperar_programadas_travadas),
         ('lembretes', organizacao.avisar_lembretes_vencidos),
         ('envios_travados', marcar_envios_travados),
         ('midias', processar_midias_pendentes),
