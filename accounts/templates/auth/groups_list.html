@@ -14,7 +14,7 @@ Grupos
     <div class="d-flex flex-wrap align-items-center gap-2">
       <form action="" method="get" class="d-inline-block" id="searchForm">
         <div class="input-group">
-          <input type="text" name="search" class="form-control" placeholder="Pesquisar grupos" value="{{ request.GET.search }}" onchange="this.form.submit()">
+          <input type="text" name="search" class="form-control" placeholder="Pesquisar grupos" value="{{ request.GET.search }}" data-auto-submit>
           <a href="{% url 'accounts:group_list' %}" class="btn btn-outline-secondary">
             <i class="bx bx-x"></i>
           </a>

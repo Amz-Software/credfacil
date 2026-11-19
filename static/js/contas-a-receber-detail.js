@@ -2,9 +2,8 @@
  * Detalhe de Contas a Receber
  * (financeiro/templates/contas_a_receber/contas_a_receber_detail.html).
  *
- * - [data-auto-submit]: envia o formulário ao mudar (situações, % desconto).
- *   Se o campo tiver data-confirmar-ligar / data-confirmar-desligar, pede
- *   confirmação no modal padrão antes; ao cancelar, volta o switch.
+ * - Situações e % desconto usam [data-auto-submit] (ver confirm-action.js):
+ *   BO, Roubo, Desativar etc. pedem confirmação antes de enviar.
  * - Cor dos status personalizados ([data-status-color], vem do banco).
  * - "Adicionar Parcela": clona a última linha do formset e redistribui o saldo.
  * - "Gerar PDF": html2pdf do bloco #report-content (data-arquivo no botão).
@@ -16,43 +15,6 @@
     if (window.ipixToast) {
       window.ipixToast(mensagem, variante || 'warning');
     }
-  }
-
-  function confirmar(opcoes) {
-    if (window.ipixConfirm) {
-      return window.ipixConfirm(opcoes);
-    }
-    return Promise.resolve(true);
-  }
-
-  /* ---------------------------------------------------------------------
-     Envio automático com confirmação para situações destrutivas
-     --------------------------------------------------------------------- */
-  function iniciarAutoSubmit() {
-    document.addEventListener('change', function (evento) {
-      var campo = evento.target;
-      if (!campo || !campo.matches('[data-auto-submit]') || !campo.form) {
-        return;
-      }
-      var ligando = campo.type === 'checkbox' ? campo.checked : true;
-      var mensagem = campo.getAttribute(ligando ? 'data-confirmar-ligar' : 'data-confirmar-desligar');
-      if (!mensagem) {
-        campo.form.submit();
-        return;
-      }
-      confirmar({
-        title: campo.getAttribute('data-confirmar-titulo') || 'Confirmar alteração',
-        message: mensagem,
-        label: ligando ? 'Sim, marcar' : 'Sim, desmarcar',
-        variant: ligando ? 'danger' : 'primary',
-      }).then(function (ok) {
-        if (ok) {
-          campo.form.submit();
-        } else if (campo.type === 'checkbox') {
-          campo.checked = !campo.checked;
-        }
-      });
-    });
   }
 
   function aplicarCoresDeStatus() {
@@ -323,7 +285,6 @@
     });
   }
 
-  iniciarAutoSubmit();
   document.addEventListener('DOMContentLoaded', function () {
     aplicarCoresDeStatus();
     iniciarAdicionarParcela();

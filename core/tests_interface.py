@@ -242,3 +242,77 @@ class ContasAReceberTelasTests(BackofficeTestCase):
         self.assertTem('css/contas-a-receber.css', html)
         self.assertNaoTem('<style>', html)
         self.assertNaoTem('style="background:#', html)
+
+
+def _criar_solicitacao(loja):
+    from datetime import date
+
+    from produtos.models import Produto
+    from vendas.models import AnaliseCreditoCliente, Cliente, ComprovantesCliente, ContatoAdicional, InformacaoPessoal
+
+    cliente = Cliente.objects.create(
+        nome='Joana Lima', telefone='91999999999', cpf='12345678901',
+        nascimento=date(1990, 1, 1), rg='123', cep='66000000',
+        endereco='Rua A', bairro='Centro', cidade='Belém', loja=loja,
+        comprovantes=ComprovantesCliente.objects.create(),
+        contato_adicional=ContatoAdicional.objects.create(),
+        informacao_pessoal=InformacaoPessoal.objects.create(),
+    )
+    produto = Produto.objects.create(nome='Galaxy A15', loja=loja)
+    AnaliseCreditoCliente.objects.create(cliente=cliente, produto=produto, loja=loja)
+    return cliente
+
+
+class EdicaoComErrosTests(BackofficeTestCase):
+    def setUp(self):
+        super().setUp()
+        # Os widgets do django-select2 gravam no cache "select2" (Redis em
+        # produção); nos testes usamos memória local.
+        from unittest import mock
+
+        from django.core.cache.backends.locmem import LocMemCache
+
+        patcher = mock.patch('django_select2.forms.cache', LocMemCache('select2-testes', {}))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_editar_venda_mostra_erros_do_formulario(self):
+        pagamento = _criar_pagamento(self.loja, self.user)
+        venda = pagamento.venda
+
+        response = self.client.post(reverse('vendas:venda_update', args=[venda.id]), {
+            'cliente': '', 'vendedor': '', 'observacao': '',
+            'itens_venda-TOTAL_FORMS': '0', 'itens_venda-INITIAL_FORMS': '0',
+            'pagamentos-TOTAL_FORMS': '0', 'pagamentos-INITIAL_FORMS': '0',
+        })
+        html = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTem('Corrija os campos abaixo:', html)
+        self.assertTem('invalid-feedback d-block', html)
+        self.assertTem('js/venda-edit.js', html)
+        self.assertNaoTem('alert(', html)
+
+    def test_edicao_especial_usa_o_mesmo_modulo_js(self):
+        pagamento = _criar_pagamento(self.loja, self.user)
+
+        html = self.html('vendas:venda_edicao_especial', pagamento.venda.id)
+
+        self.assertTem('js/venda-edit.js', html)
+
+    def test_imei_telefone_mostra_erros_e_tira_js_inline(self):
+        cliente = _criar_solicitacao(self.loja)
+
+        response = self.client.post(
+            reverse('vendas:cliente_update_imei_telefone', args=[cliente.id]),
+            {'telefone': '', 'produto': ''},
+        )
+        html = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTem('Corrija os campos abaixo:', html)
+        self.assertTem('id="clienteFormDados"', html)
+        self.assertTem('js/form-cliente-imei-telefone.js', html)
+        self.assertTem('css/form-cliente.css', html)
+        self.assertNaoTem('<style>', html)
+        self.assertNaoTem('JSON.parse(', html)

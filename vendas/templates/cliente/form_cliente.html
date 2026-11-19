@@ -468,7 +468,7 @@
           <select name="status_app"
                   id="statusAppSelect{{ cliente.pk }}"
                   class="form-select"
-                  onchange="this.form.submit()">
+                  data-auto-submit>
             <option value="" disabled>—</option>
             {% for code,label in status_app_choices %}
               <option value="{{ code }}"

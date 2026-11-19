@@ -10,6 +10,10 @@
  *    depois da confirmação (mantém método, campos e botão clicado).
  * 3. JS: window.ipixConfirm({message, title, label, variant}) devolve uma
  *    Promise<boolean>.
+ * 4. Campo com data-auto-submit: envia o formulário ao mudar (substitui
+ *    onchange="this.form.submit()"). Com data-confirmar-ligar /
+ *    data-confirmar-desligar (checkbox) ou data-confirmar (outros campos),
+ *    pede confirmação antes; ao cancelar, o checkbox volta ao estado anterior.
  *
  * Atributos opcionais: data-confirm-title, data-confirm-message,
  * data-confirm-label e data-confirm-variant (danger | warning | primary | success).
@@ -130,6 +134,34 @@
         form.requestSubmit(submitter && submitter.form === form ? submitter : undefined);
       } else {
         form.submit();
+      }
+    });
+  });
+
+  document.addEventListener('change', function (event) {
+    var campo = event.target;
+    if (!campo || !campo.matches || !campo.matches('[data-auto-submit]') || !campo.form) {
+      return;
+    }
+    var ehCheckbox = campo.type === 'checkbox';
+    var ligando = ehCheckbox ? campo.checked : true;
+    var mensagem = ehCheckbox
+      ? campo.getAttribute(ligando ? 'data-confirmar-ligar' : 'data-confirmar-desligar')
+      : campo.getAttribute('data-confirmar');
+    if (!mensagem) {
+      campo.form.submit();
+      return;
+    }
+    openConfirm(normalizar({
+      title: campo.getAttribute('data-confirm-title') || 'Confirmar alteração',
+      message: mensagem,
+      label: ehCheckbox ? (ligando ? 'Sim, marcar' : 'Sim, desmarcar') : 'Confirmar',
+      variant: ligando ? 'danger' : 'primary',
+    }), function (confirmado) {
+      if (confirmado) {
+        campo.form.submit();
+      } else if (ehCheckbox) {
+        campo.checked = !campo.checked;
       }
     });
   });
