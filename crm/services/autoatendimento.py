@@ -99,9 +99,10 @@ def _transferir(conversa: Conversa, texto_cliente: str, nota: str) -> None:
 
 
 def _menu(conversa: Conversa) -> None:
-    config = ConfiguracaoCRM.obter()
-    saudacao = config.mensagem_boas_vindas.strip() if config.boas_vindas_ativa else ''
-    texto = f'{saudacao}\n\n{OPCOES}' if saudacao else f'Olá! Como podemos ajudar?\n\n{OPCOES}'
+    # A boas-vindas configurada promete um atendente; no menu a saudação é neutra.
+    empresa = ConfiguracaoCRM.obter().nome_empresa.strip()
+    saudacao = f'Olá! Aqui é o atendimento da {empresa}.' if empresa else 'Olá!'
+    texto = f'{saudacao} Como podemos ajudar?\n\n{OPCOES}'
     _responder(conversa, texto, origem=Mensagem.Origem.BOAS_VINDAS)
     Conversa.objects.filter(pk=conversa.pk).update(boas_vindas_em=timezone.now())
     _salvar(conversa, MENU, invalidas=0)
