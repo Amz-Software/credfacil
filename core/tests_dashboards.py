@@ -71,3 +71,24 @@ class DetalheDaLojaTelaTests(TemplateLimpoMixin, BackofficeTestCase):
 
     def test_template_sem_css_js_inline_nem_hex(self):
         self.assert_template_limpo('vendas/templates/loja/loja_detail.html')
+
+
+class CoresPorTokenTests(TemplateLimpoMixin, BackofficeTestCase):
+    """Telas usam tokens --ipix-*; só impressos/PDF (sem o CSS do tema) e o
+    meta theme-color mantêm cor literal."""
+
+    IMPRESSOS = ('pdf', 'folha', 'contrato', 'carne', 'report_', 'relatorio_solicitacoes',
+                 'relatorio_serasa', 'notificacao_bo_preview', 'foto_celular', 'relatorio_parcelas')
+
+    def test_templates_de_tela_sem_cor_hex(self):
+        com_hex = []
+        for caminho in BASE_DIR.rglob('*.html'):
+            relativo = str(caminho.relative_to(BASE_DIR))
+            if any(p in relativo for p in ('venv', 'sneat-template', 'staticfiles', 'crm/')):
+                continue
+            if any(p in caminho.name for p in self.IMPRESSOS):
+                continue
+            texto = re.sub(r'<meta name="theme-color"[^>]*>', '', caminho.read_text(encoding='utf-8'))
+            if COR_HEX.search(texto):
+                com_hex.append(relativo)
+        self.assertEqual(com_hex, [])
