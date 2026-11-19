@@ -62,7 +62,12 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'corsheaders',
     'simple_history',
+    'crm.apps.CrmConfig',
 ]
+
+# CRM de WhatsApp: tarefas de fundo (envio de mídia, processamento) rodam em threads
+# depois do commit; True roda na hora (testes e o comando crm_rotinas).
+CRM_TAREFAS_SINCRONAS = os.environ.get('CRM_TAREFAS_SINCRONAS', 'False').lower() == 'true'
 
 MIDDLEWARE = [
     'core.middleware.HealthCheckMiddleware',  # primeiro: liveness sem host/sessão/banco

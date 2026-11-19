@@ -25,6 +25,8 @@ RUN apt-get update && apt-get install -y \
     libharfbuzz0b \
     libthai0 \
     libgraphite2-3 \
+    # Conversão de áudio/vídeo do CRM de WhatsApp
+    ffmpeg \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

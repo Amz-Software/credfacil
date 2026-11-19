@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: credfacil-web:latest
     volumes:
       - .:/app
       - ./static:/app/static
@@ -26,6 +27,23 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  # Rotinas do CRM de WhatsApp (programadas, lembretes, mídias, aberturas), a cada
+  # minuto. Mesma imagem e código do web; sem porta exposta.
+  crm-worker:
+    image: credfacil-web:latest
+    # O .env é lido pelo load_dotenv() das settings, como no web.
+    volumes:
+      - .:/app
+      - ./mediafiles:/app/mediafiles
+    command: python manage.py crm_rotinas --loop
+    restart: always
+    stop_grace_period: 15s
+    networks:
+      - mynetwork
+    depends_on:
+      - web
+      - redis
 
   # Reinicia containers com label autoheal=true que fiquem "unhealthy"
   # (rede de segurança além do watchdog de workers do gunicorn).

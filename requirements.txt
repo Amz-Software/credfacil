@@ -64,6 +64,7 @@ pytz==2025.2
 PyYAML==6.0.3
 qrcode==8.2
 redis==5.2.1
+requests==2.32.3
 referencing==0.37.0
 rpds-py==0.30.0
 sentry-sdk==2.53.0

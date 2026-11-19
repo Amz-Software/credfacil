@@ -14,6 +14,15 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         if self.scope["user"].is_authenticated:
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
+    async def crm_evento(self, event):
+        """Evento do CRM de WhatsApp: só tipo e id da conversa (a tela recarrega pela API)."""
+        await self.send(text_data=json.dumps({
+            "event": "crm.evento",
+            "tipo": event.get("tipo"),
+            "conversa_id": event.get("conversa_id"),
+            "para_mim": bool(event.get("para_mim")),
+        }))
+
     async def send_notification(self, event):
         await self.send(text_data=json.dumps({
             "verb": event["verb"],

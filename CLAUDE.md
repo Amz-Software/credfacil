@@ -26,6 +26,7 @@
 | `assistencia` | Ordens de serviço |
 | `notificacao` | Notificações push e WebSocket |
 | `api` | Endpoints REST centralizados para consumo externo |
+| `crm` | CRM de WhatsApp (API oficial da Meta): conversas, webhook, aberturas, rotinas. Ver `docs/CRM_WHATSAPP.md` |
 | `core` | Configurações do projeto |
 
 ---

@@ -122,8 +122,10 @@ jobs:
               echo "==> [9a] recriando containers alterados (web, autoheal)"
               docker compose up -d
             else
-              echo "==> [9b] restart do $SERVICE"
+              echo "==> [9b] restart do $SERVICE e do crm-worker"
               docker compose restart "$SERVICE"
+              docker compose up -d --no-deps crm-worker
+              docker compose restart crm-worker
             fi
             echo "==> [10] swap de container ok"
 

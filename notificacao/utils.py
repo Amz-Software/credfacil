@@ -74,6 +74,15 @@ def _despachar(grupo: str, mensagem: dict[str, Any]) -> None:
         logger.warning("Notificação WS para %s descartada: servidor desligando.", grupo)
 
 
+def enviar_evento_ws(usuario_id: int, mensagem: dict[str, Any]) -> None:
+    """Agenda um evento genérico (ex.: CRM) para o grupo do usuário, depois do commit.
+
+    `mensagem['type']` precisa existir como handler no NotificationConsumer.
+    """
+    grupo = f"user_{usuario_id}"
+    transaction.on_commit(lambda: _despachar(grupo, mensagem))
+
+
 def enviar_ws_para_usuario(usuario, instance, notification_id, verb, description, target_url,
                            type_notification=None, event=None) -> None:
     """Agenda o push WS para o usuário; retorna na hora, sem esperar o Redis."""
