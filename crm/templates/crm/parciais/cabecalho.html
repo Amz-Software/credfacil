@@ -1,0 +1,88 @@
+{% load crm_tags %}
+{% url 'crm:conversa' conversa.id as url_da_conversa %}
+{% filtros_com filtros as qs_filtros %}
+<header class="crm-cabecalho">
+  <div class="d-flex align-items-center gap-2 min-w-0">
+    <a href="{% url 'crm:caixa' %}?{{ qs_filtros }}" class="btn btn-sm btn-icon btn-outline-secondary d-lg-none" title="Voltar para a lista">
+      <i class="bx bx-arrow-back"></i><span class="visually-hidden">Voltar para a lista</span>
+    </a>
+    <div class="min-w-0">
+      <h5 class="mb-0 text-truncate">{{ conversa.nome_exibicao }}</h5>
+      <small class="text-muted">{{ conversa.telefone|telefone }}</small>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap align-items-center gap-1 mt-2">
+    <span class="badge bg-label-{{ conversa.modo|estado_modo }}">
+      {% if conversa.modo == 'HUMANO' and conversa.assumida_por %}<i class="bx bx-user me-1"></i>Com {{ conversa.assumida_por.nome }}{% else %}{{ conversa.modo_display }}{% endif %}
+    </span>
+    <span class="badge bg-label-{{ conversa.situacao|estado_situacao }}">{{ conversa.situacao_display }}</span>
+    {% if conversa.janela_aberta %}
+      <span class="badge bg-label-success" title="O WhatsApp só permite mensagem livre até 24 h depois da última mensagem do cliente.">
+        <i class="bx bx-lock-open-alt me-1"></i>Janela aberta até {{ conversa.janela_expira_em|date:"d/m H:i" }}
+      </span>
+    {% else %}
+      <span class="badge bg-label-secondary" title="Passaram 24 h da última mensagem do cliente.">
+        <i class="bx bx-lock-alt me-1"></i>Janela fechada
+      </span>
+    {% endif %}
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mt-2">
+    {% if conversa.modo != 'HUMANO' or not conversa.assumida_por %}
+      <form method="post" action="{% url 'crm:assumir' conversa.id %}" data-crm-acao>
+        {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}?{{ qs_filtros }}">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="bx bx-user-check me-1"></i>Assumir</button>
+      </form>
+    {% elif conversa.assumida_por.id != user.pk %}
+      <form method="post" action="{% url 'crm:puxar' conversa.id %}" data-crm-acao
+            data-confirm-title="Puxar conversa" data-confirm-message="A conversa está com {{ conversa.assumida_por.nome }}. Puxar para você?" data-confirm-label="Puxar" data-confirm-variant="warning">
+        {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}?{{ qs_filtros }}">
+        <input type="hidden" name="de" value="{{ conversa.assumida_por.id }}">
+        <button type="submit" class="btn btn-sm btn-warning"><i class="bx bx-transfer me-1"></i>Puxar para mim</button>
+      </form>
+    {% endif %}
+
+    {% if conversa.modo != 'AUTOMATICO' %}
+      {% if conversa.assumida_por.id == user.pk or pode_gerenciar or not conversa.assumida_por %}
+      <form method="post" action="{% url 'crm:devolver' conversa.id %}" data-crm-acao
+            data-confirm-title="Devolver ao atendimento automático" data-confirm-message="O atendimento automático volta a responder este cliente. Continuar?" data-confirm-label="Devolver">
+        {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}?{{ qs_filtros }}">
+        <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bx bx-bot me-1"></i>Devolver ao automático</button>
+      </form>
+      {% endif %}
+    {% endif %}
+
+    <div class="btn-group">
+      <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bx bx-check-square me-1"></i>Situação
+      </button>
+      <ul class="dropdown-menu">
+        {% if conversa.situacao != 'ABERTA' %}
+        <li>{% include "crm/parciais/form_situacao.html" with valor="ABERTA" rotulo="Reabrir" icone="bx bx-revision" %}</li>
+        {% endif %}
+        {% if conversa.situacao != 'PENDENTE' %}
+        <li>{% include "crm/parciais/form_situacao.html" with valor="PENDENTE" rotulo="Marcar como pendente" icone="bx bx-hourglass" %}</li>
+        {% endif %}
+        {% if conversa.situacao != 'RESOLVIDA' %}
+        <li>{% include "crm/parciais/form_situacao.html" with valor="RESOLVIDA" rotulo="Resolver" icone="bx bx-check" %}</li>
+        {% if conversa.modo != 'AUTOMATICO' %}{% if conversa.assumida_por.id == user.pk or pode_gerenciar or not conversa.assumida_por %}
+        <li>{% include "crm/parciais/form_situacao.html" with valor="RESOLVIDA" devolver=True rotulo="Resolver e devolver ao automático" icone="bx bx-bot" %}</li>
+        {% endif %}{% endif %}
+        {% endif %}
+      </ul>
+    </div>
+
+    {% if pode_gerenciar or conversa.assumida_por.id == user.pk %}
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#crmModalAtribuir">
+      <i class="bx bx-user-plus me-1"></i>{% if pode_gerenciar %}Atribuir{% else %}Repassar{% endif %}
+    </button>
+    {% endif %}
+    {% if not conversa.janela_aberta %}
+    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#crmModalAbertura">
+      <i class="bx bx-envelope me-1"></i>Mensagem de abertura
+    </button>
+    {% endif %}
+    <a href="#crmPainel" class="btn btn-sm btn-outline-secondary d-xxl-none"><i class="bx bx-id-card me-1"></i>Cliente</a>
+  </div>
+</header>

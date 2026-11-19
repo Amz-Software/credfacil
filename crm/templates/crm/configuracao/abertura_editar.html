@@ -1,0 +1,40 @@
+{% extends "crm/configuracao/base.html" %}
+{% block aba %}
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header"><h5 class="mb-0">Editar “{{ modelo.titulo }}”</h5></div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label" for="aberturaTitulo">Título</label>
+            <input type="text" class="form-control" id="aberturaTitulo" name="titulo" minlength="3" maxlength="60" required value="{{ dados.titulo|default:modelo.titulo }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="aberturaCorpo">Texto</label>
+            <textarea class="form-control" id="aberturaCorpo" name="corpo" rows="5" maxlength="1024">{{ dados.corpo|default:modelo.ultima.corpo }}</textarea>
+            <div class="form-text">Mudar o texto cria uma versão nova e a envia à Meta. Até a aprovação, continua valendo o texto aprovado.</div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-sm-4">
+              <label class="form-label" for="aberturaOrdem">Ordem</label>
+              <input type="number" class="form-control" id="aberturaOrdem" name="ordem" min="0" max="1000" value="{{ dados.ordem|default:modelo.ordem }}">
+            </div>
+            <div class="col-sm-8 d-flex align-items-end">
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="aberturaAtivo" name="ativo"{% if modelo.ativo %} checked{% endif %}>
+                <label class="form-check-label" for="aberturaAtivo">Ativa (aparece para a equipe)</label>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><i class="bx bx-save me-1"></i>Salvar</button>
+            <a href="{% url 'crm:aberturas' %}" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock aba %}

@@ -1,0 +1,70 @@
+{% extends "crm/configuracao/base.html" %}
+{% block aba %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    {% for modelo in modelos %}
+    <div class="card mb-3{% if not modelo.ativo %} opacity-75{% endif %}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between gap-2 align-items-start">
+          <div>
+            <h6 class="mb-1">{{ modelo.titulo }}{% if not modelo.ativo %} <span class="badge bg-label-secondary">Inativa</span>{% endif %}</h6>
+            {% if modelo.vigente %}{% include "crm/configuracao/_versao_status.html" with versao=modelo.vigente %}{% elif modelo.ultima %}{% include "crm/configuracao/_versao_status.html" with versao=modelo.ultima %}{% endif %}
+          </div>
+          <a href="{% url 'crm:abertura_editar' modelo.id %}" class="btn btn-sm btn-outline-primary"><i class="bx bx-edit me-1"></i>Editar</a>
+        </div>
+        {% with exibida=modelo.vigente|default:modelo.ultima %}
+        {% if exibida %}<p class="mt-2 mb-1 small text-break">{{ exibida.corpo|linebreaksbr }}</p>{% endif %}
+        {% endwith %}
+        {% if modelo.em_analise and modelo.vigente %}
+        <div class="small text-muted mt-2"><i class="bx bx-time"></i> Texto novo em análise (v{{ modelo.em_analise.versao }}). Até a aprovação, vale o texto acima.</div>
+        {% endif %}
+        {% if modelo.ultima.status == 'REJEITADO' and modelo.ultima.motivo %}
+        <div class="small text-danger mt-2">Motivo da Meta: {{ modelo.ultima.motivo }}</div>
+        {% endif %}
+        {% if modelo.ultima.status == 'ERRO_ENVIO' and modelo.ultima.erro %}
+        <div class="small text-danger mt-2">{{ modelo.ultima.erro }}</div>
+        {% endif %}
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          <form method="post" action="{% url 'crm:abertura_verificar' modelo.id %}">
+            {% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bx bx-refresh me-1"></i>Consultar a Meta</button>
+          </form>
+          {% if simulado and modelo.em_analise %}
+          {% for status in simulacoes %}
+          <form method="post" action="{% url 'crm:abertura_simular' modelo.id %}">
+            {% csrf_token %}<input type="hidden" name="status" value="{{ status }}">
+            <button type="submit" class="btn btn-sm btn-outline-{% if status == 'APROVADO' %}success{% else %}danger{% endif %}">Simular {{ status|lower }}</button>
+          </form>
+          {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="card"><div class="card-body">
+      {% include "components/empty_state.html" with icon="bx bx-envelope" message="Nenhuma mensagem de abertura" hint="Sem ela não dá para falar primeiro com o cliente nem retomar conversas fora da janela de 24 h." %}
+    </div></div>
+    {% endfor %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><h5 class="mb-0">Nova mensagem de abertura</h5></div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label" for="aberturaTitulo">Título (só a equipe vê)</label>
+            <input type="text" class="form-control" id="aberturaTitulo" name="titulo" minlength="3" maxlength="60" required value="{{ dados.titulo }}" placeholder="Ex.: Retomar atendimento">
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="aberturaCorpo">Texto</label>
+            <textarea class="form-control" id="aberturaCorpo" name="corpo" rows="5" maxlength="1024" required placeholder="Olá, {nome}! Aqui é da IPX. Podemos continuar o seu atendimento?">{{ dados.corpo }}</textarea>
+            <div class="form-text">Use <code>{nome}</code> no máximo uma vez, nunca no começo nem no fim. Sem cobrança: a Meta aprova como “utilidade”.</div>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="bx bx-send me-1"></i>Enviar para aprovação</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock aba %}

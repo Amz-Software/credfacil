@@ -1,0 +1,99 @@
+{% load crm_tags %}
+{% reacoes as reacoes_rapidas %}
+{% url 'crm:midia' m.id as url_midia %}
+<div class="crm-msg crm-msg--{{ m.direcao|lower }}{% if m.autor == 'SISTEMA' %} crm-msg--sistema{% endif %}" id="crmMsg{{ m.id }}" data-mensagem-id="{{ m.id }}">
+  <div class="crm-msg__balao">
+    {% if m.direcao == 'SAIDA' %}
+    <div class="crm-msg__autor">{{ m.autor_nome }}{% with origem=m.origem|rotulo_origem %}{% if origem %} · {{ origem }}{% endif %}{% endwith %}</div>
+    {% endif %}
+    {% if m.responde_a %}
+    <a href="#crmMsg{{ m.responde_a.id }}" class="crm-msg__citacao">
+      <strong>{{ m.responde_a.autor }}</strong>
+      <span class="text-truncate d-block">{{ m.responde_a.texto|default:"Mídia" }}</span>
+    </a>
+    {% endif %}
+    {% if m.dados.encaminhada %}<div class="small text-muted"><i class="bx bx-share"></i> Encaminhada</div>{% endif %}
+
+    {% if m.midia %}
+      {% if m.midia.status == 'OK' %}
+        {% if m.tipo == 'IMAGEM' or m.tipo == 'FIGURINHA' %}
+          <a href="{{ url_midia }}" target="_blank" rel="noopener" class="d-block">
+            <img src="{{ url_midia }}{% if m.midia.tem_miniatura %}?versao=miniatura{% endif %}" class="crm-msg__imagem{% if m.tipo == 'FIGURINHA' %} crm-msg__imagem--figurinha{% endif %}"
+                 alt="{% if m.tipo == 'FIGURINHA' %}Figurinha{% else %}Imagem{% endif %}" loading="lazy">
+          </a>
+        {% elif m.tipo == 'AUDIO' %}
+          <audio controls preload="none" src="{{ url_midia }}" class="crm-msg__audio"></audio>
+          {% if m.midia.duracao_s %}<small class="text-muted d-block">{{ m.midia.duracao_s|duracao }}</small>{% endif %}
+        {% elif m.tipo == 'VIDEO' %}
+          <video controls preload="none" src="{{ url_midia }}" class="crm-msg__video"{% if m.midia.tem_miniatura %} poster="{{ url_midia }}?versao=miniatura"{% endif %}></video>
+        {% else %}
+          <a href="{{ url_midia }}" class="crm-msg__documento" target="_blank" rel="noopener">
+            <i class="bx bx-file fs-4"></i>
+            <span class="min-w-0"><span class="d-block text-truncate">{{ m.midia.nome_original|default:"Documento" }}</span>
+            <small class="text-muted">{{ m.midia.tamanho_bytes|tamanho }}</small></span>
+          </a>
+        {% endif %}
+      {% elif m.midia.status == 'PENDENTE' %}
+        <div class="small text-muted"><i class="bx bx-loader-alt bx-spin"></i> {% if m.direcao == 'ENTRADA' %}Baixando mídia…{% else %}Preparando envio…{% endif %}</div>
+      {% else %}
+        <div class="small text-muted"><i class="bx bx-error"></i> Mídia indisponível</div>
+      {% endif %}
+    {% endif %}
+
+    {% if m.tipo == 'LOCALIZACAO' and m.dados.localizacao %}
+      {% with loc=m.dados.localizacao %}
+      <a href="https://www.google.com/maps?q={{ loc.latitude|urlencode }},{{ loc.longitude|urlencode }}" target="_blank" rel="noopener noreferrer">
+        <i class="bx bx-map"></i> {{ loc.name|default:"Localização" }}</a>
+      {% if loc.address %}<small class="d-block text-muted">{{ loc.address }}</small>{% endif %}
+      {% endwith %}
+    {% elif m.tipo == 'CONTATO' and m.dados.contatos %}
+      {% for contato in m.dados.contatos %}<div><i class="bx bx-user"></i> {{ contato.nome }}{% for tel in contato.telefones %} · {{ tel.numero }}{% endfor %}</div>{% endfor %}
+    {% elif m.tipo == 'DESCONHECIDO' %}
+      <div class="small text-muted fst-italic">Mensagem de um tipo que o sistema não mostra. Veja no celular.</div>
+    {% endif %}
+
+    {% if m.tipo == 'AUDIO' and m.transcricao_status == 'PENDENTE' %}
+      <div class="small text-muted fst-italic">Transcrevendo…</div>
+    {% endif %}
+    {% if m.texto %}<div class="crm-msg__texto">{% if m.tipo == 'AUDIO' %}<i class="bx bx-microphone text-muted" title="Transcrição"></i> {% endif %}{{ m.texto|urlize|linebreaksbr }}</div>{% endif %}
+
+    <div class="crm-msg__rodape">
+      {% if m.reacao_cliente %}<span class="crm-msg__reacao" title="Reação do cliente">{{ m.reacao_cliente }}</span>{% endif %}
+      {% if m.reacao_equipe %}<span class="crm-msg__reacao" title="Reação da equipe">{{ m.reacao_equipe }}</span>{% endif %}
+      <time datetime="{{ m.criado_em|date:'c' }}" title="{{ m.criado_em|date:'d/m/Y H:i' }}">{{ m.criado_em|date:"H:i" }}</time>
+      {% if m.direcao == 'SAIDA' %}<i class="{{ m.status|icone_status }}" title="{{ m.status|rotulo_status }}" aria-label="{{ m.status|rotulo_status }}"></i>{% endif %}
+    </div>
+    {% if m.status == 'ERRO' %}
+    <div class="crm-msg__erro">
+      <span>{{ m.erro|default:"Não foi enviada." }}</span>
+      {% if m.pode_reenviar %}
+      <form method="post" action="{% url 'crm:reenviar' m.id %}" data-crm-acao class="d-inline">
+        {% csrf_token %}<input type="hidden" name="proxima" value="{% url 'crm:conversa' conversa.id %}">
+        <button type="submit" class="btn btn-link btn-sm p-0 align-baseline">Tentar de novo</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if m.autor != 'SISTEMA' and conversa.pode_responder %}
+  <div class="crm-msg__acoes">
+    <button type="button" class="btn btn-sm btn-icon btn-text-secondary" data-crm-responder="{{ m.id }}"
+            data-texto="{{ m.texto|default:'Mídia'|truncatechars:80 }}" title="Responder a esta mensagem">
+      <i class="bx bx-reply"></i><span class="visually-hidden">Responder</span>
+    </button>
+    {% if m.direcao == 'ENTRADA' %}
+    <div class="dropdown d-inline-block">
+      <button type="button" class="btn btn-sm btn-icon btn-text-secondary" data-bs-toggle="dropdown" aria-expanded="false" title="Reagir">
+        <i class="bx bx-smile"></i><span class="visually-hidden">Reagir</span>
+      </button>
+      <form method="post" action="{% url 'crm:reagir' m.id %}" class="dropdown-menu crm-reacoes p-1" data-crm-acao>
+        {% csrf_token %}<input type="hidden" name="proxima" value="{% url 'crm:conversa' conversa.id %}">
+        {% for emoji in reacoes_rapidas %}<button type="submit" name="emoji" value="{{ emoji }}" class="btn btn-sm">{{ emoji }}</button>{% endfor %}
+        {% if m.reacao_equipe %}<button type="submit" name="emoji" value="" class="btn btn-sm small text-muted" title="Tirar reação">✕</button>{% endif %}
+      </form>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

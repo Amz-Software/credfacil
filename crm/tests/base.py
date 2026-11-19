@@ -7,9 +7,8 @@ from datetime import timedelta
 from unittest import mock
 
 from django.contrib.auth.models import Permission
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.utils import timezone
-from rest_framework.test import APIClient
 
 from accounts.models import User
 from crm.models import Conversa
@@ -53,9 +52,10 @@ class CrmTestCase(TestCase):
     def criar_usuario_recarregado(self, usuario) -> User:
         return User.objects.get(pk=usuario.pk)  # descarta o cache de permissões
 
-    def api(self, usuario) -> APIClient:
-        cliente = APIClient()
-        cliente.force_authenticate(usuario)
+    def web(self, usuario, ajax: bool = True) -> Client:
+        """Cliente logado no backoffice; `ajax` imita o JS da caixa de entrada (respostas em JSON)."""
+        cliente = Client(headers={'X-Requested-With': 'XMLHttpRequest'} if ajax else None)
+        cliente.force_login(usuario)
         return cliente
 
     def receber(self, texto: str = 'Olá', telefone: str = '5591999990000', wamid: str | None = None, **extra):
@@ -71,6 +71,17 @@ class CrmTestCase(TestCase):
         conversa.assumida_em = timezone.now()
         conversa.save()
         return conversa
+
+    def abertura_aprovada(self, titulo: str, corpo: str):
+        """Mensagem de abertura criada pela tela de configuração e aprovada no simulador."""
+        from crm.models import ModeloAbertura
+
+        gestor = self.web(self.gestor, ajax=False)
+        with self.captureOnCommitCallbacks(execute=True):
+            gestor.post('/crm/configuracao/aberturas/', {'titulo': titulo, 'corpo': corpo})
+        modelo = ModeloAbertura.objects.get(titulo=titulo)
+        gestor.post(f'/crm/configuracao/aberturas/{modelo.pk}/simular/', {'status': 'APROVADO'})
+        return modelo
 
     @contextmanager
     def em_commit(self):

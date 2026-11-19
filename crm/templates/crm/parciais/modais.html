@@ -1,0 +1,141 @@
+{% comment %} Modais da caixa de entrada. Os formulários vão pelo JS (data-crm-acao) e, sem JS, por POST comum. {% endcomment %}
+<div class="modal fade" id="crmModalIniciar" tabindex="-1" aria-labelledby="crmModalIniciarTitulo" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'crm:iniciar' %}" class="modal-content" data-crm-acao>
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 class="modal-title" id="crmModalIniciarTitulo">Nova conversa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted">Para falar primeiro com o cliente, o WhatsApp exige uma mensagem de abertura aprovada pela Meta.</p>
+        <div class="mb-3">
+          <label class="form-label" for="crmIniciarTelefone">Telefone com DDD</label>
+          <input type="tel" class="form-control" id="crmIniciarTelefone" name="telefone" required placeholder="(91) 99999-0000" autocomplete="off">
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="crmIniciarNome">Nome do cliente <span class="text-muted">(opcional)</span></label>
+          <input type="text" class="form-control" id="crmIniciarNome" name="nome" maxlength="60">
+        </div>
+        {% include "crm/parciais/campo_abertura.html" with campo_id="crmIniciarModelo" %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Enviar abertura</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if conversa %}
+<div class="modal fade" id="crmModalAbertura" tabindex="-1" aria-labelledby="crmModalAberturaTitulo" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'crm:abrir' conversa.id %}" class="modal-content" data-crm-acao>
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 class="modal-title" id="crmModalAberturaTitulo">Mensagem de abertura</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted">Fora da janela de 24 h só dá para retomar a conversa com uma mensagem aprovada pela Meta. Quando o cliente responder, a conversa volta a ficar livre.</p>
+        <div class="mb-3">
+          <label class="form-label" for="crmAberturaNome">Nome do cliente na mensagem</label>
+          <input type="text" class="form-control" id="crmAberturaNome" name="nome" maxlength="60" value="{{ conversa.contato_nome }}">
+        </div>
+        {% include "crm/parciais/campo_abertura.html" with campo_id="crmAberturaModelo" %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Enviar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="crmModalLembrete" tabindex="-1" aria-labelledby="crmModalLembreteTitulo" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'crm:definir_lembrete' conversa.id %}" class="modal-content" data-crm-acao>
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 class="modal-title" id="crmModalLembreteTitulo">Lembrete</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="crmLembreteQuando">Quando</label>
+          <input type="datetime-local" class="form-control" id="crmLembreteQuando" name="lembrete_em" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="crmLembreteTexto">O que fazer</label>
+          <input type="text" class="form-control" id="crmLembreteTexto" name="texto" maxlength="200" placeholder="Ex.: confirmar se o PIX caiu">
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="crmLembretePara">Para</label>
+          <select class="form-select" id="crmLembretePara" name="para">
+            {% for atendente in atendentes %}
+            <option value="{{ atendente.pk }}"{% if atendente.pk == user.pk %} selected{% endif %}>{{ atendente.get_full_name|default:atendente.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar lembrete</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="crmModalProgramar" tabindex="-1" aria-labelledby="crmModalProgramarTitulo" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'crm:programar' conversa.id %}" class="modal-content" data-crm-acao>
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 class="modal-title" id="crmModalProgramarTitulo">Programar mensagem</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="crmProgramarTexto">Mensagem</label>
+          <textarea class="form-control" id="crmProgramarTexto" name="texto" rows="4" maxlength="4096" required></textarea>
+        </div>
+        <div class="mb-1">
+          <label class="form-label" for="crmProgramarQuando">Enviar em</label>
+          <input type="datetime-local" class="form-control" id="crmProgramarQuando" name="enviar_em" required>
+        </div>
+        <small class="text-muted">Entre 5 minutos e 30 dias à frente. Só sai se a janela de 24 h ainda estiver aberta.</small>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Programar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if pode_gerenciar or conversa.assumida_por.id == user.pk %}
+<div class="modal fade" id="crmModalAtribuir" tabindex="-1" aria-labelledby="crmModalAtribuirTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <form method="post" action="{% url 'crm:atribuir' conversa.id %}" class="modal-content" data-crm-acao>
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 class="modal-title" id="crmModalAtribuirTitulo">{% if pode_gerenciar %}Atribuir{% else %}Repassar{% endif %} conversa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" for="crmAtribuirUsuario">Atendente</label>
+        <select class="form-select" id="crmAtribuirUsuario" name="usuario" required>
+          {% for atendente in atendentes %}
+          <option value="{{ atendente.pk }}"{% if atendente.pk == conversa.assumida_por.id %} selected{% endif %}>{{ atendente.get_full_name|default:atendente.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Atribuir</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endif %}

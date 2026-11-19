@@ -1,0 +1,158 @@
+/* CRM WhatsApp — caixa de entrada do backoffice. Só tokens --ipix-* (claro e .dark-style). */
+
+.min-w-0 { min-width: 0; }
+
+/* ── Layout: 1 coluna no celular, lista + conversa no lg, + painel no xxl ── */
+.crm-caixa {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+.crm-coluna {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.crm-caixa--com-conversa .crm-coluna--lista { display: none; }
+.crm-coluna--conversa { min-height: 70vh; position: relative; }
+.crm-novas { position: absolute; left: 50%; bottom: 5.5rem; transform: translateX(-50%); z-index: 2; box-shadow: var(--ipix-shadow); }
+.crm-mensagens { max-height: 60vh; }
+
+@media (min-width: 992px) {
+  .crm-caixa { grid-template-columns: 300px minmax(0, 1fr); }
+  .crm-caixa--com-conversa .crm-coluna--lista { display: flex; }
+  .crm-coluna--lista,
+  .crm-coluna--conversa { height: calc(100vh - 11.5rem); min-height: 560px; }
+  .crm-coluna--painel { grid-column: 1 / -1; }
+  .crm-mensagens { max-height: none; }
+}
+@media (min-width: 1400px) {
+  .crm-caixa--com-conversa { grid-template-columns: 300px minmax(0, 1fr) 340px; }
+  .crm-coluna--painel { grid-column: auto; height: calc(100vh - 11.5rem); min-height: 560px; }
+}
+
+/* ── Lista de conversas ── */
+.crm-lista__topo { padding: .75rem; border-bottom: 1px solid var(--ipix-border); }
+.crm-lista__itens { overflow-y: auto; flex: 1 1 auto; }
+.crm-filas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .25rem; }
+.crm-filas .nav-link {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .3rem .6rem;
+  font-size: .8125rem;
+  color: var(--ipix-text);
+  background: var(--ipix-surface-muted);
+}
+.crm-filas .nav-link.active { background: var(--ipix-primary); color: var(--ipix-on-yellow); font-weight: 600; }
+.crm-filas__contador { background: var(--ipix-surface); color: var(--ipix-heading); }
+
+/* O botão flutuante de suporte cobriria o compositor e o painel. */
+.whatsapp-float { display: none !important; }
+.crm-item { border-left: 3px solid transparent; }
+.crm-item__nome { color: var(--ipix-heading); }
+.crm-item--nao-lida .crm-item__nome { font-weight: 700; }
+.crm-item--atual { background: var(--ipix-yellow-soft); border-left-color: var(--ipix-primary); }
+.crm-item__previa { max-width: 100%; }
+
+/* ── Etiquetas (cor escolhida no cadastro) ── */
+.crm-etiqueta { --crm-cor: var(--ipix-secondary); color: var(--crm-cor); border: 1px solid var(--crm-cor); background: transparent; font-weight: 500; }
+.btn-check:checked + .crm-etiqueta { background: var(--crm-cor); color: var(--ipix-surface); }
+.crm-etiqueta--cinza { --crm-cor: var(--ipix-secondary); }
+.crm-etiqueta--vermelho { --crm-cor: var(--ipix-danger); }
+.crm-etiqueta--laranja { --crm-cor: var(--ipix-accent-orange); }
+.crm-etiqueta--amarelo { --crm-cor: var(--ipix-warning-text); }
+.crm-etiqueta--verde { --crm-cor: var(--ipix-success); }
+.crm-etiqueta--azul { --crm-cor: var(--ipix-accent-blue); }
+.crm-etiqueta--roxo { --crm-cor: var(--ipix-accent-purple); }
+.crm-etiqueta--rosa { --crm-cor: var(--ipix-accent-pink); }
+
+/* ── Conversa ── */
+.crm-cabecalho { padding: .75rem 1rem; border-bottom: 1px solid var(--ipix-border); }
+.crm-mensagens {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 1rem;
+  background: var(--ipix-surface-muted);
+}
+.crm-dia { text-align: center; margin: .75rem 0; }
+.crm-dia span {
+  font-size: .75rem;
+  color: var(--ipix-muted);
+  background: var(--ipix-surface);
+  border: 1px solid var(--ipix-border);
+  border-radius: 1rem;
+  padding: .125rem .625rem;
+}
+
+.crm-msg { display: flex; align-items: flex-end; gap: .25rem; margin-bottom: .5rem; }
+.crm-msg--saida { flex-direction: row-reverse; }
+.crm-msg__balao {
+  max-width: min(78%, 560px);
+  padding: .5rem .75rem;
+  border-radius: .75rem;
+  background: var(--ipix-surface);
+  border: 1px solid var(--ipix-border);
+  color: var(--ipix-text);
+  overflow-wrap: anywhere;
+}
+.crm-msg--entrada .crm-msg__balao { border-bottom-left-radius: .25rem; }
+.crm-msg--saida .crm-msg__balao { background: var(--ipix-yellow-soft); border-color: transparent; border-bottom-right-radius: .25rem; }
+.crm-msg--sistema { justify-content: center; }
+.crm-msg--sistema .crm-msg__balao { background: transparent; border-style: dashed; font-size: .8125rem; color: var(--ipix-muted); }
+.crm-msg__autor { font-size: .75rem; font-weight: 600; color: var(--ipix-muted); margin-bottom: .125rem; }
+.crm-msg__texto { white-space: normal; }
+.crm-msg__citacao {
+  display: block;
+  font-size: .8125rem;
+  border-left: 3px solid var(--ipix-primary);
+  background: var(--ipix-surface-muted);
+  border-radius: .25rem;
+  padding: .25rem .5rem;
+  margin-bottom: .25rem;
+  color: var(--ipix-text);
+  text-decoration: none;
+}
+.crm-msg__imagem { max-width: 260px; max-height: 260px; border-radius: .5rem; display: block; }
+.crm-msg__imagem--figurinha { max-width: 140px; background: transparent; }
+.crm-msg__audio { width: 240px; max-width: 100%; }
+.crm-msg__video { max-width: 280px; border-radius: .5rem; }
+.crm-msg__documento { display: flex; align-items: center; gap: .5rem; text-decoration: none; max-width: 260px; }
+.crm-msg__rodape { display: flex; justify-content: flex-end; align-items: center; gap: .25rem; font-size: .6875rem; color: var(--ipix-muted); margin-top: .125rem; }
+.crm-msg__reacao { font-size: .875rem; }
+.crm-msg__erro { font-size: .75rem; color: var(--ipix-danger); margin-top: .25rem; }
+.crm-msg__acoes { opacity: 0; transition: opacity .15s ease-in-out; }
+.crm-msg:hover .crm-msg__acoes,
+.crm-msg:focus-within .crm-msg__acoes { opacity: 1; }
+@media (hover: none) { .crm-msg__acoes { opacity: 1; } }
+.crm-reacoes { min-width: auto; }
+
+/* ── Compositor ── */
+.crm-compositor { padding: .75rem; border-top: 1px solid var(--ipix-border); background: var(--ipix-surface); }
+.crm-compositor__texto { resize: none; max-height: 10rem; }
+.crm-compositor__barra {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .8125rem;
+  background: var(--ipix-surface-muted);
+  border-radius: .375rem;
+  padding: .25rem .5rem;
+  margin-bottom: .5rem;
+}
+.crm-compositor--bloqueado { display: flex; align-items: center; gap: .75rem; }
+.crm-respostas-rapidas { max-height: 18rem; overflow-y: auto; }
+
+/* ── Painel do cliente ── */
+.crm-coluna--painel { overflow-y: auto; }
+.crm-painel__secao { padding: .875rem 1rem; border-bottom: 1px solid var(--ipix-border); }
+.crm-painel__secao:last-child { border-bottom: 0; }
+.crm-painel__titulo { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ipix-muted); margin-bottom: .5rem; }
+.crm-cliente { border: 1px solid var(--ipix-border); border-radius: .5rem; padding: .625rem; margin-bottom: .5rem; }
+.crm-pagamento { border-left: 3px solid var(--ipix-border); padding: .25rem 0 .25rem .5rem; margin-bottom: .375rem; }
+.crm-pagamento--atrasado { border-left-color: var(--ipix-danger); }
+.crm-notas { max-height: 20rem; overflow-y: auto; }
+.crm-nota { background: var(--ipix-warning-soft); border-radius: .5rem; padding: .5rem; margin-bottom: .5rem; }
+.crm-nota--automatica { background: var(--ipix-secondary-soft); }
+.crm-mensagens--simulador { max-height: 32rem; }

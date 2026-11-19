@@ -1,0 +1,13 @@
+<label class="form-label" for="{{ campo_id }}">Mensagem de abertura</label>
+{% if aberturas %}
+<select class="form-select" id="{{ campo_id }}" name="modelo" required>
+  {% for abertura in aberturas %}
+  <option value="{{ abertura.chave }}"{% if not abertura.disponivel %} disabled{% endif %}>
+    {{ abertura.titulo }}{% if not abertura.disponivel %} (aguardando aprovação da Meta){% endif %}
+  </option>
+  {% endfor %}
+</select>
+<small class="text-muted d-block mt-1">Os textos são cadastrados em Configuração › Mensagens de abertura.</small>
+{% else %}
+<div class="alert alert-warning small mb-0">Nenhuma mensagem de abertura cadastrada.{% if perms.crm.gerenciar_crm %} Cadastre em <a href="{% url 'crm:configuracao' %}">Configuração</a>.{% else %} Peça a quem gerencia o CRM.{% endif %}</div>
+{% endif %}

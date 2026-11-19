@@ -1,0 +1,5 @@
+{% if versao.status == 'APROVADO' %}{% include "components/status_badge.html" with state="success" label="Aprovada" %}
+{% elif versao.status == 'ENVIANDO' or versao.status == 'EM_ANALISE' %}{% include "components/status_badge.html" with state="warning" label="Em análise na Meta" %}
+{% elif versao.status == 'REJEITADO' %}{% include "components/status_badge.html" with state="danger" label="Rejeitada" %}
+{% elif versao.status == 'ERRO_ENVIO' %}{% include "components/status_badge.html" with state="danger" label="Erro no envio" %}
+{% else %}{% include "components/status_badge.html" with state="secondary" label=versao.status|title %}{% endif %}

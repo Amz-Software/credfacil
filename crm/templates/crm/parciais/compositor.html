@@ -1,0 +1,77 @@
+{% load crm_tags %}
+{% url 'crm:conversa' conversa.id as url_da_conversa %}
+{% if conversa.pode_responder %}
+<form method="post" action="{% url 'crm:enviar' conversa.id %}" enctype="multipart/form-data"
+      class="crm-compositor" data-crm-acao data-crm-compositor data-url-digitando="{% url 'crm:digitando' conversa.id %}">
+  {% csrf_token %}
+  <input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+  <input type="hidden" name="responde_a" value="" data-crm-responde-a>
+
+  <div class="crm-compositor__barra d-none" data-crm-barra-resposta>
+    <i class="bx bx-reply"></i>
+    <span class="text-truncate" data-crm-texto-resposta></span>
+    <button type="button" class="btn-close btn-sm ms-auto" data-crm-cancelar-resposta aria-label="Cancelar resposta"></button>
+  </div>
+  <div class="crm-compositor__barra d-none" data-crm-barra-anexo>
+    <i class="bx bx-paperclip"></i>
+    <span class="text-truncate" data-crm-nome-anexo></span>
+    <small class="text-muted text-nowrap">O texto vai como legenda.</small>
+    <button type="button" class="btn-close btn-sm ms-auto" data-crm-cancelar-anexo aria-label="Remover anexo"></button>
+  </div>
+
+  <div class="d-flex align-items-end gap-2">
+    <div class="d-flex gap-1">
+      {% if respostas_rapidas %}
+      <div class="dropup">
+        <button type="button" class="btn btn-icon btn-outline-secondary" data-bs-toggle="dropdown" aria-expanded="false" title="Respostas rápidas">
+          <i class="bx bx-bolt-circle"></i><span class="visually-hidden">Respostas rápidas</span>
+        </button>
+        <ul class="dropdown-menu crm-respostas-rapidas">
+          {% for resposta in respostas_rapidas %}
+          <li>
+            <button type="button" class="dropdown-item" data-crm-resposta-rapida="{% url 'crm:previa_resposta' conversa.id resposta.pk %}">
+              <span class="fw-semibold">/{{ resposta.atalho }}</span> <span class="text-muted">{{ resposta.titulo }}</span>
+            </button>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      <label class="btn btn-icon btn-outline-secondary mb-0" title="Anexar arquivo (até 25 MB)">
+        <i class="bx bx-paperclip"></i><span class="visually-hidden">Anexar arquivo</span>
+        <input type="file" name="arquivo" class="d-none" data-crm-anexo
+               accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt">
+      </label>
+      <button type="button" class="btn btn-icon btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#crmModalProgramar" title="Programar mensagem">
+        <i class="bx bx-time"></i><span class="visually-hidden">Programar mensagem</span>
+      </button>
+    </div>
+    <label class="visually-hidden" for="crmTexto">Mensagem</label>
+    <textarea class="form-control crm-compositor__texto" id="crmTexto" name="texto" rows="1" maxlength="4096"
+              placeholder="Escreva a mensagem (Enter envia, Shift+Enter quebra a linha)" data-crm-texto></textarea>
+    <button type="submit" class="btn btn-primary" title="Enviar">
+      <i class="bx bx-send"></i><span class="visually-hidden">Enviar</span>
+    </button>
+  </div>
+</form>
+{% else %}
+<div class="crm-compositor crm-compositor--bloqueado">
+  <i class="bx {% if conversa.bloqueio.motivo == 'JANELA_FECHADA' %}bx-lock-alt{% else %}bx-info-circle{% endif %} fs-4 text-muted"></i>
+  <span class="flex-grow-1 small">{{ conversa.bloqueio.detail }}</span>
+  {% if conversa.bloqueio.motivo == 'JANELA_FECHADA' %}
+    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#crmModalAbertura">Mensagem de abertura</button>
+  {% elif conversa.bloqueio.motivo == 'NAO_ASSUMIDA' %}
+    <form method="post" action="{% url 'crm:assumir' conversa.id %}" data-crm-acao>
+      {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+      <button type="submit" class="btn btn-sm btn-primary">Assumir</button>
+    </form>
+  {% elif conversa.bloqueio.motivo == 'OUTRO_DONO' %}
+    <form method="post" action="{% url 'crm:puxar' conversa.id %}" data-crm-acao
+          data-confirm-title="Puxar conversa" data-confirm-message="A conversa está com {{ conversa.assumida_por.nome }}. Puxar para você?" data-confirm-label="Puxar" data-confirm-variant="warning">
+      {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+      <input type="hidden" name="de" value="{{ conversa.assumida_por.id }}">
+      <button type="submit" class="btn btn-sm btn-warning">Puxar para mim</button>
+    </form>
+  {% endif %}
+</div>
+{% endif %}

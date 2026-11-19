@@ -93,7 +93,7 @@ class WebhookTests(CrmTestCase):
 
     def test_status_so_avanca_e_erro_e_terminal(self):
         conversa = self.conversa_com_humano()
-        self.api(self.atendente).post(f'/api/crm/conversas/{conversa.pk}/enviar/', {'texto': 'Olá!'}, format='json')
+        self.web(self.atendente).post(f'/crm/conversas/{conversa.pk}/enviar/', {'texto': 'Olá!'})
         saida = Mensagem.objects.get(direcao=Mensagem.Direcao.SAIDA, autor=Mensagem.Autor.HUMANO)
 
         for status in ('read', 'delivered'):

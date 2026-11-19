@@ -11,7 +11,6 @@ import tempfile
 from datetime import timedelta
 
 import requests
-from django.core import signing
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.utils import timezone
@@ -34,8 +33,6 @@ LIMITE_IMAGEM_META = 5 * MB
 LIMITE_VIDEO_META = 16 * MB
 LADO_MINIATURA = 320
 MAX_TENTATIVAS = 20
-VALIDADE_URL = timedelta(hours=1)
-SAL_ASSINATURA = 'crm.midia'
 AUDIO_ACEITO_META = {'audio/aac', 'audio/mp4', 'audio/mpeg', 'audio/amr', 'audio/ogg'}
 TIMEOUT_FFMPEG = 120
 TIMEOUT_TRANSCRICAO = 60
@@ -280,33 +277,10 @@ def transcrever(mensagem: Mensagem) -> None:
     mensagem.save(update_fields=['texto', 'transcricao_status'])
 
 
-# --- URL assinada -------------------------------------------------------------------
+# --- download pela tela ---------------------------------------------------------------
 
-def _campo(midia: Midia, versao: str):
+def campo_para_download(midia: Midia, versao: str):
+    """Arquivo a entregar: a miniatura quando pedida e existente, senão o original."""
     if versao == 'miniatura' and midia.miniatura:
         return midia.miniatura
     return midia.arquivo
-
-
-def url_assinada(midia: Midia, versao: str, request) -> str:
-    """S3: URL pré-assinada do storage. Local: rota própria com token assinado (1 h)."""
-    campo = _campo(midia, versao)
-    if not campo:
-        raise ErroMidia('A mídia ainda não foi baixada.')
-    if getattr(campo.storage, 'querystring_auth', False):
-        return campo.storage.url(campo.name, expire=int(VALIDADE_URL.total_seconds()))
-    token = signing.dumps({'m': midia.pk, 'v': versao}, salt=SAL_ASSINATURA)
-    return request.build_absolute_uri(f'/api/crm/midia/{token}/')
-
-
-def midia_do_token(token: str) -> tuple[Midia, str]:
-    try:
-        dados = signing.loads(token, salt=SAL_ASSINATURA, max_age=VALIDADE_URL.total_seconds())
-    except signing.BadSignature as exc:
-        raise ErroMidia('Link de mídia inválido ou expirado.') from exc
-    midia = Midia.objects.select_related('mensagem').get(pk=dados['m'])
-    return midia, dados.get('v', '')
-
-
-def campo_para_download(midia: Midia, versao: str):
-    return _campo(midia, versao)

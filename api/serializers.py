@@ -1,6 +1,5 @@
 from rest_framework import serializers
 
-from crm.permissoes import pode_acessar as pode_acessar_crm, pode_gerenciar as pode_gerenciar_crm
 
 from financeiro.models import Repasse
 from vendas.models import (
@@ -77,9 +76,6 @@ class LojaSerializer(serializers.ModelSerializer):
                 user.has_perm("vendas.add_cliente") or user.has_perm("vendas.add_analisecreditocliente")
             ),
             "pode_criar_venda": user.has_perm("vendas.add_venda"),
-            # CRM de WhatsApp: só a permissão libera (a SPA não usa is_admin aqui)
-            "pode_acessar_crm": pode_acessar_crm(user),
-            "pode_gerenciar_crm": pode_gerenciar_crm(user),
         }
 
         return acessos
@@ -772,9 +768,6 @@ class UserSerializer(serializers.ModelSerializer):
             "pode_editar_usuario": instance.has_perm("accounts.change_user"),
             "pode_deletar_usuario": instance.has_perm("accounts.delete_user"),
             "pode_ver_usuario": instance.has_perm("accounts.view_user"),
-            # CRM de WhatsApp: só a permissão libera (a SPA não usa is_admin aqui)
-            "pode_acessar_crm": pode_acessar_crm(instance),
-            "pode_gerenciar_crm": pode_gerenciar_crm(instance),
         }
 
         return ret

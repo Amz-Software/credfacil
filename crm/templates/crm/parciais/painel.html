@@ -1,0 +1,133 @@
+{% load crm_tags %}
+{% url 'crm:conversa' conversa.id as url_da_conversa %}
+<div class="crm-painel">
+  <section class="crm-painel__secao">
+    <h6 class="crm-painel__titulo">Contato</h6>
+    <div class="small text-muted">Nome no WhatsApp</div>
+    <div class="mb-2">{{ conversa.contato_nome|default:"—" }}</div>
+    <form method="post" action="{% url 'crm:apelido' conversa.id %}" class="d-flex gap-2" data-crm-acao>
+      {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+      <label class="visually-hidden" for="crmApelido">Apelido</label>
+      <input type="text" class="form-control form-control-sm" id="crmApelido" name="apelido" maxlength="60"
+             value="{{ conversa.apelido }}" placeholder="Apelido (só a equipe vê)">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Salvar</button>
+    </form>
+  </section>
+
+  {% if etiquetas_todas %}
+  <section class="crm-painel__secao">
+    <h6 class="crm-painel__titulo">Etiquetas</h6>
+    <form method="post" action="{% url 'crm:etiquetas' conversa.id %}" class="d-flex flex-wrap gap-1" data-crm-acao>
+      {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+      {% for etiqueta in etiquetas_todas %}
+      <input type="checkbox" class="btn-check" id="crmEtiqueta{{ etiqueta.pk }}" name="etiquetas" value="{{ etiqueta.pk }}" autocomplete="off" data-crm-auto
+             {% for marcada in conversa.etiquetas %}{% if marcada.id == etiqueta.pk %}checked{% endif %}{% endfor %}>
+      <label class="btn btn-sm crm-etiqueta crm-etiqueta--{{ etiqueta.cor|lower }}" for="crmEtiqueta{{ etiqueta.pk }}">{{ etiqueta.nome }}</label>
+      {% endfor %}
+      <noscript><button type="submit" class="btn btn-sm btn-outline-primary">Salvar</button></noscript>
+    </form>
+  </section>
+  {% endif %}
+
+  <section class="crm-painel__secao">
+    <h6 class="crm-painel__titulo">Cliente</h6>
+    {% for cliente in painel.clientes %}
+      {% include "crm/parciais/painel_cliente.html" %}
+    {% empty %}
+      <p class="small text-muted mb-2">Nenhum cadastro vinculado a esta conversa.</p>
+    {% endfor %}
+
+    {% if painel.sugeridos %}
+    <div class="small text-muted mt-2">Cadastros com este telefone</div>
+    <ul class="list-unstyled mb-2">
+      {% for sugerido in painel.sugeridos %}
+      <li class="d-flex justify-content-between align-items-center gap-2 py-1">
+        <span class="small text-truncate">{{ sugerido.nome }}</span>
+        <form method="post" action="{% url 'crm:vincular_cliente' conversa.id %}" data-crm-acao>
+          {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+          <input type="hidden" name="cliente" value="{{ sugerido.id }}">
+          <button type="submit" class="btn btn-sm btn-outline-primary">Vincular</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if ve_clientes %}
+    <form method="get" action="{% url 'crm:buscar_cliente' conversa.id %}" class="d-flex gap-2 mt-2" data-crm-busca role="search">
+      <label class="visually-hidden" for="crmBuscaCliente">Buscar cliente por CPF ou nome</label>
+      <input type="search" class="form-control form-control-sm" id="crmBuscaCliente" name="q" placeholder="Buscar por CPF ou nome" minlength="3" autocomplete="off">
+      <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bx bx-search"></i><span class="visually-hidden">Buscar</span></button>
+    </form>
+    <div data-crm-busca-resultado class="mt-2"></div>
+    {% endif %}
+  </section>
+
+  <section class="crm-painel__secao">
+    <div class="d-flex justify-content-between align-items-center">
+      <h6 class="crm-painel__titulo mb-0">Lembrete</h6>
+      <button type="button" class="btn btn-sm btn-link" data-bs-toggle="modal" data-bs-target="#crmModalLembrete">{% if conversa.lembrete %}Alterar{% else %}Criar{% endif %}</button>
+    </div>
+    {% if conversa.lembrete %}
+    <div class="alert alert-{% if conversa.lembrete.vencido %}danger{% else %}info{% endif %} small py-2 mb-0">
+      <div><i class="bx bx-alarm"></i> {{ conversa.lembrete.em|date:"d/m/Y H:i" }} · {{ conversa.lembrete.para.nome }}</div>
+      {% if conversa.lembrete.texto %}<div>{{ conversa.lembrete.texto }}</div>{% endif %}
+      <form method="post" action="{% url 'crm:concluir_lembrete' conversa.id %}" class="mt-1" data-crm-acao>
+        {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+        <button type="submit" class="btn btn-sm btn-outline-secondary">Concluir</button>
+      </form>
+    </div>
+    {% endif %}
+  </section>
+
+  {% if conversa.programadas %}
+  <section class="crm-painel__secao">
+    <h6 class="crm-painel__titulo">Mensagens programadas</h6>
+    <ul class="list-unstyled mb-0">
+      {% for programada in conversa.programadas %}
+      <li class="border rounded p-2 mb-2 small">
+        <div class="d-flex justify-content-between gap-2">
+          <span><i class="bx bx-time"></i> {{ programada.enviar_em|date:"d/m H:i" }}</span>
+          <form method="post" action="{% url 'crm:cancelar_programada' programada.id %}" data-crm-acao
+                data-confirm-title="Cancelar mensagem programada" data-confirm-message="A mensagem não será enviada. Continuar?" data-confirm-label="Cancelar envio" data-confirm-variant="danger">
+            {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+            <button type="submit" class="btn btn-link btn-sm p-0 text-danger">Cancelar</button>
+          </form>
+        </div>
+        <div class="text-break">{{ programada.texto|linebreaksbr }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="crm-painel__secao">
+    <h6 class="crm-painel__titulo">Notas internas</h6>
+    <p class="small text-muted mb-2">O cliente não vê as notas.</p>
+    <ul class="list-unstyled crm-notas mb-2">
+      {% for nota in conversa.notas %}
+      <li class="crm-nota{% if nota.automatica %} crm-nota--automatica{% endif %}">
+        <div class="d-flex justify-content-between gap-2 small text-muted">
+          <span>{% if nota.automatica %}Sistema{% else %}{{ nota.autor.nome }}{% endif %} · {{ nota.criado_em|date:"d/m H:i" }}</span>
+          {% if nota.pode_apagar %}
+          <form method="post" action="{% url 'crm:apagar_nota' conversa.id nota.id %}" data-crm-acao
+                data-confirm-title="Apagar nota" data-confirm-message="Apagar esta nota?" data-confirm-label="Apagar" data-confirm-variant="danger">
+            {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+            <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Apagar nota"><i class="bx bx-trash"></i><span class="visually-hidden">Apagar nota</span></button>
+          </form>
+          {% endif %}
+        </div>
+        <div class="small text-break">{{ nota.texto|linebreaksbr }}</div>
+      </li>
+      {% empty %}
+      <li class="small text-muted">Nenhuma nota.</li>
+      {% endfor %}
+    </ul>
+    <form method="post" action="{% url 'crm:criar_nota' conversa.id %}" data-crm-acao>
+      {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+      <label class="visually-hidden" for="crmNovaNota">Nova nota</label>
+      <textarea class="form-control form-control-sm mb-2" id="crmNovaNota" name="texto" rows="2" maxlength="2000" placeholder="Escreva uma nota para a equipe" required></textarea>
+      <button type="submit" class="btn btn-sm btn-outline-primary">Adicionar nota</button>
+    </form>
+  </section>
+</div>

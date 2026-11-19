@@ -9,7 +9,7 @@ from crm.permissoes import usuarios_com_acesso
 
 logger = logging.getLogger(__name__)
 
-URL_CONVERSA = '/app/crm?conversa={id}'
+URL_CONVERSA = '/crm/conversas/{id}/'
 
 
 def _para_mim(conversa, usuario_id: int) -> bool:

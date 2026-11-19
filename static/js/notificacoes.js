@@ -203,6 +203,12 @@
       return;
     }
 
+    // Eventos do CRM só avisam a caixa de entrada que algo mudou (sem som nem sino).
+    if (data.event === 'crm.evento') {
+      document.dispatchEvent(new CustomEvent('crm:evento', { detail: data }));
+      return;
+    }
+
     if (PODE_VER_MODAL && EVENTOS_MODAL.indexOf(data.event) >= 0) {
       mostrarModalProposta(data);
     }

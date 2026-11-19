@@ -1,0 +1,12 @@
+{% if tem_mais_antigas and mensagens %}
+<div class="text-center my-2" data-crm-antigas-bloco>
+  <button type="button" class="btn btn-sm btn-outline-secondary" data-crm-antigas
+          data-url="{% url 'crm:mensagens_antigas' conversa.id %}?antes={{ mensagens.0.id }}">
+    <i class="bx bx-up-arrow-alt me-1"></i>Carregar mensagens anteriores
+  </button>
+</div>
+{% endif %}
+{% for m in mensagens %}
+  {% ifchanged m.criado_em|date:"Y-m-d" %}<div class="crm-dia"><span>{{ m.criado_em|date:"d/m/Y" }}</span></div>{% endifchanged %}
+  {% include "crm/parciais/mensagem.html" %}
+{% endfor %}

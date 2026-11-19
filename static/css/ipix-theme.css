@@ -136,6 +136,7 @@ body { background-color: var(--ipix-body-bg); color: var(--ipix-text); }
   border-color: var(--ipix-yellow) !important;
 }
 .btn-outline-primary:hover,
+.btn-outline-primary:focus,
 .btn-outline-primary:active,
 .btn-outline-primary.active,
 .btn-check:checked + .btn-outline-primary {

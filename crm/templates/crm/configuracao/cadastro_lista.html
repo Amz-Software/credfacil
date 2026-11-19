@@ -1,0 +1,49 @@
+{% extends "crm/configuracao/base.html" %}
+{% block aba %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header"><h5 class="mb-0">{{ config.titulo }}</h5></div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              {% if tipo == 'respostas' %}<th>Atalho</th><th>Título</th>{% else %}<th>Etiqueta</th>{% endif %}
+              <th>Ordem</th><th>Situação</th><th class="text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in itens %}
+            <tr>
+              {% if tipo == 'respostas' %}
+                <td><code>/{{ item.atalho }}</code></td>
+                <td>{{ item.titulo }}<br><small class="text-muted">{{ item.texto|truncatechars:80 }}</small></td>
+              {% else %}
+                <td><span class="badge crm-etiqueta crm-etiqueta--{{ item.cor|lower }}">{{ item.nome }}</span></td>
+              {% endif %}
+              <td>{{ item.ordem }}</td>
+              <td>{% if item.ativo %}{% include "components/status_badge.html" with state="success" label="Ativa" %}{% else %}{% include "components/status_badge.html" with state="secondary" label="Inativa" %}{% endif %}</td>
+              <td class="text-end"><a href="{% url 'crm:cadastro_editar' tipo item.pk %}" class="btn btn-sm btn-outline-primary"><i class="bx bx-edit me-1"></i>Editar</a></td>
+            </tr>
+            {% empty %}
+            {% include "components/empty_state.html" with colspan=5 message="Nada cadastrado ainda" hint="Use o formulário ao lado." %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><h5 class="mb-0">Nova {{ config.singular }}</h5></div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% for campo in form %}{% include "crm/configuracao/_campo.html" %}{% endfor %}
+          <button type="submit" class="btn btn-primary"><i class="bx bx-plus me-1"></i>Criar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock aba %}

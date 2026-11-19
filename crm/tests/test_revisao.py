@@ -188,14 +188,18 @@ class ListaSemDistinctTests(CrmTestCase):
         self.receber('Quero um iPhone', telefone='5591911112222')
         self.receber('Quero um iPhone também', telefone='5591933334444')
 
-        resposta = self.api(self.atendente).get('/api/crm/conversas/', {'search': 'iphone', 'ordem': 'espera'})
+        resposta = self.web(self.atendente).get('/crm/lista/', {'fila': 'todas', 'q': 'iphone', 'ordem': 'espera'})
 
         self.assertEqual(resposta.status_code, 200)
-        self.assertEqual(resposta.json()['count'], 2)
+        self.assertEqual(len(resposta.context['conversas']), 2)
 
-    def test_limite_negativo_nao_quebra(self):
+    def test_parametros_invalidos_nao_quebram(self):
         conversa = self.conversa_com_humano()
+        web = self.web(self.atendente)
 
-        resposta = self.api(self.atendente).get(f'/api/crm/conversas/{conversa.pk}/mensagens/', {'limite': '-5'})
+        antigas = web.get(f'/crm/conversas/{conversa.pk}/mensagens/', {'antes': 'abc'})
+        lista = web.get('/crm/lista/', {'fila': 'xyz', 'etiqueta': '-1', 'ordem': 'nada', 'atual': 'x'})
 
-        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(antigas.status_code, 200)
+        self.assertEqual(lista.status_code, 200)
+        self.assertEqual(lista.context['filtros'].fila, 'minhas')

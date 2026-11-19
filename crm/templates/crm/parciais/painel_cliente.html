@@ -1,0 +1,62 @@
+{% load crm_tags %}
+<div class="crm-cliente">
+  <div class="d-flex justify-content-between align-items-start gap-2">
+    <div class="min-w-0">
+      <div class="fw-semibold text-truncate">{{ cliente.nome }}</div>
+      <small class="text-muted">CPF {{ cliente.cpf }} · {{ cliente.telefone }}</small>
+    </div>
+    <form method="post" action="{% url 'crm:desvincular_cliente' conversa.id %}" data-crm-acao
+          data-confirm-title="Desvincular cliente" data-confirm-message="Tirar {{ cliente.nome }} desta conversa? O cadastro não é apagado." data-confirm-label="Desvincular">
+      {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+      <input type="hidden" name="cliente" value="{{ cliente.id }}">
+      <button type="submit" class="btn btn-sm btn-icon btn-text-secondary" title="Desvincular"><i class="bx bx-unlink"></i><span class="visually-hidden">Desvincular</span></button>
+    </form>
+  </div>
+
+  {% for solicitacao in cliente.solicitacoes %}
+  <div class="small mt-1">
+    <a href="{% url 'vendas:cliente_update' solicitacao.id %}" target="_blank" rel="noopener">Solicitação</a>:
+    {{ solicitacao.produto|default:"—" }} · {{ solicitacao.status_display }}
+  </div>
+  {% endfor %}
+  {% for venda in cliente.vendas %}
+  <div class="small">
+    <a href="{% url 'vendas:venda_detail' venda.id %}" target="_blank" rel="noopener">Venda #{{ venda.id }}</a>
+    · {{ venda.data|date:"d/m/Y" }}{% if venda.cancelada %} · <span class="text-danger">cancelada</span>{% endif %}
+  </div>
+  {% endfor %}
+
+  {% if ve_pagamentos %}
+  <div class="mt-2">
+    {% for pagamento in cliente.pagamentos %}
+    <div class="crm-pagamento{% if pagamento.parcelas_atrasadas %} crm-pagamento--atrasado{% endif %}">
+      <div class="d-flex justify-content-between gap-2">
+        <span class="small fw-semibold text-truncate">{{ pagamento.produto }}</span>
+        <a href="{% url 'vendas:pagamento_detail' pagamento.pagamento_id %}" class="small" target="_blank" rel="noopener">Parcelas</a>
+      </div>
+      <div class="small">{{ pagamento.parcelas_abertas }} em aberto · {{ pagamento.total_aberto|reais }}</div>
+      {% if pagamento.parcelas_atrasadas %}
+      <div class="small text-danger">{{ pagamento.parcelas_atrasadas }} atrasada{{ pagamento.parcelas_atrasadas|pluralize }} · {{ pagamento.total_atrasado|reais }}</div>
+      {% endif %}
+      {% if pagamento.proxima %}
+      <div class="small text-muted">Próxima: {{ pagamento.proxima.numero }}ª em {{ pagamento.proxima.vencimento|data_iso }} · {{ pagamento.proxima.valor|reais }}</div>
+      {% endif %}
+      {% if pagamento.em_confirmacao %}
+      <div class="small text-info">{{ pagamento.em_confirmacao }} aguardando confirmação</div>
+      {% endif %}
+    </div>
+    {% empty %}
+    <p class="small text-muted mb-1">Nenhuma parcela em aberto.</p>
+    {% endfor %}
+    {% if cliente.pagamentos %}
+    <form method="post" action="{% url 'crm:resumo_pagamentos' conversa.id %}" data-crm-acao data-crm-texto-pronto>
+      {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+      <input type="hidden" name="cliente" value="{{ cliente.id }}">
+      <button type="submit" class="btn btn-sm btn-outline-primary w-100 mt-1">
+        <i class="bx bx-receipt me-1"></i>Preparar resumo de pagamentos
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

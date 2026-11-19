@@ -104,6 +104,25 @@ def menu_items(request):
             "permission": "vendas.can_view_all_dashboard",
             "section": "Vendas",
         },
+        # ── ATENDIMENTO (CRM de WhatsApp; só no backoffice) ─────────────
+        {
+            "label": "CRM WhatsApp",
+            "icon": "bx bxl-whatsapp",
+            "permission": "crm.acessar_crm",
+            "section": "Atendimento",
+            "sub_items": [
+                {
+                    "label": "Conversas",
+                    "url_name": "crm:caixa",
+                    "permission": "crm.acessar_crm",
+                },
+                {
+                    "label": "Configuração",
+                    "url_name": "crm:configuracao",
+                    "permission": "crm.gerenciar_crm",
+                },
+            ],
+        },
         # ── FINANCEIRO ──────────────────────────────────────────────────
         {
             "label": "Contas a Receber",

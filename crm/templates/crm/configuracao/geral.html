@@ -1,0 +1,51 @@
+{% extends "crm/configuracao/base.html" %}
+{% block aba %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header"><h5 class="mb-0">Atendimento</h5></div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% for erro in form.non_field_errors %}<div class="alert alert-danger">{{ erro }}</div>{% endfor %}
+          {% for campo in form %}{% include "crm/configuracao/_campo.html" %}{% endfor %}
+          <button type="submit" class="btn btn-primary"><i class="bx bx-save me-1"></i>Salvar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Integração com a Meta</h5>
+        {% if integracao.modo_real %}
+          {% include "components/status_badge.html" with state="success" label="Conectado" icon="bx bx-check" %}
+        {% else %}
+          {% include "components/status_badge.html" with state="warning" label="Simulado" icon="bx bx-test-tube" %}
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <p class="small text-muted">As credenciais ficam só no arquivo <code>.env</code> do servidor e nunca aparecem aqui. Depois de definir, reinicie os serviços <code>web</code> e <code>crm-worker</code>.</p>
+        <ul class="list-unstyled mb-3">
+          {% for item in integracao.itens %}
+          <li class="d-flex align-items-start gap-2 mb-2">
+            <i class="bx {% if item.ok %}bx-check-circle text-success{% else %}bx-x-circle text-danger{% endif %} fs-5"></i>
+            <span><code>{{ item.variavel }}</code><br><small class="text-muted">{{ item.descricao }}</small></span>
+          </li>
+          {% endfor %}
+          <li class="d-flex align-items-start gap-2">
+            <i class="bx {% if integracao.transcricao %}bx-check-circle text-success{% else %}bx-minus-circle text-muted{% endif %} fs-5"></i>
+            <span><code>OPENAI_API_KEY</code> <span class="badge bg-label-secondary">opcional</span><br><small class="text-muted">Transcrição dos áudios</small></span>
+          </li>
+        </ul>
+        <div class="small">
+          <div class="text-muted">Endereço do webhook (cadastrar no app da Meta, campo <code>messages</code>)</div>
+          <code class="d-block text-break">{{ integracao.webhook_url }}</code>
+          <div class="text-muted mt-2">Versão da API: {{ integracao.api_version }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock aba %}

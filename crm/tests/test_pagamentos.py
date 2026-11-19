@@ -138,34 +138,37 @@ class PainelPagamentosTests(PagamentosBase):
     def _com_permissoes(self, *codigos):
         self.loja.usuarios.add(self.atendente)
         self.atendente.user_permissions.add(*Permission.objects.filter(content_type__app_label='vendas', codename__in=codigos))
-        return self.api(self.criar_usuario_recarregado(self.atendente))
+        return self.web(self.criar_usuario_recarregado(self.atendente))
 
     def test_painel_mostra_pagamentos_com_permissao(self):
         conversa = self.receber('Oi', wamid='w1').conversa
         conversa.clientes.add(self.cliente)
-        sem = self._com_permissoes('view_cliente').get(f'/api/crm/conversas/{conversa.pk}/painel/').json()
-        com = self._com_permissoes('view_cliente', 'view_pagamento').get(f'/api/crm/conversas/{conversa.pk}/painel/').json()
+        url = f'/crm/conversas/{conversa.pk}/parte/painel/'
+        sem = self._com_permissoes('view_cliente').get(url)
+        com = self._com_permissoes('view_cliente', 'view_pagamento').get(url)
 
-        self.assertEqual(sem['clientes'][0]['pagamentos'], [])
-        self.assertEqual(com['clientes'][0]['pagamentos'][0]['parcelas_atrasadas'], 1)
+        self.assertEqual(sem.context['painel']['clientes'][0]['pagamentos'], [])
+        self.assertNotContains(sem, 'Preparar resumo de pagamentos')
+        self.assertEqual(com.context['painel']['clientes'][0]['pagamentos'][0]['parcelas_atrasadas'], 1)
+        self.assertContains(com, 'Preparar resumo de pagamentos')
 
     def test_buscar_cliente_por_cpf_e_resumo(self):
         conversa = self.receber('Oi', wamid='w1').conversa
-        api = self._com_permissoes('view_cliente', 'view_pagamento')
+        web = self._com_permissoes('view_cliente', 'view_pagamento')
 
-        achados = api.get(f'/api/crm/conversas/{conversa.pk}/buscar-cliente/', {'q': '529.982'}).json()
-        resumo = api.post(f'/api/crm/conversas/{conversa.pk}/resumo-pagamentos/', {'cliente': self.cliente.pk},
-                          format='json').json()
+        achados = web.get(f'/crm/conversas/{conversa.pk}/buscar-cliente/', {'q': '529.982'})
+        resumo = web.post(f'/crm/conversas/{conversa.pk}/resumo-pagamentos/', {'cliente': self.cliente.pk}).json()
 
-        self.assertEqual([a['id'] for a in achados], [self.cliente.pk])
-        self.assertEqual(achados[0]['cpf'], '***.982.247-**')
+        self.assertEqual([a['id'] for a in achados.context['achados']], [self.cliente.pk])
+        self.assertContains(achados, '***.982.247-**')
+        self.assertTrue(resumo['ok'])
         self.assertIn('R$ 100,00', resumo['texto'])
 
     def test_resumo_exige_ver_pagamentos(self):
         conversa = self.receber('Oi', wamid='w1').conversa
-        api = self._com_permissoes('view_cliente')
+        web = self._com_permissoes('view_cliente')
 
-        resposta = api.post(f'/api/crm/conversas/{conversa.pk}/resumo-pagamentos/', {'cliente': self.cliente.pk},
-                            format='json')
+        resposta = web.post(f'/crm/conversas/{conversa.pk}/resumo-pagamentos/', {'cliente': self.cliente.pk})
 
         self.assertEqual(resposta.status_code, 409)
+        self.assertFalse(resposta.json()['ok'])

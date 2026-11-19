@@ -1,14 +1,13 @@
-"""Serializers do CRM (formatos em docs/CRM_WHATSAPP.md §4.1)."""
+"""Dados de apresentação do CRM: dicionários prontos para os templates do backoffice."""
 from datetime import datetime, timezone as dt_timezone
 
 from django.db.models import Exists, OuterRef, Subquery, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
-from rest_framework import serializers
 
 from crm.models import (
-    ConfiguracaoCRM, Conversa, Etiqueta, Mensagem, MensagemProgramada, ModeloAbertura, Nota,
-    RespostaRapida, VersaoAbertura,
+    Conversa, Etiqueta, Mensagem, MensagemProgramada, ModeloAbertura, Nota,
+    VersaoAbertura,
 )
 from crm.services.conversas import bloqueio_de
 
@@ -20,6 +19,11 @@ def usuario_mini(usuario) -> dict | None:
     if usuario is None:
         return None
     return {'id': usuario.pk, 'nome': usuario.get_full_name() or usuario.username}
+
+
+def etiqueta_dict(etiqueta: Etiqueta) -> dict:
+    return {'id': etiqueta.pk, 'nome': etiqueta.nome, 'cor': etiqueta.cor, 'ordem': etiqueta.ordem,
+            'ativo': etiqueta.ativo}
 
 
 def anotar_lista(queryset):
@@ -44,32 +48,8 @@ def anotar_lista(queryset):
             ))
 
 
-class EtiquetaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Etiqueta
-        fields = ['id', 'nome', 'cor', 'ordem', 'ativo']
-
-    def validate_nome(self, valor: str) -> str:
-        valor = valor.strip()
-        repetida = Etiqueta.objects.filter(nome__iexact=valor)
-        if self.instance:
-            repetida = repetida.exclude(pk=self.instance.pk)
-        if repetida.exists():
-            raise serializers.ValidationError('Já existe uma etiqueta com esse nome.')
-        return valor
 
 
-class RespostaRapidaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = RespostaRapida
-        fields = ['id', 'atalho', 'titulo', 'texto', 'ordem', 'ativo']
-
-    def to_internal_value(self, data):
-        if hasattr(data, 'copy'):
-            data = data.copy()
-        if isinstance(data.get('atalho'), str):
-            data['atalho'] = data['atalho'].strip().lstrip('/').lower()
-        return super().to_internal_value(data)
 
 
 _PREVIA_POR_TIPO = {
@@ -107,15 +87,17 @@ def conversa_resumo(conversa: Conversa, agora=None) -> dict:
         'nome_exibicao': conversa.nome_exibicao,
         'clientes': [{'id': c.pk, 'nome': c.nome} for c in conversa.clientes.all()],
         'modo': conversa.modo,
+        'modo_display': conversa.get_modo_display(),
         'assumida_por': usuario_mini(conversa.assumida_por),
         'situacao': conversa.situacao,
+        'situacao_display': conversa.get_situacao_display(),
         'ultima_mensagem_em': conversa.ultima_mensagem_em,
         'ultima_mensagem_texto': _previa(conversa),
         'ultima_mensagem_direcao': getattr(conversa, '_previa_direcao', None),
         'nao_lidas': conversa.nao_lidas,
         'janela_aberta': conversa.janela_aberta(agora),
         'janela_expira_em': conversa.janela_expira_em(),
-        'etiquetas': EtiquetaSerializer(conversa.etiquetas.all(), many=True).data,
+        'etiquetas': [etiqueta_dict(e) for e in conversa.etiquetas.all()],
         'lembrete': lembrete,
         'tem_programada': bool(getattr(conversa, '_tem_programada', False)),
         'motivo_transferencia': motivo,
@@ -200,25 +182,40 @@ def base_mensagens(conversa: Conversa):
             .select_related('usuario', 'responde_a', 'midia', 'conversa'))
 
 
-def conversa_detalhe(conversa: Conversa, usuario) -> dict:
+def conversa_estado(conversa: Conversa, usuario) -> dict:
+    """Resumo + trava de resposta (cabeçalho e compositor), sem mensagens nem notas."""
     conversa = anotar_lista(Conversa.objects.filter(pk=conversa.pk)).get()
+    bloqueio = bloqueio_de(conversa, usuario)
+    return {**conversa_resumo(conversa), 'pode_responder': bloqueio is None, 'bloqueio': bloqueio}
+
+
+def _mensagens_recentes(conversa: Conversa) -> dict:
     recentes = list(base_mensagens(conversa).order_by('-criado_em', '-id')[:LIMITE_MENSAGENS_DETALHE + 1])
-    tem_mais = len(recentes) > LIMITE_MENSAGENS_DETALHE
-    mensagens = list(reversed(recentes[:LIMITE_MENSAGENS_DETALHE]))
+    return {
+        'mensagens': mensagens_dicts(list(reversed(recentes[:LIMITE_MENSAGENS_DETALHE]))),
+        'tem_mais_antigas': len(recentes) > LIMITE_MENSAGENS_DETALHE,
+    }
+
+
+def _anotacoes(conversa: Conversa, usuario) -> dict:
     notas = (Nota.objects.filter(conversa=conversa, apagada_em__isnull=True)
              .select_related('usuario').order_by('-criado_em', '-id')[:LIMITE_NOTAS_DETALHE])
     programadas = (MensagemProgramada.objects.filter(conversa=conversa, status=MensagemProgramada.Status.AGENDADA)
                    .select_related('criado_por'))
-    bloqueio = bloqueio_de(conversa, usuario)
     return {
-        **conversa_resumo(conversa),
-        'mensagens': mensagens_dicts(mensagens),
-        'tem_mais_antigas': tem_mais,
         'notas': [nota_dict(n, usuario) for n in reversed(list(notas))],
         'programadas': [programada_dict(p) for p in programadas],
-        'pode_responder': bloqueio is None,
-        'bloqueio': bloqueio,
     }
+
+
+def conversa_detalhe(conversa: Conversa, usuario, mensagens: bool = True, anotacoes: bool = True) -> dict:
+    """Estado da conversa com as últimas mensagens e/ou notas e programadas (cada trecho pede o que mostra)."""
+    detalhe = conversa_estado(conversa, usuario)
+    if mensagens:
+        detalhe.update(_mensagens_recentes(conversa))
+    if anotacoes:
+        detalhe.update(_anotacoes(conversa, usuario))
+    return detalhe
 
 
 def versao_dict(versao: VersaoAbertura | None) -> dict | None:
@@ -237,17 +234,3 @@ def abertura_dict(modelo: ModeloAbertura) -> dict:
             VersaoAbertura.Status.ENVIANDO, VersaoAbertura.Status.EM_ANALISE)), None)),
         'ultima': versao_dict(versoes[0] if versoes else None),
     }
-
-
-class ConfiguracaoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ConfiguracaoCRM
-        fields = ['boas_vindas_ativa', 'mensagem_boas_vindas', 'retorno_automatico_horas', 'nome_empresa',
-                  'autoatendimento_ativo', 'url_publica']
-        extra_kwargs = {'retorno_automatico_horas': {'min_value': 0, 'max_value': 720}}
-
-    def validate_url_publica(self, valor: str) -> str:
-        valor = (valor or '').strip().rstrip('/')
-        if valor and not valor.startswith('https://'):
-            raise serializers.ValidationError('Use um endereço que comece com https://')
-        return valor

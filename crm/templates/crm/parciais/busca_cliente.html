@@ -1,0 +1,22 @@
+{% url 'crm:conversa' conversa.id as url_da_conversa %}
+{% if busca_curta %}
+  <p class="small text-muted mb-0">Digite ao menos 3 letras ou números.</p>
+{% else %}
+  <ul class="list-unstyled mb-0">
+    {% for cliente in achados %}
+    <li class="d-flex justify-content-between align-items-center gap-2 py-1 border-bottom">
+      <span class="min-w-0">
+        <span class="d-block small text-truncate">{{ cliente.nome }}</span>
+        <small class="text-muted">CPF {{ cliente.cpf }}</small>
+      </span>
+      <form method="post" action="{% url 'crm:vincular_cliente' conversa.id %}" data-crm-acao>
+        {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+        <input type="hidden" name="cliente" value="{{ cliente.id }}">
+        <button type="submit" class="btn btn-sm btn-outline-primary">Vincular</button>
+      </form>
+    </li>
+    {% empty %}
+    <li class="small text-muted">Nenhum cliente encontrado para “{{ termo }}” nas suas lojas.</li>
+    {% endfor %}
+  </ul>
+{% endif %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Configuração do CRM{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/crm.css' %}" />{% endblock extra_head %}
+{% block content %}
+{% url 'crm:caixa' as url_caixa %}
+{% include "components/page_header.html" with title="Configuração" parent="CRM WhatsApp" icon="bx bx-cog" subtitle="Atendimento, cadastros e mensagens de abertura." action_url=url_caixa action_label="Voltar às conversas" action_icon="bx bx-conversation" %}
+
+{% if simulado %}
+<div class="alert alert-warning d-flex gap-2 align-items-start">
+  <i class="bx bx-info-circle fs-4"></i>
+  <div><strong>Modo simulado.</strong> As credenciais da Meta ainda não estão no servidor: nada sai para o WhatsApp de verdade. Use o <a href="{% url 'crm:simulador' %}">simulador</a> para testar.</div>
+</div>
+{% endif %}
+
+<ul class="nav nav-tabs mb-3" role="tablist">
+  <li class="nav-item"><a class="nav-link{% if aba == 'geral' %} active{% endif %}" href="{% url 'crm:configuracao' %}"{% if aba == 'geral' %} aria-current="page"{% endif %}>Geral</a></li>
+  <li class="nav-item"><a class="nav-link{% if aba == 'aberturas' %} active{% endif %}" href="{% url 'crm:aberturas' %}"{% if aba == 'aberturas' %} aria-current="page"{% endif %}>Mensagens de abertura</a></li>
+  <li class="nav-item"><a class="nav-link{% if aba == 'respostas' %} active{% endif %}" href="{% url 'crm:cadastro_lista' 'respostas' %}"{% if aba == 'respostas' %} aria-current="page"{% endif %}>Respostas rápidas</a></li>
+  <li class="nav-item"><a class="nav-link{% if aba == 'etiquetas' %} active{% endif %}" href="{% url 'crm:cadastro_lista' 'etiquetas' %}"{% if aba == 'etiquetas' %} aria-current="page"{% endif %}>Etiquetas</a></li>
+  <li class="nav-item"><a class="nav-link{% if aba == 'simulador' %} active{% endif %}" href="{% url 'crm:simulador' %}"{% if aba == 'simulador' %} aria-current="page"{% endif %}>Simulador</a></li>
+</ul>
+
+{% block aba %}{% endblock %}
+{% endblock content %}

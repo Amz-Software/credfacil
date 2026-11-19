@@ -26,7 +26,7 @@
 | `assistencia` | Ordens de serviço |
 | `notificacao` | Notificações push e WebSocket |
 | `api` | Endpoints REST centralizados para consumo externo |
-| `crm` | CRM de WhatsApp (API oficial da Meta): conversas, webhook, aberturas, rotinas. Ver `docs/CRM_WHATSAPP.md` |
+| `crm` | CRM de WhatsApp (API oficial da Meta): telas do backoffice em `/crm/` (`crm/web/`), webhook, aberturas, rotinas. Só no Django: a SPA React é dos vendedores e não tem CRM. Ver `docs/CRM_WHATSAPP.md` |
 | `core` | Configurações do projeto |
 
 ### Organização do código

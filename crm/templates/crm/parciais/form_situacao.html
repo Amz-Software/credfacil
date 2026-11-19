@@ -1,0 +1,7 @@
+<form method="post" action="{% url 'crm:situacao' conversa.id %}" data-crm-acao>
+  {% csrf_token %}
+  <input type="hidden" name="proxima" value="{{ url_da_conversa }}?{{ qs_filtros }}">
+  <input type="hidden" name="situacao" value="{{ valor }}">
+  {% if devolver %}<input type="hidden" name="devolver_automatico" value="1">{% endif %}
+  <button type="submit" class="dropdown-item"><i class="{{ icone }} me-1"></i>{{ rotulo }}</button>
+</form>
