@@ -6,15 +6,19 @@
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. Design tokens
+   1. Design tokens — conjunto ÚNICO de variáveis do backoffice.
+      Telas e componentes devem usar var(--ipix-*) em vez de hex soltos.
+      O modo escuro (seção 6) só redefine estes mesmos tokens.
    -------------------------------------------------------------------------- */
 :root {
   /* Marca */
   --ipix-yellow: #FDC600;
   --ipix-yellow-600: #E0AE00;   /* hover  */
-  --ipix-yellow-700: #C79B00;   /* active / texto sobre branco (AA) */
+  --ipix-yellow-700: #C79B00;   /* active / texto amarelo sobre fundo claro (AA) */
   --ipix-yellow-soft: #FFF6D6;  /* fundo de "label" */
   --ipix-on-yellow: #2B2C40;    /* texto escuro sobre amarelo */
+  --ipix-primary: var(--ipix-yellow);
+  --ipix-primary-text: var(--ipix-yellow-700);
 
   /* Sidebar escura */
   --ipix-sidebar: #2B2C40;
@@ -22,13 +26,18 @@
   --ipix-sidebar-text: #C7C8D9;
   --ipix-sidebar-muted: #8A8BA3;
 
-  /* Base neutra */
+  /* Base neutra (superfícies, texto, bordas) */
   --ipix-body-bg: #F5F5F9;
+  --ipix-surface: #FFFFFF;          /* cards, modais, tabelas */
+  --ipix-surface-muted: #F8F9FA;    /* cabeçalhos de tabela, áreas secundárias */
+  --ipix-border: #EAEAEF;
   --ipix-text: #566A7F;
   --ipix-heading: #384551;
+  --ipix-muted: #8592A3;
   --ipix-gray-100: #F5F5F9;
   --ipix-gray-200: #EAEAEF;
   --ipix-gray-500: #A1ACB8;
+  --ipix-ink: #2B2C40;              /* texto/fundo escuro de destaque */
 
   /* Status (paleta escolhida) */
   --ipix-success: #28C76F;
@@ -36,9 +45,25 @@
   --ipix-warning: #FFAB00;
   --ipix-info:    #03C3EC;
   --ipix-secondary: #8592A3;
+  --ipix-warning-text: #B97900;     /* texto "warning" legível sobre fundo claro */
+  --ipix-success-soft: rgba(40, 199, 111, .16);
+  --ipix-danger-soft:  rgba(234, 84, 85, .16);
+  --ipix-warning-soft: rgba(255, 171, 0, .16);
+  --ipix-info-soft:    rgba(3, 195, 236, .16);
+  --ipix-secondary-soft: rgba(133, 146, 163, .16);
+
+  /* Cores auxiliares (gráficos e destaques que precisam de mais de 5 tons) */
+  --ipix-accent-purple: #7367F0;
+  --ipix-accent-orange: #FF9F43;
+  --ipix-accent-teal:   #20C997;
+
+  /* Marcas de terceiros */
+  --ipix-whatsapp: #25D366;
+  --ipix-whatsapp-dark: #128C7E;
 
   /* Superfícies / efeitos */
   --ipix-hero-grad: linear-gradient(135deg, #FDC600 0%, #E0AE00 100%);
+  --ipix-dark-grad: linear-gradient(135deg, #2B2C40 0%, #3B3F52 100%);
   --ipix-radius: 0.625rem;
   --ipix-radius-lg: 1rem;
   --ipix-shadow-sm: 0 .125rem .5rem rgba(43, 44, 64, .08);
@@ -57,8 +82,8 @@
   --bs-info:    #03C3EC;  --bs-info-rgb: 3, 195, 236;
 }
 
-/* Fundo geral neutro */
-body { background-color: var(--ipix-body-bg); }
+/* Fundo geral neutro (o token muda no modo escuro) */
+body { background-color: var(--ipix-body-bg); color: var(--ipix-text); }
 
 /* --------------------------------------------------------------------------
    2. Botões / fundos primários (roxo Sneat -> amarelo IPIX, texto escuro)
@@ -167,10 +192,10 @@ a:hover { color: var(--bs-link-hover-color); }
 .text-info    { color: var(--ipix-info)    !important; }
 .text-warning { color: var(--ipix-warning) !important; }
 
-.bg-label-success { background-color: rgba(40, 199, 111, .16) !important; color: var(--ipix-success) !important; }
-.bg-label-danger  { background-color: rgba(234, 84, 85, .16)  !important; color: var(--ipix-danger)  !important; }
-.bg-label-warning { background-color: rgba(255, 171, 0, .16)  !important; color: #b97900 !important; }
-.bg-label-info    { background-color: rgba(3, 195, 236, .16)  !important; color: var(--ipix-info)    !important; }
+.bg-label-success { background-color: var(--ipix-success-soft) !important; color: var(--ipix-success) !important; }
+.bg-label-danger  { background-color: var(--ipix-danger-soft)  !important; color: var(--ipix-danger)  !important; }
+.bg-label-warning { background-color: var(--ipix-warning-soft) !important; color: var(--ipix-warning-text) !important; }
+.bg-label-info    { background-color: var(--ipix-info-soft)    !important; color: var(--ipix-info)    !important; }
 
 /* --------------------------------------------------------------------------
    4. Sidebar escura (#2B2C40) — vale em modo claro e escuro
@@ -230,19 +255,19 @@ a:hover { color: var(--bs-link-hover-color); }
   display: flex;
   align-items: center;
   padding-bottom: .5rem;
-  border-bottom: 2px solid var(--ipix-gray-200);
+  border-bottom: 2px solid var(--ipix-border);
   margin-bottom: 1rem;
 }
 .section-title i { font-size: 1.5rem; }
 
 .card-header-modern {
   background: transparent;
-  border-bottom: 1px solid var(--ipix-gray-200);
+  border-bottom: 1px solid var(--ipix-border);
 }
 
 .filter-card {
-  background: #fff;
-  border: 1px solid var(--ipix-gray-200);
+  background: var(--ipix-surface);
+  border: 1px solid var(--ipix-border);
   border-radius: var(--ipix-radius);
 }
 
@@ -261,10 +286,10 @@ a:hover { color: var(--bs-link-hover-color); }
   border-radius: 50%;
   font-size: .85rem;
 }
-.status-badge.success { background: rgba(40, 199, 111, .16); color: var(--ipix-success); }
-.status-badge.danger  { background: rgba(234, 84, 85, .16);  color: var(--ipix-danger); }
-.status-badge.warning { background: rgba(255, 171, 0, .16);  color: var(--ipix-warning); }
-.status-badge.info    { background: rgba(3, 195, 236, .16);  color: var(--ipix-info); }
+.status-badge.success { background: var(--ipix-success-soft); color: var(--ipix-success); }
+.status-badge.danger  { background: var(--ipix-danger-soft);  color: var(--ipix-danger); }
+.status-badge.warning { background: var(--ipix-warning-soft); color: var(--ipix-warning); }
+.status-badge.info    { background: var(--ipix-info-soft);    color: var(--ipix-info); }
 
 /* Hero/banner padrão IPIX (usa o gradiente de marca) */
 .ipix-hero {
@@ -280,23 +305,114 @@ a:hover { color: var(--bs-link-hover-color); }
 .card { border-radius: var(--ipix-radius); }
 
 /* --------------------------------------------------------------------------
-   6. Modo escuro (.dark-style) — reafirma o acento amarelo com texto legível
-      (este arquivo carrega depois de dark-mode-improvements.css, então vence)
+   6. Modo escuro (.dark-style, aplicado pelo seletor de tema do Sneat)
+      Redefine os MESMOS tokens --ipix-* e as variáveis do Bootstrap.
+      O acento continua amarelo (antes dark-mode-improvements.css trocava
+      --bs-primary para azul e brigava com este arquivo).
    -------------------------------------------------------------------------- */
 .dark-style {
+  color-scheme: dark;
+
+  --ipix-body-bg: #1F2230;
+  --ipix-surface: #262A3A;
+  --ipix-surface-muted: #2B2F40;
+  --ipix-border: #3B3F52;
+  --ipix-text: #D1D5E6;
+  --ipix-heading: #E6E8F5;
+  --ipix-muted: #A3A9C2;
+  --ipix-gray-100: #2B2F40;
+  --ipix-gray-200: #3B3F52;
+  --ipix-gray-500: #7C829C;
+  --ipix-ink: #E6E8F5;
+  --ipix-yellow-soft: rgba(253, 198, 0, .18);
+  --ipix-yellow-700: #FFD84D;
+  --ipix-primary-text: #FFD84D;
+  --ipix-warning-text: #FFBF47;
+  --ipix-shadow-sm: 0 .125rem .5rem rgba(0, 0, 0, .35);
+  --ipix-shadow: 0 .5rem 1.25rem rgba(0, 0, 0, .45);
+
+  /* Bootstrap: cores globais */
+  --bs-body-bg: var(--ipix-body-bg);
+  --bs-body-color: var(--ipix-text);
+  --bs-heading-color: var(--ipix-heading);
+  --bs-border-color: var(--ipix-border);
+  --bs-card-bg: var(--ipix-surface);
+  --bs-secondary-color: var(--ipix-muted);
+  --bs-tertiary-bg: var(--ipix-surface-muted);
+
+  /* Acento amarelo (único primário do sistema) */
   --bs-primary: #FDC600;
   --bs-primary-rgb: 253, 198, 0;
   --bs-link-color: #FFD84D;
+  --bs-link-color-rgb: 255, 216, 77;
   --bs-link-hover-color: #FDC600;
+
+  /* Tabelas, dropdowns e modais */
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--ipix-text);
+  --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
+  --bs-table-hover-bg: rgba(255, 255, 255, 0.05);
+  --bs-dropdown-bg: var(--ipix-surface);
+  --bs-dropdown-link-color: var(--ipix-text);
+  --bs-dropdown-link-hover-bg: rgba(255, 255, 255, 0.06);
+  --bs-modal-bg: var(--ipix-surface);
+  --bs-modal-color: var(--ipix-text);
 }
+
 .dark-style .btn-primary,
 .dark-style .btn-primary:hover,
 .dark-style .btn-primary:focus,
 .dark-style .btn-primary:active {
   background-color: var(--ipix-yellow) !important;
   border-color: var(--ipix-yellow) !important;
-  color: #1f2230 !important;
+  color: #1F2230 !important;
 }
-.dark-style .text-primary { color: #FFD84D !important; }
-.dark-style .bg-label-primary { background-color: rgba(253, 198, 0, .18) !important; color: #FFD84D !important; }
-.dark-style .section-title { color: #E6E8F5; border-bottom-color: #3B3F52; }
+.dark-style .text-primary { color: var(--ipix-primary-text) !important; }
+.dark-style .bg-label-primary { background-color: var(--ipix-yellow-soft) !important; color: var(--ipix-primary-text) !important; }
+.dark-style .section-title { color: var(--ipix-heading); border-bottom-color: var(--ipix-border); }
+
+/* Superfícies que o Sneat/telas fixam em branco no modo claro */
+.dark-style .card,
+.dark-style .modal-content,
+.dark-style .dropdown-menu,
+.dark-style .list-group-item,
+.dark-style .filter-card,
+.dark-style .bg-white {
+  background-color: var(--ipix-surface) !important;
+  color: var(--ipix-text);
+}
+.dark-style .bg-light,
+.dark-style .table-light,
+.dark-style .table-light > th,
+.dark-style .table-light > td,
+.dark-style thead.table-light th {
+  background-color: var(--ipix-surface-muted) !important;
+  color: var(--ipix-heading) !important;
+  border-color: var(--ipix-border) !important;
+}
+.dark-style .text-dark,
+.dark-style .text-body { color: var(--ipix-text) !important; }
+.dark-style .text-black { color: var(--ipix-heading) !important; }
+.dark-style .border,
+.dark-style .border-top,
+.dark-style .border-bottom,
+.dark-style .border-start,
+.dark-style .border-end { border-color: var(--ipix-border) !important; }
+.dark-style .form-control,
+.dark-style .form-select,
+.dark-style .input-group-text {
+  background-color: var(--ipix-surface-muted);
+  border-color: var(--ipix-border);
+  color: var(--ipix-text);
+}
+.dark-style .form-control::placeholder { color: var(--ipix-muted); }
+.dark-style .alert-primary { color: var(--ipix-primary-text) !important; }
+.dark-style .page-link { background-color: var(--ipix-surface); border-color: var(--ipix-border); }
+.dark-style .select2-container--default .select2-selection--single,
+.dark-style .select2-container--default .select2-selection--multiple,
+.dark-style .select2-dropdown {
+  background-color: var(--ipix-surface-muted);
+  border-color: var(--ipix-border);
+  color: var(--ipix-text);
+}
+.dark-style .select2-container--default .select2-selection--single .select2-selection__rendered { color: var(--ipix-text); }

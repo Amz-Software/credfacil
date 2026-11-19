@@ -1,0 +1,235 @@
+/* ==========================================================================
+   Estilos do layout base (templates/base.html)
+   Antes ficavam inline no <head> e no fim do <body>. Cores vêm dos tokens
+   --ipix-* definidos em ipix-theme.css.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Marca na navbar e no rodapé
+   -------------------------------------------------------------------------- */
+.navbar-brand-ribbon {
+  padding: 0.35rem 0.75rem;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.navbar-brand-ribbon img {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
+.footer-brand-logos {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  padding: 0.25rem 1rem;
+}
+
+.footer-brand-logos img {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  opacity: 0.85;
+}
+
+.dark-style .navbar-brand-ribbon,
+.dark-style .footer-brand-logos {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Logo e nome da loja no topo da sidebar */
+.app-brand-container { padding: 0.5rem 1rem; }
+.app-brand-container .app-brand-link { text-decoration: none; }
+.app-brand-container .app-brand-logo-img { max-width: 100px; height: auto; flex-shrink: 0; }
+.app-brand-container .app-brand-text {
+  font-size: 18px;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --------------------------------------------------------------------------
+   Avatar com iniciais (menu do usuário)
+   -------------------------------------------------------------------------- */
+.avatar-iniciais {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--ipix-yellow);
+  color: var(--ipix-on-yellow);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   Dropdown de notificações
+   -------------------------------------------------------------------------- */
+.notificacoes-menu {
+  width: 300px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.notificacoes-menu .btn-ver-todas { font-size: 0.75rem; }
+
+.notificacao-nova { animation: ipixFadeIn 0.4s; }
+
+@keyframes ipixFadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-proposta-icone {
+  width: 64px;
+  height: 64px;
+}
+
+/* --------------------------------------------------------------------------
+   Toasts (mensagens do Django e feedback via JS)
+   -------------------------------------------------------------------------- */
+.ipix-toast-container {
+  z-index: 1100;
+  max-width: min(420px, calc(100vw - 2rem));
+}
+
+.ipix-toast-container .toast {
+  width: 100%;
+  box-shadow: var(--ipix-shadow);
+}
+
+.ipix-toast-container .toast-body {
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+/* --------------------------------------------------------------------------
+   Formulários: 16px em telas pequenas evita o zoom automático do iOS
+   -------------------------------------------------------------------------- */
+@media (max-width: 767.98px) {
+  input.form-control,
+  textarea.form-control,
+  select.form-select,
+  .form-control,
+  .form-select,
+  .select2-container .select2-selection,
+  .select2-search__field {
+    font-size: 16px !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Botão flutuante de suporte via WhatsApp
+   -------------------------------------------------------------------------- */
+.whatsapp-float {
+  position: fixed;
+  bottom: 25px;
+  right: 25px;
+  z-index: 1030;
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, var(--ipix-whatsapp) 0%, var(--ipix-whatsapp-dark) 100%);
+  color: #fff;
+  border-radius: 50px;
+  padding: 12px 20px 12px 12px;
+  text-decoration: none;
+  box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4);
+  transition: all 0.3s ease;
+  font-family: 'Public Sans', sans-serif;
+  max-width: 200px;
+  overflow: hidden;
+}
+
+.whatsapp-float:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 6px 30px rgba(37, 211, 102, 0.6);
+  text-decoration: none;
+  color: #fff;
+}
+
+.whatsapp-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 45px;
+  height: 45px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.whatsapp-icon-wrapper i {
+  font-size: 28px;
+  animation: ipixPulse 2s infinite;
+}
+
+.whatsapp-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.support-label {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.support-subtitle {
+  font-size: 11px;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+@keyframes ipixPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whatsapp-icon-wrapper i,
+  .notificacao-nova { animation: none; }
+  .whatsapp-float:hover { transform: none; }
+}
+
+@media (max-width: 768px) {
+  .whatsapp-float {
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 15px 10px 10px;
+    max-width: 170px;
+  }
+
+  .whatsapp-icon-wrapper {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+  }
+
+  .whatsapp-icon-wrapper i { font-size: 24px; }
+  .support-label { font-size: 14px; }
+  .support-subtitle { font-size: 10px; }
+}
+
+/* Telas muito pequenas: só o ícone */
+@media (max-width: 480px) {
+  .whatsapp-float {
+    padding: 12px;
+    border-radius: 50%;
+    max-width: unset;
+  }
+
+  .whatsapp-text { display: none; }
+  .whatsapp-icon-wrapper { margin-right: 0; }
+}

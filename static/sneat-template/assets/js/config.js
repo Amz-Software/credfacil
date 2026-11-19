@@ -10,13 +10,13 @@
 // JS global variables
 window.config = {
   colors: {
-    primary: '#696cff',
+    primary: '#FDC600', // amarelo IPIX (antes roxo do Sneat)
     secondary: '#8592a3',
-    success: '#71dd37',
+    success: '#28c76f',
     info: '#03c3ec',
     warning: '#ffab00',
-    danger: '#ff3e1d',
-    dark: '#233446',
+    danger: '#ea5455',
+    dark: '#2b2c40',
     black: '#000',
     white: '#fff',
     cardColor: '#fff',
@@ -42,13 +42,13 @@ window.config = {
     headingColor: '#cbcbe2',
     textMuted: '#7071a4',
     borderColor: '#444564',
-    // Cores personalizadas para melhor contraste
-    primary: '#696cff',
+    // Mesma paleta do ipix-theme.css (acento amarelo também no escuro)
+    primary: '#FDC600',
     secondary: '#8592a3',
-    success: '#71dd37',
+    success: '#28c76f',
     info: '#03c3ec',
     warning: '#ffab00',
-    danger: '#ff3e1d'
+    danger: '#ea5455'
   },
   enableMenuLocalStorage: true // Enable menu state with local storage support
 };
