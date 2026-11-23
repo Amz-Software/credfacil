@@ -56,7 +56,9 @@ Não haverá pacote compartilhado com a SPA do vendedor por enquanto (YAGNI). Os
 
 ## 4. Hospedagem e autenticação
 
-**Decisão:** a SPA fica na **mesma origem** do Django, em `https://<domínio do backoffice>/painel/`. A autenticação é por **cookie de sessão do Django** (HttpOnly) + CSRF. A SPA não usa JWT.
+> **Atualização de 2026-11-23 (decisão do usuário):** a SPA vai para um **domínio próprio** e um **repositório novo** (`backoffice-web/`). Para manter a sessão HttpOnly sem cookie de terceiros, o nginx do domínio novo serve o `dist/` e faz **proxy reverso** de `/api/bo/` e `/ws/` para o Django: para o navegador continua sendo mesma origem. O Django precisa ter o domínio novo em `ALLOWED_HOSTS` e `https://<domínio>` em `CSRF_TRUSTED_ORIGINS`. **2FA fica fora por enquanto**: no lugar, política de senha forte (10+ caracteres, maiúscula, minúscula, número e símbolo) e troca obrigatória no login quando a senha atual não atende. Onde este documento fala em `/painel/` ou em 2FA, vale esta atualização.
+
+**Decisão original:** a SPA fica na **mesma origem** do Django, em `https://<domínio do backoffice>/painel/`. A autenticação é por **cookie de sessão do Django** (HttpOnly) + CSRF. A SPA não usa JWT.
 
 Motivos:
 - Nenhum token fica acessível ao JavaScript. Um XSS não rouba a sessão, ao contrário do JWT no localStorage da SPA do vendedor.
@@ -409,8 +411,11 @@ backoffice-web/
 - **CRM em React é a parte mais arriscada** (tempo real, mídia, rascunho que não pode se perder).
   - Mitigação: vai por último, quando a base já estiver madura, e o Django fica como reserva até a paridade.
 
-## 15. Decisões em aberto
-1. **Domínio:** `/painel/` no domínio atual, ou subdomínio próprio (ex.: `backoffice.<domínio>`)? O subdomínio também é mesma origem para cookies se o Django for servido nele. A recomendação é `/painel/` no domínio atual.
-2. **CRM na SPA:** confirmar que o CRM entra (recomendado: entra por último, restrito por `crm.acessar_crm`; o vendedor continua sem acesso).
-3. **2FA:** confirmar quais papéis são obrigatórios. A proposta é ADMINISTRADOR, ANALISTA e quem tem permissões financeiras ou de usuários.
-4. **Fase 0 já:** a recomendação é tratá-la como mudança própria e ir para produção antes de qualquer trabalho na SPA.
+## 15. Decisões (respondidas pelo usuário em 2026-11-23)
+1. **Domínio:** domínio próprio, repositório novo; proxy reverso de `/api/bo/` e `/ws/` (ver seção 4).
+2. **CRM na SPA:** entra, para ficar bonito e organizado; restrito por `crm.acessar_crm`; o vendedor continua sem acesso.
+3. **2FA:** não por enquanto; senha forte obrigatória e troca forçada de senhas fora da política.
+4. **Execução:** começar já, em um branch separado no Django (`feat/backoffice-react`) e no repositório novo `backoffice-web/`, seguindo todas as fases.
+
+### Escopo de loja "todas"
+`X-Loja` ausente ou `todas` devolve **todas as lojas do escopo do usuário** (para o gerente, as lojas que ele gerencia ou às quais pertence). Um id fora do escopo responde 403.

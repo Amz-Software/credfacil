@@ -21,16 +21,16 @@ A API `/api/bo/v1/` MUST autenticar somente por sessão do Django com CSRF e MUS
 - **QUANDO** uma requisição a `/api/bo/v1/` chegar só com `Authorization: Bearer <jwt>`
 - **ENTÃO** o servidor responderá 401 com o código `nao_autenticado`
 
-### Requirement: Segundo fator para papéis sensíveis
-O login MUST exigir TOTP de ADMINISTRADOR, ANALISTA e de quem tiver permissão sobre usuários, grupos, repasses ou quitação.
+### Requirement: Senha forte
+Toda senha definida ou alterada MUST ter pelo menos 10 caracteres, com letra maiúscula, letra minúscula, número e símbolo, além das validações padrão do Django (senha comum, parecida com os dados do usuário, só números). O 2FA fica fora desta mudança, por decisão do usuário.
 
-#### Cenário: Primeiro login sem 2FA configurado
-- **QUANDO** um usuário de papel sensível entrar sem 2FA configurado
-- **ENTÃO** a sessão ficará restrita à ativação do 2FA até a confirmação de um código válido, e o usuário receberá códigos de recuperação
+#### Cenário: Login com senha antiga fora da política
+- **QUANDO** um usuário entrar com uma senha correta que não atende à política
+- **ENTÃO** a sessão será criada com troca de senha obrigatória, e toda a API, exceto `me`, `logout` e a troca de senha, responderá 403 com o código `troca_senha_obrigatoria` até a troca
 
-#### Cenário: Código inválido
-- **QUANDO** o código TOTP for inválido
-- **ENTÃO** o login não será concluído e a falha contará para o bloqueio por tentativas
+#### Cenário: Nova senha fraca
+- **QUANDO** o usuário tentar trocar para uma senha sem símbolo
+- **ENTÃO** a resposta será 400 com a mensagem no campo `nova_senha`
 
 ### Requirement: Bloqueio por tentativas
 O servidor MUST bloquear temporariamente o login após 5 falhas em 15 minutos para a mesma combinação de usuário e IP, no backoffice, no login Django, no admin e na recuperação de senha.
@@ -67,7 +67,7 @@ Toda consulta e ação da API do backoffice MUST se limitar às lojas devolvidas
 
 #### Cenário: Gerente
 - **QUANDO** um usuário que é gerente das lojas A e C enviar `X-Loja: C`
-- **ENTÃO** verá os dados da loja C, e `X-Loja: todas` responderá 403 se ele não tiver permissão global
+- **ENTÃO** verá os dados da loja C, e `X-Loja: todas` devolverá somente as lojas do seu escopo (A e C)
 
 #### Cenário: Administrador
 - **QUANDO** um administrador, ou usuário com a permissão global correspondente (`can_view_all_*`), enviar `X-Loja: todas`
