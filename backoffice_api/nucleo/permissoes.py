@@ -11,7 +11,7 @@ Toda view declara `permissoes`, um dicionário de ação (viewsets) ou método H
         'GET': [],   # lista vazia: basta ter acesso ao backoffice
     }
 """
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
 from rest_framework.permissions import BasePermission
 
 from .erros import PROIBIDO_ACESSO, TROCA_SENHA_OBRIGATORIA
@@ -73,6 +73,19 @@ class AcessoBackoffice(BasePermission):
         return True
 
 
+def _recusar_metodo_nao_mapeado(request, view) -> None:
+    """Método sem handler responde 405 (e não 403), antes da checagem de permissões."""
+    if request.method == 'OPTIONS':
+        return
+    action_map = getattr(view, 'action_map', None)
+    if action_map is not None:
+        if request.method.lower() not in action_map:
+            raise MethodNotAllowed(request.method)
+        return
+    if not hasattr(view, request.method.lower()):
+        raise MethodNotAllowed(request.method)
+
+
 def _atende(item, request, view) -> bool:
     user = request.user
     if hasattr(item, 'avaliar'):
@@ -86,6 +99,7 @@ class PermissoesDeclaradas(BasePermission):
     """Confere `view.permissoes[acao ou método]`; o que não estiver declarado é negado."""
 
     def has_permission(self, request, view) -> bool:
+        _recusar_metodo_nao_mapeado(request, view)
         mapa = getattr(view, 'permissoes', None)
         if mapa is None:
             return False
