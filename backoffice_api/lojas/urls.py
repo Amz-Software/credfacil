@@ -9,6 +9,7 @@ numeros_item = numeros.as_view({'get': 'retrieve', 'patch': 'partial_update', 'd
 
 urlpatterns = [
     path('', views.LojasView.as_view(), name='lojas'),
+    path('opcoes/', views.OpcoesFormularioView.as_view(), name='opcoes'),
     path('repasses/', views.RepassesView.as_view(), name='repasses'),
     path('repasses/agendados/', views.RepassesAgendadosView.as_view(), name='repasses-agendados'),
     path('repasses/<int:pk>/', views.RepasseView.as_view(), name='repasse'),

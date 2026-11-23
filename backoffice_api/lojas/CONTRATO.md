@@ -29,6 +29,16 @@ Campos: `nome` (obrigatório), `cnpj`, `inscricao_estadual`, `endereco`, `telefo
 `pode_vender_iphone` (**só ADMINISTRADOR ou superusuário**; outros → 400 em `campos.pode_vender_iphone`).
 `credfacil` é só leitura (como na tela). Campo desconhecido → 400 "Campo não editável".
 
+## GET `opcoes/` (opções do formulário de loja)
+Permissão: `vendas.add_loja` **ou** `vendas.change_loja`. Mesmas listas do `LojaForm` da tela Django.
+```json
+{"usuarios": [{"id": 3, "nome": "Ana", "email": "ana@x"}],
+ "produtos": [{"id": 9, "nome": "iPhone 13", "codigo": 101}],
+ "pode_editar_campos_restritos": false}
+```
+`usuarios`: ativos (usuários e gerentes); `produtos`: ativos (modelos bloqueáveis);
+`pode_editar_campos_restritos`: ADMINISTRADOR ou superusuário (libera `pode_vender_iphone`).
+
 ## GET `{id}/` (detalhe)
 Permissão: `vendas.view_loja`. Parâmetros `data_inicio`, `data_fim` (AAAA-MM-DD) recortam KPIs e calendário.
 ```json
