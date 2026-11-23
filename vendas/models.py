@@ -629,6 +629,8 @@ class PreAnaliseRapida(Base):
     tem_comprovante_residencia = models.BooleanField(default=False, verbose_name='Tem comprovante de residência')
     possui_duas_referencias = models.BooleanField(default=False, verbose_name='Possui 2 referências')
     segunda_compra = models.BooleanField(default=False, verbose_name='É a segunda compra do cliente conosco')
+    # Respondida pelo vendedor; ao virar proposta, preenche AnaliseCreditoCliente.analise_online.
+    analise_online = models.BooleanField(default=False, verbose_name='Análise online')
 
     # Anexada pelo analista durante a análise rápida. Ao virar proposta, é copiada
     # para ComprovantesCliente.consulta_serasa, já vindo preenchida no cadastro.

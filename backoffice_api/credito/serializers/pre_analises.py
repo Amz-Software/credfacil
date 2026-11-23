@@ -26,6 +26,7 @@ class CreditoPreAnaliseListaSerializer(serializers.Serializer):
     tem_comprovante_residencia = serializers.BooleanField()
     possui_duas_referencias = serializers.BooleanField()
     segunda_compra = serializers.BooleanField()
+    analise_online = serializers.BooleanField(help_text='Vendedor informou que a análise é online (não presencial).')
     criado_por = CreditoUsuarioRefSerializer(allow_null=True)
     analisado_por = CreditoUsuarioRefSerializer(allow_null=True)
     data_decisao = serializers.DateTimeField(allow_null=True)

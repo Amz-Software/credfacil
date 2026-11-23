@@ -56,6 +56,9 @@
               {% endif %}
             </dd>
 
+            <dt class="col-5">Tipo de análise</dt>
+            <dd class="col-7">{% if pre_analise.analise_online %}<i class="bx bx-wifi"></i> Online{% else %}Presencial{% endif %}</dd>
+
             <dt class="col-5">Loja</dt>
             <dd class="col-7">{{ pre_analise.loja.nome|default:"—" }}</dd>
 

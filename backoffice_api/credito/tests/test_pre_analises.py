@@ -22,6 +22,7 @@ class PreAnaliseTests(CenarioCredito):
         dados = self.logar(self.analista).get(self.url()).json()
         self.assertEqual([r['id'] for r in dados['results']], [self.pre_a.pk])
         self.assertEqual(dados['results'][0]['cpf'], '***.654.321-**')
+        self.assertIs(dados['results'][0]['analise_online'], False)
         self.assertEqual(self.logar(self.admin).get(self.url()).json()['count'], 2)
         self.assertEqual(self.logar(self.sem_permissao).get(self.url()).status_code, 403)
 

@@ -193,7 +193,7 @@ Permissão: `vendas.view_cliente`. Filtros: `busca` (nome/CPF), `status` (`P`, `
   "id": 7, "nome_completo": "João Souza", "cpf": "***.654.321-**", "loja": {"id": 2, "nome": "Loja A"},
   "status": "P", "status_rotulo": "Pendente", "finalizada": false, "cliente_gerado_id": null,
   "tem_consulta_serasa": false, "tem_comprovante_residencia": true, "possui_duas_referencias": true,
-  "segunda_compra": false, "criado_por": {"id": 9, "nome": "..."}, "analisado_por": null,
+  "segunda_compra": false, "analise_online": false, "criado_por": {"id": 9, "nome": "..."}, "analisado_por": null,
   "data_decisao": null, "criado_em": "..."}]}
 ```
 

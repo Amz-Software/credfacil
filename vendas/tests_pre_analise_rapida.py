@@ -319,3 +319,26 @@ class FiltrosListaAnaliseRapidaTests(TestCase):
         ctx = self._contexto(user=vendedor)
         self.assertEqual(list(ctx['lojas']), [self.loja_a])
         self.assertEqual(list(ctx['pre_analises']), [self.pre_a])
+
+
+class AnaliseOnlineNaAnaliseRapidaTests(SegundaCompraNaAnaliseRapidaTests):
+    """Pergunta 'A análise é online ou presencial?' respondida pelo vendedor."""
+
+    # Os testes de segunda compra já rodam na classe base.
+    test_vendedor_marca_segunda_compra = None
+    test_vendedor_marca_primeira_compra = None
+    test_segunda_compra_exposta_na_leitura = None
+
+    def test_vendedor_informa_analise_online(self):
+        self.client.force_login(self.vendedor)
+        payload = {**self._payload('false'), 'analise_online': 'true'}
+        response = self.client.post('/api/pre-analises-rapidas/', payload)
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertTrue(response.json()['analise_online'])
+        self.assertTrue(PreAnaliseRapida.objects.get(pk=response.json()['id']).analise_online)
+
+    def test_sem_resposta_fica_presencial(self):
+        self.client.force_login(self.vendedor)
+        response = self.client.post('/api/pre-analises-rapidas/', self._payload('false'))
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertFalse(PreAnaliseRapida.objects.get(pk=response.json()['id']).analise_online)

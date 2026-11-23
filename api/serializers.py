@@ -877,6 +877,7 @@ class PreAnaliseRapidaSerializer(serializers.ModelSerializer):
             "tem_comprovante_residencia",
             "possui_duas_referencias",
             "segunda_compra",
+            "analise_online",
             "status",
             "status_display",
             "observacao",
@@ -923,6 +924,7 @@ class PreAnaliseRapidaInputSerializer(serializers.ModelSerializer):
             "tem_comprovante_residencia",
             "possui_duas_referencias",
             "segunda_compra",
+            "analise_online",
         ]
 
     def validate_nome_completo(self, value):
