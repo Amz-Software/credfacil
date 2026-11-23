@@ -1,7 +1,7 @@
 """Fila de solicitações, KPIs e busca global."""
 from backoffice_api.credito.regras import mascarar_cpf
 
-from .fabricas import BASE, CenarioCredito, criar_solicitacao, criar_usuario
+from .fabricas import BASE, CenarioCredito, criar_pre_analise, criar_solicitacao, criar_usuario
 
 
 class FilaTests(CenarioCredito):
@@ -69,6 +69,26 @@ class KpisTests(CenarioCredito):
         self.assertEqual(dados['por_status']['A'], 1)
         self.assertEqual(dados['aprovadas_sem_venda'], 1)
         self.assertEqual(dados['total'], 3)
+
+    def test_contadores_online(self):
+        online = criar_solicitacao(self.loja_a, self.produto, nome='Online', cpf='44455566677', status='A')
+        online.analise_credito.analise_online = True
+        online.analise_credito.save()
+        dados = self.logar(self.analista).get(f'{BASE}/solicitacoes/kpis/').json()
+        self.assertEqual(dados['online']['por_status'], {'EA': 0, 'A': 1, 'R': 0, 'C': 0})
+        self.assertEqual(dados['online']['total'], 1)
+        self.assertEqual(dados['online']['aprovadas_sem_venda'], 1)
+        self.assertEqual(dados['total'], 2)
+
+    def test_contadores_da_analise_rapida(self):
+        for _ in range(2):  # duas pré-análises para o mesmo cliente contam uma vez
+            pre = criar_pre_analise(self.loja_a)
+            pre.cliente_gerado = self.sol_a
+            pre.save()
+        dados = self.logar(self.analista).get(f'{BASE}/solicitacoes/kpis/').json()
+        self.assertEqual(dados['analise_rapida']['por_status']['EA'], 1)
+        self.assertEqual(dados['analise_rapida']['total'], 1)
+        self.assertEqual(dados['online']['total'], 0)
 
     def test_sem_permissao_recebe_403(self):
         self.assertEqual(self.logar(self.sem_permissao).get(f'{BASE}/solicitacoes/kpis/').status_code, 403)

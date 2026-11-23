@@ -26,10 +26,15 @@ class CreditoOpcaoSerializer(serializers.Serializer):
     rotulo = serializers.CharField()
 
 
-class CreditoKpisSerializer(serializers.Serializer):
+class CreditoContadoresSerializer(serializers.Serializer):
     por_status = serializers.DictField(child=serializers.IntegerField(), help_text='{"EA": 3, "A": 10, "R": 2, "C": 1}')
     total = serializers.IntegerField()
     aprovadas_sem_venda = serializers.IntegerField()
+
+
+class CreditoKpisSerializer(CreditoContadoresSerializer):
+    online = CreditoContadoresSerializer(help_text='Os mesmos contadores, só das análises online.')
+    analise_rapida = CreditoContadoresSerializer(help_text='Os mesmos contadores, só das que vieram de uma análise rápida.')
     status_opcoes = CreditoOpcaoSerializer(many=True)
     status_app_opcoes = CreditoOpcaoSerializer(many=True)
 

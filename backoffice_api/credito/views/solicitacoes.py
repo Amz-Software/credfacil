@@ -2,6 +2,7 @@
 import base64
 
 from django.db import transaction
+from django.db.models import Exists, OuterRef
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins
@@ -13,7 +14,7 @@ from backoffice_api.nucleo.auditoria import ip_do_cliente
 from backoffice_api.nucleo.erros import NAO_ENCONTRADO_RECURSO, PROIBIDO_ACESSO, ErroBackoffice
 from backoffice_api.nucleo.permissoes import EmGrupo
 from backoffice_api.nucleo.views import BackofficeViewSet
-from vendas.models import AnaliseCreditoCliente, Cliente, ConsultaSerasaAcesso, Loja
+from vendas.models import AnaliseCreditoCliente, Cliente, ConsultaSerasaAcesso, Loja, PreAnaliseRapida
 from vendas.services.kpis import contar_por_status
 
 from ..arquivos import ARQUIVOS_SOLICITACAO, TIPO_SERASA, mime_pelos_bytes, responder_arquivo
@@ -86,6 +87,19 @@ def _data_uri(campo_arquivo) -> str | None:
     return f'data:{mime};base64,{base64.b64encode(conteudo).decode()}'
 
 
+_VEIO_DA_ANALISE_RAPIDA = Exists(PreAnaliseRapida.objects.filter(cliente_gerado=OuterRef('cliente')))
+
+
+def _contadores(analises) -> dict:
+    """Totais por status, geral e de aprovadas sem venda de um conjunto de análises."""
+    por_status = contar_por_status(analises)
+    return {
+        'por_status': por_status,
+        'total': sum(por_status.values()),
+        'aprovadas_sem_venda': analises.filter(status=STATUS_APROVADO, venda__isnull=True).count(),
+    }
+
+
 @extend_schema(tags=[TAG])
 class SolicitacaoViewSet(
     MetodoAntesDaPermissaoMixin,
@@ -142,11 +156,10 @@ class SolicitacaoViewSet(
     @action(detail=False, methods=['get'])
     def kpis(self, request):
         analises = self.filtrar_por_lojas(analises_para_kpis(request.query_params), 'loja')
-        por_status = contar_por_status(analises)
         return Response({
-            'por_status': por_status,
-            'total': sum(por_status.values()),
-            'aprovadas_sem_venda': analises.filter(status=STATUS_APROVADO, venda__isnull=True).count(),
+            **_contadores(analises),
+            'online': _contadores(analises.filter(analise_online=True)),
+            'analise_rapida': _contadores(analises.filter(_VEIO_DA_ANALISE_RAPIDA)),
             'status_opcoes': [{'codigo': c, 'rotulo': r} for c, r in AnaliseCreditoCliente.STATUS_CHOICES],
             'status_app_opcoes': [{'codigo': c, 'rotulo': r} for c, r in AnaliseCreditoCliente.STATUS_APP_CHOICES],
         })

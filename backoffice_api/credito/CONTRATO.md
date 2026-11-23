@@ -57,8 +57,11 @@ Só lista clientes que têm análise. Valor inválido → 400 com `campos.<param
 Permissão: `vendas.view_cliente`. Parâmetro opcional `loja` (um ou mais). Respeita escopo/`X-Loja`.
 ```json
 {"por_status": {"EA": 3, "A": 10, "R": 2, "C": 1}, "total": 16, "aprovadas_sem_venda": 4,
+ "online": {"por_status": {"EA": 1, "A": 4, "R": 0, "C": 0}, "total": 5, "aprovadas_sem_venda": 2},
+ "analise_rapida": {"por_status": {"EA": 0, "A": 3, "R": 0, "C": 0}, "total": 3, "aprovadas_sem_venda": 1},
  "status_opcoes": [{"codigo": "EA", "rotulo": "Em análise"}], "status_app_opcoes": [{"codigo": "P", "rotulo": "Pendente"}]}
 ```
+`online` repete os contadores só para as análises com `analise_online = true`; `analise_rapida`, só para as solicitações cujo cliente foi gerado por uma `PreAnaliseRapida`.
 
 ### `GET solicitacoes/{id}/` — detalhe
 Permissão: `vendas.view_cliente`. CPF completo.
