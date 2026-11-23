@@ -19,7 +19,7 @@ SEM_META = {chave: '' for chave in (
 )}
 
 
-@override_settings(CRM_TAREFAS_SINCRONAS=True, NOTIFICACAO_WS_SINCRONO=False)
+@override_settings(CRM_TAREFAS_SINCRONAS=True, NOTIFICACAO_WS_SINCRONO=False, CRM_CACHE_LIMITES='default')
 class CrmTestCase(TestCase):
     def setUp(self):
         self.pasta_midia = tempfile.mkdtemp(prefix='crm-testes-')

@@ -5,6 +5,7 @@ from crm.models import ConfiguracaoCRM, Etiqueta, RespostaRapida
 
 MAX_HORAS_RETORNO = 720
 TAMANHO_CNPJ = 14
+NOME_ASSISTENTE_PADRAO = 'Ana'
 
 
 class _BootstrapMixin:
@@ -26,20 +27,32 @@ class ConfiguracaoForm(_BootstrapMixin, forms.ModelForm):
     class Meta:
         model = ConfiguracaoCRM
         fields = ['nome_empresa', 'boas_vindas_ativa', 'mensagem_boas_vindas', 'retorno_automatico_horas',
-                  'autoatendimento_ativo', 'url_publica', 'razao_social', 'cnpj', 'email_privacidade']
+                  'autoatendimento_ativo', 'assistente_ativo', 'assistente_nome', 'assistente_conhecimento',
+                  'url_publica', 'razao_social', 'cnpj', 'email_privacidade']
         labels = {
             'nome_empresa': 'Nome da empresa nas mensagens',
             'boas_vindas_ativa': 'Enviar boas-vindas quando o cliente chamar',
             'mensagem_boas_vindas': 'Mensagem de boas-vindas',
             'retorno_automatico_horas': 'Devolver ao automático após (horas sem resposta da equipe)',
             'autoatendimento_ativo': 'Autoatendimento de parcelas (CPF + data de nascimento)',
+            'assistente_ativo': 'Assistente de IA (conversa em linguagem natural)',
+            'assistente_nome': 'Nome do assistente',
+            'assistente_conhecimento': 'O que o assistente sabe (crediário, Limpa Nome, regras)',
             'url_publica': 'Endereço público do sistema',
             'razao_social': 'Razão social',
             'cnpj': 'CNPJ',
             'email_privacidade': 'E-mail do responsável pelos dados (LGPD)',
         }
         help_texts = {'retorno_automatico_horas': '0 desliga a devolução automática.'}
-        widgets = {'mensagem_boas_vindas': forms.Textarea(attrs={'rows': 3})}
+        widgets = {'mensagem_boas_vindas': forms.Textarea(attrs={'rows': 3}),
+                   'assistente_conhecimento': forms.Textarea(attrs={'rows': 10})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['assistente_nome'].required = False
+
+    def clean_assistente_nome(self) -> str:
+        return (self.cleaned_data.get('assistente_nome') or '').strip() or NOME_ASSISTENTE_PADRAO
 
     def clean_retorno_automatico_horas(self) -> int:
         horas = self.cleaned_data['retorno_automatico_horas']

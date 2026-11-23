@@ -38,6 +38,10 @@
             <i class="bx {% if integracao.transcricao %}bx-check-circle text-success{% else %}bx-minus-circle text-muted{% endif %} fs-5"></i>
             <span><code>OPENAI_API_KEY</code> <span class="badge bg-label-secondary">opcional</span><br><small class="text-muted">Transcrição dos áudios</small></span>
           </li>
+          <li class="d-flex align-items-start gap-2 mt-2">
+            <i class="bx {% if integracao.assistente_ia %}bx-check-circle text-success{% else %}bx-minus-circle text-muted{% endif %} fs-5"></i>
+            <span><code>ANTHROPIC_API_KEY</code> <span class="badge bg-label-secondary">opcional</span><br><small class="text-muted">Assistente de IA (Claude)</small></span>
+          </li>
         </ul>
         <div class="small">
           <div class="text-muted">Endereço do webhook (cadastrar no app da Meta, campo <code>messages</code>)</div>

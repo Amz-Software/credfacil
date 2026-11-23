@@ -17,6 +17,7 @@ EXPIRACAO = timedelta(minutes=30)
 MAX_TENTATIVAS = 3
 MAX_OPCOES_INVALIDAS = 2
 MAX_CLIENTES_VINCULADOS = 5
+CHAVE_IA = 'ia'  # mesma chave de crm.services.assistente.identidade (que importa este módulo)
 
 MENU, CPF, NASCIMENTO = 'MENU', 'CPF', 'NASCIMENTO'
 INTENCAO_PAGAMENTO = re.compile(
@@ -77,7 +78,10 @@ def _estado(conversa: Conversa) -> dict:
 
 
 def _salvar(conversa: Conversa, etapa: str | None, **dados) -> None:
-    contexto = {} if etapa is None else {'etapa': etapa, 'desde': timezone.now().isoformat(), **dados}
+    # Preserva o estado do assistente de IA (identificação e tentativas), que o menu não usa.
+    preservado = {k: v for k, v in (conversa.contexto or {}).items() if k == CHAVE_IA}
+    etapa_menu = {} if etapa is None else {'etapa': etapa, 'desde': timezone.now().isoformat(), **dados}
+    contexto = {**preservado, **etapa_menu}
     Conversa.objects.filter(pk=conversa.pk).update(contexto=contexto)
     conversa.contexto = contexto
 

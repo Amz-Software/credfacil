@@ -312,6 +312,20 @@ class ConfiguracaoCRM(models.Model):
     cnpj = models.CharField(max_length=18, blank=True, default='')
     email_privacidade = models.EmailField(blank=True, default='',
                                           help_text='Contato do responsável pelos dados pessoais (LGPD).')
+    assistente_ativo = models.BooleanField(
+        default=False,
+        help_text='Conversa em linguagem natural com IA (Claude). Exige ANTHROPIC_API_KEY no servidor; '
+                  'sem a chave ou em caso de falha, vale o autoatendimento acima.',
+    )
+    assistente_nome = models.CharField(
+        max_length=40, default='Ana',
+        help_text='Nome com que o assistente se apresenta. Se perguntarem, ele diz que é um assistente virtual.',
+    )
+    assistente_conhecimento = models.TextField(
+        max_length=12000, blank=True, default='',
+        help_text='O que o assistente pode explicar: como funciona o crediário, o IPX Limpa Nome, regras de '
+                  'negociação, horários. Ele não inventa: o que não estiver aqui vai para a equipe.',
+    )
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:

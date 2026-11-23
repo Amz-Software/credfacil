@@ -227,13 +227,13 @@ def _tratar_lote(conversa_id: int, pendentes: list[Mensagem]) -> None:
 
 
 def atendimento_automatico(conversa: Conversa, pendentes: list[Mensagem] | None = None) -> None:
-    """Autoatendimento de pagamentos (se ligado) ou boas-vindas + fila da equipe.
-
-    Ponto de extensão para um agente de IA no futuro (arquitetura §7).
-    """
+    """Assistente de IA (se ligado e com chave); senão, ou se ele falhar, autoatendimento
+    de pagamentos (se ligado) ou boas-vindas + fila da equipe."""
     from crm.services import autoatendimento, envio
 
     config = ConfiguracaoCRM.obter()
+    if config.assistente_ativo and _tentar_assistente(conversa):
+        return
     if config.autoatendimento_ativo:
         autoatendimento.tratar(conversa, pendentes or [])
         return
@@ -253,6 +253,22 @@ def atendimento_automatico(conversa: Conversa, pendentes: list[Mensagem] | None 
         + ('O cliente recebeu a boas-vindas automática.' if enviou else 'Nenhuma resposta automática foi enviada.'),
         silenciosa=not enviou,
     )
+
+
+def _tentar_assistente(conversa: Conversa) -> bool:
+    """True = turno encerrado (a IA respondeu, ou a conversa já saiu do automático).
+    False = seguir o fluxo sem IA (sem chave ou falha antes de responder)."""
+    from crm.services import assistente
+
+    if not (assistente.disponivel() and assistente.liberado_para(conversa.telefone)):
+        return False
+    try:
+        assistente.atender(conversa)
+    except assistente.FalhaAssistente as erro:
+        logger.warning('Assistente de IA falhou na conversa %s: %s. Seguindo sem IA.', conversa.pk, erro)
+        conversa.refresh_from_db()
+        return conversa.modo != Conversa.Modo.AUTOMATICO
+    return True
 
 
 def transferir(conversa: Conversa, nota: str, silenciosa: bool = False) -> bool:

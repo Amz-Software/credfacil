@@ -20,6 +20,10 @@ recebidas.
 | `WHATSAPP_VERIFY_TOKEN` | sim | Texto livre combinado entre o sistema e o painel da Meta no cadastro do webhook |
 | `WHATSAPP_API_VERSION` | não | Padrão `v23.0` |
 | `OPENAI_API_KEY` | não | Liga a transcrição de áudios recebidos (`whisper-1`) |
+| `ANTHROPIC_API_KEY` | não | Liga o assistente de IA (Claude) quando ele também está ativo na Configuração |
+| `ASSISTENTE_MODELO` | não | Modelo do assistente. Padrão `claude-sonnet-5-5` |
+| `ASSISTENTE_ESFORCO` | não | `low` (padrão), `medium`, `high`, `xhigh` ou `max` |
+| `ASSISTENTE_TELEFONES_TESTE` | não | Números separados por vírgula: se preenchida, só eles falam com a IA (os demais seguem no menu). Para testar em produção |
 | `CRM_MIDIA_ROOT` | não | Pasta privada da mídia quando não há S3. Padrão `mediafiles_privado/` no projeto (fora de `/mediafiles/`, que é público) |
 
 O modo real só liga com **token e ID do número**. Com só um dos dois, continua simulado.
@@ -61,7 +65,19 @@ Configurações → Usuários e Acessos → Grupos.
   `PENDENTE` (equipe respondeu, cliente deve), `RESOLVIDA`.
 - **Atendimento automático:** mensagem nova em `AUTOMATICO` → envia a boas-vindas
   (se ligada, no máximo uma vez a cada 24 h por conversa) e passa a conversa para
-  `AGUARDANDO`, com nota interna. A estrutura comporta um robô de IA no futuro.
+  `AGUARDANDO`, com nota interna.
+- **Assistente de IA** (Configuração → "Assistente de IA" + `ANTHROPIC_API_KEY`): em
+  `AUTOMATICO`, o Claude conversa em linguagem natural no lugar do menu, como a persona
+  configurada (`assistente_nome`); se perguntarem, diz que é assistente virtual. Só explica o que
+  está em `assistente_conhecimento` e nas regras do crediário (tabela `Parcelamento`); o resto
+  vai para a equipe. Ferramentas (`crm/services/assistente/ferramentas.py`):
+  `identificar_cliente` (CPF + nascimento conferidos pelo código, 3 tentativas, vale 24 h),
+  `consultar_parcelas` e `gerar_link_pagamento` (só do cliente identificado; o link sai de
+  `crm/services/links_pagamento.py`, ponto único de troca do gateway) e
+  `transferir_para_atendente` (nota para a equipe). Respostas ficam com `dados.ia = true` e
+  aparecem como "Assistente de IA". Sem chave, com falha da API ou resposta vazia, nada da IA
+  é enviado e vale o fluxo abaixo (menu ou boas-vindas). Limite de 40 respostas da IA por
+  hora por conversa.
 - **Autoatendimento de pagamentos** (ligado em Configuração → Atendimento automático):
   em `AUTOMATICO`, o cliente recebe o menu *1 – Ver minhas parcelas* / *2 – Falar com um
   atendente*. Na opção 1 informa CPF e data de nascimento (mesma regra da consulta pública
@@ -117,7 +133,7 @@ Resposta das ações:
 
 | Rota | O quê |
 |---|---|
-| `/crm/configuracao/` | Atendimento (boas-vindas, retorno automático, autoatendimento, endereço público) e situação da integração com a Meta |
+| `/crm/configuracao/` | Atendimento (boas-vindas, retorno automático, autoatendimento, assistente de IA, endereço público) e situação da integração com a Meta |
 | `/crm/configuracao/aberturas/` | Mensagens de abertura: criar, editar (texto novo = versão nova enviada à Meta), consultar a Meta e, no modo simulado, simular aprovação/rejeição |
 | `/crm/configuracao/respostas/` e `/crm/configuracao/etiquetas/` | Cadastros. Não se exclui: desmarque "Ativo" |
 | `/crm/configuracao/simulador/` | Só sem credenciais: recebe mensagem como se fosse o cliente e mostra a conversa ao lado |

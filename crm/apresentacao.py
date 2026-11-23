@@ -118,6 +118,8 @@ def mensagem_dict(mensagem: Mensagem, reacoes: dict[int, str] | None = None) -> 
         autor_nome = mensagem.conversa.nome_exibicao
     elif mensagem.usuario_id:
         autor_nome = mensagem.usuario.get_full_name() or mensagem.usuario.username
+    elif dados.get('ia'):
+        autor_nome = 'Assistente de IA'
     else:
         autor_nome = mensagem.get_autor_display()
     return {

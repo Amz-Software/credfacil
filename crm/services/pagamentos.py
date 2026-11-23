@@ -49,17 +49,21 @@ def _resumo_pagamento(pagamento, hoje: date) -> dict | None:
     }
 
 
-def resumo_dos_clientes(clientes) -> list[dict]:
-    """Pagamentos com parcelas em aberto (venda ativa, sem quitação, desativação ou devolução)."""
+def pagamentos_em_aberto(clientes):
+    """Pagamentos que ainda podem ter parcela a pagar (venda ativa, sem quitação, desativação ou devolução)."""
     from vendas.models import Pagamento
 
-    pagamentos = (Pagamento.objects
-                  .filter(venda__cliente__in=list(clientes), venda__is_deleted=False,
-                          quitado=False, desativado=False, devolucao=False)
-                  .select_related('venda').prefetch_related('parcelas_pagamento')
-                  .order_by('venda__data_venda'))
+    return (Pagamento.objects
+            .filter(venda__cliente__in=list(clientes), venda__is_deleted=False,
+                    quitado=False, desativado=False, devolucao=False)
+            .select_related('venda').prefetch_related('parcelas_pagamento')
+            .order_by('venda__data_venda'))
+
+
+def resumo_dos_clientes(clientes) -> list[dict]:
+    """Pagamentos com parcelas em aberto (venda ativa, sem quitação, desativação ou devolução)."""
     hoje = date.today()
-    return [r for r in (_resumo_pagamento(p, hoje) for p in pagamentos) if r]
+    return [r for r in (_resumo_pagamento(p, hoje) for p in pagamentos_em_aberto(clientes)) if r]
 
 
 def resumo_do_cliente(cliente) -> list[dict]:

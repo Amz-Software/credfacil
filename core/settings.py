@@ -232,6 +232,9 @@ CACHES = {
 
 # Cache usado pelos widgets do django-select2.
 SELECT2_CACHE_BACKEND = "select2"
+# Contadores de segurança do assistente de IA do CRM (tentativas por CPF): precisam ser
+# compartilhados entre os processos web e crm-worker, por isso no Redis.
+CRM_CACHE_LIMITES = os.environ.get('CRM_CACHE_LIMITES', 'select2')
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
