@@ -140,6 +140,18 @@ Permissão: `vendas.change_cliente`.
 ```
 `qr_aplicativo`/`codigo_aplicativo` vêm da loja CredFacil (o mesmo QR do modal "instalar app" da tela atual).
 
+### `GET solicitacoes/{id}/opcoes-edicao/`
+Permissão: `vendas.change_cliente`. Opções dos selects do formulário de edição, lidas dos mesmos forms do PATCH.
+```json
+{"produtos": [{"id": 5, "nome": "Galaxy (Samsung) - Entrada: R$ 200,00", "marca_id": 1, "is_iphone": false,
+               "valor": "1200.00", "entrada_cliente": "200.00"}],
+ "parcelas_por_marca": {"1": [10, 12]},
+ "data_pagamento": [{"codigo": "1", "rotulo": "Dia 1"}, {"codigo": "10", "rotulo": "Dia 10"}, {"codigo": "20", "rotulo": "Dia 20"}],
+ "numeros_autenticadores": [{"id": 3, "numero": "91999990000", "descricao": "Chip 1"}]}
+```
+`produtos`: os permitidos para a loja da solicitação + o atual. `numeros_autenticadores`: ativos da loja; `null` para
+quem não é ANALISTA/ADMINISTRADOR (o campo nem existe no form).
+
 ### Ações (POST)
 Todas respondem `{"mensagem": "...", "solicitacao": <item da fila>}` (200), exceto quando indicado, e gravam auditoria.
 

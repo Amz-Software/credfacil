@@ -19,6 +19,7 @@ from vendas.services.kpis import contar_por_status
 from ..arquivos import ARQUIVOS_SOLICITACAO, TIPO_SERASA, mime_pelos_bytes, responder_arquivo
 from ..edicao import editar_solicitacao
 from ..filtros import analises_para_kpis, filtrar_solicitacoes, ordenar_solicitacoes
+from ..opcoes_edicao import opcoes_de_edicao
 from ..regras import (
     GRUPOS_OBSERVACAO,
     PERMISSAO_DECIDIR,
@@ -28,7 +29,12 @@ from ..regras import (
     pode_ver_serasa,
     permissao_ver_serasa,
 )
-from ..serializers.respostas import CreditoEdicaoRespostaSerializer, CreditoKpisSerializer, CreditoQrInstalacaoSerializer
+from ..serializers.respostas import (
+    CreditoEdicaoRespostaSerializer,
+    CreditoKpisSerializer,
+    CreditoOpcoesEdicaoSerializer,
+    CreditoQrInstalacaoSerializer,
+)
 from ..serializers.solicitacao_detalhe import CreditoSolicitacaoDetalheSerializer
 from ..serializers.solicitacao_lista import CreditoSolicitacaoListaSerializer
 from .base import TAG, MetodoAntesDaPermissaoMixin, NegociacaoSemAccept
@@ -99,6 +105,7 @@ class SolicitacaoViewSet(
         'arquivo': [PERMISSAO_VER],
         'partial_update': ['vendas.change_cliente'],
         'qr_instalacao': ['vendas.change_cliente'],
+        'opcoes_edicao': ['vendas.change_cliente'],
         'aprovar': [PERMISSAO_DECIDIR],
         'reprovar': [PERMISSAO_DECIDIR],
         'cancelar': ['vendas.change_analisecreditocliente', PERMISSAO_DECIDIR],
@@ -198,6 +205,11 @@ class SolicitacaoViewSet(
             'qr_aplicativo': _data_uri(loja_credfacil.qr_code_aplicativo) if loja_credfacil else None,
             'codigo_aplicativo': loja_credfacil.codigo_aplicativo if loja_credfacil else None,
         })
+
+    @extend_schema(responses=CreditoOpcoesEdicaoSerializer)
+    @action(detail=True, methods=['get'], url_path='opcoes-edicao')
+    def opcoes_edicao(self, request, pk=None):
+        return Response(opcoes_de_edicao(self.get_object(), request.user))
 
     def _registrar_acesso_serasa(self, cliente: Cliente, tipo: str) -> ConsultaSerasaAcesso:
         return ConsultaSerasaAcesso.objects.create(
