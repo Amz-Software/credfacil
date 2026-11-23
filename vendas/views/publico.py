@@ -51,14 +51,6 @@ class PagamentoDetailView(DetailView):
     query_pk_and_slug = False
 
 
-class PagamentoLegadoView(RedirectView):
-    """`/pagamento/<id>/` antigo: não mostra mais dados; manda para a consulta por CPF."""
-    pattern_name = 'vendas:consulta_pagamentos'
-    permanent = False
-
-    def get_redirect_url(self, *args, **kwargs):
-        return super().get_redirect_url()
-
     def get_context_data(self, **kwargs):
         ctx       = super().get_context_data(**kwargs)
         pagamento = ctx['pagamento']
@@ -133,6 +125,15 @@ class PagamentoLegadoView(RedirectView):
             'loja': loja,
         })
         return ctx
+
+
+class PagamentoLegadoView(RedirectView):
+    """`/pagamento/<id>/` antigo: não mostra mais dados; manda para a consulta por CPF."""
+    pattern_name = 'vendas:consulta_pagamentos'
+    permanent = False
+
+    def get_redirect_url(self, *args, **kwargs):
+        return super().get_redirect_url()
 
 
 class InformarPagamentoView(View):

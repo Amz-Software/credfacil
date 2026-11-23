@@ -28,6 +28,13 @@ class PagamentoPublicoTests(TestCase):
         self.assertEqual(resposta.status_code, 200)
         self.assertContains(resposta, f'/pagamento/{self.pagamento.token_publico}/informar-todos/')
 
+    def test_pagina_publica_lista_parcelas_em_aberto_e_quitacao(self):
+        resposta = self.client.get(f'/pagamento/{self.pagamento.token_publico}/')
+
+        self.assertEqual(len(resposta.context['qr_items']), self.pagamento.parcelas_pagamento.count())
+        self.assertEqual(resposta.context['restantes_count'], self.pagamento.parcelas_pagamento.count())
+        self.assertIsNotNone(resposta.context['discount_qr_b64'])
+
     def test_url_antiga_por_id_nao_mostra_dados(self):
         resposta = self.client.get(f'/pagamento/{self.pagamento.pk}/')
 
