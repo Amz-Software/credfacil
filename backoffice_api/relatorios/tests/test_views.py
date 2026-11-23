@@ -91,6 +91,7 @@ class PreviaTests(BaseRelatorios):
         vendas = self.cliente(VENDAS, 'vendas.can_view_all_stores')
         corpo = vendas.get(BASE + 'solicitacoes/previa/', {'status_solicitacao': 'A'}).json()
         self.assertEqual(corpo['count'], 1)
+        self.assertTrue(corpo['results'][0]['cliente'])
         financeiro = self.cliente(PAGAMENTOS, 'vendas.can_view_all_payments')
         contas = financeiro.get(BASE + 'contas_a_receber/previa/', {**PERIODO, 'status': 'atrasado'}).json()
         self.assertEqual(contas['totais']['modo'], 'pagamentos')

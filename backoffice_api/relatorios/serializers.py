@@ -46,6 +46,7 @@ class TotaisVendasSerializer(serializers.Serializer):
 
 class LinhaSolicitacaoSerializer(serializers.Serializer):
     id = serializers.IntegerField(help_text='Id do cliente.')
+    cliente = serializers.CharField(help_text='Nome do cliente (só na prévia; o PDF mantém as colunas da folha).')
     analise_id = serializers.IntegerField(allow_null=True)
     loja = serializers.CharField()
     data_solicitacao = serializers.DateTimeField()

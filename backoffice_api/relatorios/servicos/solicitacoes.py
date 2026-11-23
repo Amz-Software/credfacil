@@ -75,6 +75,7 @@ def _linha(cliente, analise, vendas: dict) -> dict:
     criador = analise.criado_por if analise else None
     return {
         'id': cliente.pk,
+        'cliente': cliente.nome or '',
         'analise_id': analise.pk if analise else None,
         'loja': cliente.loja.nome if cliente.loja else '',
         'data_solicitacao': cliente.criado_em,
