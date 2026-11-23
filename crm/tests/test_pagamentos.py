@@ -51,7 +51,9 @@ class ResumoTests(PagamentosBase):
         self.assertEqual((item['parcelas_abertas'], item['parcelas_atrasadas']), (2, 1))
         self.assertEqual((item['total_aberto'], item['total_atrasado']), ('200.00', '100.00'))
         self.assertEqual(item['proxima']['numero'], 3)
-        self.assertEqual(item['link_publico'], f'https://credfacil.exemplo.com/pagamento/{self.pagamento.pk}/')
+        self.assertEqual(item['link_publico'],
+                         f'https://credfacil.exemplo.com/pagamento/{self.pagamento.token_publico}/')
+        self.assertNotIn(f'/pagamento/{self.pagamento.pk}/', item['link_publico'])
 
     def test_pagamento_quitado_ou_desativado_fica_fora(self):
         Pagamento.objects.filter(pk=self.pagamento.pk).update(desativado=True)
@@ -83,7 +85,7 @@ class AutoatendimentoTests(PagamentosBase):
         self.assertIn('CPF', pede_cpf.texto)
         self.assertIn('nascimento', pede_nascimento.texto)
         self.assertIn('R$ 100,00', resumo.texto)
-        self.assertIn(f'/pagamento/{self.pagamento.pk}/', resumo.texto)
+        self.assertIn(f'/pagamento/{self.pagamento.token_publico}/', resumo.texto)
         self.assertIn(self.cliente, conversa.clientes.all())
 
     def test_intencao_no_texto_pula_o_menu(self):

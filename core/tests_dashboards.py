@@ -84,7 +84,8 @@ class CoresPorTokenTests(TemplateLimpoMixin, BackofficeTestCase):
         com_hex = []
         for caminho in BASE_DIR.rglob('*.html'):
             relativo = str(caminho.relative_to(BASE_DIR))
-            if any(p in relativo for p in ('venv', 'sneat-template', 'staticfiles', 'crm/')):
+            # backoffice_api só tem templates de PDF (impressos), não telas.
+            if any(p in relativo for p in ('venv', 'sneat-template', 'staticfiles', 'crm/', 'backoffice_api/')):
                 continue
             if any(p in caminho.name for p in self.IMPRESSOS):
                 continue

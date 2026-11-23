@@ -14,6 +14,7 @@ from django.template.loader import get_template
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.generic import DetailView, ListView, View
+from django.views.decorators.http import require_POST
 import weasyprint
 
 from vendas.forms import PreAnaliseRapidaConsultaSerasaForm
@@ -239,6 +240,7 @@ def remover_consulta_serasa_pre_analise(request, pk):
     return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
 
 
+@require_POST
 @permission_required('vendas.change_status_analise', raise_exception=True)
 def aprovar_pre_analise_rapida(request, pk):
     pre = get_object_or_404(PreAnaliseRapida, pk=pk)
@@ -250,13 +252,14 @@ def aprovar_pre_analise_rapida(request, pk):
     return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
 
 
+@require_POST
 @permission_required('vendas.change_status_analise', raise_exception=True)
 def reprovar_pre_analise_rapida(request, pk):
     pre = get_object_or_404(PreAnaliseRapida, pk=pk)
     if pre.status != 'P':
         messages.warning(request, 'Esta pré-análise já foi decidida.')
         return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)
-    motivo = request.POST.get('motivo') if request.method == 'POST' else None
+    motivo = request.POST.get('motivo')
     pre.reprovar(user=request.user, motivo=motivo)
     messages.success(request, 'Pré-análise reprovada.')
     return redirect('vendas:pre_analise_rapida_detalhe', pk=pk)

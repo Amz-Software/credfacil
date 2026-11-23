@@ -26,6 +26,7 @@ from api.serializers import (
     VendaSerializer,
     VendaTrocaProdutoSerializer,
 )
+from core.uploads import erros_de_upload
 from estoque.models import EstoqueImei
 from produtos.models import Produto
 from vendas.forms import (
@@ -354,6 +355,9 @@ class VendaViewSet(viewsets.ModelViewSet):
 
         # API upload parcial: aceita qualquer subconjunto dos arquivos.
         campos_arquivos = ("documento_assinado", "foto_cliente", "imagem_imei")
+        erros_arquivos = erros_de_upload(request.FILES)
+        if erros_arquivos:
+            return Response({"detail": "Erros de validacao.", "errors": erros_arquivos}, status=400)
         updated_fields = []
 
         for campo in campos_arquivos:

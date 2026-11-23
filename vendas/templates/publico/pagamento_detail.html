@@ -155,7 +155,7 @@
             {% elif p.pagamento_efetuado %}
               <span class="badge bg-info w-100 py-2">Em confirmação</span>
             {% else %}
-              <form method="post" action="{% url 'vendas:parcela_informar' p.pk %}">
+              <form method="post" action="{% url 'vendas:parcela_informar' pagamento.token_publico p.pk %}">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-warning w-100">
                   Informar pagamento
@@ -218,7 +218,7 @@
                       {% elif p.pagamento_efetuado %}
                         <span class="badge bg-info">Em confirmação</span>
                       {% else %}
-                        <form method="post" action="{% url 'vendas:parcela_informar' p.pk %}">
+                        <form method="post" action="{% url 'vendas:parcela_informar' pagamento.token_publico p.pk %}">
                           {% csrf_token %}
                           <button class="btn btn-warning btn-sm">Informar pagamento</button>
                         </form>
@@ -260,7 +260,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <form method="post" action="{% url 'vendas:informar_todos_pagamentos' pagamento.id %}">
+          <form method="post" action="{% url 'vendas:informar_todos_pagamentos' pagamento.token_publico %}">
             {% csrf_token %}
             <button
               type="submit"

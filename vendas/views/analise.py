@@ -97,6 +97,7 @@ def _mudar_status_analise(request, id, transicao, mensagem_sucesso):
     return redirect('vendas:cliente_list')
 
 
+@require_POST
 @permission_required('vendas.change_status_analise', raise_exception=True)
 def aprovar_analise_credito(request, id):
     return _mudar_status_analise(

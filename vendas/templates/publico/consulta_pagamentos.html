@@ -114,7 +114,7 @@
                         {% elif conta.com_pagamento_pendente %} table-warning
                         {% elif conta.pago_dentro_prazo %} table-success
                         {% endif %}"
-                      onclick="window.location.href='{% url 'vendas:pagamento_detail' conta.id %}'"
+                      onclick="window.location.href='{% url 'vendas:pagamento_detail' conta.token_publico %}'"
                     >
                       <td>{{ conta.venda }}</td>
                       <td>R$ {{ conta.valor|floatformat:2 }}</td>

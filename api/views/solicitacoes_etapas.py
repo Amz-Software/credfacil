@@ -1,7 +1,6 @@
 """Etapas da análise pela API: Serasa, IMEI/telefone, app, iCloud, status e geração da venda."""
 import logging
 
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import (
     extend_schema,
@@ -57,7 +56,7 @@ class EtapasDaAnaliseMixin:
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        cliente = get_object_or_404(Cliente, pk=pk)
+        cliente = self._cliente_no_escopo(request, pk)
 
         xff = request.META.get("HTTP_X_FORWARDED_FOR")
         ip = xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR")
@@ -96,7 +95,7 @@ class EtapasDaAnaliseMixin:
         ],
     )
     def imei_telefone(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
+        cliente = self._cliente_no_escopo(request, pk)
         user = request.user
 
         cliente_data = request.data.dict() if hasattr(request.data, "dict") else dict(request.data)
@@ -136,7 +135,7 @@ class EtapasDaAnaliseMixin:
         responses={200: OpenApiTypes.OBJECT},
     )
     def status_app(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
+        cliente = self._cliente_no_escopo(request, pk)
         try:
             analise = servico_analise.atualizar_status_aplicativo(
                 cliente.analise_credito, request.data.get("status_app"),
@@ -151,14 +150,8 @@ class EtapasDaAnaliseMixin:
     @action(detail=True, methods=["post"], url_path="instalar-app")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def instalar_app(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
+        cliente = self._cliente_no_escopo(request, pk)
         analise_credito = cliente.analise_credito
-
-        if not request.user.has_perm("vendas.view_all_analise_credito"):
-            lojas_usuario = self._lojas_usuario_ids(request)
-            if cliente.loja_id not in lojas_usuario:
-                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
-
         servico_analise.marcar_instalacao_pendente(analise_credito)
         return Response({"detail": "Status alterado para Confirmação Pendente."})
 
@@ -178,13 +171,7 @@ class EtapasDaAnaliseMixin:
         - loja: ID da loja (obrigatório se não houver sessão web)
         - device_id: ID do dispositivo (opcional)
         """
-        cliente = Cliente.objects.get(pk=pk)
-        
-        if not request.user.has_perm("vendas.view_all_analise_credito"):
-            lojas_usuario = self._lojas_usuario_ids(request)
-            if cliente.loja_id not in lojas_usuario:
-                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
-        
+        cliente = self._cliente_no_escopo(request, pk)
         loja_id = cliente.loja_id
         
         # Gerar QR code + código de instalação
@@ -211,12 +198,6 @@ class EtapasDaAnaliseMixin:
 
     def _confirmar_leitura_qrcode(self, request, cliente):
         analise_credito = cliente.analise_credito
-        
-        if not request.user.has_perm("vendas.view_all_analise_credito"):
-            lojas_usuario = self._lojas_usuario_ids(request)
-            if cliente.loja_id not in lojas_usuario:
-                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
-
         # Últimos 4 dígitos do IMEI informados pelo vendedor (referência para o analista).
         digitos = servico_analise.digitos_imei(request.data.get("imei_ultimos_digitos"))
         servico_analise.confirmar_instalacao_vendedor(analise_credito, request.user, digitos=digitos)
@@ -226,16 +207,14 @@ class EtapasDaAnaliseMixin:
     @action(detail=True, methods=["post"], url_path="confirmar-app")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def confirmar_app(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
-        
+        cliente = self._cliente_no_escopo(request, pk)
         return self._confirmar_leitura_qrcode(request, cliente)
 
 
     @action(detail=True, methods=["post"], url_path="confirmar-leitura-qrcode")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def confirmar_leitura_qrcode(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
-        
+        cliente = self._cliente_no_escopo(request, pk)
         return self._confirmar_leitura_qrcode(request, cliente)
 
 
@@ -245,14 +224,8 @@ class EtapasDaAnaliseMixin:
         responses={200: OpenApiTypes.OBJECT},
     )
     def configurar_icloud(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
+        cliente = self._cliente_no_escopo(request, pk)
         analise = cliente.analise_credito
-
-        if not request.user.has_perm("vendas.view_all_analise_credito"):
-            lojas_usuario = self._lojas_usuario_ids(request)
-            if cliente.loja_id not in lojas_usuario:
-                return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
-
         try:
             servico_analise.configurar_icloud(analise, request.user, request.data.get("imei_ultimos_digitos"))
         except ErroDeNegocio as erro:
@@ -263,7 +236,7 @@ class EtapasDaAnaliseMixin:
     @action(detail=True, methods=["post"], url_path="analista-confirm-icloud")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def analista_confirm_icloud(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
+        cliente = self._cliente_no_escopo(request, pk)
         try:
             servico_analise.exigir_analista(request.user, "Apenas analistas podem confirmar o iCloud.")
             self._exigir_loja_do_usuario(request, cliente)
@@ -276,7 +249,7 @@ class EtapasDaAnaliseMixin:
     @action(detail=True, methods=["post"], url_path="analista-confirmar-instalacao")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def analista_confirm_installed(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
+        cliente = self._cliente_no_escopo(request, pk)
         try:
             servico_analise.exigir_analista(request.user, "Apenas analistas podem confirmar a instalação.")
             self._exigir_loja_do_usuario(request, cliente)
@@ -291,7 +264,9 @@ class EtapasDaAnaliseMixin:
     @action(detail=True, methods=["post"], url_path="informar-imei-analise")
     @extend_schema(request=InformarImeiAnaliseInputSerializer, responses={200: OpenApiTypes.OBJECT})
     def informar_imei_analise(self, request, pk=None):
-        cliente = Cliente.objects.select_related("analise_credito__produto").get(pk=pk)
+        cliente = self._cliente_no_escopo(
+            request, pk, Cliente.objects.select_related("analise_credito__produto"),
+        )
         imei_informado = (request.data.get("imei_informado") or "").strip()
         try:
             servico_analise.exigir_analista(request.user, "Apenas analistas podem informar IMEI.")
@@ -312,7 +287,7 @@ class EtapasDaAnaliseMixin:
     @action(detail=True, methods=["post"], url_path="aprovar")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def aprovar(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
+        cliente = self._cliente_no_escopo(request, pk)
         servico_analise.aprovar_analise(cliente.analise_credito, request.user)
         return Response({"detail": "Análise de crédito aprovada com sucesso."})
 
@@ -320,7 +295,7 @@ class EtapasDaAnaliseMixin:
     @action(detail=True, methods=["post"], url_path="reprovar")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def reprovar(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
+        cliente = self._cliente_no_escopo(request, pk)
         servico_analise.reprovar_analise(cliente.analise_credito, request.user)
         return Response({"detail": "Análise de crédito reprovada com sucesso."})
 
@@ -328,7 +303,7 @@ class EtapasDaAnaliseMixin:
     @action(detail=True, methods=["post"], url_path="cancelar")
     @extend_schema(request=None, responses={200: OpenApiTypes.OBJECT})
     def cancelar(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
+        cliente = self._cliente_no_escopo(request, pk)
         servico_analise.cancelar_analise(cliente.analise_credito, request.user, desfazer_venda=True)
         return Response({"detail": "Análise de crédito cancelada com sucesso."})
 
@@ -336,13 +311,7 @@ class EtapasDaAnaliseMixin:
     @action(detail=True, methods=["post"], url_path="gerar-venda")
     @extend_schema(request=None, responses=VendaSerializer)
     def gerar_venda(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
-
-        if not request.user.has_perm("vendas.view_all_analise_credito"):
-            lojas_usuario = self._lojas_usuario_ids(request)
-            if cliente.loja_id not in lojas_usuario:
-                return Response({"detail": "Ação não autorizada para esta loja."}, status=403)
-
+        cliente = self._cliente_no_escopo(request, pk)
         if not Loja.objects.filter(credfacil=True).exists():
             return Response({"detail": "Loja CredFacil não encontrada."}, status=400)
 

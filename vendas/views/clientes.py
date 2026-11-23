@@ -28,6 +28,7 @@ from vendas.forms import (
     user_is_analista_or_admin,
 )
 from vendas.models import AnaliseCreditoCliente, Cliente, Loja
+from vendas.services import analise as servico_analise
 from vendas.services.kpis import analises_visiveis, contar_por_status
 
 from .analise import _pode_observar_solicitacao
@@ -391,6 +392,21 @@ class ClienteCreateView(PermissionRequiredMixin, CreateView):
         return self.render_to_response(context)
 
 
+def _aprovar_apos_salvar(request, analise_credito) -> None:
+    """Botão "Aprovar" da tela de edição: salva o formulário e aprova no mesmo POST.
+
+    Antes o servidor redirecionava (GET) para a URL vinda do campo oculto, o que
+    exigia aprovar por GET e permitia redirecionar para qualquer endereço.
+    """
+    if not request.POST.get('aprovar_apos_salvar'):
+        return
+    if not request.user.has_perm('vendas.change_status_analise'):
+        messages.error(request, 'Você não tem permissão para aprovar análises de crédito.')
+        return
+    servico_analise.aprovar_analise(analise_credito, request.user)
+    messages.success(request, '✅ Análise de crédito aprovada com sucesso')
+
+
 class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
     model = Cliente
     form_class = ClienteForm
@@ -559,11 +575,7 @@ class ClienteUpdateView(PermissionRequiredMixin, UpdateView):
             cliente.save(user=user)
             messages.success(request, "✅ Soliticitação atualizada com sucesso")
             
-            # Verifica se deve redirecionar para aprovação
-            aprovar_url = request.POST.get('aprovar_apos_salvar')
-            if aprovar_url:
-                return redirect(aprovar_url)
-            
+            _aprovar_apos_salvar(request, analise_credito)
             return redirect(self.success_url)
         else:
             for form in [form_cliente, form_adicional, form_comprovantes, form_analise_credito]:
@@ -619,10 +631,11 @@ class ClienteUpdateImeiTelefoneView(PermissionRequiredMixin, UpdateView):
         form_analise_credito = AnaliseCreditoClienteImeiForm(request.POST, instance=self.object.analise_credito, user=request.user)
 
         if form_cliente.is_valid() and form_analise_credito.is_valid():
-            form_analise_credito.save()
+            analise_credito = form_analise_credito.save()
             cliente = form_cliente.save(commit=False)
             cliente.save(user=user)
             messages.success(request, "✅ Soliticitação atualizada com sucesso")
+            _aprovar_apos_salvar(request, analise_credito)
             return redirect(self.success_url)
         else:
             messages.error(request, "❌ Erro ao atualizar Soliticitação. Verifique os dados e tente novamente.")

@@ -1,119 +1,72 @@
+"""Autenticação JWT do WebSocket (`?token=<access>` na URL).
+
+A SPA do vendedor não tem cookie de sessão no domínio da API: abre
+`/ws/notifications/?token=<access token>`. Este middleware fica dentro do
+`AuthMiddlewareStack`; com um token válido troca `scope['user']` pelo dono do
+token, e sem token (ou com token inválido) deixa a autenticação por sessão como
+estava.
+
+Só vale token do tipo `access`, assinado, dentro da validade e de usuário ativo:
+um refresh token (7 dias) não abre WebSocket.
+"""
 from urllib.parse import parse_qs
-from asgiref.sync import sync_to_async
-from django.conf import settings
 import logging
 
+from asgiref.sync import sync_to_async
 
 logger = logging.getLogger(__name__)
 
+PREFIXO_BEARER = "bearer "
+
+
+def _token_da_query_string(scope) -> str | None:
+    bruto = scope.get("query_string", b"")
+    texto = bruto.decode("utf-8", "ignore") if isinstance(bruto, bytes) else str(bruto)
+    token = (parse_qs(texto).get("token") or [None])[0]
+    if not token:
+        return None
+    token = token.strip()
+    if token.lower().startswith(PREFIXO_BEARER):
+        token = token[len(PREFIXO_BEARER):].strip()
+    return token or None
+
+
+def _usuario_do_token(token: str):
+    """Usuário ativo dono do access token, ou None (token inválido, expirado, de outro tipo)."""
+    # Import tardio: o módulo é importado pelo core/asgi.py antes do registro de apps.
+    from django.contrib.auth import get_user_model
+    from rest_framework_simplejwt.exceptions import TokenError
+    from rest_framework_simplejwt.settings import api_settings
+    from rest_framework_simplejwt.tokens import AccessToken
+
+    try:
+        # Confere assinatura, validade e o claim token_type == "access".
+        validado = AccessToken(token)
+    except TokenError as erro:
+        logger.debug("JwtAuthMiddleware: token recusado: %s", erro)
+        return None
+
+    user_id = validado.get(api_settings.USER_ID_CLAIM)
+    if user_id is None:
+        return None
+    usuario = get_user_model().objects.filter(**{api_settings.USER_ID_FIELD: user_id}).first()
+    if usuario is None or not usuario.is_active:
+        logger.debug("JwtAuthMiddleware: usuário %s inexistente ou inativo", user_id)
+        return None
+    return usuario
+
 
 class JwtAuthMiddleware:
-    """
-    ASGI middleware that looks for a JWT in the WebSocket querystring
-    (`?token=<access_token>`). If present and valid, it sets `scope['user']`
-    to the authenticated user. If token is absent or invalid, it does
-    nothing (leaving previous auth intact).
-
-    This middleware is intended to be used inside `AuthMiddlewareStack`
-    (so we can *override* session-based auth when a token is provided).
-    """
-
     def __init__(self, inner):
         self.inner = inner
 
     async def __call__(self, scope, receive, send):
-        # Only inspect websocket connections
         if scope.get("type") == "websocket":
-            raw_qs = scope.get("query_string", b"")
-            # ensure query_string is a str (scope may provide bytes)
-            if isinstance(raw_qs, bytes):
-                try:
-                    query_string = raw_qs.decode()
-                except Exception:
-                    query_string = raw_qs.decode("utf-8", "ignore")
-            else:
-                query_string = str(raw_qs)
-
-            logger.debug("JwtAuthMiddleware: incoming websocket path=%s", scope.get("path"))
-            qs = parse_qs(query_string)
-            token = qs.get("token", [None])[0]
+            token = _token_da_query_string(scope)
             if token:
-                # normalize token: decode bytes, ensure str, strip whitespace
-                if isinstance(token, bytes):
-                    try:
-                        token = token.decode()
-                    except Exception:
-                        token = token.decode("utf-8", "ignore")
-
-                token = str(token).strip() if token is not None else None
-                if token and token.lower().startswith("bearer "):
-                    token = token.split(" ", 1)[1]
-                    logger.debug("JwtAuthMiddleware: stripped Bearer prefix")
-                logger.debug("JwtAuthMiddleware: normalized token type=%s", type(token))
-
-                # Import lazily to avoid touching Django app registry at module import time.
-                try:
-                    from rest_framework_simplejwt.backends import TokenBackend
-                    from django.contrib.auth import get_user_model
-                except Exception as exc:
-                    logger.exception("Failed importing JWT backend or user model: %s", exc)
-                else:
-                    try:
-                        # Build TokenBackend using simplejwt api_settings where possible
-                        from rest_framework_simplejwt.settings import api_settings as jwt_api_settings
-
-                        algorithm = None
-                        # Prefer explicit setting in SIMPLE_JWT, fall back to api_settings
-                        try:
-                            algorithm = settings.SIMPLE_JWT.get("ALGORITHM") if isinstance(settings.SIMPLE_JWT, dict) else None
-                        except Exception:
-                            algorithm = None
-                        if not algorithm:
-                            algorithm = getattr(jwt_api_settings, "ALGORITHM", "HS256")
-
-                        # Determine signing and verifying keys, ensure they are strings
-                        signing_key = None
-                        verifying_key = None
-                        try:
-                            signing_key = settings.SIMPLE_JWT.get("SIGNING_KEY") if isinstance(settings.SIMPLE_JWT, dict) else None
-                        except Exception:
-                            signing_key = None
-                        if not signing_key:
-                            signing_key = getattr(jwt_api_settings, "SIGNING_KEY", None) or getattr(settings, "SECRET_KEY", None)
-                        if not isinstance(signing_key, str) and signing_key is not None:
-                            signing_key = str(signing_key)
-
-                        try:
-                            verifying_key = settings.SIMPLE_JWT.get("VERIFYING_KEY") if isinstance(settings.SIMPLE_JWT, dict) else None
-                        except Exception:
-                            verifying_key = None
-                        if not verifying_key:
-                            verifying_key = getattr(jwt_api_settings, "VERIFYING_KEY", None)
-                        if not isinstance(verifying_key, str):
-                            # ensure verifying_key is either a string or None
-                            verifying_key = None
-
-                        token_backend = TokenBackend(
-                            algorithm=algorithm,
-                            signing_key=signing_key,
-                            verifying_key=verifying_key,
-                        )
-                        logger.debug("JwtAuthMiddleware: attempting to decode token")
-                        validated_data = token_backend.decode(token, verify=True)
-                        user_id = validated_data.get("user_id")
-                        if user_id:
-                            User = get_user_model()
-                            try:
-                                user = await sync_to_async(User.objects.get)(id=user_id)
-                                scope["user"] = user
-                                logger.debug("JwtAuthMiddleware: scope['user'] set to user id=%s", user_id)
-                            except Exception as e:
-                                logger.debug("User lookup failed for id=%s: %s", user_id, e)
-                    except Exception as e:
-                        # Log decode/validation errors so they can be diagnosed instead of
-                        # being silently swallowed (which causes anonymous user and immediate close).
-                        logger.debug("JWT decode/validation failed: %s", e, exc_info=True)
-
+                usuario = await sync_to_async(_usuario_do_token)(token)
+                if usuario is not None:
+                    scope["user"] = usuario
         return await self.inner(scope, receive, send)
 
 

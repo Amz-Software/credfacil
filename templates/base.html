@@ -226,8 +226,10 @@
                     <hr class="dropdown-divider">
                   </li>
                   <li>
-                    <a class="dropdown-item text-center text-primary fw-semibold small"
-                      href="{% url 'notificacao_ler_todas' %}">Marcar todas como lida</a>
+                    <form method="post" action="{% url 'notificacao_ler_todas' %}">
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item text-center text-primary fw-semibold small">Marcar todas como lida</button>
+                    </form>
                   </li>
                 </ul>
               </li>

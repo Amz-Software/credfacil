@@ -9,6 +9,8 @@ from django.views.generic import ListView
 from django.db.models import Q
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import RedirectView
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 
 @login_required
 def marcar_como_lida(request, pk):
@@ -17,6 +19,7 @@ def marcar_como_lida(request, pk):
     return redirect(notif.target.get_absolute_url() if notif.target else '/')
 
 
+@require_POST
 @login_required
 def marcar_todas_como_lidas(request):
     request.user.notifications.mark_all_as_read()
@@ -85,9 +88,13 @@ class MarcarNotificacaoComoLidaRedirectView(LoginRequiredMixin, RedirectView):
         pk = kwargs['pk']
         notif = get_object_or_404(Notification, pk=pk, recipient=self.request.user)
         notif.mark_as_read()  # marca como lida
-        # pega o destino: parâmetro next ou o próprio target
-        destino = self.request.GET.get('next') or notif.target.get_absolute_url()
-        return destino
+        # pega o destino: parâmetro next (só do próprio site) ou o próprio target
+        destino = self.request.GET.get('next')
+        if destino and url_has_allowed_host_and_scheme(
+            destino, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure(),
+        ):
+            return destino
+        return notif.target.get_absolute_url()
     
     
 
@@ -98,21 +105,21 @@ def marcar_selecionadas(request):
         if ids:
             # marca apenas as não-lidas dentre as selecionadas
             request.user.notifications.unread().filter(id__in=ids).mark_all_as_read()
-    next_url = (
-        request.GET.get('next')
-        or request.POST.get('next')
-        or request.META.get('HTTP_REFERER')
-        or 'notificacoes:lista'
-    )
-    return redirect(next_url)
+    return redirect(_proxima_pagina(request))
 
 
 @login_required
 def ler_todas(request):
     if request.method == 'POST':
         request.user.notifications.unread().mark_all_as_read()
-    next_url = request.GET.get('next') \
-               or request.POST.get('next') \
-               or request.META.get('HTTP_REFERER') \
-               or 'notificacoes:lista'
-    return redirect(next_url)
+    return redirect(_proxima_pagina(request))
+
+
+def _proxima_pagina(request):
+    """`next` (ou a página de origem), só se for do próprio site: sem redirecionamento aberto."""
+    destino = request.GET.get('next') or request.POST.get('next') or request.META.get('HTTP_REFERER')
+    if destino and url_has_allowed_host_and_scheme(
+        destino, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ):
+        return destino
+    return 'notificacao_list'

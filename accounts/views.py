@@ -14,13 +14,16 @@ from django.db.models import Q
 from django.contrib.auth.models import Permission, Group
 from .forms import UserForm
 from .models import User
-from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
 from django.contrib.auth.views import PasswordChangeView, PasswordChangeDoneView
 from django.views.generic.edit import FormView
+from django.utils.decorators import method_decorator
+
+from accounts.services import lojas_para_login
+from core.seguranca import limitar_por_ip
 
 class LoginView(LoginView):
     template_name = 'login/login.html'
@@ -47,6 +50,7 @@ def logout_view(request):
     return logout_then_login(request)
 
 
+@method_decorator(limitar_por_ip('login'), name='post')
 class PasswordResetView(PasswordResetView):
     template_name = 'login/password_reset.html'
     email_template_name = 'login/password_reset_email.html'
@@ -209,24 +213,16 @@ class UserListView(PermissionRequiredMixin, ListView):
 
         return query.filter(is_active=True).exclude(id=my_user.id).exclude(is_superuser=True).filter(loja=loja_id)
     
+@limitar_por_ip('publico', metodos=('GET',), resposta_json=True)
 def get_lojas_by_username(request):
+    """Lojas do usuário antes do login (público, limitado por IP).
+
+    Usuário inexistente responde como um sem loja (lista vazia).
+    """
     username = request.GET.get('username')
     if not username:
         return http.JsonResponse({'error': 'Username não fornecido'}, status=400)
-
-    try:
-        user = User.objects.get(Q(username__iexact=username) | Q(email__iexact=username))
-    except ObjectDoesNotExist:
-        return http.JsonResponse({'error': 'Usuário não encontrado'}, status=404)
-    except Exception:
-        return http.JsonResponse({'error': 'Usuário não encontrado'}, status=404)
-
-    # O FK user.loja é legado e não concede acesso por si só. A lista
-    # considera apenas vínculos explícitos como usuário ou gerente da loja.
-    lojas_qs = (user.lojas.all() | user.lojas_gerenciadas.all()).distinct()
-    lojas = [{'id': loja.id, 'nome': loja.nome} for loja in lojas_qs]
-
-    return http.JsonResponse({'lojas': lojas})
+    return http.JsonResponse({'lojas': lojas_para_login(username)})
     
 def get_autorizacao_user(request):
     if request.method == 'POST':

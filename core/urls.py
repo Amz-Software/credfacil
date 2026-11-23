@@ -14,19 +14,28 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
-from core import settings
-from django.conf.urls.static import static
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from api.views import CustomTokenObtainPairView, foto_celular_view
+from api.views import CustomTokenObtainPairView, LogoutJwtView, foto_celular_view
+from core.midia import servir_midia
 from crm.web.publico import politica_privacidade
 from crm.webhook import WebhookWhatsAppView
 
-urlpatterns = [
+urlpatterns = []
+
+if not settings.USE_S3:
+    # Mídia local só com URL assinada (core/midia.py); antes da lista para não
+    # cair em nenhuma rota dos apps.
+    urlpatterns += [
+        path(f"{settings.MEDIA_URL.strip('/')}/<path:caminho>", servir_midia, name='midia'),
+    ]
+
+urlpatterns += [
     path('admin/', admin.site.urls),
     path("select2/", include("django_select2.urls")),
     path('', include('vendas.urls')),
@@ -43,9 +52,8 @@ urlpatterns = [
     path('api/', include('api.urls')),
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/logout/', LogoutJwtView.as_view(), name='token_logout'),
     path('api/schema/', SpectacularAPIView.as_view(), name='api-schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='api-schema'), name='api-docs'),
 ]
 
-if not settings.USE_S3:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

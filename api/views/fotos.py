@@ -3,6 +3,7 @@ from io import BytesIO
 import logging
 
 from PIL import Image, ImageOps
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -13,12 +14,13 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from api.models import FotoSession
+from core.uploads import TAMANHO_MAXIMO_UPLOAD, TIPOS_IMAGEM, validar_upload
 
 
 logger = logging.getLogger(__name__)
 
 
-FOTO_MAX_SIZE = 10 * 1024 * 1024  # 10 MB
+FOTO_MAX_SIZE = TAMANHO_MAXIMO_UPLOAD  # 10 MB
 
 
 @api_view(['POST'])
@@ -57,11 +59,11 @@ def foto_session_upload(request, session_id):
     if not arquivo:
         return JsonResponse({'erro': 'Nenhum arquivo enviado.'}, status=400)
 
-    if arquivo.size > FOTO_MAX_SIZE:
-        return JsonResponse({'erro': 'Arquivo muito grande. Máximo: 10 MB.'}, status=400)
-
-    if not arquivo.content_type.startswith('image/'):
-        return JsonResponse({'erro': 'Arquivo inválido. Envie uma imagem.'}, status=400)
+    # Tipo pelos bytes do arquivo (o content_type vem do cliente e não é confiável).
+    try:
+        validar_upload(arquivo, TIPOS_IMAGEM, FOTO_MAX_SIZE)
+    except ValidationError as erro:
+        return JsonResponse({'erro': erro.messages[0]}, status=400)
 
     if session.foto:
         session.foto.delete(save=False)

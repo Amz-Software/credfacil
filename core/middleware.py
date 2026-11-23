@@ -9,6 +9,7 @@ from django.contrib.auth.views import redirect_to_login
 from django.http import JsonResponse
 
 # Rotas com autenticação própria (JWT no DRF, login do admin) ou arquivos.
+# A mídia (MEDIA_URL) só é entregue com URL assinada e válida (core/midia.py).
 PREFIXOS_PUBLICOS = (
     '/api/',
     '/admin/',
@@ -17,7 +18,9 @@ PREFIXOS_PUBLICOS = (
 )
 
 # Páginas abertas de propósito: login/recuperação de senha, consulta de
-# pagamentos do cliente final e captura de foto pelo celular (link com UUID).
+# pagamentos do cliente final (página do pagamento só pelo token UUID4; o link
+# antigo por id só redireciona para a consulta) e captura de foto pelo celular
+# (link com UUID).
 ROTAS_PUBLICAS = frozenset({
     'accounts:login',
     'accounts:logout',
@@ -28,6 +31,7 @@ ROTAS_PUBLICAS = frozenset({
     'accounts:password_reset_complete',
     'vendas:consulta_pagamentos',
     'vendas:pagamento_detail',
+    'vendas:pagamento_detail_legado',
     'vendas:parcela_informar',
     'vendas:informar_todos_pagamentos',
     'foto-celular',

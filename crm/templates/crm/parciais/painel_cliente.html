@@ -32,7 +32,7 @@
     <div class="crm-pagamento{% if pagamento.parcelas_atrasadas %} crm-pagamento--atrasado{% endif %}">
       <div class="d-flex justify-content-between gap-2">
         <span class="small fw-semibold text-truncate">{{ pagamento.produto }}</span>
-        <a href="{% url 'vendas:pagamento_detail' pagamento.pagamento_id %}" class="small" target="_blank" rel="noopener">Parcelas</a>
+        <a href="{% url 'vendas:pagamento_detail' pagamento.token_publico %}" class="small" target="_blank" rel="noopener">Parcelas</a>
       </div>
       <div class="small">{{ pagamento.parcelas_abertas }} em aberto · {{ pagamento.total_aberto|reais }}</div>
       {% if pagamento.parcelas_atrasadas %}

@@ -7,11 +7,12 @@ from rest_framework import filters
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenBlacklistView, TokenObtainPairView
 
 from accounts.models import User
-from api.permissions import UserPermission
+from api.permissions import GroupPermission, UserPermission
 from api.serializers import (
     CustomTokenObtainPairSerializer,
     GroupSerializer,
@@ -86,7 +87,7 @@ class UserViewSet(ModelViewSet):
 class GroupViewSet(ModelViewSet):
     queryset = Group.objects.all().order_by('name')
     serializer_class = GroupSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [GroupPermission]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name']
 
@@ -108,3 +109,15 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     View customizada para login JWT que retorna tokens + informações do usuário e lojas.
     """
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'
+
+
+class LogoutJwtView(TokenBlacklistView):
+    """`POST /api/token/logout/` com `{"refresh": "..."}`: põe o refresh na blacklist.
+
+    Depois disso `/api/token/refresh/` recusa esse refresh (401). Não exige o
+    access válido, para o logout funcionar mesmo com ele expirado.
+    """
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'

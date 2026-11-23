@@ -5,7 +5,10 @@ import logging
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
-from django.views.generic import DetailView, FormView, View
+from django.utils.decorators import method_decorator
+from django.views.generic import DetailView, FormView, RedirectView, View
+
+from core.seguranca import limitar_por_ip
 
 from vendas.forms import ClienteConsultaForm
 from vendas.models import Loja, Pagamento, Parcela
@@ -16,7 +19,9 @@ from .vendas import gerar_qrcode_pix
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(limitar_por_ip('publico'), name='post')
 class ConsultaPagamentosView(FormView):
+    """CPF + nascimento → pagamentos do cliente, com link pelo token público."""
     template_name = "publico/consulta_pagamentos.html"
     form_class = ClienteConsultaForm
 
@@ -37,10 +42,22 @@ class ConsultaPagamentosView(FormView):
 
 
 class PagamentoDetailView(DetailView):
+    """Página pública do pagamento, acessível só pelo token aleatório (UUID4)."""
     model = Pagamento
     template_name = 'publico/pagamento_detail.html'
     context_object_name = 'pagamento'
-    pk_url_kwarg = 'pk'
+    slug_field = 'token_publico'
+    slug_url_kwarg = 'token'
+    query_pk_and_slug = False
+
+
+class PagamentoLegadoView(RedirectView):
+    """`/pagamento/<id>/` antigo: não mostra mais dados; manda para a consulta por CPF."""
+    pattern_name = 'vendas:consulta_pagamentos'
+    permanent = False
+
+    def get_redirect_url(self, *args, **kwargs):
+        return super().get_redirect_url()
 
     def get_context_data(self, **kwargs):
         ctx       = super().get_context_data(**kwargs)
@@ -119,25 +136,23 @@ class PagamentoDetailView(DetailView):
 
 
 class InformarPagamentoView(View):
-    def post(self, request, pk):
-        parcela = get_object_or_404(Parcela, pk=pk)
+    def post(self, request, token, pk):
+        parcela = get_object_or_404(Parcela, pk=pk, pagamento__token_publico=token)
         parcela.pagamento_efetuado = True
         parcela.pagamento_efetuado_em = timezone.now()
         parcela.data_pagamento = timezone.now().date()
         parcela.save(update_fields=['pagamento_efetuado', 'data_pagamento'])
         messages.success(request, "Pagamento informado e está em confirmação.")
-        return redirect('vendas:pagamento_detail', pk=parcela.pagamento.pk)
+        return redirect('vendas:pagamento_detail', token=parcela.pagamento.token_publico)
 
-
-# vendas/views.py
 
 class InformarTodosPagamentosView(View):
     """
     View para o CLIENTE. Apenas informa que o pagamento foi efetuado,
     sem alterar valores ou confirmar o pagamento.
     """
-    def post(self, request, pk):
-        pagamento = get_object_or_404(Pagamento, pk=pk)
+    def post(self, request, token):
+        pagamento = get_object_or_404(Pagamento, token_publico=token)
         
         # Pega todas as parcelas que ainda não foram informadas nem pagas
         parcelas_a_informar = pagamento.parcelas_pagamento.filter(
@@ -159,4 +174,4 @@ class InformarTodosPagamentosView(View):
         else:
             messages.warning(request, "Nenhuma parcela nova para informar.")
 
-        return redirect('vendas:pagamento_detail', pk=pagamento.pk)
+        return redirect('vendas:pagamento_detail', token=pagamento.token_publico)

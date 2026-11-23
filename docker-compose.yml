@@ -13,6 +13,8 @@ services:
     command: gunicorn core.asgi:application -c gunicorn.conf.py
     restart: always
     stop_grace_period: 35s  # > graceful_timeout do gunicorn (30s)
+    # 8010 publicada no host: o nginx do servidor faz proxy para ela. Ver
+    # docs/DEPLOY_SEGURANCA.md (bloquear 8010 no firewall para fora do host).
     ports:
       - '8010:8010'
     networks:
@@ -58,15 +60,16 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
+  # Redis só na rede interna do compose (sem porta no host) e com senha.
+  # REDIS_PASSWORD vem do .env (o compose lê o .env da pasta para interpolar).
   redis:
-    image: redis:latest
+    image: redis:7
     restart: always
-    ports:
-      - "6385:6379"
+    command: ["sh", "-c", 'exec redis-server --requirepass "$$REDIS_PASSWORD"']
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}
     networks:
       - mynetwork
-    # sysctls:
-    #   - vm.overcommit_memory=1   # removido
 
 networks:
   mynetwork:

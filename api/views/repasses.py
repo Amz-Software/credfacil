@@ -6,15 +6,24 @@ from django.utils.dateparse import parse_date
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from api.escopo import filtrar_por_escopo, loja_no_escopo
+from api.permissions import RepassePermission
 from api.serializers import RepasseSerializer
 from financeiro.models import Repasse
 from vendas.models import Loja
 
 
 logger = logging.getLogger(__name__)
+
+
+def _data_do_parametro(valor: str | None) -> date | None:
+    """Data YYYY-MM-DD do query param; valor inválido é ignorado (como antes)."""
+    try:
+        return parse_date(valor or '')
+    except ValueError:
+        return None
 
 
 class RepasseViewSet(viewsets.ModelViewSet):
@@ -32,70 +41,40 @@ class RepasseViewSet(viewsets.ModelViewSet):
     """
     queryset = Repasse.objects.all()
     serializer_class = RepasseSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RepassePermission]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     ordering_fields = ['data', 'valor', 'status']
     ordering = ['-data']
-    
+
     def get_queryset(self):
         """
-        Filtra repasses por:
-        - loja: ID da loja
+        Repasses das lojas do usuário (todas para superusuário ou
+        `vendas.can_view_all_stores`), com ou sem `?loja`. Filtros opcionais:
+        - loja: ID da loja (fora do escopo → lista vazia)
         - status: pendente, pago, cancelado (nenhum filtro de status por padrão)
-        - data_inicio: data inicial (YYYY-MM-DD)
-        - data_fim: data final (YYYY-MM-DD)
-        
-        Por padrão retorna TODOS os repasses sem filtrar por status.
+        - data_inicio / data_fim: período (YYYY-MM-DD)
         """
-        queryset = Repasse.objects.all()
-        user = self.request.user
-        
-        # Respeitar filtro de loja para não-admin
+        queryset = filtrar_por_escopo(Repasse.objects.all(), self.request.user)
+
         loja_filter = self.request.query_params.get('loja')
         if loja_filter:
             try:
-                loja_id = int(loja_filter)
-                # Se não é admin, valida se tem acesso à loja
-                if not user.is_superuser and not user.is_staff:
-                    lojas_usuario = list(user.lojas.values_list('id', flat=True))
-                    if loja_id in lojas_usuario:
-                        queryset = queryset.filter(loja_id=loja_id)
-                    elif 'loja_id' in self.request.session:
-                        # Fallback para loja da sessão
-                        queryset = queryset.filter(loja_id=self.request.session['loja_id'])
-                else:
-                    # Admin pode ver de qualquer loja
-                    queryset = queryset.filter(loja_id=loja_id)
+                queryset = queryset.filter(loja_id=int(loja_filter))
             except (ValueError, TypeError):
-                pass
-        elif 'loja_id' in self.request.session and not user.is_superuser:
-            # Se não-admin e sem parâmetro loja, usa loja da sessão
-            queryset = queryset.filter(loja_id=self.request.session['loja_id'])
-        
-        # Filtrar por status (opcional - sem padrão)
+                return queryset.none()
+
         status_filter = self.request.query_params.get('status')
         if status_filter in ['pendente', 'pago', 'cancelado']:
             queryset = queryset.filter(status=status_filter)
-        
-        # Filtrar por período
-        data_inicio = self.request.query_params.get('data_inicio')
+
+        data_inicio = _data_do_parametro(self.request.query_params.get('data_inicio'))
         if data_inicio:
-            try:
-                data_inicio_parsed = parse_date(data_inicio)
-                if data_inicio_parsed:
-                    queryset = queryset.filter(data__date__gte=data_inicio_parsed)
-            except:
-                pass
-        
-        data_fim = self.request.query_params.get('data_fim')
+            queryset = queryset.filter(data__date__gte=data_inicio)
+
+        data_fim = _data_do_parametro(self.request.query_params.get('data_fim'))
         if data_fim:
-            try:
-                data_fim_parsed = parse_date(data_fim)
-                if data_fim_parsed:
-                    queryset = queryset.filter(data__date__lte=data_fim_parsed)
-            except:
-                pass
-        
+            queryset = queryset.filter(data__date__lte=data_fim)
+
         return queryset.order_by('-data')
     
     @action(detail=False, methods=['get'], url_path='agendados')
@@ -120,39 +99,29 @@ class RepasseViewSet(viewsets.ModelViewSet):
         - Verifica se repasse foi registrado no banco (feito=True/False)
         - Calcula valor total baseado no repasse_logista de cada venda
         """
-        user = request.user
-        
-        # Obter loja
-        loja_id = request.query_params.get('loja')
-        if loja_id:
-            try:
-                loja_id = int(loja_id)
-                # Validar acesso para não-admin
-                if not user.is_superuser and not user.is_staff:
-                    lojas_usuario = list(user.lojas.values_list('id', flat=True))
-                    if loja_id not in lojas_usuario:
-                        return Response(
-                            {'erro': 'Você não tem acesso a esta loja'},
-                            status=status.HTTP_403_FORBIDDEN
-                        )
-                loja = Loja.objects.get(id=loja_id)
-            except (ValueError, TypeError):
-                return Response(
-                    {'erro': 'ID da loja inválido'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            except Loja.DoesNotExist:
-                return Response(
-                    {'erro': 'Loja não encontrada'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-        elif 'loja_id' in request.session:
-            # Fallback para loja da sessão
-            loja = Loja.objects.get(id=request.session['loja_id'])
-        else:
+        loja_id = request.query_params.get('loja') or request.session.get('loja_id')
+        if not loja_id:
             return Response(
                 {'erro': 'Parâmetro loja é obrigatório'},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            loja_id = int(loja_id)
+        except (ValueError, TypeError):
+            return Response(
+                {'erro': 'ID da loja inválido'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not loja_no_escopo(request.user, loja_id):
+            return Response(
+                {'erro': 'Você não tem acesso a esta loja'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        loja = Loja.objects.filter(id=loja_id).first()
+        if loja is None:
+            return Response(
+                {'erro': 'Loja não encontrada'},
+                status=status.HTTP_404_NOT_FOUND
             )
         
         # Obter quantos meses olhar para trás (padrão: 0)

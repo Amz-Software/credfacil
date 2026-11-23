@@ -12,9 +12,10 @@ def formatar_reais(valor: Decimal) -> str:
     return f'R$ {inteiro.replace(",", ".")},{centavos}'
 
 
-def _link(pagamento_id: int) -> str:
+def _link(token_publico) -> str:
+    """Link da página pública do pagamento (pelo token UUID4, nunca pelo id sequencial)."""
     base = ConfiguracaoCRM.obter().url_publica.strip().rstrip('/')
-    return f'{base}/pagamento/{pagamento_id}/' if base else ''
+    return f'{base}/pagamento/{token_publico}/' if base else ''
 
 
 def _produto(venda) -> str:
@@ -43,7 +44,8 @@ def _resumo_pagamento(pagamento, hoje: date) -> dict | None:
             'numero': proxima.numero_parcela, 'valor': f'{proxima.valor_restante:.2f}',
             'vencimento': proxima.data_vencimento.isoformat(),
         },
-        'link_publico': _link(pagamento.pk),
+        'token_publico': str(pagamento.token_publico),
+        'link_publico': _link(pagamento.token_publico),
     }
 
 

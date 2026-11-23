@@ -1046,7 +1046,9 @@ class Pagamento(Base):
     statuses = models.ManyToManyField('vendas.StatusPagamento', related_name='pagamentos', blank=True)
     objects = PagamentoQuerySet.as_manager()
     data_primeira_parcela = models.DateField()
-    history = HistoricalRecords(m2m_fields=[statuses])
+    # Identifica a página pública de pagamento (/pagamento/<token>/) no lugar do id sequencial.
+    token_publico = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    history = HistoricalRecords(m2m_fields=[statuses], excluded_fields=['token_publico'])
     
     @property
     def valor_parcela(self):

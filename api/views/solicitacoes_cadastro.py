@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.serializers import ClienteSolicitacaoSerializer, SolicitacaoCreditoInputSerializer
+from core.uploads import erros_de_upload
 from vendas.forms import (
     AnaliseCreditoClienteForm,
     ClienteForm,
@@ -16,7 +17,7 @@ from vendas.forms import (
     InformacaoPessoalForm,
     user_is_analista_or_admin,
 )
-from vendas.models import Cliente, Loja
+from vendas.models import Loja
 
 from .solicitacoes_regras import (
     _avisos_solicitacoes_existentes,
@@ -83,6 +84,14 @@ class CadastroDeSolicitacaoMixin:
         cliente.telefone_secundario = valores["telefone_secundario"]
         cliente.save(user=request.user)
         return Response(ClienteSolicitacaoSerializer(cliente).data)
+
+
+    def _resposta_se_arquivo_invalido(self, request):
+        """400 com o erro por campo quando algum arquivo não é imagem/PDF ou passa de 10 MB."""
+        erros = erros_de_upload(request.FILES)
+        if not erros:
+            return None
+        return Response({"detail": "Erros de validacao.", "errors": erros}, status=status.HTTP_400_BAD_REQUEST)
 
 
     def _atualizar_fotos_comprovantes(self, request, cliente):
@@ -155,6 +164,9 @@ class CadastroDeSolicitacaoMixin:
         ],
     )
     def create(self, request):
+        arquivo_invalido = self._resposta_se_arquivo_invalido(request)
+        if arquivo_invalido:
+            return arquivo_invalido
         payload_data = _normalizar_campos_opcionais_solicitacao(request.data)
         loja, loja_error = _resolver_loja_solicitacao(request, payload_data)
 
@@ -326,7 +338,10 @@ class CadastroDeSolicitacaoMixin:
         ],
     )
     def update(self, request, pk=None):
-        cliente = Cliente.objects.get(pk=pk)
+        cliente = self._cliente_no_escopo(request, pk)
+        arquivo_invalido = self._resposta_se_arquivo_invalido(request)
+        if arquivo_invalido:
+            return arquivo_invalido
         user = request.user
 
         is_analista = user.groups.filter(name="ANALISTA").exists()

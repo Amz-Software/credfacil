@@ -15,6 +15,7 @@ from django.core.files import File
 from django.core.files.base import ContentFile
 from django.utils import timezone
 
+from core.uploads import mime_pelos_bytes
 from crm.models import Mensagem, Midia
 from crm.whatsapp import ErroWhatsApp, modo_integracao, obter_provider
 
@@ -45,28 +46,8 @@ class ErroMidia(Exception):
 
 # --- identificação ------------------------------------------------------------
 
-def _mime_pelos_bytes(conteudo: bytes) -> str:
-    inicio = conteudo[:16]
-    assinaturas = (
-        (b'\xff\xd8\xff', 'image/jpeg'), (b'\x89PNG', 'image/png'), (b'GIF8', 'image/gif'),
-        (b'%PDF', 'application/pdf'), (b'OggS', 'audio/ogg'), (b'\x1aE\xdf\xa3', 'video/webm'),
-        (b'ID3', 'audio/mpeg'), (b'\xff\xfb', 'audio/mpeg'), (b'#!AMR', 'audio/amr'),
-    )
-    for assinatura, mime in assinaturas:
-        if inicio.startswith(assinatura):
-            return mime
-    if inicio[:4] == b'RIFF' and inicio[8:12] == b'WEBP':
-        return 'image/webp'
-    if inicio[:4] == b'RIFF' and inicio[8:12] == b'WAVE':
-        return 'audio/wav'
-    if inicio[4:8] == b'ftyp':
-        marca = inicio[8:12]
-        if marca in (b'heic', b'heix', b'mif1', b'msf1', b'heim', b'heis'):
-            return 'image/heic'
-        if marca in (b'M4A ', b'M4B '):
-            return 'audio/mp4'
-        return 'video/mp4'
-    return ''
+# Detecção pelos bytes compartilhada com o validador de upload da API (core/uploads.py).
+_mime_pelos_bytes = mime_pelos_bytes
 
 
 def validar_anexo(conteudo: bytes, nome: str) -> tuple[str, str]:

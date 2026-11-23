@@ -2,6 +2,7 @@
 import logging
 
 from django.db.models import Count
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 from rest_framework import viewsets
@@ -9,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
+from api.escopo import PERMISSAO_TODAS_ANALISES, ids_lojas_do_usuario, loja_no_escopo
 from api.pagination import SolicitacaoPagination
 from api.permissions import SolicitacaoCreditoPermission
 from api.serializers import ClienteSolicitacaoSerializer
@@ -68,10 +70,18 @@ class SolicitacaoCreditoViewSet(CadastroDeSolicitacaoMixin, EtapasDaAnaliseMixin
         )
 
     def _lojas_usuario_ids(self, request):
-        lojas_ids = set(request.user.lojas.values_list("id", flat=True))
-        if getattr(request.user, "loja_id", None):
-            lojas_ids.add(request.user.loja_id)
-        return lojas_ids
+        return ids_lojas_do_usuario(request.user)
+
+    def _cliente_no_escopo(self, request, pk, queryset=None):
+        """Cliente da solicitação, só se for de uma loja do usuário; senão 404.
+
+        Quem tem `vendas.view_all_analise_credito` (ou é superusuário) alcança todas.
+        Responder 404 (e não 403) não revela que a solicitação existe.
+        """
+        cliente = get_object_or_404(queryset if queryset is not None else Cliente, pk=pk)
+        if not loja_no_escopo(request.user, cliente.loja_id, (PERMISSAO_TODAS_ANALISES,)):
+            raise Http404
+        return cliente
 
     def _exigir_loja_do_usuario(self, request, cliente):
         """Usuário com loja principal só age sobre clientes dessa loja."""

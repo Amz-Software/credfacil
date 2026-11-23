@@ -9,6 +9,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from django.views.generic import View
 
 from vendas.models import Pagamento, StatusPagamento
@@ -17,6 +18,7 @@ from vendas.models import Pagamento, StatusPagamento
 logger = logging.getLogger(__name__)
 
 
+@require_POST
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_bloqueio_pagamento(request, pk):
@@ -26,6 +28,7 @@ def toggle_bloqueio_pagamento(request, pk):
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
 
+@require_POST
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_desativar_pagamento(request, pk):
@@ -35,6 +38,7 @@ def toggle_desativar_pagamento(request, pk):
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
 
+@require_POST
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_sem_contato_pagamento(request, pk):
@@ -44,6 +48,7 @@ def toggle_sem_contato_pagamento(request, pk):
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
 
+@require_POST
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_mais_prazo_pagamento(request, pk):
@@ -53,6 +58,7 @@ def toggle_mais_prazo_pagamento(request, pk):
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
 
+@require_POST
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_devolucao_pagamento(request, pk):
@@ -62,6 +68,7 @@ def toggle_devolucao_pagamento(request, pk):
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
 
+@require_POST
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_bo_pagamento(request, pk):
@@ -71,6 +78,7 @@ def toggle_bo_pagamento(request, pk):
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
 
+@require_POST
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_atrasado_pagamento(request, pk):
@@ -80,6 +88,7 @@ def toggle_atrasado_pagamento(request, pk):
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
 
+@require_POST
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_sem_conexao_pagamento(request, pk):
@@ -89,6 +98,7 @@ def toggle_sem_conexao_pagamento(request, pk):
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
 
+@require_POST
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_roubo_pagamento(request, pk):
@@ -98,6 +108,7 @@ def toggle_roubo_pagamento(request, pk):
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
 
+@require_POST
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_lembrete_pagamento(request, pk):
@@ -107,6 +118,7 @@ def toggle_lembrete_pagamento(request, pk):
     return redirect(reverse('financeiro:contas_a_receber_update', args=[pagamento.pk]))
 
 
+@require_POST
 @login_required
 @permission_required('vendas.change_pagamento', raise_exception=True)
 def toggle_status_pagamento(request, pk, status_id):

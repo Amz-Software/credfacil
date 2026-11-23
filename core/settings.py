@@ -2,6 +2,7 @@ import os
 import sys
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import quote
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -127,6 +128,10 @@ AXES_LOCKOUT_CALLABLE = 'core.seguranca.resposta_bloqueio_login'
 REDIS_HOST = os.environ.get('REDIS_HOST') or 'redis'
 REDIS_PORT = os.environ.get('REDIS_PORT') or '6379'
 REDIS_DB = os.environ.get('REDIS_DB') or '0'
+# Senha do Redis (docker-compose sobe o Redis com --requirepass); vazia = sem senha.
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
+_REDIS_CREDENCIAL = f":{quote(REDIS_PASSWORD, safe='')}@" if REDIS_PASSWORD else ''
+REDIS_URL = f"redis://{_REDIS_CREDENCIAL}{REDIS_HOST}:{REDIS_PORT}"
 
 ASGI_APPLICATION = 'core.asgi.application'
 CHANNEL_LAYERS = {
@@ -137,7 +142,7 @@ CHANNEL_LAYERS = {
             # (incidente de 2026-11-12). socket_timeout > brpop_timeout (5s) do
             # channels_redis, para não derrubar a leitura bloqueante do consumer.
             "hosts": [{
-                "address": f"redis://{REDIS_HOST}:{REDIS_PORT}",
+                "address": REDIS_URL,
                 "socket_connect_timeout": 3,
                 "socket_timeout": 15,
                 "socket_keepalive": True,
@@ -150,9 +155,15 @@ CHANNEL_LAYERS = {
 # Envio WS de notificações: timeout por envio (s).
 NOTIFICACAO_WS_TIMEOUT = float(os.environ.get("NOTIFICACAO_WS_TIMEOUT", "3"))
 
+# Mídia local: URL assinada e com validade (core/midia.py); sem a assinatura
+# certa, /mediafiles/ responde 404. Com MIDIA_X_ACCEL_PREFIXO (ex.: /_midia/), o
+# Django só confere a assinatura e o nginx entrega o arquivo de um `location internal`.
+MIDIA_ASSINATURA_HORAS = int(os.environ.get('MIDIA_ASSINATURA_HORAS', '6'))
+MIDIA_X_ACCEL_PREFIXO = os.environ.get('MIDIA_X_ACCEL_PREFIXO', '').strip()
+
 STORAGES = {
     'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'BACKEND': 'core.midia.MidiaAssinadaStorage',
         'LOCATION': os.path.join(BASE_DIR, 'mediafiles'),
     },
     'staticfiles': {
@@ -212,7 +223,7 @@ CACHES = {
     },
     "select2": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
+        "LOCATION": f"{REDIS_URL}/{REDIS_DB}",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -248,6 +259,9 @@ REST_FRAMEWORK = {
         "login": os.environ.get("THROTTLE_LOGIN", "10/min") if not _RODANDO_TESTES else "10000/min",
         "publico": os.environ.get("THROTTLE_PUBLICO", "20/min") if not _RODANDO_TESTES else "10000/min",
     },
+    # IP do cliente para os limites = salto do proxy confiável no X-Forwarded-For
+    # (sem isso o DRF usa o cabeçalho inteiro, que o cliente pode variar à vontade).
+    "NUM_PROXIES": AXES_IPWARE_PROXY_COUNT,
 }
 
 # Simple JWT

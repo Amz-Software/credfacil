@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from core.uploads import validar_documento
 
 from financeiro.models import Repasse
 from vendas.models import (
@@ -530,9 +531,9 @@ class VendaTrocaProdutoSerializer(serializers.Serializer):
 
 
 class VendaDocumentosSerializer(serializers.Serializer):
-    documento_assinado = serializers.FileField(required=False)
-    foto_cliente = serializers.FileField(required=False)
-    imagem_imei = serializers.FileField(required=False)
+    documento_assinado = serializers.FileField(required=False, validators=[validar_documento])
+    foto_cliente = serializers.FileField(required=False, validators=[validar_documento])
+    imagem_imei = serializers.FileField(required=False, validators=[validar_documento])
 
 
 class SolicitacaoCreditoInputSerializer(serializers.Serializer):
@@ -563,12 +564,14 @@ class SolicitacaoCreditoInputSerializer(serializers.Serializer):
     endereco_pessoal = serializers.CharField(required=False, allow_blank=True)
     obteve_contato_pessoal = serializers.BooleanField(required=False)
 
-    documento_identificacao_frente = serializers.FileField()
-    documento_identificacao_verso = serializers.FileField()
-    comprovante_residencia = serializers.FileField(required=False, allow_null=True)
-    consulta_serasa = serializers.FileField(required=False)
-    consulta_serasa_2 = serializers.FileField(required=False)
-    foto_cliente = serializers.FileField()
+    # Tipo pelos bytes (imagem ou PDF) e até 10 MB; as views aplicam o mesmo
+    # validador a todo request.FILES (core/uploads.py).
+    documento_identificacao_frente = serializers.FileField(validators=[validar_documento])
+    documento_identificacao_verso = serializers.FileField(validators=[validar_documento])
+    comprovante_residencia = serializers.FileField(required=False, allow_null=True, validators=[validar_documento])
+    consulta_serasa = serializers.FileField(required=False, validators=[validar_documento])
+    consulta_serasa_2 = serializers.FileField(required=False, validators=[validar_documento])
+    foto_cliente = serializers.FileField(validators=[validar_documento])
     restricao = serializers.BooleanField(required=False)
 
     def validate(self, attrs):
@@ -605,14 +608,26 @@ class InformarImeiAnaliseInputSerializer(serializers.Serializer):
 
 
 # --- User / Group / Permission serializers ---
+import copy
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+
+from api.escopo import loja_no_escopo
+from api.permissions import codigos_de_permissao
 
 
 class PermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Permission
         fields = ["id", "codename", "name", "content_type"]
+
+
+def _usuario_da_requisicao(serializer):
+    request = serializer.context.get("request")
+    return getattr(request, "user", None)
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -622,15 +637,28 @@ class GroupSerializer(serializers.ModelSerializer):
         model = Group
         fields = ["id", "name", "permissions"]
 
+    def validate_permissions(self, permissoes):
+        """Ninguém põe num grupo uma permissão que não tem (superusuário pode tudo)."""
+        editor = _usuario_da_requisicao(self)
+        if editor is None or editor.is_superuser:
+            return permissoes
+        alheias = codigos_de_permissao(permissoes) - editor.get_all_permissions()
+        if alheias:
+            raise serializers.ValidationError(
+                f"Você não pode conceder permissões que não tem: {', '.join(sorted(alheias))}."
+            )
+        return permissoes
+
 
 User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
-    # Accept lists of IDs on write
+    # Escrita: lista de ids de grupos, limitada ao que quem edita pode conceder.
     groups = serializers.PrimaryKeyRelatedField(many=True, queryset=Group.objects.all(), required=False)
-    user_permissions = serializers.PrimaryKeyRelatedField(many=True, queryset=Permission.objects.all(), required=False)
+    # Permissões diretas, superusuário e staff só mudam pelo admin do Django.
+    user_permissions = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 
     class Meta:
         model = User
@@ -648,11 +676,51 @@ class UserSerializer(serializers.ModelSerializer):
             "user_permissions",
             "password",
         ]
+        read_only_fields = ["is_staff", "is_superuser"]
+
+    def validate_groups(self, grupos):
+        """Só grupos cujas permissões quem edita também tem (superusuário pode tudo)."""
+        editor = _usuario_da_requisicao(self)
+        if editor is None or editor.is_superuser:
+            return grupos
+        permissoes_do_editor = editor.get_all_permissions()
+        acima = [
+            grupo.name for grupo in grupos
+            if not codigos_de_permissao(grupo.permissions.select_related("content_type")) <= permissoes_do_editor
+        ]
+        if acima:
+            raise serializers.ValidationError(
+                f"Você não pode conceder grupos com permissões que não tem: {', '.join(sorted(acima))}."
+            )
+        return grupos
+
+    def validate_loja(self, loja):
+        """A loja principal entra no escopo do usuário: só uma loja do escopo de quem edita."""
+        editor = _usuario_da_requisicao(self)
+        if loja is None or editor is None or loja_no_escopo(editor, loja.pk):
+            return loja
+        raise serializers.ValidationError("Você não tem acesso a esta loja.")
+
+    def validate(self, attrs):
+        senha = attrs.get("password")
+        if senha:
+            # Usuário provisório (sem salvar) para o validador de similaridade com nome/e-mail.
+            campos = {campo: valor for campo, valor in attrs.items() if campo not in ("password", "groups")}
+            if self.instance is not None:
+                provisorio = copy.copy(self.instance)
+                for campo, valor in campos.items():
+                    setattr(provisorio, campo, valor)
+            else:
+                provisorio = User(**campos)
+            try:
+                validate_password(senha, user=provisorio)
+            except DjangoValidationError as erro:
+                raise serializers.ValidationError({"password": list(erro.messages)})
+        return attrs
 
     def create(self, validated_data):
         password = validated_data.pop("password", None)
         groups = validated_data.pop("groups", [])
-        perms = validated_data.pop("user_permissions", [])
         user = User(**validated_data)
         if password:
             user.set_password(password)
@@ -661,14 +729,11 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         if groups:
             user.groups.set(groups)
-        if perms:
-            user.user_permissions.set(perms)
         return user
 
     def update(self, instance, validated_data):
         password = validated_data.pop("password", None)
         groups = validated_data.pop("groups", None)
-        perms = validated_data.pop("user_permissions", None)
 
         for attr, val in validated_data.items():
             setattr(instance, attr, val)
@@ -680,8 +745,6 @@ class UserSerializer(serializers.ModelSerializer):
 
         if groups is not None:
             instance.groups.set(groups)
-        if perms is not None:
-            instance.user_permissions.set(perms)
 
         return instance
 

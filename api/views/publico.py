@@ -2,15 +2,15 @@
 import logging
 import re
 
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from accounts.models import User
+from accounts.services import lojas_para_login
+from api.throttles import LimitePublicoThrottle
 from vendas.models import Pagamento, Venda
 
 
@@ -140,6 +140,7 @@ def _validar_confirmacao_contrato(venda, dados):
 
 @api_view(["GET", "POST"])
 @permission_classes([AllowAny])
+@throttle_classes([LimitePublicoThrottle])
 def contrato_publico(request, token):
     venda = get_object_or_404(Venda, contrato_publico_uuid=token)
 
@@ -165,20 +166,11 @@ def contrato_publico(request, token):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@throttle_classes([LimitePublicoThrottle])
 def buscar_lojas_by_username(request):
+    """Lojas do usuário antes do login. Usuário inexistente responde igual a um sem
+    loja (lista vazia), para a rota não servir para descobrir quem tem conta."""
     username = request.query_params.get("username")
     if not username:
         return Response({"error": "Username não fornecido"}, status=400)
-    try:
-        user = User.objects.get(Q(username__iexact=username) | Q(email__iexact=username))
-    except User.DoesNotExist:
-        return Response({"error": "Usuário não encontrado"}, status=404)
-    except User.MultipleObjectsReturned:
-        user = User.objects.filter(Q(username__iexact=username) | Q(email__iexact=username)).first()
-
-    # A busca pré-login deve refletir somente vínculos explícitos de usuário
-    # ou gerente. O FK user.loja é legado e não concede acesso por si só.
-    lojas_qs = (user.lojas.all() | user.lojas_gerenciadas.all()).distinct()
-    lojas = [{"id": loja.id, "nome": loja.nome} for loja in lojas_qs]
-
-    return Response({"lojas": lojas})
+    return Response({"lojas": lojas_para_login(username)})

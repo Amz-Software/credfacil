@@ -114,17 +114,24 @@ urlpatterns = [
         name='consulta_pagamentos'
     ),
     
+    # Página pública do cliente final: só pelo token aleatório do pagamento.
     path(
-        'pagamento/<int:pk>/',
+        'pagamento/<uuid:token>/',
         PagamentoDetailView.as_view(),
         name='pagamento_detail'
     ),
-    path('parcela/<int:pk>/informar/', InformarPagamentoView.as_view(), name='parcela_informar'),
     path(
-        'pagamento/<int:pk>/informar-todos/',
+        'pagamento/<uuid:token>/parcela/<int:pk>/informar/',
+        InformarPagamentoView.as_view(),
+        name='parcela_informar'
+    ),
+    path(
+        'pagamento/<uuid:token>/informar-todos/',
         InformarTodosPagamentosView.as_view(),
         name='informar_todos_pagamentos'
     ),
+    # Link antigo com id sequencial: não mostra dados, leva à consulta por CPF.
+    path('pagamento/<int:pk>/', PagamentoLegadoView.as_view(), name='pagamento_detail_legado'),
     
     path(
         'cliente/<int:pk>/instalar_app/',

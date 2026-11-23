@@ -2,7 +2,6 @@ FROM python:3.12-slim
 
 # Instalação de dependências
 RUN apt-get update && apt-get install -y \
-    zsh \
     git \
     pkg-config \
     build-essential \
@@ -30,11 +29,15 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Configurações do shell
-SHELL ["/bin/zsh", "-c"]
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Instala o Oh My Zsh
-RUN sh -c "$(wget -O- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+# Usuário sem privilégio (UID/GID fixos para o chown das pastas montadas no
+# servidor: mediafiles/, mediafiles_privado/, logs/, staticfiles/).
+ARG APP_UID=1000
+ARG APP_GID=1000
+RUN groupadd --gid "${APP_GID}" app \
+    && useradd --uid "${APP_UID}" --gid app --no-create-home --shell /usr/sbin/nologin app
 
 # Define o diretório de trabalho
 WORKDIR /app
@@ -44,7 +47,11 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copia o restante do código
-COPY . .
+COPY --chown=app:app . .
+RUN mkdir -p mediafiles mediafiles_privado logs staticfiles \
+    && chown app:app mediafiles mediafiles_privado logs staticfiles
 
-# Expõe a porta que o aplicativo usará
-EXPOSE 8000
+USER app
+
+# Porta do gunicorn (gunicorn.conf.py, PORT padrão 8010)
+EXPOSE 8010
