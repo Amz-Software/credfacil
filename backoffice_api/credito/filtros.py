@@ -7,7 +7,7 @@ Os filtros são os mesmos de `vendas/filtros.py` (tela atual) e de
 import re
 from datetime import date, datetime, timedelta
 
-from django.db.models import Case, DateTimeField, F, IntegerField, Q, QuerySet, Value, When
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
@@ -15,7 +15,7 @@ from api.views.solicitacoes_regras import _filtro_busca_solicitacao
 from backoffice_api.nucleo.erros import ErroBackoffice
 from vendas.models import AnaliseCreditoCliente, PreAnaliseRapida
 
-from .regras import ROTULOS_STATUS, ROTULOS_STATUS_APP, STATUS_EM_ANALISE
+from .regras import ROTULOS_STATUS, ROTULOS_STATUS_APP
 
 VERDADEIROS = {'1', 'true', 'sim'}
 FALSOS = {'0', 'false', 'nao', 'não'}
@@ -147,23 +147,12 @@ def _campo_ordenacao(params, permitidos: dict) -> tuple[str, bool] | None:
 
 
 def ordenar_solicitacoes(qs: QuerySet, params) -> QuerySet:
-    """Padrão: em análise primeiro (a mais antiga no topo); depois as decididas, mais recentes antes."""
+    """Padrão: ordem de criação, da solicitação mais recente para a mais antiga."""
     escolhida = _campo_ordenacao(params, ORDENACAO_SOLICITACOES)
     if escolhida:
         caminho, decrescente = escolhida
         return qs.order_by(f'-{caminho}' if decrescente else caminho, '-id')
-    return qs.annotate(
-        _prioridade=Case(
-            When(analise_credito__status=STATUS_EM_ANALISE, then=Value(0)),
-            default=Value(1),
-            output_field=IntegerField(),
-        ),
-        _espera=Case(
-            When(analise_credito__status=STATUS_EM_ANALISE, then=F('analise_credito__data_analise')),
-            default=Value(None),
-            output_field=DateTimeField(),
-        ),
-    ).order_by('_prioridade', F('_espera').asc(nulls_last=True), '-analise_credito__data_analise', '-id')
+    return qs.order_by('-analise_credito__data_analise', '-id')
 
 
 def _filtro_busca_pre_analise(termo: str) -> Q:

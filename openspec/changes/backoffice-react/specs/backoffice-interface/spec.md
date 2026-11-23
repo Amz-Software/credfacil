@@ -58,7 +58,7 @@ Reprovar ou cancelar análise, cancelar venda, quitar, fazer edição especial e
 - **ENTÃO** o botão de confirmar ficará indisponível e nada será enviado
 
 ### Requirement: Fila de análise em tempo real
-A fila de análise MUST se atualizar por eventos do WebSocket, sem polling fixo quando a conexão estiver ativa, e MUST ordenar por tempo de espera com cronômetro visível.
+A fila de análise MUST se atualizar por eventos do WebSocket, sem polling fixo quando a conexão estiver ativa, e MUST ordenar por ordem de criação (a mais recente no topo), com cronômetro de espera visível nas solicitações em análise.
 
 #### Cenário: Nova proposta
 - **QUANDO** um vendedor criar uma solicitação na loja do escopo do analista

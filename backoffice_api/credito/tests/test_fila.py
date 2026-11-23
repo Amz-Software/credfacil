@@ -50,11 +50,11 @@ class FilaTests(CenarioCredito):
         resposta = cliente.get(self.url(), {'ordenar': 'senha'})
         self.assertIn('ordenar', resposta.json()['erro']['campos'])
 
-    def test_ordenacao_padrao_poe_em_analise_mais_antiga_primeiro(self):
+    def test_ordenacao_padrao_segue_criacao_mais_recente_primeiro(self):
         aprovada = criar_solicitacao(self.loja_a, self.produto, nome='Zeca Aprovado', cpf='22233344455', status='A')
         nova = criar_solicitacao(self.loja_a, self.produto, nome='Bia Nova', cpf='33344455566')
         ids = [r['id'] for r in self.logar(self.analista).get(self.url()).json()['results']]
-        self.assertEqual(ids, [self.sol_a.pk, nova.pk, aprovada.pk])
+        self.assertEqual(ids, [nova.pk, aprovada.pk, self.sol_a.pk])
 
     def test_post_na_lista_recebe_405(self):
         self.assertEqual(self.logar(self.admin).post(self.url(), {}).status_code, 405)

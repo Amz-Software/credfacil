@@ -32,7 +32,7 @@ Permissão: `vendas.view_cliente`.
 | `data_inicio`, `data_fim` | `AAAA-MM-DD` (data da análise, dias inteiros) |
 | `analise_online` | `1` / `0` |
 | `vendas_nao_finalizadas` | `1` (sem venda gerada) |
-| `ordenar` | `id`, `nome`, `data_analise`, `status`, `loja`, `produto` (prefixo `-`). Padrão: em análise primeiro (a mais antiga no topo), depois as decididas da mais recente para a mais antiga |
+| `ordenar` | `id`, `nome`, `data_analise`, `status`, `loja`, `produto` (prefixo `-`). Padrão: ordem de criação, da mais recente para a mais antiga (todos os status juntos) |
 
 Só lista clientes que têm análise. Valor inválido → 400 com `campos.<parametro>`.
 

@@ -271,7 +271,7 @@ Barra superior:
   - aviso ao sair com alterações não salvas;
   - rascunho local só em formulários longos (cadastro de solicitação).
 - **Fila de análise:**
-  - ordenada pelo tempo de espera, com cronômetro;
+  - ordenada por ordem de criação (a mais recente no topo), com cronômetro de espera;
   - atualização em tempo real pelo WebSocket, no lugar do polling de 15 s;
   - atalhos de teclado (J/K navegar, A aprovar, R reprovar);
   - painel lateral com o resumo do cliente sem sair da fila.
