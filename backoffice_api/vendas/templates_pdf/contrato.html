@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titulo %}Contrato de Locação de Celular{% endblock %}
+{% block pagina %}{% if marca_dagua %}background: url("{{ marca_dagua }}") no-repeat center; background-size: 150mm auto;{% endif %}{% endblock %}
+{% block estilo %}
+  body { font-size: 10pt; line-height: 1.5; }
+  .via { page-break-after: always; }
+  .via:last-child { page-break-after: auto; }
+  .destaque-via { background: #FFF6D6; color: #2B2C40; font-weight: 700; text-align: center; font-size: 18pt; padding: 8px 0; margin-bottom: 14px; border: 2px solid #FDC600; border-top-width: 3px; }
+  h2 { text-align: center; font-size: 13pt; margin: 6px 0 10px; }
+  p { text-align: justify; margin: 8px 12px; }
+  ul, ol { margin: 6px 12px 6px 32px; }
+  .texto-contrato h1, .texto-contrato h2, .texto-contrato h3, .texto-contrato h4 { text-align: left; font-size: 11pt; margin: 10px 12px 4px; }
+{% endblock %}
+{% block conteudo %}
+{% for via in vias %}
+<div class="via">
+  <div class="destaque-via">{{ via.titulo }}</div>
+  {% include "_cabecalho.html" with titulo="Contrato de Locação de Celular" %}
+  <h2>CONTRATO DE LOCAÇÃO DE CELULAR</h2>
+  <p>Este Contrato de Locação de Celular ("Contrato") é celebrado entre: {{ loja.nome|title }}, inscrito no CNPJ {{ loja.cnpj|default:"-" }}, com endereço registrado em {{ loja.endereco }} referido como "Locador", {{ cliente.nome|title }}, inscrito no CPF {{ cliente.cpf }}, REGISTRO GERAL {{ cliente.rg }}, com endereço registrado em {{ cliente.endereco }} referido como "Locatário".</p>
+  <p><strong>1. Objeto do Contrato</strong></p>
+  <p>O Locador concorda em alugar ao Locatário o seguinte celular:</p>
+  <ul>
+    <li>Modelo de Celular: {{ aparelho|title }}</li>
+    <li>Número de Série/IMEI: {{ imei }}</li>
+  </ul>
+  <p><strong>2. Período de Locação</strong></p>
+  <p>O período de locação começará em {{ primeira_parcela }} e terminará em {{ ultima_parcela }}.</p>
+  <p><strong>3. Taxa de Locação</strong></p>
+  <p>O Locatário concorda em pagar uma taxa de locação de R$ {{ valor_parcela }} por {{ quantidade_parcelas }} MESES durante o período de locação. O pagamento deverá ser efetuado no máximo com {{ via.dias_tolerancia }} dias de atraso de cada parcela para não ocorrer bloqueio.</p>
+  <div class="texto-contrato">{{ texto_contrato }}</div>
+  <p>Locador: {{ loja.nome|title }}<br>
+  CNPJ: {{ loja.cnpj }}<br>
+  Locatário: ____________________________________<br>
+  CPF: ____________________________________<br>
+  Vendedor: ____________________________________<br>
+  CPF: ____________________________________</p>
+</div>
+{% endfor %}
+{% endblock %}

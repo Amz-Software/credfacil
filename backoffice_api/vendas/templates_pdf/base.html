@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>{% block titulo %}IPIX{% endblock %}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: {% block margem %}16mm 12mm{% endblock %};
+      @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7pt; color: #888; }
+      {% block pagina %}{% endblock %}
+    }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #222; margin: 0; line-height: 1.4; }
+    h1, h2, h3 { color: #2B2C40; margin: 0 0 6px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }
+    th, td { border: 1px solid #B9BAC8; padding: 5px 6px; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+    th { background: #FFF6D6; color: #2B2C40; font-weight: 700; }
+    tr { page-break-inside: avoid; }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .cabecalho { width: 100%; border: 0; border-bottom: 3px solid #FDC600; margin-bottom: 12px; }
+    .cabecalho td { border: 0; padding: 0 0 8px; vertical-align: middle; }
+    .cabecalho .logo { width: 70px; }
+    .cabecalho .logo div { background: #1f1f1f; border-radius: 8px; padding: 5px 8px; text-align: center; }
+    .cabecalho img { height: 36px; }
+    .marca { font-size: 14pt; font-weight: 700; color: #2B2C40; }
+    .marca span { font-size: 11pt; font-weight: 400; color: #555; }
+    .meta { font-size: 8.5pt; color: #555; }
+    {% block estilo %}{% endblock %}
+  </style>
+</head>
+<body>
+{% block conteudo %}{% endblock %}
+</body>
+</html>

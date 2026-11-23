@@ -1,0 +1,9 @@
+<table class="cabecalho">
+  <tr>
+    {% if logo %}<td class="logo"><div><img src="{{ logo }}" alt="IPIX"></div></td>{% endif %}
+    <td>
+      <div class="marca">IPIX{% if titulo %} <span>· {{ titulo }}</span>{% endif %}</div>
+      <div class="meta">{{ loja.nome }}{% if loja.endereco %} — {{ loja.endereco }}{% endif %}{% if loja.cnpj %} · CNPJ: {{ loja.cnpj }}{% endif %}</div>
+    </td>
+  </tr>
+</table>

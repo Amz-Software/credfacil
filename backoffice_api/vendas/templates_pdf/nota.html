@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block titulo %}Nota de Venda nº {{ venda.numero }}{% endblock %}
+{% block pagina %}@bottom-left { content: "Data e hora da impressão: {{ emitido_em }}"; font-size: 7pt; color: #888; }{% endblock %}
+{% block estilo %}
+  .titulo-secao { font-weight: 700; margin: 14px 0 6px; text-transform: uppercase; }
+  .assinatura { margin-top: 36px; text-align: center; }
+{% endblock %}
+{% block conteudo %}
+{% include "_cabecalho.html" with titulo="Nota de Venda" %}
+
+<table>
+  <tr>
+    <td style="width: 55%;">
+      <strong>{{ loja.nome }}</strong><br>
+      {{ loja.endereco|default:"Sem endereço" }}<br>
+      CNPJ: {{ loja.cnpj|default:"Sem CNPJ" }}
+    </td>
+    <td>
+      <strong>Venda nº:</strong> {{ venda.numero }}<br>
+      <strong>Data:</strong> {{ venda.data }}<br>
+      <strong>Vendedor:</strong> {{ venda.vendedor }}
+    </td>
+  </tr>
+</table>
+
+<div class="titulo-secao">Destinatário/Remetente</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width: 20%;">Nome/Razão Social</th>
+      <th style="width: 14%;">Telefones</th>
+      <th style="width: 14%;">CNPJ/CPF</th>
+      <th style="width: 17%;">Email</th>
+      <th style="width: 17%;">Endereço</th>
+      <th style="width: 8%;">CEP</th>
+      <th style="width: 10%;">Cidade</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>{{ cliente.nome }}</td>
+      <td class="text-center">{% for telefone in cliente.telefones %}{{ telefone }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+      <td class="text-center">{{ cliente.cpf }}</td>
+      <td class="text-center">{{ cliente.email }}</td>
+      <td>{{ cliente.endereco }}</td>
+      <td class="text-center">{{ cliente.cep }}</td>
+      <td class="text-center">{{ cliente.cidade }}{% if cliente.uf %}/{{ cliente.uf }}{% endif %}</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="titulo-secao">Dados dos Produtos/Serviços</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width: 10%;">Código</th>
+      <th style="width: 22%;">Produto</th>
+      <th style="width: 20%;">IMEI</th>
+      <th style="width: 10%;" class="text-center">Quantidade</th>
+      <th style="width: 12%;" class="text-right">Valor Item</th>
+      <th style="width: 12%;" class="text-right">Desconto</th>
+      <th style="width: 14%;" class="text-right">Valor Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in itens %}
+    <tr>
+      <td>{{ item.codigo }}</td>
+      <td>{{ item.nome }}</td>
+      <td>{{ item.imei }}</td>
+      <td class="text-center">{{ item.quantidade }}</td>
+      <td class="text-right">{{ item.valor_unitario }}</td>
+      <td class="text-right">{{ item.valor_desconto }}</td>
+      <td class="text-right">{{ item.valor_total }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td colspan="6" class="text-right"><strong>Total:</strong></td>
+      <td class="text-right"><strong>{{ total }}</strong></td>
+    </tr>
+  </tfoot>
+</table>
+
+<div class="titulo-secao">Pagamento</div>
+<table>
+  <thead>
+    <tr>
+      <th>Forma de Pagamento</th>
+      <th class="text-right">Valor</th>
+      <th class="text-center">Parcelas</th>
+      <th class="text-center">Primeiro Vencimento</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for pagamento in pagamentos %}
+    <tr>
+      <td>{{ pagamento.tipo }}</td>
+      <td class="text-right">{{ pagamento.valor }}</td>
+      <td class="text-center">{{ pagamento.parcelas|default_if_none:"-" }}</td>
+      <td class="text-center">{{ pagamento.primeiro_vencimento }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="titulo-secao">Observações</div>
+{% if mensagem_garantia %}<p>{{ mensagem_garantia|linebreaksbr }}</p>{% endif %}
+<p>A empresa não é responsável por perda de dados armazenados nos produtos. Certifique-se de fazer a cópia de segurança necessária.</p>
+<div class="assinatura">___________________________________<br>Assinatura do Cliente</div>
+{% endblock %}

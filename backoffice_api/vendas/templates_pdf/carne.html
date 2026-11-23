@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block titulo %}{{ tipo_pagamento }} da venda nº {{ venda.numero }}{% endblock %}
+{% block margem %}10mm 10mm{% endblock %}
+{% block estilo %}
+  body { font-size: 9.5pt; }
+  .folha { margin-bottom: 8px; page-break-inside: avoid; }
+  .folha td { padding: 6px; }
+  .topo { background: #FDC600; color: #2B2C40; font-weight: 700; }
+  .topo img { max-width: 90px; height: auto; }
+  .topo .info { text-align: right; }
+  .topo .info p { margin: 2px 0; }
+  .vencimento { font-size: 12pt; font-weight: 700; }
+  .preco { font-size: 15pt; font-weight: 700; }
+  .comprovante { background: #f5f5f5; text-align: center; vertical-align: middle; }
+  .qr { text-align: center; }
+  .qr img { width: 105px; height: 105px; }
+  .chave { font-size: 8.5pt; word-wrap: break-word; }
+  .rodape { font-size: 8pt; color: #777; text-align: center; margin-top: 6px; }
+{% endblock %}
+{% block conteudo %}
+{% for folha in folhas %}
+<table class="folha">
+  <tr>
+    <td class="topo" colspan="2" style="width: 70%;">
+      <table style="margin: 0; border: 0;">
+        <tr>
+          <td style="border: 0; padding: 0; width: 40%; vertical-align: middle;">{% if logo %}<img src="{{ logo }}" alt="CredFacil">{% endif %}</td>
+          <td class="info" style="border: 0; padding: 0;">
+            <p><strong>{{ venda.loja }}</strong> | Nº {{ venda.numero }}</p>
+            <p class="vencimento">Vencimento: {{ folha.vencimento }}</p>
+            <p class="preco">R$ {{ folha.valor }}</p>
+            <p>PARCELA {{ folha.numero }} DE {{ quantidade_parcelas }}</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+    <td class="comprovante">
+      <p style="margin: 0 0 4px; font-weight: 700;">Enviar comprovante</p>
+      <p style="margin: 0;">para o número (<strong>WhatsApp</strong>): <strong>{{ credor.telefone }}</strong></p>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <p><strong>Cliente:</strong> {{ cliente.nome }}</p>
+      <p><strong>CPF/CNPJ:</strong> {{ cliente.cpf }}</p>
+      <p>Ao <strong>{{ cliente.nome }}</strong> pagar <strong>R$ {{ folha.valor }}</strong> por esta única via de {{ tipo_pagamento }} à <strong>{{ credor.nome|title }}</strong>, CPF/CNPJ {{ credor.cnpj }}, ou à sua ordem a quantia de {{ folha.valor }} reais, em moeda corrente desse país.</p>
+      <p>DATA DA EMISSÃO: <strong>{{ data_emissao }}</strong></p>
+    </td>
+    <td class="qr">
+      <p style="margin: 0 0 4px; font-weight: 700;">QR code do pagamento</p>
+      <img src="data:image/png;base64,{{ folha.qr_code }}" alt="QR Code Pix">
+      <p class="chave"><strong>Chave Pix:</strong> {{ credor.chave_pix }}</p>
+    </td>
+  </tr>
+</table>
+{% endfor %}
+<p class="rodape">Este documento é gerado automaticamente pelo sistema da {{ venda.loja }}</p>
+{% endblock %}
