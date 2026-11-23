@@ -128,6 +128,26 @@ liberado para a loja. **Valores monetários são preservados** (como a API atual
 parcelas recria as parcelas com o mesmo valor total. Pagamento com parcela paga → 422.
 Resposta: detalhe. Auditoria `venda_edicao_especial` com motivo.
 
+## GET `vendas/{id}/opcoes-edicao/`
+Permissão: `vendas.change_venda` ou `vendas.can_edit_imei_valores_venda`. Opções dos formulários
+de edição/edição especial da SPA (o servidor valida de novo cada escolha).
+```json
+{"tipos_pagamento": [{"id": 2, "nome": "IPX", "carne": true, "parcelas": true, "caixa": false, "financeira": false}],
+ "vendedores": [{"id": 3, "nome": "João"}],
+ "produtos": [{"id": 2, "nome": "Galaxy A15", "codigo": 7, "is_iphone": false, "valor": "1200.00", "serializado": true}],
+ "parcelas_edicao_especial": [4, 6, 8, 10, 12, 14],
+ "limite_desconto_percentual": 15}
+```
+`vendedores`: usuários ativos da loja da venda (usuários e gerentes) + o vendedor atual.
+`produtos`: liberados para a loja da venda (`produtos_permitidos_qs`, sem exigir estoque);
+`serializado` = tipo com número de série (IMEI obrigatório, quantidade 1).
+`limite_desconto_percentual`: acima dele (desconto ÷ subtotal do item) a tela pede
+`autorizacao-gerente/` antes de salvar (regra de interface, como `static/js/venda-edit.js`).
+
+## GET `vendas/clientes/?busca=`
+Permissão: `vendas.change_venda`. Paginado; clientes no escopo de lojas, por nome (contém) ou
+CPF (3+ dígitos). `{"results": [{"id": 5, "nome": "Maria Souza", "cpf_mascarado": "***.456.789-**"}]}`.
+
 ## GET `vendas/{id}/opcoes-troca/`
 Permissão: `vendas.change_venda`.
 ```json

@@ -36,6 +36,7 @@ from .serializers import (
     VendaListaSerializer,
     resultado_de_busca,
 )
+from .opcoes import cliente_resumido, filtrar_clientes, opcoes_de_edicao
 from .servicos_acoes import cancelar_venda, produtos_para_troca, trocar_produto
 from .servicos_edicao import editar_venda, editar_venda_especial
 from .views_arquivos import TAGS, DocumentosVendaMixin
@@ -83,6 +84,8 @@ class VendaViewSet(DocumentosVendaMixin, BackofficeViewSet):
         'contrato_pdf': ['vendas.view_venda'],
         'busca': ['vendas.view_venda'],
         'imeis_disponiveis': [QualquerPermissao('vendas.change_venda', 'vendas.can_edit_imei_valores_venda')],
+        'opcoes_edicao': [QualquerPermissao('vendas.change_venda', 'vendas.can_edit_imei_valores_venda')],
+        'clientes': ['vendas.change_venda'],
     }
 
     def initial(self, request, *args, **kwargs):
@@ -139,6 +142,22 @@ class VendaViewSet(DocumentosVendaMixin, BackofficeViewSet):
         if self.request.user.has_perm(PERMISSAO_TODOS_OS_IMEIS):
             return queryset
         return self.filtrar_por_lojas(queryset)
+
+    @extend_schema(tags=TAGS, summary='Opções dos formulários de edição')
+    @action(detail=True, methods=['get'], url_path='opcoes-edicao')
+    def opcoes_edicao(self, request, pk=None):
+        return Response(opcoes_de_edicao(self.get_object()))
+
+    @extend_schema(
+        tags=TAGS,
+        summary='Clientes para trocar o cliente da venda',
+        parameters=[OpenApiParameter('busca', str, description='Nome ou CPF (3+ dígitos)')],
+    )
+    @action(detail=False, methods=['get'], url_path='clientes')
+    def clientes(self, request):
+        queryset = filtrar_clientes(self._clientes_do_escopo(), request.query_params.get('busca'))
+        pagina = self.paginate_queryset(queryset)
+        return self.get_paginated_response([cliente_resumido(c) for c in pagina])
 
     @extend_schema(tags=TAGS, summary='Opções para a troca de produto', responses=OpcoesTrocaVendaSerializer)
     @action(detail=True, methods=['get'], url_path='opcoes-troca')
