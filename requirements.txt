@@ -31,6 +31,7 @@ django-storages[s3]==1.14.6
 boto3==1.40.0
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
+django-axes[ipware]==7.0.2
 drf-spectacular==0.28.0
 et_xmlfile==2.0.0
 fonttools==4.60.1

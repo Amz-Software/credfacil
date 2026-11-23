@@ -39,6 +39,7 @@ urlpatterns = [
     path('api/whatsapp/webhook/', WebhookWhatsAppView.as_view(), name='whatsapp-webhook'),
     path('crm/', include('crm.web.urls')),
     path('privacidade/', politica_privacidade, name='politica_privacidade'),
+    path('api/bo/v1/', include('backoffice_api.urls', namespace='backoffice_api')),
     path('api/', include('api.urls')),
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

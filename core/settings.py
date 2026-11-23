@@ -17,14 +17,30 @@ load_dotenv()
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
+def _env_bool(nome: str, padrao: bool = False) -> bool:
+    valor = os.environ.get(nome)
+    if valor is None or valor.strip() == '':
+        return padrao
+    return valor.strip().lower() in ('1', 'true', 'yes', 'sim', 'on')
+
+
+def _env_lista(nome: str, padrao: str = '') -> list[str]:
+    return [item.strip() for item in os.environ.get(nome, padrao).split(',') if item.strip()]
+
+
+_RODANDO_TESTES = len(sys.argv) > 1 and sys.argv[1] == 'test'
+
 SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if not _RODANDO_TESTES:
+        raise ImproperlyConfigured('Defina a variável de ambiente SECRET_KEY.')
+    SECRET_KEY = 'chave-somente-para-testes'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = os.environ.get('DEBUG', True)
-DEBUG = True
+# DEBUG só liga com DEBUG=True no ambiente; o padrão é desligado (produção).
+DEBUG = _env_bool('DEBUG', False)
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS').split(',') if os.environ.get('CSRF_TRUSTED_ORIGINS') else []
+ALLOWED_HOSTS = _env_lista('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+CSRF_TRUSTED_ORIGINS = _env_lista('CSRF_TRUSTED_ORIGINS')
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
@@ -64,6 +80,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'simple_history',
     'crm.apps.CrmConfig',
+    'rest_framework_simplejwt.token_blacklist',
+    'axes',
+    'backoffice_api.apps.BackofficeApiConfig',
 ]
 
 # CRM de WhatsApp: tarefas de fundo (envio de mídia, processamento) rodam em threads
@@ -84,7 +103,25 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "accounts.middleware.LojaMiddleware",
     'simple_history.middleware.HistoryRequestMiddleware',
+    # Por último, como pede o django-axes: bloqueia login após falhas seguidas.
+    'axes.middleware.AxesMiddleware',
 ]
+
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# Bloqueio por tentativas (django-axes): 5 falhas em 15 min por usuário + IP.
+AXES_ENABLED = _env_bool('AXES_ENABLED', not _RODANDO_TESTES)
+AXES_FAILURE_LIMIT = int(os.environ.get('AXES_FAILURE_LIMIT', '5'))
+AXES_COOLOFF_TIME = timedelta(minutes=int(os.environ.get('AXES_COOLOFF_MINUTOS', '15')))
+AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
+AXES_RESET_ON_SUCCESS = True
+AXES_USERNAME_FORM_FIELD = 'username'
+AXES_IPWARE_PROXY_COUNT = int(os.environ.get('AXES_PROXY_COUNT', '1'))
+AXES_IPWARE_META_PRECEDENCE_ORDER = ['HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR']
+AXES_LOCKOUT_CALLABLE = 'core.seguranca.resposta_bloqueio_login'
 
 # Redis: um único endereço para o cache do select2 e para o channel layer.
 REDIS_HOST = os.environ.get('REDIS_HOST') or 'redis'
@@ -203,12 +240,23 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Limites por escopo; as views públicas e de login declaram o próprio escopo.
+    # Na suíte de testes os limites ficam altos (o cache persiste entre os testes).
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.environ.get("THROTTLE_ANON", "60/min") if not _RODANDO_TESTES else "10000/min",
+        "user": os.environ.get("THROTTLE_USER", "600/min") if not _RODANDO_TESTES else "10000/min",
+        "login": os.environ.get("THROTTLE_LOGIN", "10/min") if not _RODANDO_TESTES else "10000/min",
+        "publico": os.environ.get("THROTTLE_PUBLICO", "20/min") if not _RODANDO_TESTES else "10000/min",
+    },
 }
 
 # Simple JWT
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    # Rotação fica desligada até a SPA do vendedor gravar o refresh novo
+    # (front-connect-magic/src/lib/api.ts regrava o antigo). A blacklist já
+    # serve para o logout invalidar o refresh no servidor.
     "ROTATE_REFRESH_TOKENS": False,
     "BLACKLIST_AFTER_ROTATION": False,
     "UPDATE_LAST_LOGIN": True,
@@ -269,6 +317,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 10},
+    },
+    {
+        'NAME': 'accounts.validators.SenhaForteValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -337,7 +389,6 @@ _SENTRY_DSN_PADRAO = (
 SENTRY_DSN = os.environ.get('SENTRY_DSN', _SENTRY_DSN_PADRAO)
 SENTRY_SEND_DEFAULT_PII = os.environ.get('SENTRY_SEND_DEFAULT_PII', 'False').lower() == 'true'
 # A suíte de testes (manage.py test) não envia eventos para o Sentry de produção.
-_RODANDO_TESTES = len(sys.argv) > 1 and sys.argv[1] == 'test'
 if SENTRY_DSN and not _RODANDO_TESTES:
     sentry_sdk.init(dsn=SENTRY_DSN, send_default_pii=SENTRY_SEND_DEFAULT_PII)
 
@@ -374,8 +425,9 @@ STATICFILES_DIRS = (
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 
-# CORS Configuration
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS: só as origens configuradas (SPA do vendedor; o backoffice novo usa
+# proxy reverso no próprio domínio e não depende de CORS).
+CORS_ALLOWED_ORIGINS = _env_lista('CORS_ALLOWED_ORIGINS')
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -391,4 +443,44 @@ CORS_ALLOW_METHODS = [
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# E-mail: SMTP quando EMAIL_HOST estiver definido; senão, console (desenvolvimento).
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+if EMAIL_HOST:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+    EMAIL_USE_TLS = _env_bool('EMAIL_USE_TLS', True)
+    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# --------------------------------------------------------------------------
+# Cookies e cabeçalhos de segurança
+# --------------------------------------------------------------------------
+SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', not DEBUG)
+CSRF_COOKIE_SECURE = _env_bool('CSRF_COOKIE_SECURE', not DEBUG)
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+X_FRAME_OPTIONS = 'DENY'
+# HSTS só pelo ambiente (ligar depois de confirmar HTTPS em todos os domínios).
+SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '0'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', False)
+
+# Esquema OpenAPI e Swagger só para staff.
+SPECTACULAR_SETTINGS['SERVE_PERMISSIONS'] = ['rest_framework.permissions.IsAdminUser']
+
+# --------------------------------------------------------------------------
+# Backoffice React (SPA em outro domínio, com proxy reverso para /api/bo/ e /ws/)
+# --------------------------------------------------------------------------
+# URL pública da SPA (ex.: https://painel.exemplo.com.br), usada nos redirecionamentos.
+BACKOFFICE_SPA_URL = os.environ.get('BACKOFFICE_SPA_URL', '').rstrip('/')
+# Módulos cujas telas Django redirecionam para a SPA (ex.: "credito,vendas").
+BACKOFFICE_SPA_MODULOS = set(_env_lista('BACKOFFICE_SPA_MODULOS'))
+# Sessão do backoffice: expira por inatividade e tem limite absoluto.
+BACKOFFICE_SESSAO_INATIVIDADE_MIN = int(os.environ.get('BACKOFFICE_SESSAO_INATIVIDADE_MIN', '30'))
+BACKOFFICE_SESSAO_MAXIMA_HORAS = int(os.environ.get('BACKOFFICE_SESSAO_MAXIMA_HORAS', '12'))
