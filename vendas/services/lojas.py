@@ -90,12 +90,14 @@ def _marcar_parciais(repasses, valor_devido: Decimal) -> None:
 
 
 def status_repasses_por_loja(lojas, meses_atras: int = 0, hoje: date | None = None,
-                             limite_meses: int = LIMITE_MESES_REPASSE) -> dict:
+                             limite_meses: int = LIMITE_MESES_REPASSE, marcar_parciais: bool = True) -> dict:
     """Situação dos repasses de várias lojas com um número fixo de consultas.
 
     Devolve {loja_id: (resultados, atrasados)} no mesmo formato de
     `Loja.get_repasses_status`: períodos sem venda são omitidos e `atrasados`
-    conta os repasses vencidos ainda não lançados.
+    conta os repasses vencidos ainda não lançados. `parcial` indica repasse
+    lançado com valor menor que o devido. Com `marcar_parciais=False` (leitura
+    pura, usada pela API do backoffice) nada é gravado no banco.
     """
     hoje = hoje or date.today()
     loja_ids = [loja.id for loja in lojas]
@@ -117,7 +119,8 @@ def status_repasses_por_loja(lojas, meses_atras: int = 0, hoje: date | None = No
                 continue
             valor = sum(repasses_periodo, Decimal('0.00'))
             lancados = registrados.get((loja_id, periodo.data), [])
-            _marcar_parciais(lancados, valor)
+            if marcar_parciais:
+                _marcar_parciais(lancados, valor)
             resultados.append({
                 'data': periodo.data,
                 'inicio_periodo': periodo.inicio,
@@ -125,6 +128,7 @@ def status_repasses_por_loja(lojas, meses_atras: int = 0, hoje: date | None = No
                 'qtd_vendas': len(repasses_periodo),
                 'valor_total_repasse': valor,
                 'feito': bool(lancados),
+                'parcial': any(repasse.valor < valor for repasse in lancados),
             })
         atrasados = sum(1 for r in resultados if not r['feito'] and r['data'] < hoje)
         status[loja_id] = (resultados, atrasados)
