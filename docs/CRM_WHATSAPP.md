@@ -24,6 +24,10 @@ recebidas.
 
 O modo real só liga com **token e ID do número**. Com só um dos dois, continua simulado.
 
+**Política de privacidade** (campo obrigatório para publicar o app na Meta):
+`https://<domínio do backend>/privacidade/`, página pública. Razão social, CNPJ e e-mail do
+responsável pelos dados ficam em CRM WhatsApp → Configuração.
+
 **Webhook no painel da Meta** (app → WhatsApp → Configuração):
 - URL de callback: `https://<domínio do backend>/api/whatsapp/webhook/`
 - Token de verificação: o valor de `WHATSAPP_VERIFY_TOKEN`

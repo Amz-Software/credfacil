@@ -4,6 +4,7 @@ from django import forms
 from crm.models import ConfiguracaoCRM, Etiqueta, RespostaRapida
 
 MAX_HORAS_RETORNO = 720
+TAMANHO_CNPJ = 14
 
 
 class _BootstrapMixin:
@@ -25,7 +26,7 @@ class ConfiguracaoForm(_BootstrapMixin, forms.ModelForm):
     class Meta:
         model = ConfiguracaoCRM
         fields = ['nome_empresa', 'boas_vindas_ativa', 'mensagem_boas_vindas', 'retorno_automatico_horas',
-                  'autoatendimento_ativo', 'url_publica']
+                  'autoatendimento_ativo', 'url_publica', 'razao_social', 'cnpj', 'email_privacidade']
         labels = {
             'nome_empresa': 'Nome da empresa nas mensagens',
             'boas_vindas_ativa': 'Enviar boas-vindas quando o cliente chamar',
@@ -33,6 +34,9 @@ class ConfiguracaoForm(_BootstrapMixin, forms.ModelForm):
             'retorno_automatico_horas': 'Devolver ao automático após (horas sem resposta da equipe)',
             'autoatendimento_ativo': 'Autoatendimento de parcelas (CPF + data de nascimento)',
             'url_publica': 'Endereço público do sistema',
+            'razao_social': 'Razão social',
+            'cnpj': 'CNPJ',
+            'email_privacidade': 'E-mail do responsável pelos dados (LGPD)',
         }
         help_texts = {'retorno_automatico_horas': '0 desliga a devolução automática.'}
         widgets = {'mensagem_boas_vindas': forms.Textarea(attrs={'rows': 3})}
@@ -42,6 +46,14 @@ class ConfiguracaoForm(_BootstrapMixin, forms.ModelForm):
         if horas > MAX_HORAS_RETORNO:
             raise forms.ValidationError(f'Use no máximo {MAX_HORAS_RETORNO} horas.')
         return horas
+
+    def clean_cnpj(self) -> str:
+        digitos = ''.join(c for c in self.cleaned_data.get('cnpj') or '' if c.isdigit())
+        if not digitos:
+            return ''
+        if len(digitos) != TAMANHO_CNPJ:
+            raise forms.ValidationError('O CNPJ tem 14 dígitos.')
+        return f'{digitos[:2]}.{digitos[2:5]}.{digitos[5:8]}/{digitos[8:12]}-{digitos[12:]}'
 
     def clean_url_publica(self) -> str:
         valor = (self.cleaned_data.get('url_publica') or '').strip().rstrip('/')

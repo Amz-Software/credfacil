@@ -31,6 +31,7 @@ ROTAS_PUBLICAS = frozenset({
     'vendas:parcela_informar',
     'vendas:informar_todos_pagamentos',
     'foto-celular',
+    'politica_privacidade',
 })
 
 

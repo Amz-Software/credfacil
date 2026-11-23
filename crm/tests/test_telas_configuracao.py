@@ -136,3 +136,28 @@ class ConfiguracaoTests(CrmTestCase):
         self.assertEqual(pagina.context['conversa_simulada']['id'], conversa.pk)
         self.assertContains(pagina, 'value="5591977776666"')
         self.assertEqual(self.web(self.atendente).post('/crm/configuracao/simulador/', {}).status_code, 403)
+
+
+class PoliticaPrivacidadeTests(CrmTestCase):
+    def test_pagina_publica_com_os_dados_da_empresa(self):
+        web = self.web(self.gestor, ajax=False)
+        web.post('/crm/configuracao/', {
+            'nome_empresa': 'IPX', 'mensagem_boas_vindas': 'Olá!', 'retorno_automatico_horas': '24',
+            'razao_social': 'IPX Serviços LTDA', 'cnpj': '12345678000190', 'email_privacidade': 'dados@ipx.com.br',
+        })
+
+        resposta = self.client.get('/privacidade/')
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, 'IPX Serviços LTDA')
+        self.assertContains(resposta, '12.345.678/0001-90')
+        self.assertContains(resposta, 'mailto:dados@ipx.com.br')
+
+    def test_cnpj_invalido_e_recusado(self):
+        resposta = self.web(self.gestor, ajax=False).post('/crm/configuracao/', {
+            'nome_empresa': 'IPX', 'mensagem_boas_vindas': 'Olá!', 'retorno_automatico_horas': '24', 'cnpj': '123'})
+
+        self.assertContains(resposta, 'O CNPJ tem 14 dígitos.')
+
+    def test_configuracao_mostra_o_endereco_da_politica(self):
+        self.assertContains(self.web(self.gestor, ajax=False).get('/crm/configuracao/'), '/privacidade/')

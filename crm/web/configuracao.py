@@ -5,7 +5,7 @@ from typing import Any
 from django.contrib import messages
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import path
+from django.urls import path, reverse
 from django.views.decorators.http import require_http_methods, require_POST
 
 from crm.apresentacao import abertura_dict, base_mensagens, mensagens_dicts
@@ -44,6 +44,7 @@ def _integracao(request: HttpRequest) -> dict[str, Any]:
         'transcricao': bool(os.environ.get('OPENAI_API_KEY', '').strip()),
         'api_version': cred.versao,
         'webhook_url': request.build_absolute_uri(CAMINHO_WEBHOOK),
+        'privacidade_url': request.build_absolute_uri(reverse('politica_privacidade')),
     }
 
 

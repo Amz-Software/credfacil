@@ -42,6 +42,8 @@
         <div class="small">
           <div class="text-muted">Endereço do webhook (cadastrar no app da Meta, campo <code>messages</code>)</div>
           <code class="d-block text-break">{{ integracao.webhook_url }}</code>
+          <div class="text-muted mt-2">Política de privacidade (campo do app na Meta)</div>
+          <a href="{{ integracao.privacidade_url }}" target="_blank" rel="noopener" class="d-block text-break">{{ integracao.privacidade_url }}</a>
           <div class="text-muted mt-2">Versão da API: {{ integracao.api_version }}</div>
         </div>
       </div>

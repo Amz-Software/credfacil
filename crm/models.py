@@ -307,6 +307,11 @@ class ConfiguracaoCRM(models.Model):
         max_length=200, blank=True, default='',
         help_text='Endereço público do sistema, usado no link de pagamento (ex.: https://credfacil.mobconnects.com).',
     )
+    razao_social = models.CharField(max_length=150, blank=True, default='',
+                                    help_text='Como no cartão CNPJ. Aparece na política de privacidade.')
+    cnpj = models.CharField(max_length=18, blank=True, default='')
+    email_privacidade = models.EmailField(blank=True, default='',
+                                          help_text='Contato do responsável pelos dados pessoais (LGPD).')
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:

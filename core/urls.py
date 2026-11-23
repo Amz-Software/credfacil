@@ -23,6 +23,7 @@ from rest_framework_simplejwt.views import (
 )
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from api.views import CustomTokenObtainPairView, foto_celular_view
+from crm.web.publico import politica_privacidade
 from crm.webhook import WebhookWhatsAppView
 
 urlpatterns = [
@@ -37,6 +38,7 @@ urlpatterns = [
     path('foto/<uuid:session_id>/', foto_celular_view, name='foto-celular'),
     path('api/whatsapp/webhook/', WebhookWhatsAppView.as_view(), name='whatsapp-webhook'),
     path('crm/', include('crm.web.urls')),
+    path('privacidade/', politica_privacidade, name='politica_privacidade'),
     path('api/', include('api.urls')),
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
