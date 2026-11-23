@@ -1,0 +1,58 @@
+{% extends "components/report_base.html" %}
+{% comment %} PDF do relatório de contas a receber (mesmas colunas da folha financeiro/templates/contas_a_receber/folha.html). {% endcomment %}
+{% block report_title %}{{ titulo }}{% endblock %}
+{% block report_page_size %}A4 landscape{% endblock %}
+{% block report_head %}
+  body { font-size: 6.5pt; }
+  th, td { padding: 3px 4px; }
+  .filtros { margin-bottom: 8px; color: #444; font-size: 8pt; }
+{% endblock %}
+{% block report_header_meta %}<div class="meta">{{ titulo }} · Emitido por {{ usuario.get_username }}</div>{% endblock %}
+{% block report_content %}
+<div class="ipix-report-title">{{ titulo }}</div>
+<div class="filtros">
+  Período: {{ filtros.data_inicial|date:"d/m/Y" }} a {{ filtros.data_final|date:"d/m/Y" }}<br>
+  Lojas: {% if lojas_nomes %}{{ lojas_nomes|join:", " }}{% else %}Todas do seu acesso{% endif %}<br>
+  Status: {{ status_rotulos|join:", " }}
+</div>
+<table>
+  <thead><tr>
+    <th>Loja</th><th>Data Venda</th><th>Cliente</th><th>Produto</th><th>IMEI</th><th>Situação</th>
+    <th>Contato do Cliente</th><th>Valor Atrasado</th><th>Primeiro Vencimento</th><th>Valor Pago</th>
+    <th>Último Pagamento</th><th>Prox. Parcela</th><th>Valor a Vencer</th><th>Próximo Vencimento</th>
+    <th>Valor Total</th><th>Parcelas Totais</th><th>Parcelas Pagas</th><th>Valor Quitado</th>
+  </tr></thead>
+  <tbody>
+  {% for l in linhas %}
+    <tr>
+      <td>{{ l.loja|title }}</td><td>{{ l.data_venda|date:"d/m/Y" }}</td><td>{{ l.cliente|title }}</td>
+      <td>{{ l.produto|title }}</td><td>{{ l.imei|default:"-" }}</td>
+      <td>{{ l.situacoes|join:", " }}</td>
+      <td>{% for c in l.contatos %}{{ c }}{% if not forloop.last %}<br>{% endif %}{% empty %}-{% endfor %}</td>
+      <td class="text-right">{% if l.valor_atrasado is None %}-{% else %}{{ l.valor_atrasado|floatformat:2 }}{% endif %}</td>
+      <td>{{ l.primeiro_vencimento|date:"d/m/Y"|default:"-" }}</td>
+      <td class="text-right">{{ l.valor_pago|floatformat:2 }}</td>
+      <td>{{ l.ultimo_pagamento|date:"d/m/Y"|default:"-" }}</td>
+      <td class="text-right">{% if l.proxima_parcela is None %}-{% else %}{{ l.proxima_parcela|floatformat:2 }}{% endif %}</td>
+      <td class="text-right">{% if l.valor_a_vencer is None %}-{% else %}{{ l.valor_a_vencer|floatformat:2 }}{% endif %}</td>
+      <td>{{ l.proximo_vencimento|date:"d/m/Y"|default:"-" }}</td>
+      <td class="text-right">{% if l.valor_total is None %}-{% else %}{{ l.valor_total|floatformat:2 }}{% endif %}</td>
+      <td class="text-center">{{ l.parcelas_totais|default_if_none:"-" }}</td>
+      <td class="text-center">{{ l.parcelas_pagas|default_if_none:"-" }}</td>
+      <td class="text-right">{% if l.valor_quitado is None %}-{% else %}{{ l.valor_quitado|floatformat:2 }}{% endif %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="18" class="text-center">Nenhum registro encontrado</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr>
+    <td colspan="7" class="text-right">Totais ({{ totais.quantidade }}):</td>
+    <td class="text-right">{{ totais.total_atrasado|floatformat:2 }}</td><td></td>
+    <td class="text-right">{{ totais.total_pago|floatformat:2 }}</td><td></td>
+    <td class="text-right">{{ totais.total_proximo_vencimento|floatformat:2 }}</td>
+    <td class="text-right">{{ totais.total_a_vencer|floatformat:2 }}</td><td></td>
+    <td class="text-right">{{ totais.total|floatformat:2 }}</td><td></td><td></td>
+    <td class="text-right">{{ totais.total_quitado|floatformat:2 }}</td>
+  </tr></tfoot>
+</table>
+{% endblock %}

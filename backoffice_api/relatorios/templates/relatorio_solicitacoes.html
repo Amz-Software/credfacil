@@ -1,0 +1,47 @@
+{% extends "components/report_base.html" %}
+{% comment %} PDF do relatório de solicitações (mesmas colunas da folha vendas/templates/relatorios/relatorio_solicitacoes.html). {% endcomment %}
+{% block report_title %}{{ titulo }}{% endblock %}
+{% block report_page_size %}A4 landscape{% endblock %}
+{% block report_head %}
+  body { font-size: 7.5pt; }
+  .filtros { margin-bottom: 8px; color: #444; }
+{% endblock %}
+{% block report_header_meta %}<div class="meta">{{ titulo }} · Emitido por {{ usuario.get_username }}</div>{% endblock %}
+{% block report_content %}
+<div class="ipix-report-title">{{ titulo }}</div>
+<div class="filtros">
+  Período: {{ filtros.data_inicial|date:"d/m/Y"|default:"-" }} a {{ filtros.data_final|date:"d/m/Y"|default:"-" }}<br>
+  Lojas: {% if lojas_nomes %}{{ lojas_nomes|join:", " }}{% else %}Todas do seu acesso{% endif %}
+</div>
+<table>
+  <thead><tr>
+    <th>Loja</th><th>Data Solicitação</th><th>Vendedor</th><th>Status Solicitação</th><th>Parcelas</th>
+    <th>Produtos</th><th>Consulta Serasa</th><th>Tipo</th><th>Venda Gerada?</th>
+    <th>Valor Entrada</th><th>Valor Repasse</th><th>Valor Total</th><th>Valor Juros</th>
+  </tr></thead>
+  <tbody>
+  {% for l in linhas %}
+    <tr>
+      <td>{{ l.loja|default:"-"|title }}</td><td>{{ l.data_solicitacao|date:"d/m/Y" }}</td>
+      <td>{{ l.vendedor|default:"-" }}</td><td>{{ l.status_solicitacao_rotulo }}</td>
+      <td>{{ l.parcelas|default:"" }}</td><td>{{ l.produto|title }}</td>
+      <td class="text-center">{{ l.consulta_serasa }}</td><td class="text-center">{{ l.tipo }}</td>
+      <td class="text-center">{{ l.venda_gerada|yesno:"Sim,Não" }}</td>
+      <td class="text-right">R$ {{ l.valor_entrada|floatformat:2 }}</td>
+      <td class="text-right">R$ {{ l.valor_repasse|floatformat:2 }}</td>
+      <td class="text-right">R$ {{ l.valor_total|floatformat:2 }}</td>
+      <td class="text-right">R$ {{ l.valor_juros|floatformat:2 }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="13" class="text-center">Nenhuma solicitação encontrada com os filtros informados.</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr>
+    <td colspan="4">Total de Solicitações: {{ totais.total_solicitacoes }}</td>
+    <td colspan="2">Total Entrada: R$ {{ totais.total_entrada|floatformat:2 }}</td>
+    <td colspan="3">Total Repasse: R$ {{ totais.total_repasse|floatformat:2 }}</td>
+    <td colspan="2">Total Valor: R$ {{ totais.total_valor|floatformat:2 }}</td>
+    <td colspan="2">Total Juros: R$ {{ totais.total_juros|floatformat:2 }}</td>
+  </tr></tfoot>
+</table>
+{% endblock %}

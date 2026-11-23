@@ -1,0 +1,50 @@
+{% extends "components/report_base.html" %}
+{% comment %} PDF do relatório de parcelas: mesma grade colorida da planilha (verde pago, vermelho atrasado, amarelo a vencer). {% endcomment %}
+{% block report_title %}{{ titulo }}{% endblock %}
+{% block report_page_size %}A4 landscape{% endblock %}
+{% block report_head %}
+  body { font-size: 6.5pt; }
+  table { table-layout: auto; }
+  th, td { padding: 3px; }
+  .pago { background: #92D050; font-weight: 700; }
+  .atrasado { background: #FF0000; color: #fff; font-weight: 700; }
+  .a_vencer { background: #FFC000; font-weight: 700; }
+  .legenda span { display: inline-block; padding: 2px 8px; margin-right: 4px; }
+  .filtros { margin-bottom: 6px; color: #444; font-size: 8pt; }
+{% endblock %}
+{% block report_header_meta %}<div class="meta">{{ titulo }} · Emitido por {{ usuario.get_username }}</div>{% endblock %}
+{% block report_content %}
+<div class="ipix-report-title">{{ titulo }} · {{ totais.quantidade }} cliente(s)</div>
+<div class="filtros">
+  {% if filtros.data_inicial or filtros.data_final %}Vencimento: {{ filtros.data_inicial|date:"d/m/Y"|default:"-" }} a {{ filtros.data_final|date:"d/m/Y"|default:"-" }}<br>{% endif %}
+  Lojas: {% if lojas_nomes %}{{ lojas_nomes|join:", " }}{% else %}Todas do seu acesso{% endif %}
+</div>
+<div class="legenda">Legenda: <span class="pago">Pago</span><span class="atrasado">Atrasado</span><span class="a_vencer">A vencer</span></div>
+<table>
+  <thead><tr>
+    <th>Loja</th><th>Cliente</th><th>Aparelho</th><th>Parcelas</th>
+    <th>Total</th><th>Pago</th><th>Atrasado</th><th>A vencer</th>
+  </tr></thead>
+  <tbody>
+  {% for l in linhas %}
+    <tr>
+      <td>{{ l.loja }}</td><td>{{ l.cliente }}</td><td>{{ l.aparelho }}</td>
+      <td>{% for p in l.parcelas %}<span class="{{ p.situacao }}" style="display:inline-block;margin:1px;padding:1px 3px;">{{ p.numero }}: R$ {{ p.valor|floatformat:2 }} {{ p.vencimento|date:"d/m/y" }}</span>{% endfor %}</td>
+      <td class="text-right">R$ {{ l.total|floatformat:2 }}</td>
+      <td class="text-right">R$ {{ l.total_pago|floatformat:2 }}</td>
+      <td class="text-right">R$ {{ l.total_atrasado|floatformat:2 }}</td>
+      <td class="text-right">R$ {{ l.total_a_vencer|floatformat:2 }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="8" class="text-center">Nenhum pagamento encontrado com os filtros informados.</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr>
+    <td colspan="4" class="text-right">Totais:</td>
+    <td class="text-right">R$ {{ totais.total|floatformat:2 }}</td>
+    <td class="text-right">R$ {{ totais.total_pago|floatformat:2 }}</td>
+    <td class="text-right">R$ {{ totais.total_atrasado|floatformat:2 }}</td>
+    <td class="text-right">R$ {{ totais.total_a_vencer|floatformat:2 }}</td>
+  </tr></tfoot>
+</table>
+{% endblock %}

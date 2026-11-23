@@ -1,0 +1,48 @@
+{% extends "components/report_base.html" %}
+{% comment %} PDF do relatório de vendas (mesmas colunas da folha vendas/templates/relatorios/folha_relatorio_vendas.html). {% endcomment %}
+{% block report_title %}{{ titulo }}{% endblock %}
+{% block report_page_size %}A4 landscape{% endblock %}
+{% block report_head %}
+  body { font-size: 7.5pt; }
+  .bloqueado td { color: #c00000; }
+  .filtros { margin-bottom: 8px; color: #444; }
+{% endblock %}
+{% block report_header_meta %}<div class="meta">{{ titulo }} · Emitido por {{ usuario.get_username }}</div>{% endblock %}
+{% block report_content %}
+<div class="ipix-report-title">{{ titulo }}</div>
+<div class="filtros">
+  Período: {{ filtros.data_inicial|date:"d/m/Y"|default:"-" }} a {{ filtros.data_final|date:"d/m/Y"|default:"-" }}<br>
+  Lojas: {% if lojas_nomes %}{{ lojas_nomes|join:", " }}{% else %}Todas do seu acesso{% endif %}
+</div>
+<table>
+  <thead><tr>
+    <th>Loja</th><th>Cliente</th><th>Data</th><th>Vendedor</th><th>Parcelas</th><th>Produtos</th>
+    <th>Status Solicitação</th><th>2ª Compra</th><th>Consulta Serasa</th><th>Tipo</th>
+    <th>Valor de Entrada</th><th>Valor de Repasse</th><th>Valor Total</th><th>Valor Juros</th>
+  </tr></thead>
+  <tbody>
+  {% for l in linhas %}
+    <tr{% if l.pagamento_bloqueado %} class="bloqueado"{% endif %}>
+      <td>{{ l.loja|title }}</td><td>{{ l.cliente|title }}</td><td>{{ l.data_venda|date:"d/m/Y H:i" }}</td>
+      <td>{{ l.vendedor|title }}</td><td>{{ l.parcelas }}</td>
+      <td>{% for p in l.produtos %}{{ p|title }}{% if not forloop.last %}, {% endif %}{% empty %}N/A{% endfor %}</td>
+      <td>{{ l.status_solicitacao_rotulo }}</td><td>{{ l.segunda_compra|yesno:"Sim,Não" }}</td>
+      <td>{{ l.consulta_serasa }}</td><td>{{ l.tipo }}</td>
+      <td class="text-right">R$ {{ l.valor_entrada|floatformat:2 }}</td>
+      <td class="text-right">R$ {{ l.valor_repasse|floatformat:2 }}</td>
+      <td class="text-right">R$ {{ l.valor_total|floatformat:2 }}</td>
+      <td class="text-right">R$ {{ l.valor_juros|floatformat:2 }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="14" class="text-center">Nenhuma venda encontrada com os filtros informados.</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr>
+    <td colspan="3">Total de Vendas: {{ totais.total_vendas }}</td>
+    <td colspan="2">Total Entrada: R$ {{ totais.total_entrada|floatformat:2 }}</td>
+    <td colspan="4">Total Repasse: R$ {{ totais.total_repasse|floatformat:2 }}</td>
+    <td colspan="2">Total Valor: R$ {{ totais.total_valor|floatformat:2 }}</td>
+    <td colspan="3">Total Juros: R$ {{ totais.total_juros|floatformat:2 }}</td>
+  </tr></tfoot>
+</table>
+{% endblock %}
