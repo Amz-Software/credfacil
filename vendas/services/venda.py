@@ -118,7 +118,8 @@ def calcular_valores_venda(analise) -> ValoresVenda:
         entrada=entrada,
         valor_credfacil=valor_financiado + (valor_financiado * parcelamento.porcentagem_juros / 100),
         # Comodato: nada é repassado ao lojista, o valor todo fica com a IPX.
-        repasse_logista=Decimal('0') if analise.comodato else valor_financiado,
+        # (getattr: a simulação do catálogo passa uma análise sem o campo.)
+        repasse_logista=Decimal('0') if getattr(analise, 'comodato', False) else valor_financiado,
         parcelas=parcelas,
         porcentagem_desconto=parcelamento.porcentagem_desconto,
     )
