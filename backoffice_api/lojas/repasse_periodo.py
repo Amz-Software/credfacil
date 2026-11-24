@@ -50,16 +50,14 @@ def resumo_do_periodo(loja: Loja, dia: date) -> ResumoDoPeriodo:
     return ResumoDoPeriodo(loja=loja, periodo=periodo, vendas=vendas, total=total, repasses=repasses)
 
 
-def pagar_periodo(loja: Loja, dia: date, usuario, hoje: date | None = None) -> Repasse:
-    """Cria o repasse do período já pago, com o valor total das vendas.
+def pagar_periodo(loja: Loja, dia: date, usuario) -> Repasse:
+    """Cria o repasse do período já pago, com o valor total das vendas no momento.
 
-    A loja é travada na transação para que dois cliques simultâneos não
-    criem dois repasses para o mesmo período.
+    Vale também para período em andamento (pagamento antecipado). A loja é
+    travada na transação para que dois cliques simultâneos não criem dois
+    repasses para o mesmo período.
     """
-    hoje = hoje or date.today()
     periodo = periodo_do_dia(dia)
-    if periodo.fim >= hoje:
-        raise ErroDeNegocio('O período deste repasse ainda não fechou.')
     with transaction.atomic():
         Loja.objects.select_for_update().filter(pk=loja.pk).first()
         if repasses_do_periodo(loja, dia).exists():

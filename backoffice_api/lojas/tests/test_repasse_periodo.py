@@ -71,8 +71,19 @@ class PagarPeriodoTests(TestCase):
         resposta = self._pagar(self._cliente('financeiro.add_repasse'), dia=self.dia.replace(day=6))
         self.assertEqual(resposta.status_code, 422)
 
-    def test_recusa_periodo_que_ainda_nao_fechou(self):
-        futuro = (date.today().replace(day=1) + relativedelta(months=1)).replace(day=6)
+    def test_paga_periodo_em_andamento_com_total_atual(self):
+        proximo = date.today().replace(day=1) + relativedelta(months=1)
+        criar_venda(self.loja_a, date.today(), repasse='120.00')
+        dia = next(d for d in (
+            date.today().replace(day=6), date.today().replace(day=16), date.today().replace(day=26),
+            proximo.replace(day=6),
+        ) if d > date.today())
+        resposta = self._pagar(self._cliente('financeiro.add_repasse'), dia=dia)
+        self.assertEqual(resposta.status_code, 201)
+        self.assertEqual(resposta.json()['valor'], '120.00')
+
+    def test_recusa_periodo_futuro_sem_vendas(self):
+        futuro = (date.today().replace(day=1) + relativedelta(months=2)).replace(day=16)
         resposta = self._pagar(self._cliente('financeiro.add_repasse'), dia=futuro)
         self.assertEqual(resposta.status_code, 422)
 
