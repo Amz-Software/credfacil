@@ -25,7 +25,7 @@ from .constantes import CHAVES_SITUACAO
 CENTAVO = Decimal('0.01')
 ZERO = Decimal('0.00')
 CAMPOS_RASTREIO = ['modificado_por', 'modificado_em']
-CAMPOS_EDITAVEIS_PARCELA = ('valor_pago', 'pago', 'data_pagamento', 'data_vencimento')
+CAMPOS_EDITAVEIS_PARCELA = ('valor_pago', 'pago', 'data_pagamento', 'data_vencimento', 'origem_baixa')
 MENSAGEM_SEM_QUITACAO = 'Nenhuma parcela aguardando confirmação de quitação.'
 
 

@@ -195,7 +195,7 @@ class ParcelaSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'pagamento_id', 'numero_parcela', 'valor', 'valor_pago', 'desconto', 'valor_restante',
             'data_vencimento', 'data_pagamento', 'pago', 'pagamento_efetuado', 'pagamento_efetuado_em',
-            'atrasada', 'modificado_em', 'modificado_por', 'comprovantes',
+            'atrasada', 'modificado_em', 'modificado_por', 'comprovantes', 'origem_baixa',
         ]
 
     def get_atrasada(self, parcela) -> bool:

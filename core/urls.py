@@ -25,6 +25,7 @@ from api.views import CustomTokenObtainPairView, LogoutJwtView, foto_celular_vie
 from core.midia import servir_midia
 from crm.web.publico import politica_privacidade
 from crm.webhook import WebhookWhatsAppView
+from pagamentos_online.webhook import NotificacaoPagBankView
 
 urlpatterns = []
 
@@ -46,6 +47,8 @@ urlpatterns += [
     path('notificacao/', include('notificacao.urls')),
     path('foto/<uuid:session_id>/', foto_celular_view, name='foto-celular'),
     path('api/whatsapp/webhook/', WebhookWhatsAppView.as_view(), name='whatsapp-webhook'),
+    path('api/pagbank/notificacao/', NotificacaoPagBankView.as_view(), name='pagbank-notificacao'),
+    path('api/publico/v1/', include('pagamentos_online.publico.urls', namespace='publico')),
     path('crm/', include('crm.web.urls')),
     path('privacidade/', politica_privacidade, name='politica_privacidade'),
     path('api/bo/v1/', include('backoffice_api.urls', namespace='backoffice_api')),

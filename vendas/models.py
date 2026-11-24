@@ -1132,8 +1132,19 @@ class Pagamento(Base):
         )
     
 
+ORIGEM_BAIXA_PAGBANK = 'pagbank'
+ORIGENS_BAIXA = [
+    (ORIGEM_BAIXA_PAGBANK, 'PagBank (automática)'),
+    ('pix_carne', 'Pix do carnê / chave da empresa'),
+    ('transferencia', 'Transferência'),
+    ('dinheiro', 'Dinheiro'),
+    ('cartao_loja', 'Cartão na loja'),
+    ('outro', 'Outro'),
+]
+
+
 class Parcela(Base):
-    pagamento = models.ForeignKey('vendas.Pagamento', on_delete=models.CASCADE, related_name='parcelas_pagamento')
+    pagamento =models.ForeignKey('vendas.Pagamento', on_delete=models.CASCADE, related_name='parcelas_pagamento')
     numero_parcela = models.PositiveIntegerField()
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     valor_pago = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=0)
@@ -1144,6 +1155,10 @@ class Parcela(Base):
     pagamento_efetuado = models.BooleanField(default=False)
     pagamento_efetuado_em = models.DateTimeField(null=True, blank=True)
     pago = models.BooleanField(default=False)
+    origem_baixa = models.CharField(
+        max_length=20, blank=True, default='', choices=ORIGENS_BAIXA,
+        help_text='Como a baixa foi feita; vazio nas baixas anteriores a este campo.',
+    )
     history = HistoricalRecords()
 
     @property

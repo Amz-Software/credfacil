@@ -551,30 +551,9 @@ class VendaPDFView(PermissionRequiredMixin, View):
 
 
 def gerar_qrcode_pix(chave, valor, txid, nome_loja, cidade_loja, descricao=None):
-    pix = Pix()
-    pix.set_pixkey(chave)
-    pix.set_amount(valor)
-    pix.set_txid(txid)
-    pix.set_merchant_name(nome_loja[:25])
-    pix.set_merchant_city(cidade_loja[:15])
+    from vendas.services.pix import payload_pix, qr_code_base64
 
-    if descricao:
-        pix.set_description(descricao[:30])
-
-    payload = str(pix)
-    qr = qrcode.QRCode(
-        version=None,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=10,
-        border=4
-    )
-    qr.add_data(payload)
-    qr.make(fit=True)
-    img = qr.make_image()
-
-    buffer = BytesIO()
-    img.save(buffer, format="PNG")
-    return base64.b64encode(buffer.getvalue()).decode("utf-8")
+    return qr_code_base64(payload_pix(chave, valor, txid, nome_loja, cidade_loja, descricao))
 
 
 @permission_required('vendas.view_venda', raise_exception=True)

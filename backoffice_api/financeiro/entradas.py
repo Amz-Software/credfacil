@@ -1,11 +1,13 @@
 """Serializers de entrada (corpo das requisições) de contas a receber."""
 from rest_framework import serializers
 
-from vendas.models import Contato
+from vendas.models import ORIGEM_BAIXA_PAGBANK, ORIGENS_BAIXA, Contato
 
 from .arquivos import validar_comprovante
 from .constantes import CHAVES_SITUACAO, DESCONTO_MAXIMO, MAXIMO_PARCELAS_EXTRAS, MINIMO_CARACTERES_MOTIVO
 from .servicos import CAMPOS_EDITAVEIS_PARCELA
+
+ORIGENS_BAIXA_MANUAL = [(chave, rotulo) for chave, rotulo in ORIGENS_BAIXA if chave != ORIGEM_BAIXA_PAGBANK]
 
 TAMANHO_MAXIMO_MOTIVO = 1000
 TAMANHO_MAXIMO_REFERENCIAS = 5000
@@ -60,6 +62,8 @@ class ParcelaEdicaoSerializer(SemCamposDesconhecidosMixin, serializers.Serialize
     pago = serializers.BooleanField(required=False)
     data_pagamento = serializers.DateField(required=False, allow_null=True)
     data_vencimento = serializers.DateField(required=False)
+    # Baixa manual: Pix do carnê, transferência, dinheiro... ('pagbank' só a baixa automática grava).
+    origem_baixa = serializers.ChoiceField(choices=ORIGENS_BAIXA_MANUAL, required=False, allow_blank=True)
     motivo = campo_motivo(obrigatorio=False)
 
     def validate(self, attrs):

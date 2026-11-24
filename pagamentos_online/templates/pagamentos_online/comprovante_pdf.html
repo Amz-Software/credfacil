@@ -1,0 +1,43 @@
+{% load humanize %}<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Comprovante de pagamento</title>
+<style>
+  @page { size: A5; margin: 14mm; }
+  body { font-family: Helvetica, Arial, sans-serif; color: #16161D; font-size: 11pt; }
+  .topo { border-bottom: 4px solid #FFDD21; padding-bottom: 6mm; margin-bottom: 6mm; }
+  h1 { font-size: 15pt; margin: 0 0 2mm; }
+  .sub { color: #555; font-size: 9pt; }
+  .valor { font-size: 22pt; font-weight: bold; margin: 4mm 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 2.2mm 0; border-bottom: 1px solid #eee; vertical-align: top; }
+  td.rotulo { color: #555; width: 42%; }
+  .rodape { margin-top: 8mm; color: #777; font-size: 8pt; }
+</style>
+</head>
+<body>
+  <div class="topo">
+    <h1>Comprovante de pagamento</h1>
+    <div class="sub">CredFacil · pagamento processado pelo PagBank</div>
+  </div>
+
+  <div class="sub">Valor pago</div>
+  <div class="valor">R$ {{ cobranca.valor_pago|default:cobranca.valor_total|floatformat:2|intcomma }}</div>
+
+  <table>
+    <tr><td class="rotulo">Cliente</td><td>{{ cliente.nome }}</td></tr>
+    <tr><td class="rotulo">CPF</td><td>***.{{ cliente.cpf|slice:"3:6" }}.{{ cliente.cpf|slice:"6:9" }}-**</td></tr>
+    <tr><td class="rotulo">Parcela</td><td>{{ parcela.numero_parcela }}ª — vencimento {{ parcela.data_vencimento|date:"d/m/Y" }}</td></tr>
+    <tr><td class="rotulo">Valor da parcela</td><td>R$ {{ cobranca.valor_parcela|floatformat:2|intcomma }}</td></tr>
+    {% if cobranca.taxa %}<tr><td class="rotulo">Taxa da forma de pagamento</td><td>R$ {{ cobranca.taxa|floatformat:2|intcomma }}</td></tr>{% endif %}
+    <tr><td class="rotulo">Forma de pagamento</td><td>{{ cobranca.get_forma_display }}{% if cobranca.detalhes_pagamento.parcelas_cartao %} em {{ cobranca.detalhes_pagamento.parcelas_cartao }}x{% endif %}</td></tr>
+    <tr><td class="rotulo">Pago em</td><td>{{ paga_em|date:"d/m/Y H:i" }}</td></tr>
+    <tr><td class="rotulo">Pedido PagBank</td><td>{{ cobranca.pagbank_pedido_id }}</td></tr>
+    {% if cobranca.detalhes_pagamento.end_to_end_id %}<tr><td class="rotulo">ID da transação Pix</td><td>{{ cobranca.detalhes_pagamento.end_to_end_id }}</td></tr>{% endif %}
+    <tr><td class="rotulo">Referência</td><td>{{ cobranca.referencia }}</td></tr>
+  </table>
+
+  <div class="rodape">Emitido automaticamente em {{ emitido_em|date:"d/m/Y H:i" }}.</div>
+</body>
+</html>

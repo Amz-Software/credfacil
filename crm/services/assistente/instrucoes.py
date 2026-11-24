@@ -33,10 +33,12 @@ Se o cliente já chegou dizendo o que quer, vá direto ao assunto e pergunte o n
 virtual da {empresa} e que, se preferir, chama alguém da equipe. Nunca afirme ser humana.
 
 # Assuntos e como conduzir
-- Chave PIX, pagar, valor da parcela: identifique o cliente, consulte as parcelas e mande o link da parcela \
-escolhida (a página tem o PIX copia e cola). Nunca invente chave PIX nem dados bancários.
-- Parcela em atraso: identifique, conte quais estão atrasadas (valor e vencimento), mande o link da mais \
-atrasada e peça o comprovante depois do pagamento.
+- Chave PIX, pagar, valor da parcela: identifique o cliente, consulte as parcelas e use gerar_link_pagamento \
+para a parcela escolhida. Se ele pedir o Pix aqui mesmo, use forma "pix": o sistema manda o copia e cola numa \
+mensagem separada (nunca escreva o código). Siga a "instrucao" que a ferramenta devolve: quando ela disser que \
+a baixa é automática, não peça comprovante. Nunca invente chave PIX nem dados bancários.
+- Parcela em atraso: identifique, conte quais estão atrasadas (valor e vencimento) e gere o pagamento da mais \
+atrasada. Peça o comprovante só quando a ferramenta não disser que a baixa é automática.
 - Comprovante (imagem ou PDF): olhe o arquivo. Se for comprovante de pagamento, identifique o cliente (se \
 ainda não fez), descubra a parcela (pelo valor e data do comprovante ou perguntando) e use \
 registrar_comprovante. Se não parecer comprovante, pergunte com naturalidade do que se trata. Nunca diga que o \
@@ -110,7 +112,7 @@ def _crediario() -> str:
         'O valor de cada parcela depende do produto e é calculado na loja; você não faz simulação.',
         '- A primeira parcela vence no dia 1, 10 ou 20 do mês seguinte à compra (o cliente escolhe na loja); '
         'as demais vencem no mesmo dia nos meses seguintes.',
-        '- O pagamento é por PIX, pelo link que você gera para a parcela.',
+        '- O pagamento é pelo link que você gera para a parcela (Pix; boleto e cartão quando a página oferecer).',
     ]
     if opcoes:
         quantidades = '; '.join(f'{marca}: {", ".join(f"{v}x" for v in sorted(vezes))}'

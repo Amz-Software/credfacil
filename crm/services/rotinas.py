@@ -69,6 +69,12 @@ def retornar_resolvidas() -> int:
     return total
 
 
+def _conciliar_pagamentos_online() -> dict:
+    from pagamentos_online.servicos.conciliacao import conciliar
+
+    return conciliar()
+
+
 def rodar_tudo(incluir_aberturas: bool = True) -> dict:
     resultado = {}
     etapas = [
@@ -80,6 +86,7 @@ def rodar_tudo(incluir_aberturas: bool = True) -> dict:
         ('entradas', reprocessar_entradas),
         ('retorno_automatico', retornar_resolvidas),
         ('cobranca', cobranca.rodar),
+        ('pagamentos_online', _conciliar_pagamentos_online),
     ]
     if incluir_aberturas:
         etapas.append(('aberturas', aberturas.sincronizar_pendentes))

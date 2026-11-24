@@ -17,6 +17,7 @@ MODULOS = (
     'administracao',
     'relatorios',
     'crm',
+    'cobrancas_online',
 )
 
 urlpatterns = [

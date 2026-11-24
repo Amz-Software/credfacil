@@ -93,10 +93,17 @@ def _host(endereco: str) -> str:
     return sem_esquema.split('/', 1)[0].split(':', 1)[0].rstrip('.,;!?')
 
 
+def _hosts_do_sistema() -> set[str]:
+    from pagamentos_online.models import ConfiguracaoPagamentoOnline
+
+    enderecos = (ConfiguracaoCRM.obter().url_publica, ConfiguracaoPagamentoOnline.obter().url_app_cliente)
+    return {_host(endereco) for endereco in enderecos if endereco.strip()}
+
+
 def _links_permitidos(texto: str) -> bool:
-    """Só sai link do próprio sistema (com ou sem http://, que o WhatsApp também deixa clicável)."""
-    base = _host(ConfiguracaoCRM.obter().url_publica)
-    return all(base and _host(link) == base for link in LINK.findall(texto))
+    """Só sai link do próprio sistema ou do app do cliente (com ou sem http://)."""
+    hosts = _hosts_do_sistema()
+    return all(_host(link) in hosts for link in LINK.findall(texto))
 
 
 def _enviar(conversa: Conversa, texto: str, pessoal: bool) -> None:
@@ -149,3 +156,5 @@ def atender(conversa: Conversa) -> None:
     # Com cliente identificado, qualquer resposta pode repetir dados dele (mesmo sem ferramenta neste turno).
     pessoal = turno.usou_dados or bool(identidade.clientes_verificados(conversa))
     _enviar(conversa, texto, pessoal=pessoal)
+    for extra in turno.mensagens_do_sistema:  # gerado pelo sistema (ex.: Pix copia e cola), não pelo modelo
+        _enviar(conversa, extra, pessoal=True)

@@ -84,6 +84,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'axes',
     'backoffice_api.apps.BackofficeApiConfig',
+    'pagamentos_online.apps.PagamentosOnlineConfig',
 ]
 
 # CRM de WhatsApp: tarefas de fundo (envio de mídia, processamento) rodam em threads
@@ -151,6 +152,13 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+# PagBank (pagamentos_online): token só no ambiente. PAGBANK_AMBIENTE = sandbox | producao.
+PAGBANK_TOKEN = os.environ.get('PAGBANK_TOKEN', '')
+PAGBANK_AMBIENTE = os.environ.get('PAGBANK_AMBIENTE', 'sandbox').strip().lower()
+PAGBANK_TIMEOUT = float(os.environ.get('PAGBANK_TIMEOUT', '20'))
+if PAGBANK_AMBIENTE not in ('sandbox', 'producao'):
+    raise ImproperlyConfigured("PAGBANK_AMBIENTE deve ser 'sandbox' ou 'producao'.")
 
 # Envio WS de notificações: timeout por envio (s).
 NOTIFICACAO_WS_TIMEOUT = float(os.environ.get("NOTIFICACAO_WS_TIMEOUT", "3"))

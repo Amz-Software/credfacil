@@ -1,6 +1,7 @@
 """Páginas públicas do cliente final: consulta e informe de pagamentos."""
 from decimal import Decimal
 import logging
+import re
 
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
@@ -19,14 +20,38 @@ from .vendas import gerar_qrcode_pix
 logger = logging.getLogger(__name__)
 
 
+def _link_no_app_do_cliente(caminho: str) -> str:
+    """Endereço no app novo do cliente, quando o redirecionamento está ligado no backoffice."""
+    from pagamentos_online.models import ConfiguracaoPagamentoOnline
+
+    configuracao = ConfiguracaoPagamentoOnline.obter()
+    return configuracao.link_app(caminho) if configuracao.redirecionar_paginas_antigas else ''
+
+
+class RedirecionaParaAppMixin:
+    """Leva o cliente para o app novo (302: reversível enquanto a virada é validada)."""
+
+    def caminho_no_app(self) -> str:
+        raise NotImplementedError
+
+    def dispatch(self, request, *args, **kwargs):
+        destino = _link_no_app_do_cliente(self.caminho_no_app())
+        if destino:
+            return redirect(destino)
+        return super().dispatch(request, *args, **kwargs)
+
+
 @method_decorator(limitar_por_ip('publico'), name='post')
-class ConsultaPagamentosView(FormView):
+class ConsultaPagamentosView(RedirecionaParaAppMixin, FormView):
     """CPF + nascimento → pagamentos do cliente, com link pelo token público."""
     template_name = "publico/consulta_pagamentos.html"
     form_class = ClienteConsultaForm
 
+    def caminho_no_app(self) -> str:
+        return 'consultar-pagamentos'
+
     def form_valid(self, form):
-        cpf = form.cleaned_data['cpf']
+        cpf = re.sub(r'\D', '', form.cleaned_data['cpf'])  # o banco guarda só os números
         dob = form.cleaned_data['date_of_birth']
         pagamentos = (
             Pagamento.objects
@@ -41,7 +66,7 @@ class ConsultaPagamentosView(FormView):
         )
 
 
-class PagamentoDetailView(DetailView):
+class PagamentoDetailView(RedirecionaParaAppMixin, DetailView):
     """Página pública do pagamento, acessível só pelo token aleatório (UUID4)."""
     model = Pagamento
     template_name = 'publico/pagamento_detail.html'
@@ -49,6 +74,9 @@ class PagamentoDetailView(DetailView):
     slug_field = 'token_publico'
     slug_url_kwarg = 'token'
     query_pk_and_slug = False
+
+    def caminho_no_app(self) -> str:
+        return f"pagamento/{self.kwargs['token']}"
 
 
     def get_context_data(self, **kwargs):

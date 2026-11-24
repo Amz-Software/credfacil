@@ -1,0 +1,163 @@
+"""Dados do app do cliente (área pública): só o necessário, acessado pelo token aleatório do pagamento."""
+from datetime import date
+from decimal import Decimal
+
+from django.utils import timezone
+
+from vendas.models import Loja, Pagamento, Parcela
+from vendas.services.pix import payload_pix, qr_code_base64
+
+from ..models import Cobranca, ConfiguracaoPagamentoOnline
+from ..servicos.cobrancas import disponivel, opcoes_da_parcela
+
+CENTAVO = Decimal('0.01')
+NOME_PIX = 'credfacil'
+CIDADE_PIX = 'Belem'
+
+
+def _dinheiro(valor) -> str:
+    return f'{Decimal(valor or 0):.2f}'
+
+
+def _produto(pagamento: Pagamento) -> str:
+    item = pagamento.venda.itens_venda.select_related('produto').first()
+    return item.produto.nome if item and item.produto_id else f'Compra #{pagamento.venda_id}'
+
+
+def situacao(parcela: Parcela, hoje: date) -> str:
+    if parcela.pago:
+        return 'paga'
+    if parcela.pagamento_efetuado:
+        return 'em_confirmacao'
+    if parcela.data_vencimento < hoje:
+        return 'atrasada'
+    return 'vence_hoje' if parcela.data_vencimento == hoje else 'a_vencer'
+
+
+def _chave_pix() -> str:
+    loja = Loja.objects.filter(credfacil=True).order_by('pk').first()
+    return (loja.chave_pix or '') if loja else ''
+
+
+def pix_estatico(chave: str, valor: Decimal, txid: str, descricao: str) -> dict | None:
+    """Pix para a chave da empresa: o pagamento precisa ser informado e conferido pela equipe."""
+    if not chave or valor <= 0:
+        return None
+    texto = payload_pix(chave, _dinheiro(valor), txid, NOME_PIX, CIDADE_PIX, descricao)
+    return {'copia_cola': texto, 'qr_code_base64': qr_code_base64(texto)}
+
+
+def cobranca(cobranca_online: Cobranca) -> dict:
+    dados = {
+        'referencia': str(cobranca_online.referencia),
+        'forma': cobranca_online.forma,
+        'status': cobranca_online.status,
+        'parcela_id': cobranca_online.parcela_id,
+        'valor_parcela': _dinheiro(cobranca_online.valor_parcela),
+        'taxa': _dinheiro(cobranca_online.taxa),
+        'valor_total': _dinheiro(cobranca_online.valor_total),
+        'expira_em': cobranca_online.expira_em.isoformat(),
+        'paga_em': cobranca_online.paga_em.isoformat() if cobranca_online.paga_em else None,
+        'pix_copia_cola': cobranca_online.pix_copia_cola or None,
+        'qr_code_base64': None,
+        'boleto_linha_digitavel': cobranca_online.boleto_linha_digitavel or None,
+        'boleto_pdf_url': cobranca_online.boleto_pdf_url or None,
+        'link_pagamento': cobranca_online.link_pagamento or None,
+    }
+    if cobranca_online.pix_copia_cola and cobranca_online.status == Cobranca.Status.PENDENTE:
+        dados['qr_code_base64'] = qr_code_base64(cobranca_online.pix_copia_cola)
+    return dados
+
+
+def _cobrancas_por_parcela(pagamento: Pagamento) -> dict[int, list[Cobranca]]:
+    agora = timezone.now()
+    por_parcela: dict[int, list[Cobranca]] = {}
+    for item in Cobranca.objects.filter(parcela__pagamento=pagamento).order_by('-criado_em'):
+        relevante = item.status == Cobranca.Status.PAGA or (
+            item.status == Cobranca.Status.PENDENTE and item.expira_em > agora and item.pagbank_id)
+        if relevante:
+            por_parcela.setdefault(item.parcela_id, []).append(item)
+    return por_parcela
+
+
+def _parcela(parcela: Parcela, hoje: date, cobrancas: list[Cobranca], chave: str, online: bool) -> dict:
+    estado = situacao(parcela, hoje)
+    aberta = estado != 'paga'
+    pendente = next((c for c in cobrancas if c.status == Cobranca.Status.PENDENTE), None)
+    pagas = [c for c in cobrancas if c.status == Cobranca.Status.PAGA]
+    txid = f'{parcela.pagamento_id:04d}{parcela.numero_parcela:02d}'
+    return {
+        'id': parcela.pk,
+        'numero': parcela.numero_parcela,
+        'valor': _dinheiro(parcela.valor),
+        'valor_restante': _dinheiro(max(parcela.valor_restante, Decimal('0'))),
+        'vencimento': parcela.data_vencimento.isoformat(),
+        'data_pagamento': parcela.data_pagamento.isoformat() if parcela.data_pagamento else None,
+        'situacao': estado,
+        'pode_pagar_online': online and aberta and estado != 'em_confirmacao',
+        'pode_informar': aberta and estado != 'em_confirmacao',
+        'cobranca_pendente': cobranca(pendente) if pendente and aberta else None,
+        'comprovantes': [str(c.referencia) for c in pagas],
+        'pix_estatico': None if online or not aberta else pix_estatico(
+            chave, parcela.valor_restante, txid, f'Parcela {parcela.numero_parcela}'),
+    }
+
+
+def _quitacao(pagamento: Pagamento, abertas: list[Parcela], chave: str) -> dict | None:
+    if not abertas:
+        return None
+    total = sum((p.valor for p in abertas), Decimal('0'))
+    porcentagem = pagamento.porcentagem_desconto or Decimal('0')
+    com_desconto = (total - (total * porcentagem / 100)).quantize(CENTAVO)
+    return {
+        'total_restante': _dinheiro(total),
+        'porcentagem_desconto': _dinheiro(porcentagem),
+        'total_com_desconto': _dinheiro(com_desconto),
+        'pix_estatico': pix_estatico(chave, com_desconto, f'{pagamento.pk:04d}QT', 'Quitacao total'),
+        'pode_informar': any(not p.pagamento_efetuado for p in abertas),
+    }
+
+
+def detalhe_do_pagamento(pagamento: Pagamento) -> dict:
+    hoje = timezone.localdate()
+    online = disponivel(ConfiguracaoPagamentoOnline.obter())
+    chave = _chave_pix()
+    parcelas = list(pagamento.parcelas_pagamento.order_by('numero_parcela', 'id'))
+    abertas = [p for p in parcelas if not p.pago]
+    pagas = [p for p in parcelas if p.pago]
+    cobrancas = _cobrancas_por_parcela(pagamento)
+    return {
+        'token': str(pagamento.token_publico),
+        'cliente': {'primeiro_nome': (pagamento.venda.cliente.nome or '').split(' ')[0]},
+        'produto': _produto(pagamento),
+        'pagamento_online': online,
+        'encerrado': pagamento.quitado or pagamento.desativado or pagamento.devolucao,
+        'resumo': {
+            'total': _dinheiro(pagamento.valor),
+            'total_pago': _dinheiro(sum((p.valor_pago_efetivo for p in pagas), Decimal('0'))),
+            'parcelas_total': len(parcelas),
+            'parcelas_pagas': len(pagas),
+            'parcelas_atrasadas': sum(1 for p in abertas if situacao(p, hoje) == 'atrasada'),
+            'em_confirmacao': sum(1 for p in abertas if p.pagamento_efetuado),
+        },
+        'quitacao': _quitacao(pagamento, abertas, chave),
+        'parcelas': [_parcela(p, hoje, cobrancas.get(p.pk, []), chave, online) for p in parcelas],
+    }
+
+
+def resumo_para_consulta(pagamento: Pagamento) -> dict:
+    parcelas = list(pagamento.parcelas_pagamento.all())
+    abertas = [p for p in parcelas if not p.pago]
+    hoje = timezone.localdate()
+    return {
+        'token': str(pagamento.token_publico),
+        'produto': _produto(pagamento),
+        'parcelas_total': len(parcelas),
+        'parcelas_abertas': len(abertas),
+        'parcelas_atrasadas': sum(1 for p in abertas if situacao(p, hoje) == 'atrasada'),
+        'encerrado': pagamento.quitado or pagamento.desativado or pagamento.devolucao,
+    }
+
+
+def opcoes(parcela: Parcela) -> list[dict]:
+    return [opcao.como_dict() for opcao in opcoes_da_parcela(parcela)]

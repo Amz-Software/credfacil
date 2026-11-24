@@ -2,7 +2,7 @@
 
 A lista DEFINICOES tem ordem e texto fixos: ela entra no prefixo cacheado do prompt.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -11,7 +11,8 @@ from django.utils import timezone
 from crm.models import ConfiguracaoCRM, Conversa, EncaminhamentoIA
 from crm.services import contatos, expediente, pagamentos
 from crm.services.assistente import anexos, identidade
-from crm.services.links_pagamento import LinkIndisponivel, link_da_parcela
+from crm.services.links_pagamento import LinkIndisponivel, link_da_parcela, pix_da_parcela
+from vendas.services.erros import ErroDeNegocio
 
 MAX_COMPRAS = 5
 MAX_PARCELAS_POR_COMPRA = 12
@@ -47,10 +48,17 @@ DEFINICOES = [
     },
     {
         'name': 'gerar_link_pagamento',
-        'description': 'Gera o link para o cliente identificado pagar uma parcela em aberto (use o parcela_id).',
+        'description': (
+            'Pagamento de uma parcela em aberto do cliente identificado (use o parcela_id). forma "link" (padrão): '
+            'link da página onde ele escolhe Pix, boleto ou cartão. forma "pix": quando ele pedir o Pix aqui na '
+            'conversa; o código copia e cola é enviado pelo sistema numa mensagem separada.'
+        ),
         'input_schema': {
             'type': 'object',
-            'properties': {'parcela_id': {'type': 'integer', 'description': 'parcela_id vindo de consultar_parcelas.'}},
+            'properties': {
+                'parcela_id': {'type': 'integer', 'description': 'parcela_id vindo de consultar_parcelas.'},
+                'forma': {'type': 'string', 'enum': ['link', 'pix'], 'description': 'link (padrão) ou pix.'},
+            },
             'required': ['parcela_id'],
             'additionalProperties': False,
         },
@@ -129,6 +137,8 @@ class Turno:
     conversa: Conversa
     transferiu: bool = False
     usou_dados: bool = False  # a resposta pode conter dados do cliente (o histórico oculta se a identidade expirar)
+    # Textos do sistema enviados depois da resposta (ex.: Pix copia e cola), sem passar pelo modelo.
+    mensagens_do_sistema: list[str] = field(default_factory=list)
 
 
 def _reais(valor: Decimal) -> str:
@@ -227,14 +237,31 @@ def _parcelas_do_cliente(turno: Turno, ids) -> list:
     return parcelas
 
 
+def _pix_direto(turno: Turno, parcela) -> dict | None:
+    """Pix do PagBank; None quando não dá (desligado, falha): aí vai o link da página."""
+    try:
+        pix = pix_da_parcela(parcela)
+    except ErroDeNegocio:
+        return None
+    turno.mensagens_do_sistema.append(pix.pop('copia_cola'))
+    return pix
+
+
 def _gerar_link(turno: Turno, entrada: dict) -> dict:
     parcela = _parcelas_do_cliente(turno, [entrada.get('parcela_id')])[0]
+    turno.usou_dados = True
+    if entrada.get('forma') == 'pix':
+        pix = _pix_direto(turno, parcela)
+        if pix:
+            return {'parcela': parcela.numero_parcela, **pix}
     try:
         link = link_da_parcela(parcela)
     except LinkIndisponivel as erro:
         raise ErroFerramenta(f'{erro} Transfira para um atendente enviar o pagamento.') from erro
-    turno.usou_dados = True
-    return {'parcela': parcela.numero_parcela, 'valor': _reais(parcela.valor_restante), **link}
+    resultado = {'parcela': parcela.numero_parcela, 'valor': _reais(parcela.valor_restante), **link}
+    if entrada.get('forma') == 'pix':
+        resultado['observacao'] = 'O Pix direto não está disponível agora: mande o link da página.'
+    return resultado
 
 
 def _desconto(parcela, percentual_dia: Decimal, hoje: date) -> tuple[int, Decimal]:
