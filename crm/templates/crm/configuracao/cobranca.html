@@ -1,0 +1,49 @@
+{% extends "crm/configuracao/base.html" %}
+{% block aba %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header"><h5 class="mb-0">Avisos automáticos de cobrança</h5></div>
+      <div class="card-body">
+        <p class="small text-muted">Os avisos saem uma vez por dia, a partir do horário escolhido, para o telefone principal do cliente (ou um número alternativo confirmado). Parcela paga ou com pagamento informado não recebe aviso, e cada cliente recebe no máximo um aviso por dia. Números de referência nunca recebem cobrança. Só parcelas que entram na régua depois de ligada são avisadas.</p>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% for erro in form.non_field_errors %}<div class="alert alert-danger">{{ erro }}</div>{% endfor %}
+          {% for campo in form %}{% include "crm/configuracao/_campo.html" %}{% endfor %}
+          <button type="submit" class="btn btn-primary"><i class="bx bx-save me-1"></i>Salvar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card mb-4">
+      <div class="card-header"><h5 class="mb-0">Situação de cada etapa</h5></div>
+      <ul class="list-group list-group-flush">
+        {% for etapa in etapas %}
+        <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+          <span><span class="d-block">{{ etapa.rotulo }}</span><small class="text-muted">{% if etapa.modelo %}{{ etapa.modelo.titulo }}{% else %}Sem mensagem: etapa desligada{% endif %}</small></span>
+          {% if etapa.pronto %}
+            {% include "components/status_badge.html" with state="success" label="Pronta" icon="bx bx-check" %}
+          {% elif etapa.modelo %}
+            {% include "components/status_badge.html" with state="warning" label="Aguardando a Meta" icon="bx bx-time" %}
+          {% else %}
+            {% include "components/status_badge.html" with state="secondary" label="Desligada" icon="bx bx-minus" %}
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h5 class="mb-0">Textos sugeridos</h5></div>
+      <div class="card-body small">
+        <p class="text-muted">Crie cada um em <a href="{% url 'crm:aberturas' %}">Mensagens de abertura</a> (a Meta aprova em minutos ou horas) e escolha aqui. Marcadores: <code>{nome}</code>, <code>{valor}</code> e <code>{vencimento}</code>.</p>
+        {% for titulo, texto in sugestoes %}
+        <div class="mb-3"><strong class="d-block">{{ titulo }}</strong><span class="text-break">{{ texto }}</span></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock aba %}

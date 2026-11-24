@@ -558,3 +558,16 @@
 
 /* ── Configuração ──────────────────────────────────────────────────────────── */
 .crm-mensagens--simulador { max-height: 32rem; }
+
+/* Telefones e tentativas do cliente (painel da conversa) */
+.crm-contatos { padding-top: .75rem; border-top: 1px dashed var(--ipix-border); }
+.crm-contatos__telefone,
+.crm-contatos__tentativa { padding: .5rem 0; border-bottom: 1px solid var(--ipix-border); }
+.crm-contatos__telefone:last-child,
+.crm-contatos__tentativa:last-child { border-bottom: 0; }
+.crm-contatos__form { margin-bottom: .5rem; }
+.crm-contatos__form summary { cursor: pointer; color: var(--ipix-heading); }
+
+/* Relatórios de cobrança */
+.crm-cobranca__indicador { font-size: 1.5rem; font-weight: 700; color: var(--ipix-heading); }
+.crm-cobranca__rotulo { font-size: .8125rem; color: var(--ipix-muted); }

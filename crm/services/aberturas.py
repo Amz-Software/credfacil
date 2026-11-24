@@ -17,6 +17,12 @@ logger = logging.getLogger(__name__)
 
 MARCADOR = '{nome}'
 EXEMPLO_NOME = 'Ana'
+# Marcadores aceitos no texto → nome do parâmetro. {valor} e {vencimento} só servem aos avisos
+# automáticos de cobrança (quem envia sabe a parcela); a equipe só envia abertura com {nome}.
+MARCADORES = {'{nome}': 'nome', '{valor}': 'valor', '{vencimento}': 'vencimento'}
+EXEMPLOS = {'nome': EXEMPLO_NOME, 'valor': 'R$ 150,00', 'vencimento': '10/12/2026'}
+PARAMETROS_COBRANCA = {'valor', 'vencimento'}
+CHAVES = re.compile(r'\{[^{}]*\}')
 LIMITE_CORPO = 1024
 MAX_EMOJIS = 6
 MIN_PALAVRAS_POR_MARCADOR = 3
@@ -46,18 +52,21 @@ def validar_corpo(corpo: str) -> list[str]:
     """Regras da Meta e da tela; devolve todas as recusas juntas."""
     erros = []
     texto = (corpo or '').strip()
-    marcadores = texto.count(MARCADOR)
-    sem_marcador = texto.replace(MARCADOR, '')
     if not texto:
         return ['Escreva o texto da mensagem.']
-    if marcadores > 1:
-        erros.append('Use o marcador {nome} no máximo uma vez.')
+    usados = [m for m in CHAVES.findall(texto) if m in MARCADORES]
+    sem_marcador = texto
+    for marcador in MARCADORES:
+        sem_marcador = sem_marcador.replace(marcador, '')
+    repetidos = sorted({m for m in usados if usados.count(m) > 1})
+    if repetidos:
+        erros.append(f'Use cada marcador no máximo uma vez ({", ".join(repetidos)}).')
     if '{' in sem_marcador or '}' in sem_marcador:
-        erros.append('Só o marcador {nome} é aceito; remova as outras chaves.')
-    if marcadores and (texto.startswith(MARCADOR) or texto.endswith(MARCADOR)):
-        erros.append('A mensagem não pode começar nem terminar com {nome}.')
-    if marcadores and len(sem_marcador.split()) < MIN_PALAVRAS_POR_MARCADOR:
-        erros.append('Escreva pelo menos 3 palavras além do marcador.')
+        erros.append('Só os marcadores {nome}, {valor} e {vencimento} são aceitos; remova as outras chaves.')
+    if any(texto.startswith(m) or texto.endswith(m) for m in usados):
+        erros.append('A mensagem não pode começar nem terminar com um marcador.')
+    if usados and len(sem_marcador.split()) < MIN_PALAVRAS_POR_MARCADOR * len(set(usados)):
+        erros.append(f'Escreva pelo menos {MIN_PALAVRAS_POR_MARCADOR} palavras por marcador, além deles.')
     if len(texto) > LIMITE_CORPO:
         erros.append(f'O texto passa de {LIMITE_CORPO} caracteres.')
     if len(EMOJI.findall(texto)) > MAX_EMOJIS:
@@ -98,16 +107,45 @@ def _nova_versao(modelo: ModeloAbertura, corpo: str, usuario) -> VersaoAbertura:
     if vigente and vigente.corpo == corpo:
         raise ConflitoCRM('Nada mudou no texto.')
     numero = (modelo.versoes.order_by('-versao').values_list('versao', flat=True).first() or 0) + 1
-    usa_nome = MARCADOR in corpo
+    corpo_meta, mapa = _para_meta(corpo)
     return VersaoAbertura.objects.create(
         modelo=modelo, versao=numero, nome_meta=_nome_meta(modelo, numero), corpo=corpo,
-        corpo_meta=corpo.replace(MARCADOR, '{{1}}'), mapa_parametros=['nome'] if usa_nome else [],
-        criado_por=usuario,
+        corpo_meta=corpo_meta, mapa_parametros=mapa, criado_por=usuario,
     )
 
 
+def _para_meta(corpo: str) -> tuple[str, list[str]]:
+    """Troca os marcadores por {{1}}, {{2}}… na ordem em que aparecem; devolve o mapa de parâmetros."""
+    mapa: list[str] = []
+
+    def trocar(achado: re.Match) -> str:
+        nome = MARCADORES.get(achado.group(0))
+        if nome is None:
+            return achado.group(0)
+        mapa.append(nome)
+        return '{{' + str(len(mapa)) + '}}'
+
+    return CHAVES.sub(trocar, corpo), mapa
+
+
+def renderizar(versao: VersaoAbertura, valores: dict[str, str]) -> tuple[str, list[str]]:
+    """Texto como o cliente vê + parâmetros na ordem do template. Falta de valor é erro."""
+    faltando = [nome for nome in versao.mapa_parametros if not str(valores.get(nome) or '').strip()]
+    if faltando:
+        raise ConflitoCRM(f'Faltam valores para a mensagem: {", ".join(faltando)}.')
+    parametros = [str(valores[nome]).strip() for nome in versao.mapa_parametros]
+    texto = versao.corpo
+    for marcador, nome in MARCADORES.items():
+        texto = texto.replace(marcador, str(valores.get(nome) or '').strip())
+    return texto, parametros
+
+
+def so_cobranca(versao: VersaoAbertura | None) -> bool:
+    return bool(versao and PARAMETROS_COBRANCA.intersection(versao.mapa_parametros or []))
+
+
 def enviar_versao(versao: VersaoAbertura) -> VersaoAbertura:
-    exemplos = [EXEMPLO_NOME] if versao.mapa_parametros else []
+    exemplos = [EXEMPLOS[nome] for nome in versao.mapa_parametros or []]
     try:
         resposta = obter_provider().criar_template(versao.nome_meta, versao.corpo_meta, exemplos)
     except ErroWhatsApp as exc:
@@ -260,8 +298,10 @@ def disponiveis() -> list[dict]:
         resultado.append({
             'chave': modelo.chave, 'titulo': modelo.titulo,
             'texto': exibida.corpo if exibida else '',
-            'usa_nome': bool(exibida and exibida.mapa_parametros),
-            'disponivel': bool(vigente and vigente.status == VersaoAbertura.Status.APROVADO),
+            'usa_nome': bool(exibida and 'nome' in (exibida.mapa_parametros or [])),
+            'disponivel': bool(vigente and vigente.status == VersaoAbertura.Status.APROVADO
+                               and not so_cobranca(vigente)),
+            'so_cobranca': so_cobranca(exibida),
         })
     return resultado
 
@@ -307,11 +347,12 @@ def enviar_abertura(conversa: Conversa, usuario, chave: str, nome: str = '') -> 
     if conversa.janela_aberta():
         return assumir(conversa, usuario)
     versao = _versao_para_envio(chave)
+    if so_cobranca(versao):
+        raise ConflitoCRM('Esta mensagem é usada só nos avisos automáticos de cobrança.')
     nome = (nome or conversa.primeiro_nome).strip()
     if versao.mapa_parametros and not nome:
         raise ConflitoCRM('Informe o nome do cliente para esta mensagem.')
-    parametros = [nome.split()[0]] if versao.mapa_parametros else []
-    texto = versao.corpo.replace(MARCADOR, parametros[0] if parametros else '')
+    texto, parametros = renderizar(versao, {'nome': nome.split()[0] if nome else ''})
     with transaction.atomic():
         Conversa.objects.select_for_update().get(pk=conversa.pk)
         exigir_sem_abertura_recente(conversa)

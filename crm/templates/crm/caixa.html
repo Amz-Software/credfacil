@@ -20,6 +20,7 @@
       </span>
       {% endif %}
       {% if perms.crm.gerenciar_crm %}
+      <a href="{% url 'crm:cobranca' %}" class="btn btn-outline-secondary"><i class="bx bx-bar-chart-alt-2 me-1"></i>Cobrança</a>
       <a href="{% url 'crm:configuracao' %}" class="btn btn-outline-secondary"><i class="bx bx-cog me-1"></i>Configuração</a>
       {% endif %}
       <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#crmModalIniciar">

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Cobrança · CRM{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/crm.css' %}" />{% endblock extra_head %}
+{% block content %}
+<div class="container-xxl mt-4">
+{% url 'crm:caixa' as url_caixa %}
+{% include "components/page_header.html" with title="Cobrança" parent="CRM WhatsApp" icon="bx bx-bar-chart-alt-2" subtitle="Resultado dos avisos e das tentativas de contato no período." action_url=url_caixa action_label="Voltar às conversas" action_icon="bx bx-conversation" %}
+
+{% include "components/filter_bar_open.html" %}
+  <input type="hidden" name="aba" value="{{ aba }}">
+  <div class="col-6 col-md-2">
+    <label class="form-label small text-muted" for="cobDesde">Desde</label>
+    <input type="date" class="form-control" id="cobDesde" name="desde" value="{{ filtros.desde|date:'Y-m-d' }}">
+  </div>
+  <div class="col-6 col-md-2">
+    <label class="form-label small text-muted" for="cobAte">Até</label>
+    <input type="date" class="form-control" id="cobAte" name="ate" value="{{ filtros.ate|date:'Y-m-d' }}">
+  </div>
+  <div class="col-6 col-md-2">
+    <label class="form-label small text-muted" for="cobDia">Dia de vencimento</label>
+    <select class="form-select" id="cobDia" name="dia">
+      <option value="">Todos</option>
+      {% for dia in dias_vencimento %}<option value="{{ dia }}"{% if filtros.dia_vencimento == dia %} selected{% endif %}>Dia {{ dia }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-2">
+    <label class="form-label small text-muted" for="cobVencimento">Data de vencimento</label>
+    <input type="date" class="form-control" id="cobVencimento" name="vencimento" value="{{ filtros.data_vencimento|date:'Y-m-d' }}">
+  </div>
+  <div class="col-12 col-md-2">
+    <label class="form-label small text-muted" for="cobStatus">Status</label>
+    <select class="form-select" id="cobStatus" name="status">
+      <option value="">Todos</option>
+      {% for valor, rotulo in status_opcoes %}<option value="{{ valor }}"{% if filtros.status == valor %} selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+    </select>
+  </div>
+{% url 'crm:cobranca' as url_cobranca %}
+{% include "components/filter_bar_close.html" with clear_url=url_cobranca %}
+
+<ul class="nav nav-tabs mb-3" role="tablist">
+  {% for item in abas %}
+  <li class="nav-item">
+    <a class="nav-link{% if item.ativa %} active{% endif %}" href="?aba={{ item.chave }}{% if consulta_filtros %}&{{ consulta_filtros }}{% endif %}"{% if item.ativa %} aria-current="page"{% endif %}>
+      {{ item.rotulo }}{% if item.contagem is not None %} <span class="badge bg-label-secondary ms-1">{{ item.contagem }}</span>{% endif %}
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+
+{% block aba %}{% endblock %}
+</div>
+{% endblock content %}

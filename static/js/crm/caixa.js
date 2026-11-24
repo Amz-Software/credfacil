@@ -397,6 +397,9 @@
       avisar(resposta.mensagem, 'success');
     }
     fecharModal(form);
+    if (form.hasAttribute('data-crm-limpar')) {
+      form.reset();  // sem rascunho, o painel pode recarregar com o resultado
+    }
     if (form.hasAttribute('data-crm-compositor')) {
       limparCompositor(form, textoEnviado);
     }

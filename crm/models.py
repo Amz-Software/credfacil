@@ -1,6 +1,6 @@
 """Modelos do CRM de WhatsApp (ver docs/CRM_WHATSAPP.md e arquitetura-bot-crm-whatsapp.md §4)."""
 import uuid
-from datetime import timedelta
+from datetime import time, timedelta
 
 from django.conf import settings
 from django.db import models
@@ -11,6 +11,10 @@ from crm.models_cadastros import Etiqueta, ModeloAbertura, RespostaRapida, Versa
 from crm.telefone import formatar_telefone
 
 JANELA_ATENDIMENTO = timedelta(hours=24)
+MENSAGEM_FORA_HORARIO = (
+    'No momento estamos fora do nosso horário de atendimento. Mas não se preocupe! Nossa equipe retorna seu '
+    'contato no próximo dia útil, a partir das 8h. Agradecemos pela compreensão! 😊'
+)
 LIMITE_TEXTO = 4096
 
 
@@ -153,6 +157,7 @@ class Mensagem(models.Model):
         ABERTURA = 'ABERTURA', 'Mensagem de abertura'
         BOAS_VINDAS = 'BOAS_VINDAS', 'Boas-vindas'
         PROGRAMADA = 'PROGRAMADA', 'Programada'
+        COBRANCA = 'COBRANCA', 'Aviso de cobrança'
 
     class Status(models.TextChoices):
         RECEBIDO = 'RECEBIDO', 'Recebido'
@@ -323,10 +328,44 @@ class ConfiguracaoCRM(models.Model):
     )
     assistente_conhecimento = models.TextField(
         max_length=12000, blank=True, default='',
-        help_text='O que o assistente pode explicar: como funciona o crediário, o IPX Limpa Nome, regras de '
-                  'negociação, horários. Ele não inventa: o que não estiver aqui vai para a equipe.',
+        help_text='O que o assistente pode explicar: o que é a IPX, o IPX Consulta, regras e orientações. '
+                  'Ele não inventa: o que não estiver aqui vai para a equipe.',
     )
     atualizado_em = models.DateTimeField(auto_now=True)
+
+    # Horário comercial da equipe humana (domingo e feriados nacionais: fechado).
+    hora_abertura = models.TimeField(default=time(8, 0), help_text='Início do atendimento da equipe.')
+    hora_fechamento = models.TimeField(default=time(19, 0), help_text='Fim do atendimento de segunda a sexta.')
+    hora_fechamento_sabado = models.TimeField(
+        null=True, blank=True, default=time(18, 0), help_text='Fim do atendimento no sábado. Vazio = não atende.',
+    )
+    mensagem_fora_horario = models.TextField(max_length=1000, default=MENSAGEM_FORA_HORARIO)
+    antecipacao_percentual_dia = models.DecimalField(
+        max_digits=5, decimal_places=3, null=True, blank=True,
+        help_text='Desconto por dia antecipado (ex.: 0,10 = 0,10% ao dia). Vazio = o assistente não calcula e '
+                  'passa para a equipe.',
+    )
+
+    # Avisos automáticos de cobrança (templates aprovados pela Meta).
+    cobranca_ativa = models.BooleanField(default=False)
+    cobranca_ativada_em = models.DateTimeField(null=True, blank=True, editable=False)
+    cobranca_hora_envio = models.TimeField(default=time(9, 0), help_text='A partir de que horas os avisos saem.')
+    cobranca_intervalo_dias = models.PositiveSmallIntegerField(
+        default=5, help_text='Sem retorno do cliente, repete o aviso a cada quantos dias.',
+    )
+    cobranca_max_insistencias = models.PositiveSmallIntegerField(
+        default=6, help_text='Quantas vezes repetir, no máximo, depois do pedido de comprovante.',
+    )
+    modelo_aviso_antes = models.ForeignKey(ModeloAbertura, null=True, blank=True, on_delete=models.SET_NULL,
+                                           related_name='+')
+    modelo_aviso_dia = models.ForeignKey(ModeloAbertura, null=True, blank=True, on_delete=models.SET_NULL,
+                                         related_name='+')
+    modelo_aviso_apos = models.ForeignKey(ModeloAbertura, null=True, blank=True, on_delete=models.SET_NULL,
+                                          related_name='+')
+    modelo_aviso_insistencia = models.ForeignKey(ModeloAbertura, null=True, blank=True,
+                                                 on_delete=models.SET_NULL, related_name='+')
+    modelo_aviso_quitacao = models.ForeignKey(ModeloAbertura, null=True, blank=True, on_delete=models.SET_NULL,
+                                              related_name='+')
 
     class Meta:
         default_permissions = ()
@@ -335,3 +374,6 @@ class ConfiguracaoCRM(models.Model):
     def obter(cls) -> 'ConfiguracaoCRM':
         config, _ = cls.objects.get_or_create(pk=1)
         return config
+
+
+from crm.models_contatos import EncaminhamentoIA, TelefoneCliente, TentativaContato  # noqa: E402,F401

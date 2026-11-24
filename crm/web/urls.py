@@ -1,7 +1,7 @@
 """Rotas do CRM no backoffice (/crm/). Só o webhook da Meta fica em /api/."""
 from django.urls import path
 
-from crm.web import acoes, anotacoes, caixa, configuracao, mensagens, midia
+from crm.web import acoes, anotacoes, caixa, cobranca, configuracao, contatos, mensagens, midia
 
 app_name = 'crm'
 
@@ -43,6 +43,13 @@ urlpatterns = [
     path(f'{conversa}lembrete/concluir/', anotacoes.concluir_lembrete, name='concluir_lembrete'),
     path(f'{conversa}programadas/', anotacoes.programar, name='programar'),
     path('programadas/<int:programada_id>/cancelar/', anotacoes.cancelar_programada, name='cancelar_programada'),
+    # Telefones e tentativas de contato do cliente
+    path(f'{conversa}clientes/<int:cliente_id>/telefones/', contatos.adicionar_telefone, name='adicionar_telefone'),
+    path(f'{conversa}clientes/<int:cliente_id>/tentativas/', contatos.registrar_tentativa,
+         name='registrar_tentativa'),
+    path(f'{conversa}telefones/<int:telefone_id>/situacao/', contatos.mudar_situacao, name='telefone_situacao'),
+    # Relatórios de cobrança (gerenciar)
+    path('cobranca/', cobranca.painel, name='cobranca'),
     # Configuração (gerenciar)
     *configuracao.urlpatterns,
 ]

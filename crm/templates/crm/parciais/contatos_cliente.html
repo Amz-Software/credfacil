@@ -1,0 +1,119 @@
+{% if contatos %}{% with cid=contatos.cliente_id %}
+<div class="crm-contatos mt-3">
+  <div class="crm-painel__titulo">Telefones e tentativas</div>
+
+  <ul class="list-unstyled mb-2">
+    {% for tel in contatos.telefones %}
+    <li class="crm-contatos__telefone">
+      <div class="d-flex justify-content-between align-items-start gap-2">
+        <div class="min-w-0">
+          <div class="small fw-semibold">{{ tel.numero }}</div>
+          <div class="small text-muted">{{ tel.origem }}{% if tel.eh_referencia and tel.nome_contato %} · {{ tel.nome_contato }}{% endif %}</div>
+        </div>
+        {% include "components/status_badge.html" with state=tel.situacao_estado label=tel.situacao_rotulo %}
+      </div>
+      {% if tel.eh_referencia %}
+      <div class="small text-muted"><i class="bx bx-phone-call"></i> Contato para ligar e pedir notícias do cliente.</div>
+      {% elif tel.utilizavel %}
+      <div class="small text-success"><i class="bx bx-check"></i> Recebe avisos de cobrança</div>
+      {% else %}
+      <div class="small text-muted"><i class="bx bx-block"></i> Não recebe avisos{% if tel.situacao == contatos.situacao_inicial %} (confirme que é do cliente){% endif %}</div>
+      {% endif %}
+      {% if tel.observacao %}<div class="small text-muted text-break">{{ tel.observacao }}</div>{% endif %}
+      <form method="post" action="{% url 'crm:telefone_situacao' conversa.id tel.id %}" class="mt-1" data-crm-acao>
+        {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+        <label class="visually-hidden" for="crmTelSituacao{{ tel.id }}">Situação do número</label>
+        <div class="input-group input-group-sm">
+          <select class="form-select form-select-sm" id="crmTelSituacao{{ tel.id }}" name="situacao" data-crm-auto>
+            {% for valor, rotulo in contatos.situacoes %}
+            <option value="{{ valor }}"{% if valor == tel.situacao %} selected{% endif %}>{{ rotulo }}</option>
+            {% endfor %}
+          </select>
+          <noscript><button type="submit" class="btn btn-outline-secondary">Salvar</button></noscript>
+        </div>
+      </form>
+    </li>
+    {% empty %}
+    <li class="small text-muted">Nenhum telefone no cadastro.</li>
+    {% endfor %}
+  </ul>
+
+  {% if contatos.telefones %}
+  <details class="crm-contatos__form">
+    <summary class="small fw-semibold">Registrar tentativa</summary>
+    <form method="post" action="{% url 'crm:registrar_tentativa' conversa.id cid %}" class="mt-2" data-crm-acao data-crm-limpar>
+      {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+      <label class="form-label small mb-1" for="crmTentTel{{ cid }}">Telefone</label>
+      <select class="form-select form-select-sm mb-2" id="crmTentTel{{ cid }}" name="telefone" required>
+        {% for tel in contatos.telefones %}
+        <option value="{{ tel.id }}">{{ tel.numero }} · {{ tel.origem }}</option>
+        {% endfor %}
+      </select>
+      <div class="d-flex gap-2 mb-2">
+        <div class="flex-fill">
+          <label class="form-label small mb-1" for="crmTentCanal{{ cid }}">Canal</label>
+          <select class="form-select form-select-sm" id="crmTentCanal{{ cid }}" name="canal">
+            {% for valor, rotulo in contatos.canais %}<option value="{{ valor }}"{% if valor == 'LIGACAO' %} selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex-fill">
+          <label class="form-label small mb-1" for="crmTentResultado{{ cid }}">Resultado</label>
+          <select class="form-select form-select-sm" id="crmTentResultado{{ cid }}" name="resultado" required>
+            <option value="">Escolha…</option>
+            {% for valor, rotulo in contatos.resultados %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <label class="visually-hidden" for="crmTentObs{{ cid }}">Observação</label>
+      <input type="text" class="form-control form-control-sm mb-2" id="crmTentObs{{ cid }}" name="observacao" maxlength="255" placeholder="Observação (opcional)">
+      <div class="text-end"><button type="submit" class="btn btn-sm btn-outline-primary">Registrar</button></div>
+    </form>
+  </details>
+  {% endif %}
+
+  <details class="crm-contatos__form">
+    <summary class="small fw-semibold">Adicionar telefone</summary>
+    <form method="post" action="{% url 'crm:adicionar_telefone' conversa.id cid %}" class="mt-2" data-crm-acao data-crm-limpar>
+      {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
+      <label class="form-label small mb-1" for="crmNovoTel{{ cid }}">Número com DDD</label>
+      <input type="tel" class="form-control form-control-sm mb-2" id="crmNovoTel{{ cid }}" name="telefone" inputmode="tel" maxlength="20" required>
+      <div class="d-flex gap-2 mb-2">
+        <div class="flex-fill">
+          <label class="form-label small mb-1" for="crmNovoOrigem{{ cid }}">Origem</label>
+          <select class="form-select form-select-sm" id="crmNovoOrigem{{ cid }}" name="origem" required>
+            {% for valor, rotulo in contatos.origens %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex-fill">
+          <label class="form-label small mb-1" for="crmNovoSituacao{{ cid }}">Situação</label>
+          <select class="form-select form-select-sm" id="crmNovoSituacao{{ cid }}" name="situacao">
+            {% for valor, rotulo in contatos.situacoes %}<option value="{{ valor }}"{% if valor == contatos.situacao_inicial %} selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <label class="visually-hidden" for="crmNovoNome{{ cid }}">Nome do contato</label>
+      <input type="text" class="form-control form-control-sm mb-2" id="crmNovoNome{{ cid }}" name="nome_contato" maxlength="100" placeholder="Nome (para referência)">
+      <label class="visually-hidden" for="crmNovoObs{{ cid }}">Observação</label>
+      <input type="text" class="form-control form-control-sm mb-2" id="crmNovoObs{{ cid }}" name="observacao" maxlength="255" placeholder="Observação (opcional)">
+      <p class="small text-muted mb-2">Número do C4M só recebe avisos depois de marcado como "Confirmado do cliente".</p>
+      <div class="text-end"><button type="submit" class="btn btn-sm btn-outline-secondary">Adicionar</button></div>
+    </form>
+  </details>
+
+  <div class="small fw-semibold mt-2 mb-1">Últimas tentativas</div>
+  <ul class="list-unstyled mb-0">
+    {% for tentativa in contatos.tentativas %}
+    <li class="crm-contatos__tentativa">
+      <div class="d-flex justify-content-between gap-2 small">
+        <span class="text-muted">{{ tentativa.criado_em|date:"d/m H:i" }} · {{ tentativa.numero }}</span>
+        {% include "components/status_badge.html" with state=tentativa.resultado_estado label=tentativa.resultado %}
+      </div>
+      <div class="small">{{ tentativa.tipo }}{% if not tentativa.automatica %} · {{ tentativa.canal }}{% if tentativa.usuario %} · {{ tentativa.usuario }}{% endif %}{% endif %}</div>
+      {% if tentativa.observacao %}<div class="small text-muted text-break">{{ tentativa.observacao }}</div>{% endif %}
+    </li>
+    {% empty %}
+    <li class="small text-muted">Nenhuma tentativa registrada.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endwith %}{% endif %}

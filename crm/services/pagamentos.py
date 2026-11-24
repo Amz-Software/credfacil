@@ -56,7 +56,7 @@ def pagamentos_em_aberto(clientes):
     return (Pagamento.objects
             .filter(venda__cliente__in=list(clientes), venda__is_deleted=False,
                     quitado=False, desativado=False, devolucao=False)
-            .select_related('venda').prefetch_related('parcelas_pagamento')
+            .select_related('venda__loja').prefetch_related('parcelas_pagamento')
             .order_by('venda__data_venda'))
 
 

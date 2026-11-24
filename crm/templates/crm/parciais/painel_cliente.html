@@ -1,4 +1,4 @@
-{% load crm_tags %}
+{% load crm_tags crm_contatos %}
 <div class="crm-cliente">
   <div class="d-flex justify-content-between align-items-start gap-2">
     <div class="min-w-0">
@@ -59,4 +59,5 @@
     {% endif %}
   </div>
   {% endif %}
+  {% contatos_do_cliente cliente.id %}
 </div>

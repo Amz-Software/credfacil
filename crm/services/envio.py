@@ -236,6 +236,10 @@ def aplicar_status(wa_message_id: str, status_meta: str, erros: list | None = No
             mensagem.status = novo
             mensagem.erro = traduzir_erro(erro.get('code'), erro.get('title', ''),
                                           (erro.get('error_data') or {}).get('details', '') or erro.get('message', ''))
+            if mensagem.origem == Mensagem.Origem.COBRANCA:
+                from crm.services.contatos import marcar_falha
+
+                marcar_falha(mensagem, erro.get('code'))
         elif ORDEM_STATUS.get(novo, 0) > ORDEM_STATUS.get(atual, 0):
             mensagem.status = novo
         else:

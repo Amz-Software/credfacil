@@ -130,6 +130,11 @@ def receber_mensagem(entrada: EntradaNormalizada) -> Mensagem | None:
                 voz=bool(meta.get('voz')),
             )
 
+        if not eh_reacao:
+            from crm.services.contatos import marcar_resposta
+
+            marcar_resposta(conversa, agora)
+
         campos = ['ultima_mensagem_em', 'telefone']
         # Reentrega atrasada não pode encolher a janela de 24 h nem reordenar a lista.
         conversa.ultima_mensagem_em = max(filter(None, (conversa.ultima_mensagem_em, agora)))

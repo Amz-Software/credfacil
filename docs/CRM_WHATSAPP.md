@@ -72,9 +72,19 @@ Configurações → Usuários e Acessos → Grupos.
   está em `assistente_conhecimento` e nas regras do crediário (tabela `Parcelamento`); o resto
   vai para a equipe. Ferramentas (`crm/services/assistente/ferramentas.py`):
   `identificar_cliente` (CPF + nascimento conferidos pelo código, 3 tentativas, vale 24 h),
-  `consultar_parcelas` e `gerar_link_pagamento` (só do cliente identificado; o link sai de
-  `crm/services/links_pagamento.py`, ponto único de troca do gateway) e
-  `transferir_para_atendente` (nota para a equipe). Respostas ficam com `dados.ia = true` e
+  `consultar_parcelas` (inclui aparelho bloqueado e a loja da compra) e `gerar_link_pagamento`
+  (só do cliente identificado; o link sai de `crm/services/links_pagamento.py`, ponto único de
+  troca do gateway), `simular_antecipacao` (desconto de `antecipacao_percentual_dia` por dia, no
+  máximo 50%; quem fecha é a equipe), `registrar_comprovante` (anexa a imagem/PDF do cliente como
+  `ComprovanteParcela` e marca a parcela como "pagamento informado", o mesmo da página pública) e
+  `transferir_para_atendente` (assunto + nota; grava `EncaminhamentoIA`). Assuntos que conduz:
+  PIX, valor e atraso de parcela, comprovante, desbloqueio, antecipação, quitação, negociação,
+  mudança de vencimento, novo aparelho, IPX Consulta, atendente. Vê as 2 imagens/PDFs mais
+  recentes do cliente (últimos 30 min). Cliente identificado falando de outro número: o número
+  entra em `TelefoneCliente` (origem "atendimento"), sem trocar o principal. Fora do horário
+  comercial (`hora_abertura`/`hora_fechamento`/`hora_fechamento_sabado`; domingo e feriados
+  nacionais fechados, `crm/services/expediente.py`) continua atendendo e, quando precisa da equipe,
+  transfere avisando com `mensagem_fora_horario`. Respostas ficam com `dados.ia = true` e
   aparecem como "Assistente de IA". Sem chave, com falha da API ou resposta vazia, nada da IA
   é enviado e vale o fluxo abaixo (menu ou boas-vindas). Limite de 40 respostas da IA por
   hora por conversa.
@@ -84,8 +94,22 @@ Configurações → Usuários e Acessos → Grupos.
   `/consultar-pagamentos/`) e recebe as parcelas em aberto, as atrasadas, a próxima e o link
   `<url_publica>/pagamento/<id>/` com PIX. Os clientes encontrados ficam vinculados à conversa.
   Após 3 tentativas erradas, arquivo/áudio, opção inválida duas vezes ou pedido de atendente,
-  vai para a equipe com nota. A etapa expira em 30 min. Só responde a quem pediu (nada de
-  cobrança ativa, proibida pela política do WhatsApp).
+  vai para a equipe com nota. A etapa expira em 30 min.
+- **Avisos de cobrança** (Configuração → Avisos de cobrança, `crm/services/cobranca.py`, rodam no
+  `crm-worker` a partir de `cobranca_hora_envio`): templates de utilidade (marcadores `{nome}`,
+  `{valor}`, `{vencimento}`) 3 dias antes, no dia, 2 dias depois (pede comprovante) e, sem
+  retorno, a cada `cobranca_intervalo_dias` até `cobranca_max_insistencias`; mensagem de quitação
+  quando a última parcela é paga. Nunca para parcela paga/informada, nunca para número de
+  referência, no máximo 1 aviso por cliente por dia, só parcelas que entram na régua depois de
+  ligada. Cada aviso é uma `TentativaContato` (resposta do cliente → "respondeu"; erro 131026 da
+  Meta → número marcado "sem WhatsApp" e o próximo aviso usa outro número validado). Política da
+  Meta: empresa de cobrança de terceiros é proibida e texto em tom de ameaça é recusado; lembrete
+  do próprio credor é utilidade, mas a Meta revisa cada template. Mantenha os textos informativos.
+- **Telefones e status de contato** (`crm/services/contatos.py`): números do cadastro, usados no
+  atendimento, localizados no C4M (precisam ser validados) e de referência, com situação e
+  histórico de tentativas; status por cliente (contato realizado, aguardando retorno, contato
+  alternativo, referência sem sucesso, número inválido, sem WhatsApp, bloqueio confirmado — só
+  quando a equipe confirma —, não localizado).
 - **Janela de 24 h:** texto livre e mídia só até 24 h depois da última mensagem do
   cliente. Fora dela, só **mensagem de abertura** (template aprovado pela Meta).
 - **Trava de resposta** (texto, mídia, reação, reenvio, programada): conversa em
@@ -135,6 +159,7 @@ Resposta das ações:
 |---|---|
 | `/crm/configuracao/` | Atendimento (boas-vindas, retorno automático, autoatendimento, assistente de IA, endereço público) e situação da integração com a Meta |
 | `/crm/configuracao/aberturas/` | Mensagens de abertura: criar, editar (texto novo = versão nova enviada à Meta), consultar a Meta e, no modo simulado, simular aprovação/rejeição |
+| `/crm/configuracao/cobranca/` | Avisos automáticos de cobrança: liga/desliga, horário, repetição e a mensagem de abertura de cada etapa (com textos sugeridos) |
 | `/crm/configuracao/respostas/` e `/crm/configuracao/etiquetas/` | Cadastros. Não se exclui: desmarque "Ativo" |
 | `/crm/configuracao/simulador/` | Só sem credenciais: recebe mensagem como se fosse o cliente e mostra a conversa ao lado |
 

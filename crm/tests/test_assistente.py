@@ -165,7 +165,8 @@ class FerramentasTests(AssistenteBase):
         identificado = json.loads(roteiro.resultado(1)['content'])
         consulta = json.loads(roteiro.resultado(2)['content'])
         link = json.loads(roteiro.resultado(3)['content'])
-        self.assertEqual(identificado, {'identificado': True, 'primeiro_nome': 'Maria'})
+        self.assertEqual(identificado, {'identificado': True, 'primeiro_nome': 'Maria',
+                                        'numero_diferente_do_cadastro': False})
         parcelas = consulta['compras'][0]['parcelas']
         self.assertEqual([p['situacao'] for p in parcelas], ['atrasada', 'a vencer'])
         self.assertEqual(parcelas[0]['parcela_id'], parcela.pk)

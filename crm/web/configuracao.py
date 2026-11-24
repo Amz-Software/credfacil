@@ -9,9 +9,9 @@ from django.urls import path, reverse
 from django.views.decorators.http import require_http_methods, require_POST
 
 from crm.apresentacao import abertura_dict, base_mensagens, mensagens_dicts
-from crm.forms import ConfiguracaoForm, EtiquetaForm, RespostaRapidaForm
+from crm.forms import CobrancaForm, ConfiguracaoForm, EtiquetaForm, RespostaRapidaForm
 from crm.models import ConfiguracaoCRM, Conversa, Etiqueta, ModeloAbertura, RespostaRapida
-from crm.services import aberturas, organizacao
+from crm.services import aberturas, cobranca, organizacao
 from crm.services.conversas import ConflitoCRM
 from crm.web.base import gerencia_crm, ler_inteiro
 from crm.whatsapp import credenciais, obter_provider
@@ -62,6 +62,47 @@ def geral(request: HttpRequest) -> HttpResponse:
         messages.success(request, 'Configuração salva.')
         return redirect('crm:configuracao')
     return _render(request, 'geral.html', 'geral', {'form': form, 'integracao': _integracao(request)})
+
+
+# --- avisos automáticos de cobrança --------------------------------------------------------------
+
+SUGESTOES_COBRANCA = (
+    ('3 dias antes', 'Olá, {nome}! Passando para lembrar que sua parcela de {valor} vence em {vencimento}. '
+                     'Se precisar do PIX ou tiver alguma dúvida, é só responder esta mensagem.'),
+    ('No dia', 'Oi, {nome}! Sua parcela de {valor} vence hoje, {vencimento}. Para receber o PIX ou tirar '
+               'dúvidas, é só responder esta mensagem.'),
+    ('2 dias depois', 'Olá, {nome}. Ainda não identificamos o pagamento da parcela de {valor}, com vencimento em '
+                      '{vencimento}. Se já pagou, responda com o comprovante. Se precisar do PIX, é só pedir.'),
+    ('Sem retorno', 'Olá, {nome}. Ainda não tivemos retorno sobre a parcela de {valor}, vencida em {vencimento}. '
+                    'Responda esta mensagem para regularizar ou enviar o comprovante.'),
+    ('Quitação', 'Parabéns, {nome}! Seu contrato está quitado. Obrigado pela confiança! Se quiser um aparelho '
+                 'novo, temos condições especiais para você. Responda para saber mais ou para tirar o app do '
+                 'aparelho.'),
+)
+
+
+def _situacao_modelos(config: ConfiguracaoCRM) -> list[dict]:
+    """Para cada etapa: o template escolhido e se ele já pode sair (aprovado pela Meta)."""
+    itens = []
+    for campo in CobrancaForm.CAMPOS_MODELO:
+        modelo = getattr(config, campo)
+        itens.append({'rotulo': CobrancaForm.Meta.labels[campo], 'modelo': modelo,
+                      'pronto': cobranca.versao_vigente(config, campo) is not None})
+    return itens
+
+
+@require_http_methods(['GET', 'POST'])
+@gerencia_crm
+def cobranca_config(request: HttpRequest) -> HttpResponse:
+    config = ConfiguracaoCRM.obter()
+    form = CobrancaForm(request.POST or None, instance=config)
+    if request.method == 'POST' and form.is_valid():
+        cobranca.ao_ligar(form.save())
+        messages.success(request, 'Avisos de cobrança salvos.')
+        return redirect('crm:cobranca_config')
+    return _render(request, 'cobranca.html', 'cobranca', {
+        'form': form, 'etapas': _situacao_modelos(config), 'sugestoes': SUGESTOES_COBRANCA,
+    })
 
 
 # --- etiquetas e respostas rápidas (mesmo fluxo: lista + novo + edição) -------------------------
@@ -239,6 +280,7 @@ urlpatterns = [
     path('configuracao/aberturas/<int:pk>/verificar/', abertura_verificar, name='abertura_verificar'),
     path('configuracao/aberturas/<int:pk>/simular/', abertura_simular, name='abertura_simular'),
     path('configuracao/simulador/', simulador, name='simulador'),
+    path('configuracao/cobranca/', cobranca_config, name='cobranca_config'),
     path('configuracao/<str:tipo>/', cadastro_lista, name='cadastro_lista'),
     path('configuracao/<str:tipo>/<int:pk>/', cadastro_editar, name='cadastro_editar'),
 ]

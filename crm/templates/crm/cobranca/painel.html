@@ -1,0 +1,61 @@
+{% extends "crm/cobranca/base.html" %}
+{% load crm_tags %}
+{% block aba %}
+{% with i=indicadores %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">{% include "components/kpi_card.html" with icon="bx bx-send" label="Avisos enviados" value=i.avisos_enviados accent="primary" %}</div>
+  <div class="col-6 col-lg-3">{% include "components/kpi_card.html" with icon="bx bx-message-check" label="Clientes que responderam" value=i.clientes_responderam accent="success" %}</div>
+  <div class="col-6 col-lg-3">{% include "components/kpi_card.html" with icon="bx bx-message-x" label="Clientes sem retorno" value=i.clientes_sem_retorno accent="warning" %}</div>
+  <div class="col-6 col-lg-3">{% include "components/kpi_card.html" with icon="bx bx-user-x" label="Não localizados" value=i.nao_localizados accent="danger" %}</div>
+  <div class="col-6 col-lg-3">{% include "components/kpi_card.html" with icon="bx bx-receipt" label="Comprovantes pelo WhatsApp" value=i.comprovantes_whatsapp accent="info" %}</div>
+  <div class="col-6 col-lg-3">{% include "components/kpi_card.html" with icon="bx bx-check-circle" label="Pagamentos identificados" value=i.pagamentos_identificados accent="success" %}</div>
+  <div class="col-6 col-lg-3">{% include "components/kpi_card.html" with icon="bx bx-transfer" label="Negociações e quitações" value=i.negociacoes accent="primary" %}</div>
+  <div class="col-6 col-lg-3">{% include "components/kpi_card.html" with icon="bx bx-phone-plus" label="Contatos alternativos encontrados" value=i.contatos_alternativos accent="info" %}</div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header card-header-modern"><h5 class="mb-0"><i class="bx bx-send me-2 text-primary"></i>Avisos automáticos</h5></div>
+      <div class="card-body">
+        <div class="d-flex gap-4 mb-3">
+          <div><div class="crm-cobranca__indicador">{{ i.avisos_enviados }}</div><div class="crm-cobranca__rotulo">enviados</div></div>
+          <div><div class="crm-cobranca__indicador">{{ i.avisos_entregues }}</div><div class="crm-cobranca__rotulo">entregues</div></div>
+          <div><div class="crm-cobranca__indicador">{{ i.avisos_lidos }}</div><div class="crm-cobranca__rotulo">lidos</div></div>
+        </div>
+        <table class="table table-sm mb-0">
+          <tbody>
+            {% for rotulo, qtd in i.avisos_por_tipo %}
+            <tr><td>{{ rotulo }}</td><td class="text-end fw-semibold">{{ qtd }}</td></tr>
+            {% empty %}
+            <tr><td class="text-muted">Nenhum aviso no período.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <p class="small text-muted mt-3 mb-0">Parcelas avisadas que já estão pagas: {{ i.pagamentos_identificados }} ({{ i.valor_identificado|reais }}).</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header card-header-modern"><h5 class="mb-0"><i class="bx bx-bot me-2 text-primary"></i>Atendimentos encaminhados pela IA</h5></div>
+      <div class="card-body">
+        <div class="d-flex gap-4 mb-3">
+          <div><div class="crm-cobranca__indicador">{{ i.encaminhamentos }}</div><div class="crm-cobranca__rotulo">encaminhados</div></div>
+          <div><div class="crm-cobranca__indicador">{{ i.encaminhamentos_fora_do_horario }}</div><div class="crm-cobranca__rotulo">fora do horário</div></div>
+        </div>
+        <table class="table table-sm mb-0">
+          <tbody>
+            {% for rotulo, qtd in i.encaminhamentos_por_assunto %}
+            <tr><td>{{ rotulo }}</td><td class="text-end fw-semibold">{{ qtd }}</td></tr>
+            {% empty %}
+            <tr><td class="text-muted">Nenhum encaminhamento no período.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endwith %}
+{% endblock aba %}

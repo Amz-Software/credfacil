@@ -1,0 +1,48 @@
+{% extends "crm/cobranca/base.html" %}
+{% load crm_tags %}
+{% block aba %}
+{% if aba == 'priorizar' %}
+<p class="text-muted small">Clientes que ainda têm número utilizável sem tentativa no período: maior chance de contato.</p>
+{% elif aba == 'bloqueados' %}
+<p class="text-muted small">Só bloqueio confirmado pela equipe. Falta de resposta não é bloqueio.</p>
+{% endif %}
+{% include "components/card_table_open.html" with title=titulo_aba icon="bx bx-user" count=resultado.total %}
+<table class="table table-hover align-middle mb-0">
+  <thead>
+    <tr>
+      <th>Cliente</th>
+      <th>Telefone principal</th>
+      <th>Status de contato</th>
+      <th class="text-end">Avisos</th>
+      <th class="text-end">Tentativas</th>
+      <th>Última tentativa</th>
+      <th class="text-end">Parcelas atrasadas</th>
+      <th class="text-end">Em atraso</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in linhas %}{% with l=item.dados %}
+    <tr>
+      <td class="fw-semibold">{{ l.nome }}</td>
+      <td>{{ l.telefone|default:"—" }}</td>
+      <td>{% include "components/status_badge.html" with state=item.estado label=l.ficha.rotulo %}{% if l.ficha.alternativos %} <small class="text-muted">+{{ l.ficha.alternativos }} nº</small>{% endif %}</td>
+      <td class="text-end">{{ l.ficha.avisos }}</td>
+      <td class="text-end">{{ l.ficha.tentativas }}</td>
+      <td>{{ l.ficha.ultima_tentativa|date:"d/m/Y H:i"|default:"—" }}</td>
+      <td class="text-end">{{ l.parcelas_atrasadas }}</td>
+      <td class="text-end">{{ l.total_atrasado|reais }}</td>
+      <td class="text-end">
+        {% if l.conversa_id %}
+        <a href="{% url 'crm:conversa' l.conversa_id %}" class="btn btn-sm btn-outline-primary"><i class="bx bxl-whatsapp me-1"></i>Conversa</a>
+        {% else %}<span class="small text-muted">Sem conversa</span>{% endif %}
+      </td>
+    </tr>
+    {% endwith %}{% empty %}
+    {% include "components/empty_state.html" with colspan=9 message="Nenhum cliente neste relatório" hint="Mude o período ou os filtros." %}
+    {% endfor %}
+  </tbody>
+</table>
+{% include "snippets/pagination.html" %}
+{% include "components/card_table_close.html" %}
+{% endblock aba %}

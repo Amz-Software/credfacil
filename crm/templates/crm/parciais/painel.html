@@ -125,7 +125,7 @@
       <li class="small text-muted">Nenhuma nota.</li>
       {% endfor %}
     </ul>
-    <form method="post" action="{% url 'crm:criar_nota' conversa.id %}" data-crm-acao>
+    <form method="post" action="{% url 'crm:criar_nota' conversa.id %}" data-crm-acao data-crm-limpar>
       {% csrf_token %}<input type="hidden" name="proxima" value="{{ url_da_conversa }}">
       <label class="visually-hidden" for="crmNovaNota">Nova nota</label>
       <textarea class="form-control form-control-sm mb-2" id="crmNovaNota" name="texto" rows="2" maxlength="2000" placeholder="Escreva uma nota para a equipe" required></textarea>
