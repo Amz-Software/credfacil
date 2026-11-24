@@ -1,6 +1,7 @@
 import uuid
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 
@@ -13,9 +14,20 @@ from .base import PagamentoOnlineTestCase, resposta_pix
 BASE = '/api/publico/v1/'
 
 
+def _png() -> bytes:
+    from io import BytesIO
+
+    from PIL import Image
+
+    buffer = BytesIO()
+    Image.new('RGB', (4, 4), 'white').save(buffer, format='PNG')
+    return buffer.getvalue()
+
+
 class ApiPublicaTest(PagamentoOnlineTestCase):
     def setUp(self):
         super().setUp()
+        cache.clear()
         self.token = str(self.pagamento.token_publico)
 
     def url(self, caminho: str = '') -> str:
@@ -79,7 +91,7 @@ class ApiPublicaTest(PagamentoOnlineTestCase):
         self.assertEqual(resposta.status_code, 404)
 
     def test_informar_pagamento_com_comprovante(self):
-        arquivo = SimpleUploadedFile('comprovante.png', b'\x89PNG\r\n\x1a\nconteudo', content_type='image/png')
+        arquivo = SimpleUploadedFile('comprovante.png', _png(), content_type='image/png')
         resposta = self.client.post(self.url(f'parcelas/{self.parcela.pk}/informar/'), {'comprovante': arquivo})
         self.assertEqual(resposta.status_code, 200)
         self.parcela.refresh_from_db()
@@ -123,3 +135,31 @@ class ApiPublicaTest(PagamentoOnlineTestCase):
         self.assertEqual(resposta.status_code, 200)
         self.assertEqual(resposta['Content-Type'], 'application/pdf')
         self.assertTrue(resposta.content.startswith(b'%PDF'))
+
+
+class EndurecimentoPublicoTest(PagamentoOnlineTestCase):
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.token = str(self.pagamento.token_publico)
+
+    def url(self, caminho: str = '') -> str:
+        return f'{BASE}pagamentos/{self.token}/{caminho}'
+
+    def test_pdf_falso_e_recusado(self):
+        arquivo = SimpleUploadedFile('comprovante.pdf', b'<html>nao sou pdf</html>', content_type='application/pdf')
+        resposta = self.client.post(self.url(f'parcelas/{self.parcela.pk}/informar/'), {'comprovante': arquivo})
+        self.assertEqual(resposta.status_code, 400)
+
+    def test_limite_de_consultas_por_cpf(self):
+        corpo = {'cpf': '12345678901', 'data_nascimento': '2000-01-01'}
+        respostas = [self.client.post(f'{BASE}consulta/', corpo, content_type='application/json').status_code
+                     for _ in range(11)]
+        self.assertEqual(respostas[-1], 429)
+        self.assertEqual(set(respostas[:-1]), {200})
+
+    def test_compra_encerrada_nao_aceita_informe(self):
+        self.pagamento.quitado = True
+        self.pagamento.save(update_fields=['quitado'])
+        resposta = self.client.post(self.url(f'parcelas/{self.parcela.pk}/informar/'))
+        self.assertEqual(resposta.status_code, 400)

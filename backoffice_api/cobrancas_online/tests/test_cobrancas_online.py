@@ -61,3 +61,12 @@ class CobrancasOnlineApiTest(PagamentoOnlineTestCase):
         self.assertEqual(lista['count'], 1)
         self.assertEqual(admin.get(f'{URL}registros/').json()['count'], RegistroPagBank.objects.count())
         self.assertEqual(self.cliente('bia').get(f'{URL}registros/').status_code, 403)
+
+    def test_url_do_app_so_aceita_origem_https_limpa(self):
+        admin = self.cliente('chefe', grupos=('ADMINISTRADOR',))
+        for invalida in ('http://vendas.exemplo.com', 'https://a@evil.com', 'https://vendas.exemplo.com/x?y=1',
+                         'https://'):
+            resposta = admin.patch(f'{URL}configuracao/', {'url_app_cliente': invalida}, format='json')
+            self.assertEqual(resposta.status_code, 400, invalida)
+        resposta = admin.patch(f'{URL}configuracao/', {'url_app_cliente': 'https://Vendas.Exemplo.com/'}, format='json')
+        self.assertEqual(resposta.json()['url_app_cliente'], 'https://vendas.exemplo.com')

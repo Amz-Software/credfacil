@@ -36,21 +36,59 @@ def localizar(situacao: payloads.SituacaoPedido, checkout_id: str = '') -> Cobra
     por_referencia = Cobranca.objects.filter(referencia__in=_uuids(situacao.referencias)).first()
     if por_referencia:
         return por_referencia
-    ids = [i for i in (situacao.pedido_id, checkout_id) if i]
-    return Cobranca.objects.filter(pagbank_id__in=ids).first() if ids else None
+    if situacao.pedido_id:
+        por_pedido = Cobranca.objects.filter(pagbank_id=situacao.pedido_id).first()
+        if por_pedido:
+            return por_pedido
+    if not checkout_id:
+        return None
+    # O cabeçalho x-product-id não é assinado: só vale se o pedido pago cobre a cobrança do checkout.
+    por_checkout = Cobranca.objects.filter(pagbank_id=checkout_id, forma=Cobranca.Forma.CARTAO).first()
+    if por_checkout and situacao.valor_pago is not None and situacao.valor_pago >= por_checkout.valor_total:
+        return por_checkout
+    return None
 
 
-def _aplicar_na_parcela(cobranca: Cobranca, quando) -> bool:
-    """Dá baixa; devolve False quando a parcela já estava paga (pagamento em duplicidade)."""
+def _credito(cobranca: Cobranca, situacao: payloads.SituacaoPedido, restante: Decimal) -> tuple[Decimal, list[str]]:
+    """Quanto entra na parcela e as divergências para a equipe acertar."""
+    avisos = []
+    credito = cobranca.valor_parcela
+    pago = situacao.valor_pago
+    if pago is not None and pago < cobranca.valor_total:
+        credito = min(credito, pago)
+        avisos.append(f'Pago a menor: R$ {pago} de R$ {cobranca.valor_total}.')
+    if credito > restante:
+        avisos.append(f'Pago R$ {credito} com saldo de R$ {restante} na parcela: excedente de R$ {credito - restante}.')
+        credito = restante
+    return credito, avisos
+
+
+def _aplicar_na_parcela(cobranca: Cobranca, situacao: payloads.SituacaoPedido, quando) -> list[str]:
+    """Dá baixa no que foi pago e devolve as divergências (vazio quando está tudo certo)."""
     parcela = Parcela.objects.select_for_update().get(pk=cobranca.parcela_id)
     if parcela.pago:
-        return False
-    parcela.valor_pago = (parcela.valor_pago or Decimal('0')) + cobranca.valor_parcela
+        cobranca.pagamento_duplicado = True
+        return ['A parcela já estava paga: estorno ou acerto manual.']
+    credito, avisos = _credito(cobranca, situacao, max(parcela.valor_restante, Decimal('0')))
+    parcela.valor_pago = (parcela.valor_pago or Decimal('0')) + credito
     parcela.pago = parcela.valor_restante <= 0
     parcela.data_pagamento = timezone.localdate(quando)
     parcela.origem_baixa = ORIGEM_BAIXA_PAGBANK
     parcela.save(update_fields=CAMPOS_PARCELA)
-    return True
+    return avisos
+
+
+def _anotar_pedido_extra(cobranca: Cobranca, situacao: payloads.SituacaoPedido) -> None:
+    """Outro pedido pago para uma cobrança já paga (ex.: checkout pago duas vezes)."""
+    if not situacao.pedido_id or situacao.pedido_id == cobranca.pagbank_pedido_id:
+        return
+    if situacao.pedido_id in cobranca.acerto_manual:
+        return
+    logger.warning('Cobrança %s recebeu outro pedido pago (%s).', cobranca.pk, situacao.pedido_id)
+    cobranca.acerto_manual = '\n'.join(filter(None, [
+        cobranca.acerto_manual, f'Outro pedido pago para esta cobrança: {situacao.pedido_id} (R$ {situacao.valor_pago}).',
+    ]))
+    cobranca.save(update_fields=['acerto_manual', 'atualizado_em'])
 
 
 def registrar_pagamento(cobranca: Cobranca, situacao: payloads.SituacaoPedido) -> bool:
@@ -58,6 +96,7 @@ def registrar_pagamento(cobranca: Cobranca, situacao: payloads.SituacaoPedido) -
     with transaction.atomic():
         cobranca = Cobranca.objects.select_for_update().get(pk=cobranca.pk)
         if cobranca.status == Cobranca.Status.PAGA:
+            _anotar_pedido_extra(cobranca, situacao)
             return False
         quando = situacao.pago_em or timezone.now()
         cobranca.status = Cobranca.Status.PAGA
@@ -65,17 +104,15 @@ def registrar_pagamento(cobranca: Cobranca, situacao: payloads.SituacaoPedido) -
         cobranca.valor_pago = situacao.valor_pago
         cobranca.pagbank_pedido_id = situacao.pedido_id
         cobranca.detalhes_pagamento = situacao.detalhes
-        cobranca.pagamento_duplicado = not _aplicar_na_parcela(cobranca, quando)
+        cobranca.acerto_manual = '\n'.join(_aplicar_na_parcela(cobranca, situacao, quando))
         cobranca.save(update_fields=[
             'status', 'paga_em', 'valor_pago', 'pagbank_pedido_id', 'detalhes_pagamento',
-            'pagamento_duplicado', 'atualizado_em',
+            'pagamento_duplicado', 'acerto_manual', 'atualizado_em',
         ])
         cobranca_id = cobranca.pk
         transaction.on_commit(lambda: _depois_da_baixa(cobranca_id))
-    if cobranca.pagamento_duplicado:
-        logger.warning('Cobrança %s paga com a parcela %s já quitada: acerto manual.', cobranca.pk, cobranca.parcela_id)
-    if situacao.valor_pago is not None and situacao.valor_pago < cobranca.valor_total:
-        logger.warning('Cobrança %s paga a menor: %s de %s.', cobranca.pk, situacao.valor_pago, cobranca.valor_total)
+    if cobranca.acerto_manual:
+        logger.warning('Cobrança %s precisa de acerto manual: %s', cobranca.pk, cobranca.acerto_manual)
     return True
 
 

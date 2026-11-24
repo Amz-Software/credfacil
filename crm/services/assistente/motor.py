@@ -8,6 +8,7 @@ import logging
 import re
 import time
 from datetime import timedelta
+from urllib.parse import urlsplit
 
 from django.utils import timezone
 
@@ -89,15 +90,25 @@ def _conversar(turno: Turno) -> str:
 
 
 def _host(endereco: str) -> str:
-    sem_esquema = re.sub(r'^https?://', '', endereco.strip().lower())
-    return sem_esquema.split('/', 1)[0].split(':', 1)[0].rstrip('.,;!?')
+    """Host real do link; '' quando não dá para confiar (userinfo `a@b`, endereço inválido)."""
+    texto = endereco.strip().lower().rstrip('.,;!?')
+    if not re.match(r'^https?://', texto):
+        texto = f'//{texto}'
+    try:
+        partes = urlsplit(texto)
+        host = partes.hostname or ''
+    except ValueError:
+        return ''
+    if '@' in partes.netloc:
+        return ''
+    return host.rstrip('.')
 
 
 def _hosts_do_sistema() -> set[str]:
     from pagamentos_online.models import ConfiguracaoPagamentoOnline
 
     enderecos = (ConfiguracaoCRM.obter().url_publica, ConfiguracaoPagamentoOnline.obter().url_app_cliente)
-    return {_host(endereco) for endereco in enderecos if endereco.strip()}
+    return {_host(endereco) for endereco in enderecos if endereco.strip()} - {''}
 
 
 def _links_permitidos(texto: str) -> bool:

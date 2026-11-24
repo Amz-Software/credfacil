@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 Forma = Cobranca.Forma
 CAMINHO_NOTIFICACAO = '/api/pagbank/notificacao/'
 FOLGA_REUSO = {Forma.PIX: timedelta(minutes=10), Forma.CARTAO: timedelta(minutes=10), Forma.BOLETO: timedelta(days=1)}
+EM_CRIACAO = timedelta(seconds=60)  # mais que o timeout da chamada ao PagBank
 CAMPO_EXIGIDO = {Forma.PIX: 'pix_copia_cola', Forma.BOLETO: 'boleto_linha_digitavel', Forma.CARTAO: 'link_pagamento'}
 
 
@@ -116,6 +117,13 @@ def _reaproveitavel(parcela: Parcela, forma: str, valor: Decimal, total: Decimal
             .order_by('-criado_em').first())
 
 
+def _em_criacao(parcela: Parcela, forma: str) -> bool:
+    """Outra requisição (duplo clique, bot e backoffice juntos) está esperando o PagBank para esta parcela."""
+    recente = timezone.now() - EM_CRIACAO
+    return Cobranca.objects.filter(parcela=parcela, forma=forma, status=Cobranca.Status.PENDENTE,
+                                   pagbank_id='', criado_em__gt=recente).exists()
+
+
 def _validar(parcela: Parcela, forma: str, configuracao: ConfiguracaoPagamentoOnline) -> None:
     if not configuracao.ativo:
         raise ErroDeNegocio('O pagamento online está desligado.')
@@ -168,6 +176,8 @@ def _reservar(parcela: Parcela, forma: str, origem: str, usuario) -> tuple[Cobra
         existente = _reaproveitavel(parcela, forma, valor, total)
         if existente:
             return existente, None, True
+        if _em_criacao(parcela, forma):
+            raise ErroDeNegocio('Essa cobrança já está sendo gerada. Aguarde alguns segundos e tente de novo.')
         cobrar = payloads.Cobrar(
             referencia='', descricao=_descricao(parcela), valor=total,
             pagador=_pagador(parcela, configuracao), url_notificacao=url_notificacao(),

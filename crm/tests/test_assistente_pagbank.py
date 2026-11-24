@@ -72,3 +72,10 @@ class AssistentePagBankTests(AssistenteBase):
         self.assertIn('url', resultado)
         self.assertIn('observacao', resultado)
         self.assertFalse(Cobranca.objects.exists())
+
+    def test_link_com_usuario_antes_do_host_nao_passa_no_filtro(self):
+        from crm.services.assistente.motor import _links_permitidos
+
+        self.assertTrue(_links_permitidos('Pague em https://vendas.exemplo.com/pagamento/x'))
+        self.assertFalse(_links_permitidos('Pague em https://vendas.exemplo.com:x@evil.com/p'))
+        self.assertFalse(_links_permitidos('Pague em vendas.exemplo.com@evil.com/p'))

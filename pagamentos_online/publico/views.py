@@ -2,11 +2,15 @@
 
 Erros no formato {"erro": {"codigo", "mensagem"}}. Escritas limitadas pelo escopo `publico`.
 """
+import hashlib
 import logging
 import os
 import re
 
-from django.http import HttpResponse
+from django.conf import settings
+from django.core.cache import caches
+from django.db import transaction
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import serializers, status
@@ -20,12 +24,28 @@ from vendas.services.erros import ErroDeNegocio
 
 from ..models import Cobranca
 from ..servicos.cobrancas import gerar_cobranca
-from ..servicos.comprovante import gerar_pdf
+from ..servicos.comprovante import gerar_pdf, nome_do_arquivo
 from . import dados
 
 logger = logging.getLogger(__name__)
 
 MAX_PAGAMENTOS_CONSULTA = 20
+MAX_CONSULTAS_POR_CPF = 10
+JANELA_CONSULTAS_CPF = 60 * 60  # 1 hora
+MAX_COMPROVANTES_DO_CLIENTE = 3
+
+
+def tentativas_do_cpf_esgotadas(cpf: str) -> bool:
+    """Limite por CPF (além do por IP): adivinhar a data de nascimento exige muitas tentativas no mesmo CPF."""
+    cache = caches[getattr(settings, 'CRM_CACHE_LIMITES', 'default')]
+    chave = f'pagamentos_online:consulta:{hashlib.sha256(cpf.encode()).hexdigest()}'
+    cache.add(chave, 0, timeout=JANELA_CONSULTAS_CPF)
+    try:
+        tentativas = cache.incr(chave)
+    except ValueError:  # a chave expirou entre o add e o incr
+        cache.set(chave, 1, timeout=JANELA_CONSULTAS_CPF)
+        tentativas = 1
+    return tentativas > MAX_CONSULTAS_POR_CPF
 
 
 def _erro(mensagem: str, codigo: str = 'regra_de_negocio', status_http: int = 400) -> Response:
@@ -80,6 +100,8 @@ class ConsultaView(PublicoView):
         entrada = ConsultaEntrada(data=request.data)
         if not entrada.is_valid():
             return _erro('Confira o CPF e a data de nascimento.', 'validacao')
+        if tentativas_do_cpf_esgotadas(entrada.validated_data['cpf']):
+            return _erro('Muitas tentativas para este CPF. Tente de novo mais tarde.', 'limite_excedido', 429)
         pagamentos = (Pagamento.objects
                       .filter(venda__cliente__cpf=entrada.validated_data['cpf'],
                               venda__cliente__nascimento=entrada.validated_data['data_nascimento'],
@@ -129,18 +151,63 @@ class ComprovanteView(PublicoView):
             Cobranca.objects.select_related('parcela__pagamento__venda__cliente'),
             referencia=referencia, parcela__pagamento=pagamento, status=Cobranca.Status.PAGA,
         )
-        resposta = HttpResponse(gerar_pdf(cobranca), content_type='application/pdf')
-        resposta['Content-Disposition'] = f'inline; filename="comprovante-parcela-{cobranca.parcela.numero_parcela}.pdf"'
+        nome = f'comprovante-parcela-{cobranca.parcela.numero_parcela}.pdf'
+        anexado = cobranca.parcela.comprovantes.filter(arquivo__endswith=nome_do_arquivo(cobranca)).first()
+        if anexado:  # o PDF já gerado na baixa: sem custo de gerar de novo a cada acesso
+            resposta = FileResponse(anexado.arquivo.open('rb'), content_type='application/pdf', filename=nome)
+        else:
+            resposta = HttpResponse(gerar_pdf(cobranca), content_type='application/pdf')
+        resposta['Content-Disposition'] = f'inline; filename="{nome}"'
         resposta['Cache-Control'] = 'private, no-store'
         return resposta
+
+
+MENSAGEM_ARQUIVO = 'Envie o comprovante em PDF ou imagem (JPG, PNG, WEBP ou HEIC).'
+MARCAS_HEIC = (b'ftypheic', b'ftypheix', b'ftypmif1', b'ftypmsf1', b'ftyphevc')
+
+
+def _conteudo_confere(arquivo, extensao: str) -> bool:
+    """Confere o conteúdo, não só a extensão: PDF começa com %PDF-, imagem precisa abrir no Pillow."""
+    inicio = arquivo.read(16)
+    arquivo.seek(0)
+    if extensao == 'pdf':
+        return inicio.startswith(b'%PDF-')
+    if extensao == 'heic':
+        return inicio[4:12] in MARCAS_HEIC
+    try:
+        from PIL import Image
+
+        with Image.open(arquivo) as imagem:
+            imagem.verify()
+        return True
+    except Exception:  # noqa: BLE001 — qualquer falha do Pillow = não é imagem válida
+        return False
+    finally:
+        arquivo.seek(0)
 
 
 def _validar_arquivo(arquivo) -> None:
     extensao = os.path.splitext(arquivo.name or '')[1].lstrip('.').lower()
     if extensao not in ComprovanteParcela.EXTENSOES_PERMITIDAS:
-        raise ErroDeNegocio('Envie o comprovante em PDF ou imagem (JPG, PNG, WEBP ou HEIC).')
+        raise ErroDeNegocio(MENSAGEM_ARQUIVO)
     if arquivo.size > ComprovanteParcela.TAMANHO_MAXIMO_BYTES:
         raise ErroDeNegocio('O comprovante passa de 10 MB.')
+    if not _conteudo_confere(arquivo, extensao):
+        raise ErroDeNegocio(f'Não conseguimos ler o arquivo. {MENSAGEM_ARQUIVO}')
+
+
+def _pode_informar(parcela: Parcela) -> None:
+    pagamento = parcela.pagamento
+    if parcela.pago:
+        raise ErroDeNegocio('Essa parcela já está paga.')
+    if pagamento.quitado or pagamento.desativado or pagamento.devolucao:
+        raise ErroDeNegocio('Essa compra está encerrada. Fale com a nossa equipe.')
+    enviados = parcela.comprovantes.filter(observacao=OBSERVACAO_CLIENTE).count()
+    if enviados >= MAX_COMPROVANTES_DO_CLIENTE:
+        raise ErroDeNegocio('Você já enviou comprovantes desta parcela. A equipe vai conferir.')
+
+
+OBSERVACAO_CLIENTE = 'Enviado pelo cliente no app de pagamentos'
 
 
 class InformarPagamentoView(PublicoView):
@@ -149,22 +216,23 @@ class InformarPagamentoView(PublicoView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request, token, pk: int):
-        parcela = self.parcela(token, pk)
-        if parcela.pago:
-            raise ErroDeNegocio('Essa parcela já está paga.')
         arquivo = request.FILES.get('comprovante')
         if arquivo:
             _validar_arquivo(arquivo)
-        agora = timezone.now()
-        parcela.pagamento_efetuado = True
-        parcela.pagamento_efetuado_em = agora
-        parcela.data_pagamento = timezone.localdate(agora)
-        parcela.save(update_fields=['pagamento_efetuado', 'pagamento_efetuado_em', 'data_pagamento', 'modificado_em'])
-        if arquivo:
-            ComprovanteParcela.objects.create(
-                parcela=parcela, loja=parcela.pagamento.loja, arquivo=arquivo,
-                observacao='Enviado pelo cliente no app de pagamentos',
-            )
+        with transaction.atomic():
+            parcela = (Parcela.objects.select_for_update().select_related('pagamento')
+                       .get(pk=self.parcela(token, pk).pk))
+            _pode_informar(parcela)
+            agora = timezone.now()
+            parcela.pagamento_efetuado = True
+            parcela.pagamento_efetuado_em = agora
+            parcela.data_pagamento = timezone.localdate(agora)
+            parcela.save(update_fields=['pagamento_efetuado', 'pagamento_efetuado_em', 'data_pagamento',
+                                        'modificado_em'])
+            if arquivo:
+                ComprovanteParcela.objects.create(
+                    parcela=parcela, loja=parcela.pagamento.loja, arquivo=arquivo, observacao=OBSERVACAO_CLIENTE,
+                )
         return Response(dados.detalhe_do_pagamento(parcela.pagamento))
 
 

@@ -113,6 +113,9 @@ class Cobranca(models.Model):
     pagamento_duplicado = models.BooleanField(
         default=False, help_text='Paga quando a parcela já estava quitada: precisa de estorno ou acerto manual.',
     )
+    acerto_manual = models.TextField(
+        blank=True, default='', help_text='Divergência para a equipe resolver (valor a menor, excedente, pagamento extra).',
+    )
     detalhes_pagamento = models.JSONField(default=dict, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)

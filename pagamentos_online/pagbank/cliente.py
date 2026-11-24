@@ -106,5 +106,6 @@ def assinatura_valida(corpo_bruto: bytes, assinatura: str) -> bool:
     """`x-authenticity-token` = sha256(token + '-' + corpo bruto), como manda a documentação."""
     if not assinatura or not configurado():
         return False
-    esperado = hashlib.sha256(f'{_token()}-'.encode() + corpo_bruto).hexdigest()
-    return hmac.compare_digest(esperado, assinatura.strip().lower())
+    esperado = hashlib.sha256(f'{_token()}-'.encode() + corpo_bruto).hexdigest().encode()
+    recebido = assinatura.strip().lower().encode('utf-8', 'replace')  # bytes: não ASCII nunca vira exceção
+    return hmac.compare_digest(esperado, recebido)

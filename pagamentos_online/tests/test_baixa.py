@@ -131,3 +131,49 @@ class ConciliacaoTest(ComCobrancaPix):
         self.assertEqual(resultado['expiradas'], 1)
         self.cobranca.refresh_from_db()
         self.assertEqual(self.cobranca.status, Cobranca.Status.EXPIRADA)
+
+
+class DivergenciasTest(ComCobrancaPix):
+    def test_pago_a_menor_credita_so_o_recebido_e_pede_acerto(self):
+        with self.pagbank((200, pedido_pago(self.referencia, 6000))):
+            self.notificar({'id': 'ORDE_1'})
+        self.parcela.refresh_from_db()
+        self.cobranca.refresh_from_db()
+        self.assertEqual(self.parcela.valor_pago, Decimal('60.00'))
+        self.assertFalse(self.parcela.pago)
+        self.assertIn('menor', self.cobranca.acerto_manual)
+
+    def test_baixa_manual_parcial_depois_da_cobranca_nao_credita_alem_do_saldo(self):
+        self.parcela.valor_pago = Decimal('40.00')
+        self.parcela.save()
+        with self.pagbank((200, pedido_pago(self.referencia, 10000))):
+            self.notificar({'id': 'ORDE_1'})
+        self.parcela.refresh_from_db()
+        self.cobranca.refresh_from_db()
+        self.assertEqual(self.parcela.valor_pago, Decimal('100.00'))
+        self.assertTrue(self.parcela.pago)
+        self.assertIn('excedente de R$ 40.00', self.cobranca.acerto_manual)
+
+    def test_segundo_pedido_pago_fica_anotado(self):
+        with self.pagbank((200, pedido_pago(self.referencia, 10000)),
+                          (200, pedido_pago(self.referencia, 10000, pedido_id='ORDE_2'))):
+            self.notificar({'id': 'ORDE_1'})
+            self.notificar({'id': 'ORDE_2'})
+        self.cobranca.refresh_from_db()
+        self.assertIn('ORDE_2', self.cobranca.acerto_manual)
+
+    def test_assinatura_com_caractere_nao_ascii_responde_401(self):
+        resposta = self.notificar({'id': 'ORDE_1'}, assinatura='é')
+        self.assertEqual(resposta.status_code, 401)
+
+    def test_cabecalho_do_checkout_nao_basta_se_o_valor_nao_cobre(self):
+        cartao = Cobranca.objects.create(
+            parcela=self.parcelas[1], forma=Cobranca.Forma.CARTAO, origem=Cobranca.Origem.CLIENTE,
+            valor_parcela=Decimal('100.00'), taxa=Decimal('5.26'), valor_total=Decimal('105.26'),
+            pagbank_id='CHEC_9', link_pagamento='https://pag', expira_em=timezone.now() + timedelta(hours=1),
+        )
+        pago_pouco = pedido_pago('outra', 100, pedido_id='ORDE_9', tipo='CREDIT_CARD')
+        with self.pagbank((200, pago_pouco)):
+            self.notificar({'id': 'ORDE_9'}, **{'x-product-id': 'CHEC_9'})
+        cartao.refresh_from_db()
+        self.assertEqual(cartao.status, Cobranca.Status.PENDENTE)

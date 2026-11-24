@@ -18,8 +18,8 @@ def _texto_equipe(cobranca: Cobranca) -> str:
     cliente = cobranca.parcela.pagamento.venda.cliente
     texto = (f'{cliente.nome} pagou a parcela {cobranca.parcela.numero_parcela} '
              f'({reais(cobranca.valor_parcela)}) via {cobranca.get_forma_display()}.')
-    if cobranca.pagamento_duplicado:
-        texto += ' Atenção: a parcela já estava paga, confira para estorno ou acerto.'
+    if cobranca.acerto_manual:
+        texto += f' Atenção, precisa de acerto: {cobranca.acerto_manual}'
     return texto
 
 

@@ -17,7 +17,7 @@ from .servicos.baixa import processar_notificacao
 
 logger = logging.getLogger(__name__)
 
-TAMANHO_MAXIMO = 512 * 1024
+TAMANHO_MAXIMO = 64 * 1024  # notificações do PagBank são pequenas
 
 
 def _registrar(corpo, cabecalhos: dict, status_http: int, cobranca=None) -> None:
@@ -45,8 +45,8 @@ class NotificacaoPagBankView(View):
         except ValueError:
             corpo = None
         if not cliente.assinatura_valida(corpo_bruto, request.headers.get('x-authenticity-token', '')):
-            logger.warning('Notificação do PagBank com assinatura inválida (%s).', cabecalhos.get('x-product-id'))
-            _registrar(corpo if isinstance(corpo, dict) else None, cabecalhos, 401)
+            # Sem gravar o corpo: quem não tem o token não enche o banco.
+            logger.warning('Notificação do PagBank com assinatura inválida (%s bytes).', len(corpo_bruto))
             return HttpResponse(status=401)
         if not isinstance(corpo, dict):
             _registrar(None, cabecalhos, 400)

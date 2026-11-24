@@ -64,7 +64,8 @@ Não exige login. O acesso é pelo CPF com a data de nascimento, ou pelo `token`
 ```
 - **`situacao`** pode ser `paga`, `em_confirmacao`, `atrasada`, `vence_hoje` ou `a_vencer`.
 - **`pix_estatico`** só vem quando o pagamento online está desligado. É o Pix da chave da empresa, que precisa de "informar" e da conferência da equipe.
-- **`quitacao.pix_estatico`** sempre vem: a quitação com desconto continua pela chave da empresa.
+- **`quitacao`** vem `null` quando não há parcela em aberto. O `pix_estatico` dela também pode vir `null` se a loja não tiver chave Pix. Quando vem, a quitação com desconto continua pela chave da empresa.
+- **`acerto_manual`** (backoffice) traz as divergências da baixa automática: valor pago a menor, excedente sobre o saldo da parcela ou outro pedido pago.
 
 **Cobrança:**
 ```json

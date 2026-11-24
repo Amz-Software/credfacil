@@ -49,7 +49,7 @@ class RespostaFalsa:
 
 
 @override_settings(PAGBANK_TOKEN=TOKEN, PAGBANK_AMBIENTE='sandbox', CRM_TAREFAS_SINCRONAS=True,
-                   NOTIFICACAO_WS_SINCRONO=False)
+                   NOTIFICACAO_WS_SINCRONO=False, CRM_CACHE_LIMITES='default')
 class PagamentoOnlineTestCase(TestCase):
     def setUp(self):
         self.pasta_midia = tempfile.mkdtemp(prefix='pagamentos-online-')

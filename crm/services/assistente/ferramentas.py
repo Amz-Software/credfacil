@@ -19,6 +19,7 @@ MAX_PARCELAS_POR_COMPRA = 12
 MAX_MOTIVO = 1000
 MAX_FRACAO_DESCONTO = Decimal('0.5')  # antecipação nunca passa de 50% da parcela
 CENTAVO = Decimal('0.01')
+MAX_COPIA_COLA = 512  # payload EMV do Pix (BR Code); bem abaixo do limite de texto do WhatsApp
 Assunto = EncaminhamentoIA.Assunto
 
 DEFINICOES = [
@@ -243,7 +244,11 @@ def _pix_direto(turno: Turno, parcela) -> dict | None:
         pix = pix_da_parcela(parcela)
     except ErroDeNegocio:
         return None
-    turno.mensagens_do_sistema.append(pix.pop('copia_cola'))
+    copia_cola = pix.pop('copia_cola')
+    if not copia_cola.startswith('000201') or len(copia_cola) > MAX_COPIA_COLA:
+        return None  # resposta inesperada do PagBank: melhor mandar o link da página
+    if copia_cola not in turno.mensagens_do_sistema:
+        turno.mensagens_do_sistema.append(copia_cola)
     return pix
 
 

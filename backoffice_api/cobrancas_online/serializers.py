@@ -1,4 +1,8 @@
 """Serializers do módulo de pagamentos online (PagBank) da API do backoffice."""
+from urllib.parse import urlsplit
+
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import URLValidator
 from rest_framework import serializers
 
 from pagamentos_online.models import Cobranca, ConfiguracaoPagamentoOnline, RegistroPagBank
@@ -41,10 +45,18 @@ class ConfiguracaoSerializer(serializers.ModelSerializer):
         return valor
 
     def validate_url_app_cliente(self, valor: str) -> str:
+        """Só origem https (sem usuário, caminho, query ou fragmento): vira redirect, link ao cliente e host liberado no bot."""
         valor = (valor or '').strip().rstrip('/')
-        if valor and not valor.startswith('https://'):
-            raise serializers.ValidationError('Use um endereço https://.')
-        return valor
+        if not valor:
+            return valor
+        try:
+            URLValidator(schemes=['https'])(valor)
+            partes = urlsplit(valor)
+        except (DjangoValidationError, ValueError) as erro:
+            raise serializers.ValidationError('Informe um endereço https:// válido.') from erro
+        if partes.username or partes.password or partes.path or partes.query or partes.fragment or not partes.hostname:
+            raise serializers.ValidationError('Informe só o endereço do app, ex.: https://vendas.exemplo.com.')
+        return f'https://{partes.netloc.lower()}'
 
     def validate(self, attrs):
         atual = self.instance
@@ -69,7 +81,7 @@ class CobrancaSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'referencia', 'parcela_id', 'parcela_numero', 'pagamento_id', 'cliente_nome',
             'forma', 'forma_rotulo', 'status', 'status_rotulo', 'origem', 'origem_rotulo',
-            'valor_parcela', 'taxa', 'valor_total', 'valor_pago', 'pagamento_duplicado',
+            'valor_parcela', 'taxa', 'valor_total', 'valor_pago', 'pagamento_duplicado', 'acerto_manual',
             'pagbank_id', 'pagbank_pedido_id', 'pix_copia_cola', 'boleto_linha_digitavel', 'boleto_pdf_url',
             'link_pagamento', 'expira_em', 'paga_em', 'detalhes_pagamento', 'criado_em', 'criado_por',
         ]

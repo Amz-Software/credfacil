@@ -10,6 +10,7 @@ from pagamentos_online.servicos.links import enviar_link_whatsapp, link_do_pagam
 
 from ..financeiro.base import ContasAReceberBaseView
 from ..financeiro.constantes import GRUPOS_ANALISTA_ADMIN
+from ..nucleo.erros import ErroBackoffice
 from ..nucleo.permissoes import EmGrupo
 from .serializers import CobrancaSerializer, ConfiguracaoSerializer, GerarCobrancaSerializer, RegistroSerializer
 
@@ -60,6 +61,8 @@ class CobrancasListaView(ContasAReceberBaseView):
                 cobrancas = cobrancas.filter(**{campo: valor})
         if request.query_params.get('duplicado') in ('1', 'true'):
             cobrancas = cobrancas.filter(pagamento_duplicado=True)
+        if request.query_params.get('acerto') in ('1', 'true'):
+            cobrancas = cobrancas.exclude(acerto_manual='')
         busca = (request.query_params.get('busca') or '').strip()
         if busca:
             cobrancas = cobrancas.filter(
@@ -105,7 +108,8 @@ class EnviarLinkView(ContasAReceberBaseView):
     def post(self, request, pk: int):
         parcela = self.obter_parcela(pk)
         link = enviar_link_whatsapp(parcela, request.user)
-        self.auditar('link_pagamento_enviado', objeto=parcela, dados={'link': link})
+        # Sem o link no registro: ele contém o token de acesso do cliente.
+        self.auditar('link_pagamento_enviado', objeto=parcela, dados={'pagamento_id': parcela.pagamento_id})
         return Response({'link': link, 'enviado': True})
 
 
@@ -120,7 +124,9 @@ class RegistrosView(ContasAReceberBaseView):
         registros = RegistroPagBank.objects.all()
         cobranca_id = request.query_params.get('cobranca')
         if cobranca_id:
-            registros = registros.filter(cobranca=get_object_or_404(Cobranca, pk=cobranca_id))
+            if not cobranca_id.isdigit():
+                raise ErroBackoffice('Informe o número da cobrança.', campos={'cobranca': ['Número inválido.']})
+            registros = registros.filter(cobranca=get_object_or_404(Cobranca, pk=int(cobranca_id)))
         tipo = request.query_params.get('tipo')
         if tipo:
             registros = registros.filter(tipo=tipo)
