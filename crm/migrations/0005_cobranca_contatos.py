@@ -9,7 +9,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('vendas', '0161_comodato'),
+        ('vendas', '0160_pre_analise_analise_online'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('crm', '0004_assistente_ia'),
     ]

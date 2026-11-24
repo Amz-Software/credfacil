@@ -139,12 +139,14 @@ class CobrancaForm(_BootstrapMixin, forms.ModelForm):
 
     class Meta:
         model = ConfiguracaoCRM
-        fields = ['cobranca_ativa', 'cobranca_hora_envio', 'cobranca_intervalo_dias', 'cobranca_max_insistencias',
+        fields = ['cobranca_ativa', 'cobranca_hora_envio', 'cobranca_pular_bom_pagador', 'cobranca_intervalo_dias',
+                  'cobranca_max_insistencias',
                   'modelo_aviso_antes', 'modelo_aviso_dia', 'modelo_aviso_apos', 'modelo_aviso_insistencia',
                   'modelo_aviso_quitacao']
         labels = {
             'cobranca_ativa': 'Enviar avisos automáticos de cobrança',
             'cobranca_hora_envio': 'Enviar a partir das',
+            'cobranca_pular_bom_pagador': 'Não mandar o lembrete de 3 dias antes para quem sempre paga em dia',
             'cobranca_intervalo_dias': 'Sem retorno, repetir a cada (dias)',
             'cobranca_max_insistencias': 'Máximo de repetições',
             'modelo_aviso_antes': '3 dias antes do vencimento',

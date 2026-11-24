@@ -350,6 +350,10 @@ class ConfiguracaoCRM(models.Model):
     cobranca_ativa = models.BooleanField(default=False)
     cobranca_ativada_em = models.DateTimeField(null=True, blank=True, editable=False)
     cobranca_hora_envio = models.TimeField(default=time(9, 0), help_text='A partir de que horas os avisos saem.')
+    cobranca_pular_bom_pagador = models.BooleanField(
+        default=True, help_text='Quem sempre pagou em dia (3+ parcelas, nenhuma atrasada) não recebe o lembrete de '
+                                '3 dias antes; o aviso do dia continua.',
+    )
     cobranca_intervalo_dias = models.PositiveSmallIntegerField(
         default=5, help_text='Sem retorno do cliente, repete o aviso a cada quantos dias.',
     )

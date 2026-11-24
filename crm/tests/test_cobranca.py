@@ -380,6 +380,38 @@ class RobustezReguaTests(ReguaBase):
         self.assertEqual(contatos.para_aviso(self.cliente).telefone, '91977776666')
 
 
+class BomPagadorTests(ReguaBase):
+    def _historico(self, atrasada: bool) -> None:
+        """3 parcelas pagas (a 1ª do cenário + 2 novas); `atrasada` = uma delas paga depois do vencimento."""
+        from vendas.models import Pagamento
+
+        outro = Pagamento.objects.create(venda=self.pagamento.venda, tipo_pagamento=self.pagamento.tipo_pagamento,
+                                         valor=Decimal('200.00'), parcelas=2, loja=self.loja,
+                                         data_primeira_parcela=self.hoje - timedelta(days=90))
+        vencimento = self.hoje - timedelta(days=60)
+        Parcela.objects.filter(pagamento=outro).update(pago=True, data_vencimento=vencimento,
+                                                       data_pagamento=vencimento + timedelta(days=5 if atrasada else 0))
+        Parcela.objects.filter(pk=self.parcelas[0].pk).update(data_pagamento=self.hoje - timedelta(days=41))
+        Parcela.objects.filter(pk=self.parcelas[1].pk).update(pago=True, data_pagamento=self.hoje - timedelta(days=10))
+        self.vencer_em(self.parcelas[2], 3)
+
+    def test_quem_sempre_pagou_em_dia_nao_recebe_o_lembrete_antecipado(self):
+        self._historico(atrasada=False)
+
+        self.assertEqual(self.rodar(), {})
+        self.vencer_em(self.parcelas[2], 0)
+        self.assertEqual(self.rodar(), {Tipo.AVISO_DIA: 1})  # o aviso do dia continua
+
+    def test_quem_ja_atrasou_ou_com_opcao_desligada_recebe(self):
+        self._historico(atrasada=True)
+        self.assertEqual(self.rodar(), {Tipo.AVISO_ANTES: 1})
+
+    def test_opcao_desligada_manda_para_todos(self):
+        self._historico(atrasada=False)
+        ConfiguracaoCRM.objects.filter(pk=1).update(cobranca_pular_bom_pagador=False)
+        self.assertEqual(self.rodar(), {Tipo.AVISO_ANTES: 1})
+
+
 class AlertaTests(ReguaBase):
     def _avisado_sem_resposta(self) -> Conversa:
         """Parcela vencida com pedido de comprovante e uma repetição, sem resposta do cliente."""

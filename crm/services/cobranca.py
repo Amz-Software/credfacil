@@ -18,7 +18,7 @@ from datetime import date, datetime, time, timedelta
 from django.conf import settings
 from django.core.cache import caches
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Max, Q
+from django.db.models import Count, F, Max, Q
 from django.utils import timezone
 
 from crm.models import ConfiguracaoCRM, Conversa, Mensagem, TentativaContato, VersaoAbertura
@@ -37,6 +37,7 @@ INTERVALO_RODADAS = 15 * 60  # segundos: a rotina do worker roda a cada minuto
 CHAVE_RODADA = 'crm:cobranca:ultima_rodada'
 JANELA_QUITACAO = timedelta(days=3)
 MAX_ENVIOS_POR_RODADA = 300
+MIN_PARCELAS_BOM_PAGADOR = 3
 ALERTA_DEPOIS_DE_REPETICOES = 1  # pedido de comprovante + 1 repetição sem resposta → a equipe assume
 MAX_FALHAS_SEGUIDAS = 5  # Meta fora do ar, token vencido, template pausado: para e tenta na próxima rodada
 TIPOS_AVISO = (Tipo.AVISO_ANTES, Tipo.AVISO_DIA, Tipo.AVISO_APOS, Tipo.AVISO_INSISTENCIA, Tipo.AVISO_QUITACAO)
@@ -174,6 +175,22 @@ def clientes_em_atraso(ids, hoje: date) -> set[int]:
                .values_list('pagamento__venda__cliente_id', flat=True))
 
 
+def bons_pagadores(ids, hoje: date) -> set[int]:
+    """Pagou ao menos MIN_PARCELAS_BOM_PAGADOR parcelas do crediário, todas até o vencimento, e não tem
+    parcela vencida em aberto. Parcela paga sem data de pagamento (legado) não conta."""
+    from vendas.models import Parcela
+
+    pagas = (Parcela.objects
+             .filter(pago=True, data_pagamento__isnull=False, pagamento__venda__cliente_id__in=list(ids),
+                     pagamento__tipo_pagamento__nome__iexact=TIPO_CREDFACIL, pagamento__venda__is_deleted=False)
+             .values('pagamento__venda__cliente_id')
+             .annotate(total=Count('pk'), atrasadas=Count('pk', filter=Q(data_pagamento__gt=F('data_vencimento'))))
+             .order_by())
+    pontuais = {item['pagamento__venda__cliente_id'] for item in pagas
+                if item['total'] >= MIN_PARCELAS_BOM_PAGADOR and item['atrasadas'] == 0}
+    return pontuais - clientes_em_atraso(pontuais, hoje)
+
+
 def _cliente_escreveu_depois(cliente, momento: datetime) -> bool:
     return (Mensagem.objects.filter(conversa__clientes=cliente, direcao=Mensagem.Direcao.ENTRADA,
                                     criado_em__gt=momento)
@@ -255,8 +272,13 @@ class _Rodada:
             versao = versao_vigente(self.config, etapa.campo_modelo)
             if versao is None:
                 continue
-            for parcela in _candidatas_da_etapa(etapa, self.hoje, self.ativada_em):
-                self.tentar(versao, parcela, etapa.tipo)
+            candidatas = list(_candidatas_da_etapa(etapa, self.hoje, self.ativada_em))
+            pular = set()
+            if etapa.tipo == Tipo.AVISO_ANTES and self.config.cobranca_pular_bom_pagador:
+                pular = bons_pagadores({p.pagamento.venda.cliente_id for p in candidatas}, self.hoje)
+            for parcela in candidatas:
+                if parcela.pagamento.venda.cliente_id not in pular:
+                    self.tentar(versao, parcela, etapa.tipo)
 
     def insistencias(self) -> None:
         versao = versao_vigente(self.config, CAMPO_INSISTENCIA)
