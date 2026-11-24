@@ -13,11 +13,15 @@ def _dinheiro(**kwargs) -> serializers.DecimalField:
 # ── Filtros ─────────────────────────────────────────────────────────────────
 
 class FiltrosGraficosSerializer(serializers.Serializer):
-    """`?loja=&data_inicio=&data_fim=`; a loja precisa estar no escopo da requisição."""
+    """`?loja=&data_inicio=&data_fim=&comodato=`; a loja precisa estar no escopo da requisição.
+
+    `comodato` (true/false) restringe às vendas de comodato ou às comuns; ausente = todas.
+    """
 
     loja = serializers.PrimaryKeyRelatedField(queryset=Loja.objects.none(), required=False, allow_null=True)
     data_inicio = serializers.DateField(required=False, allow_null=True)
     data_fim = serializers.DateField(required=False, allow_null=True)
+    comodato = serializers.BooleanField(required=False, allow_null=True)
 
     def __init__(self, *args, lojas=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -157,6 +161,7 @@ class FiltrosAplicadosSerializer(serializers.Serializer):
     loja = serializers.IntegerField(allow_null=True)
     data_inicio = serializers.DateField(allow_null=True)
     data_fim = serializers.DateField(allow_null=True)
+    comodato = serializers.BooleanField(allow_null=True)
 
 
 class GraficosSerializer(serializers.Serializer):

@@ -198,3 +198,33 @@ class GraficosPdfTests(BaseCarteira):
     def test_post_e_recusado(self):
         user = criar_usuario('pdf', permissoes=('vendas.can_generate_dashboard_report',))
         self.assertIn(cliente_logado(user).post(URL_PDF, {}).status_code, (403, 405))
+
+
+class ComodatoTests(BaseCarteira):
+    """Filtro `comodato` do dashboard: só vendas de comodato (repasse 0) ou só as comuns."""
+
+    def setUp(self):
+        super().setUp()
+        from vendas.models import Venda
+
+        Venda.objects.filter(pk=self.dados['venda_joao'].pk).update(comodato=True, repasse_logista=Decimal('0'))
+
+    def test_graficos_filtram_por_comodato(self):
+        cliente = cliente_logado(criar_usuario('graficos', permissoes=('vendas.can_view_all_dashboard',)))
+        todas = cliente.get(URL_GRAFICOS).json()
+        so_comodato = cliente.get(URL_GRAFICOS, {'comodato': 'true'}).json()
+        comuns = cliente.get(URL_GRAFICOS, {'comodato': 'false'}).json()
+        self.assertIsNone(todas['filtros']['comodato'])
+        self.assertTrue(so_comodato['filtros']['comodato'])
+        self.assertEqual(so_comodato['resumo']['total_vendas'], 1)
+        self.assertEqual(so_comodato['resumo']['total_repasses'], '0.00')
+        self.assertEqual(comuns['resumo']['total_vendas'] + 1, todas['resumo']['total_vendas'])
+        self.assertEqual(cliente.get(URL_GRAFICOS, {'comodato': 'talvez'}).status_code, 400)
+
+    def test_pdf_com_filtro_de_comodato_e_auditado(self):
+        user = criar_usuario('pdf', permissoes=('vendas.can_generate_dashboard_report',))
+        resposta = cliente_logado(user).get(URL_PDF, {'comodato': 'true'})
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(resposta.content.startswith(b'%PDF'))
+        registro = RegistroAuditoria.objects.get(acao='relatorio_gerado')
+        self.assertTrue(registro.dados['filtros']['comodato'])

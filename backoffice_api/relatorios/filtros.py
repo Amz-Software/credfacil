@@ -59,7 +59,7 @@ def parcelas_cadastradas() -> list[tuple[str, str]]:
 
 
 class FiltrosBase(serializers.Serializer):
-    """Período e lojas, comuns a todos os relatórios.
+    """Período, lojas e comodato, comuns a todos os relatórios.
 
     `lojas` aceita só lojas do escopo da requisição; vazio = todas as lojas do escopo.
     """
@@ -69,6 +69,8 @@ class FiltrosBase(serializers.Serializer):
     data_inicial = serializers.DateField(label='Data inicial', required=False, allow_null=True)
     data_final = serializers.DateField(label='Data final', required=False, allow_null=True)
     lojas = multiplos_de_modelo(label='Lojas')
+    # Venda de comodato: sem repasse ao lojista (todo o valor fica com a IPX).
+    comodato = booleano('Comodato')
 
     def __init__(self, *args, lojas: QuerySet | None = None, **kwargs):
         super().__init__(*args, **kwargs)

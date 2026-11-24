@@ -35,6 +35,7 @@ PARAMETROS_GRAFICOS = [
     OpenApiParameter('data_inicio', OpenApiTypes.DATE, description='AAAA-MM-DD.'),
     OpenApiParameter('data_fim', OpenApiTypes.DATE, description='AAAA-MM-DD.'),
 ]
+    OpenApiParameter('comodato', OpenApiTypes.BOOL, description='true = só vendas de comodato; false = só as comuns.'),
 
 
 class PainelResumoView(BackofficeAPIView):
@@ -71,7 +72,7 @@ class PainelResumoView(BackofficeAPIView):
 
 
 class _FiltroGraficosMixin:
-    """Lojas efetivas (escopo ∩ X-Loja ∩ `?loja`) e período validados."""
+    """Lojas efetivas (escopo ∩ X-Loja ∩ `?loja`), período e filtro de comodato validados."""
 
     def filtros(self):
         lojas = self.lojas()
@@ -81,7 +82,7 @@ class _FiltroGraficosMixin:
         loja = dados.get('loja')
         recorte = lojas.filter(pk=loja.pk) if loja else lojas
         periodo = Periodo(dados.get('data_inicio'), dados.get('data_fim'))
-        return lojas, recorte, loja, periodo
+        return lojas, recorte, loja, periodo, dados.get('comodato')
 
 
 class PainelGraficosView(_FiltroGraficosMixin, BackofficeAPIView):
@@ -92,10 +93,13 @@ class PainelGraficosView(_FiltroGraficosMixin, BackofficeAPIView):
         tags=[TAG], summary='Dashboard de gráficos', parameters=PARAMETROS_GRAFICOS, responses=GraficosSerializer,
     )
     def get(self, request):
-        lojas, recorte, loja, periodo = self.filtros()
-        resultado = calcular_graficos(recorte, periodo, incluir_mensal=recorte.count() == 1)
+        lojas, recorte, loja, periodo, comodato = self.filtros()
+        resultado = calcular_graficos(recorte, periodo, incluir_mensal=recorte.count() == 1, comodato=comodato)
         dados = {
-            'filtros': {'loja': loja.pk if loja else None, 'data_inicio': periodo.inicio, 'data_fim': periodo.fim},
+            'filtros': {
+                'loja': loja.pk if loja else None, 'data_inicio': periodo.inicio, 'data_fim': periodo.fim,
+                'comodato': comodato,
+            },
             'lojas_disponiveis': [{'id': pk, 'nome': nome} for pk, nome in lojas.order_by('nome').values_list('pk', 'nome')],
             **formatar_graficos(resultado),
         }
@@ -113,8 +117,8 @@ class PainelGraficosPdfView(EntregaDeArquivoMixin, _FiltroGraficosMixin, Backoff
         responses={(200, 'application/pdf'): OpenApiResponse(OpenApiTypes.BINARY, description='Arquivo PDF.')},
     )
     def get(self, request):
-        _, recorte, loja, periodo = self.filtros()
-        contexto = contexto_relatorio_dashboard(recorte, periodo, request.user)
+        _, recorte, loja, periodo, comodato = self.filtros()
+        contexto = contexto_relatorio_dashboard(recorte, periodo, request.user, comodato=comodato)
         resposta = resposta_pdf(get_template(TEMPLATE_PDF).render(contexto), 'relatorio_dashboard')
         self.auditar(
             'relatorio_gerado',
@@ -131,4 +135,5 @@ class PainelGraficosPdfView(EntregaDeArquivoMixin, _FiltroGraficosMixin, Backoff
                 'clientes_listados': len(contexto['clientes_quitados_lista']),
             },
         )
+                    'comodato': comodato,
         return resposta

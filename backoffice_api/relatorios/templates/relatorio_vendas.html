@@ -6,13 +6,15 @@
   body { font-size: 7.5pt; }
   .bloqueado td { color: #c00000; }
   .filtros { margin-bottom: 8px; color: #444; }
+  .selo-comodato { display: inline-block; margin-left: 3px; padding: 0 3px; border: 1px solid #6f42c1; border-radius: 2px; color: #6f42c1; font-size: 85%; font-weight: 700; }
+  .comodato-resumo td { background: #f3eefb; }
 {% endblock %}
 {% block report_header_meta %}<div class="meta">{{ titulo }} · Emitido por {{ usuario.get_username }}</div>{% endblock %}
 {% block report_content %}
 <div class="ipix-report-title">{{ titulo }}</div>
 <div class="filtros">
   Período: {{ filtros.data_inicial|date:"d/m/Y"|default:"-" }} a {{ filtros.data_final|date:"d/m/Y"|default:"-" }}<br>
-  Lojas: {% if lojas_nomes %}{{ lojas_nomes|join:", " }}{% else %}Todas do seu acesso{% endif %}
+  Lojas: {% if lojas_nomes %}{{ lojas_nomes|join:", " }}{% else %}Todas do seu acesso{% endif %}{% if filtros.comodato == True %}<br>Comodato: Sim{% elif filtros.comodato == False %}<br>Comodato: Não{% endif %}
 </div>
 <table>
   <thead><tr>
@@ -23,7 +25,7 @@
   <tbody>
   {% for l in linhas %}
     <tr{% if l.pagamento_bloqueado %} class="bloqueado"{% endif %}>
-      <td>{{ l.loja|title }}</td><td>{{ l.cliente|title }}</td><td>{{ l.data_venda|date:"d/m/Y H:i" }}</td>
+      <td>{{ l.loja|title }}</td><td>{{ l.cliente|title }}{% if l.comodato %} <span class="selo-comodato">Comodato</span>{% endif %}</td><td>{{ l.data_venda|date:"d/m/Y H:i" }}</td>
       <td>{{ l.vendedor|title }}</td><td>{{ l.parcelas }}</td>
       <td>{% for p in l.produtos %}{{ p|title }}{% if not forloop.last %}, {% endif %}{% empty %}N/A{% endfor %}</td>
       <td>{{ l.status_solicitacao_rotulo }}</td><td>{{ l.segunda_compra|yesno:"Sim,Não" }}</td>
@@ -43,6 +45,12 @@
     <td colspan="4">Total Repasse: R$ {{ totais.total_repasse|floatformat:2 }}</td>
     <td colspan="2">Total Valor: R$ {{ totais.total_valor|floatformat:2 }}</td>
     <td colspan="3">Total Juros: R$ {{ totais.total_juros|floatformat:2 }}</td>
+  </tr>
+  <tr class="comodato-resumo">
+    <td colspan="5">Vendas comuns: {{ totais.demais_quantidade }} · R$ {{ totais.demais_valor|floatformat:2 }}</td>
+    <td colspan="4">Repasse ao lojista (só comuns): R$ {{ totais.demais_repasse|floatformat:2 }}</td>
+    <td colspan="3">Comodato: {{ totais.comodato_quantidade }} · R$ {{ totais.comodato_valor|floatformat:2 }}</td>
+    <td colspan="2">Fica com a IPX (comodato): R$ {{ totais.comodato_ipx|floatformat:2 }}</td>
   </tr></tfoot>
 </table>
 {% endblock %}

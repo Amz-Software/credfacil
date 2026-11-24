@@ -7,6 +7,22 @@ from vendas.models import *
 from django_select2.forms import Select2Widget, ModelSelect2Widget, Select2MultipleWidget
 from django_select2.forms import ModelSelect2MultipleWidget, HeavySelect2Widget
 
+
+def campo_filtro_comodato():
+    """Filtro Todos/Sim/Não de "Aparelho de comodato" (mesmo padrão de `analise_online`)."""
+    return forms.TypedChoiceField(
+        label='Aparelho de comodato',
+        required=False,
+        choices=[
+            ('', 'Todos'),
+            ('True', 'Sim'),
+            ('False', 'Não'),
+        ],
+        coerce=lambda v: None if v == '' else (v == 'True'),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+
+
 class PagamentoForm(forms.ModelForm):
     class Meta:
         model = Pagamento
@@ -156,6 +172,7 @@ class RelatorioContasAReceberForm(forms.Form):
         required=False,
         widget=Select2MultipleWidget(attrs={'class': 'form-control'})
     )
+    comodato = campo_filtro_comodato()
 
 class RelatorioParcelasForm(forms.Form):
     """Filtros do relatório em grade de parcelas (Excel colorido por status)."""
@@ -192,6 +209,7 @@ class RelatorioParcelasForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome do cliente ou CPF'})
     )
+    comodato = campo_filtro_comodato()
 
 
 
@@ -312,3 +330,4 @@ class RelatorioContasAReceberAvancadoForm(forms.Form):
         ],
         widget=Select2MultipleWidget(attrs={'class': 'form-control'})
     )
+    comodato = campo_filtro_comodato()

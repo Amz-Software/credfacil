@@ -74,6 +74,7 @@
         .badge-info { color: #055160; background-color: #cff4fc; border: 1px solid #b6effb; }
         .badge-orange { color: #fff; background-color: #fd7e14; }
     </style>
+    {% include "relatorios/_estilo_comodato.html" %}
 </head>
 <body>
     <div class="container">
@@ -113,7 +114,7 @@
             <tbody>
             {% if list_by_parcelas %}
             {% for parcela in parcelas %}
-            <tr class="table-success">
+            <tr class="table-success{% if parcela.pagamento.venda.comodato %} linha-comodato{% endif %}">
             <td>{{ parcela.pagamento.venda.loja.nome|title }}</td>
             <td>{{ parcela.pagamento.venda.data_venda|date:"d/m/Y" }}</td>
             <td>{{ parcela.pagamento.venda.cliente.nome|title }}</td>
@@ -127,6 +128,7 @@
             </td>
             <td class="center">
                 <span class="badge badge-success">PAGO</span>
+                {% if parcela.pagamento.venda.comodato %}<span class="selo-comodato">COMODATO</span>{% endif %}
             </td>
             <td class="center">
             {% if parcela.pagamento.statuses.all %}
@@ -181,6 +183,7 @@
             {% elif conta.pago_dentro_prazo %}table-success
             {% elif conta.todas_parcelas_pagas %}table-info
             {% endif %}
+            {% if conta.venda.comodato %}linha-comodato{% endif %}
             ">
             <td>{{ conta.venda.loja.nome|title }}</td>
             <td>{{ conta.venda.data_venda|date:"d/m/Y" }}</td>
@@ -223,6 +226,9 @@
             {% endif %}
             {% if conta.flag_atrasado %}
                 <span class="badge badge-orange">COBRANÇA</span>
+            {% endif %}
+            {% if conta.venda.comodato %}
+                <span class="selo-comodato">COMODATO</span>
             {% endif %}
             {% if not conta.desativado and not conta.bloqueado and not conta.sem_conexao and not conta.sem_contato and not conta.mais_prazo and not conta.com_parcela_atrasada and not conta.com_pagamento_pendente and not conta.pago_dentro_prazo and not conta.todas_parcelas_pagas and not conta.flag_atrasado %}
                 <span class="badge badge-success">ATIVO</span>
@@ -286,7 +292,7 @@
             </tbody>
             <tfoot>
             <tr class="footer">
-                <td colspan="6" class="end">Totais:</td>
+                <td colspan="7" class="end">Totais:</td>
                 <td class="end">{{ total_atrasado|default:"0.00"|floatformat:2 }}</td>
                 <td></td>
                 <td class="end">{{ total_pago|default:"0.00"|floatformat:2 }}</td>
@@ -299,6 +305,8 @@
                 <td></td>
                 <td class="end">{{ total_quitado|default:"0.00"|floatformat:2 }}</td>
             </tr>
+            {% include "contas_a_receber/_linha_totais_comodato.html" with rotulo="Vendas comuns" t=totais_comodato.comum %}
+            {% include "contas_a_receber/_linha_totais_comodato.html" with rotulo="Comodato (sem repasse ao lojista)" t=totais_comodato.comodato comodato=True %}
             </tfoot>
         </table>
     </div>

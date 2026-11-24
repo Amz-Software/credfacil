@@ -74,9 +74,11 @@ def _chave_unica(nome: str, loja_id: int, usados: set[str]) -> str:
     return nome if nome not in usados else f'{nome} ({loja_id})'
 
 
-def contexto_relatorio_dashboard(lojas: QuerySet, periodo: Periodo, usuario, hoje: date | None = None) -> dict:
+def contexto_relatorio_dashboard(
+    lojas: QuerySet, periodo: Periodo, usuario, hoje: date | None = None, comodato: bool | None = None,
+) -> dict:
     hoje = hoje or timezone.now().date()
-    vendas = carteira.vendas_das_lojas(lojas)
+    vendas = carteira.vendas_das_lojas(lojas, comodato)
     parcelas = carteira.parcelas_ipx(vendas)
     do_periodo = [p for p in parcelas if carteira.no_periodo(p, periodo)]
     periodo_por_loja, todas_por_loja = defaultdict(list), defaultdict(list)
@@ -112,4 +114,5 @@ def contexto_relatorio_dashboard(lojas: QuerySet, periodo: Periodo, usuario, hoj
         'clientes_quitados_lista': _lista_quitados(quitados, {loja.pk: loja.nome for loja in lojas_lista}),
         'data_geracao': timezone.now(),
         'usuario': usuario,
+        'filtro_comodato': comodato,
     }

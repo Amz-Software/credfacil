@@ -96,9 +96,11 @@ class ResultadoGraficos:
     incluir_mensal: bool
 
 
-def calcular_graficos(lojas: QuerySet, periodo: Periodo, *, incluir_mensal: bool, hoje: date | None = None) -> ResultadoGraficos:
+def calcular_graficos(
+    lojas: QuerySet, periodo: Periodo, *, incluir_mensal: bool, hoje: date | None = None, comodato: bool | None = None,
+) -> ResultadoGraficos:
     hoje = hoje or timezone.now().date()
-    vendas = carteira.vendas_das_lojas(lojas)
+    vendas = carteira.vendas_das_lojas(lojas, comodato)
     parcelas = carteira.parcelas_ipx(vendas)
     do_periodo = [p for p in parcelas if carteira.no_periodo(p, periodo)]
     vendas_validas = {p.pagamento.venda_id for p in do_periodo}

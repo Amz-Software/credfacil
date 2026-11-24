@@ -1,0 +1,21 @@
+{% comment %}
+  Linha de rodapé com os totais de um grupo (vendas comuns ou comodato) na folha de Contas a Receber.
+  Parâmetros: rotulo, t (dict de financeiro.views._somar_totais), comodato (bool, opcional).
+  Mesmas colunas da linha "Totais:" (18 colunas no cabeçalho).
+{% endcomment %}
+<tr class="footer{% if comodato %} linha-comodato{% endif %}">
+    <td colspan="7" class="end">
+        {% if comodato %}<span class="selo-comodato">COMODATO</span> {% endif %}{{ rotulo }} ({{ t.quantidade|default:0 }}):
+    </td>
+    <td class="end">{{ t.total_atrasado|default:"0.00"|floatformat:2 }}</td>
+    <td></td>
+    <td class="end">{{ t.total_pago|default:"0.00"|floatformat:2 }}</td>
+    <td></td>
+    <td class="end">{{ t.total_proximo_vencimento|default:"0.00"|floatformat:2 }}</td>
+    <td class="end">{{ t.total_a_vencer|default:"0.00"|floatformat:2 }}</td>
+    <td></td>
+    <td class="end">{{ t.total|default:"0.00"|floatformat:2 }}</td>
+    <td></td>
+    <td></td>
+    <td class="end">{{ t.total_quitado|default:"0.00"|floatformat:2 }}</td>
+</tr>

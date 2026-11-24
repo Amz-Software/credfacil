@@ -627,10 +627,20 @@ class AnaliseCreditoClienteForm(NumeroParcelasChoicesMixin, forms.ModelForm):
         initial='False',
     )
 
+    comodato = forms.TypedChoiceField(
+        required=False,
+        choices=[('False', 'Não'), ('True', 'Sim')],
+        coerce=lambda v: v == 'True',
+        label='Aparelho de comodato?',
+        help_text='Opcional. Venda de comodato não tem repasse ao lojista (tudo fica com a IPX).',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        initial='False',
+    )
+
     class Meta:
         model = AnaliseCreditoCliente
         # removido 'observacao' do formulário para não ser preenchido pelo vendedor
-        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada', 'analise_online', 'segunda_compra', 'numero_autenticador']
+        fields = ['produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada', 'analise_online', 'comodato', 'segunda_compra', 'numero_autenticador']
         widgets = {
             'data_pagamento': forms.Select(attrs={'class': 'form-control'}),
             'numero_parcelas': forms.Select(attrs={'class': 'form-control', 'id': 'id_numero_parcelas'}),
@@ -705,6 +715,10 @@ class AnaliseCreditoClienteForm(NumeroParcelasChoicesMixin, forms.ModelForm):
                 self.fields['produto'].disabled = True
                 self.fields['numero_parcelas'].disabled = True
                 self.fields['analise_online'].disabled = True
+
+            # Comodato define o repasse gravado na venda: depois de gerada não muda mais.
+            if venda_gerada:
+                self.fields['comodato'].disabled = True
 
             # Se a venda foi gerada, analistas e usuários com permissão específica podem editar
             if venda_gerada:
@@ -1522,6 +1536,17 @@ class RelatorioVendasForm(forms.Form):
         coerce=lambda v: None if v == '' else (v == 'True'),
         widget=forms.Select(attrs={'class': 'form-control'})
     )
+    comodato = forms.TypedChoiceField(
+        label='Aparelho de comodato',
+        required=False,
+        choices=[
+            ('', 'Todos'),
+            ('True', 'Sim'),
+            ('False', 'Não'),
+        ],
+        coerce=lambda v: None if v == '' else (v == 'True'),
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
     
     
     def __init__(self, *args, **kwargs):
@@ -1624,6 +1649,17 @@ class RelatorioSolicitacoesForm(forms.Form):
         required=False,
         choices=[
             ('', '---------'),
+            ('True', 'Sim'),
+            ('False', 'Não'),
+        ],
+        coerce=lambda v: None if v == '' else (v == 'True'),
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    comodato = forms.TypedChoiceField(
+        label='Aparelho de comodato',
+        required=False,
+        choices=[
+            ('', 'Todos'),
             ('True', 'Sim'),
             ('False', 'Não'),
         ],

@@ -50,6 +50,7 @@
         .center { text-align: center; }
         .right  { text-align: right; }
     </style>
+    {% include "relatorios/_estilo_comodato.html" %}
 </head>
 <body>
     <div class="container">
@@ -79,7 +80,7 @@
             <tbody>
                 {% for cliente in solicitacoes %}
                 {% with ac=cliente.analise_credito %}
-                <tr>
+                <tr class="{% if ac.comodato %}linha-comodato{% endif %}">
                     <!-- Loja da solicitação -->
                     <td>{{ cliente.loja.nome|default:"-"|title }}</td>
 
@@ -112,6 +113,7 @@
                     <!-- Produtos associados à análise -->
                     <td>
                         {{ ac.produto.nome|title }}
+                        {% if ac.comodato %}<span class="selo-comodato">Comodato</span>{% endif %}
                     </td>
 
                     <!-- Consulta Serasa realizada? -->
@@ -169,6 +171,8 @@
                 </tr>
             </tfoot>
         </table>
+
+        {% include "relatorios/_resumo_comodato_vendas.html" with resumo=resumo_comodato qtd_comodato=solicitacoes_comodato qtd_comum=solicitacoes_comuns rotulo_quantidade="Solicitações" %}
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>

@@ -11,13 +11,15 @@
   .a_vencer { background: #FFC000; font-weight: 700; }
   .legenda span { display: inline-block; padding: 2px 8px; margin-right: 4px; }
   .filtros { margin-bottom: 6px; color: #444; font-size: 8pt; }
+  .selo-comodato { display: inline-block; margin-left: 3px; padding: 0 3px; border: 1px solid #6f42c1; border-radius: 2px; color: #6f42c1; font-size: 85%; font-weight: 700; }
+  .comodato-resumo td { background: #f3eefb; }
 {% endblock %}
 {% block report_header_meta %}<div class="meta">{{ titulo }} · Emitido por {{ usuario.get_username }}</div>{% endblock %}
 {% block report_content %}
 <div class="ipix-report-title">{{ titulo }} · {{ totais.quantidade }} cliente(s)</div>
 <div class="filtros">
   {% if filtros.data_inicial or filtros.data_final %}Vencimento: {{ filtros.data_inicial|date:"d/m/Y"|default:"-" }} a {{ filtros.data_final|date:"d/m/Y"|default:"-" }}<br>{% endif %}
-  Lojas: {% if lojas_nomes %}{{ lojas_nomes|join:", " }}{% else %}Todas do seu acesso{% endif %}
+  Lojas: {% if lojas_nomes %}{{ lojas_nomes|join:", " }}{% else %}Todas do seu acesso{% endif %}{% if filtros.comodato == True %}<br>Comodato: Sim{% elif filtros.comodato == False %}<br>Comodato: Não{% endif %}
 </div>
 <div class="legenda">Legenda: <span class="pago">Pago</span><span class="atrasado">Atrasado</span><span class="a_vencer">A vencer</span></div>
 <table>
@@ -28,7 +30,7 @@
   <tbody>
   {% for l in linhas %}
     <tr>
-      <td>{{ l.loja }}</td><td>{{ l.cliente }}</td><td>{{ l.aparelho }}</td>
+      <td>{{ l.loja }}</td><td>{{ l.cliente }}{% if l.comodato %} <span class="selo-comodato">Comodato</span>{% endif %}</td><td>{{ l.aparelho }}</td>
       <td>{% for p in l.parcelas %}<span class="{{ p.situacao }}" style="display:inline-block;margin:1px;padding:1px 3px;">{{ p.numero }}: R$ {{ p.valor|floatformat:2 }} {{ p.vencimento|date:"d/m/y" }}</span>{% endfor %}</td>
       <td class="text-right">R$ {{ l.total|floatformat:2 }}</td>
       <td class="text-right">R$ {{ l.total_pago|floatformat:2 }}</td>
@@ -45,6 +47,10 @@
     <td class="text-right">R$ {{ totais.total_pago|floatformat:2 }}</td>
     <td class="text-right">R$ {{ totais.total_atrasado|floatformat:2 }}</td>
     <td class="text-right">R$ {{ totais.total_a_vencer|floatformat:2 }}</td>
+  </tr>
+  <tr class="comodato-resumo">
+    <td colspan="4">Vendas comuns: {{ totais.demais_quantidade }} · R$ {{ totais.demais_valor|floatformat:2 }}</td>
+    <td colspan="4">Comodato (sem repasse ao lojista): {{ totais.comodato_quantidade }} · R$ {{ totais.comodato_valor|floatformat:2 }}</td>
   </tr></tfoot>
 </table>
 {% endblock %}

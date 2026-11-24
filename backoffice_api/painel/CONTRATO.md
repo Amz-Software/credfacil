@@ -49,12 +49,12 @@ Regras: `kpis` = mesma regra da tela inicial (`vendas.services.kpis.resumo_carte
 Dashboard de gráficos (mesmos números da tela `dash/` — `GraficoTemplateView`).
 **Permissão:** `vendas.can_view_all_dashboard` (que também libera todas as lojas, como hoje).
 
-Parâmetros: `loja` (id, dentro do escopo; senão 400 `campos.loja`), `data_inicio`, `data_fim` (AAAA-MM-DD; `data_inicio > data_fim` → 400 `campos.data_fim`).
+Parâmetros: `loja` (id, dentro do escopo; senão 400 `campos.loja`), `data_inicio`, `data_fim` (AAAA-MM-DD; `data_inicio > data_fim` → 400 `campos.data_fim`), `comodato` (`true` = só vendas de comodato, sem repasse ao lojista; `false` = só as comuns; ausente = todas; valor inválido → 400 `campos.comodato`). Os mesmos parâmetros valem para o PDF (`graficos/relatorio.pdf`), que mostra o recorte de comodato no topo e grava `comodato` nos filtros da auditoria.
 Regras do período (iguais às da tela): parcelas IPX entram pela data do pagamento (pagas) ou do vencimento; quantidade de vendas e repasses pela data da venda; `clientes_quitados` segue a spec `dashboard-clientes-quitados`.
 
 ```json
 {
-  "filtros": {"loja": null, "data_inicio": "2026-01-01", "data_fim": "2026-06-30"},
+  "filtros": {"loja": null, "data_inicio": "2026-01-01", "data_fim": "2026-06-30", "comodato": null},
   "lojas_disponiveis": [{"id": 1, "nome": "Loja Alfa"}, {"id": 2, "nome": "Loja Beta"}],
   "resumo": {
     "total_vendas": 80, "total_parcelas": 400, "valor_total_parcelas": "60000.00", "total_repasses": "52000.00",

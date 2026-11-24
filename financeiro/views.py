@@ -26,6 +26,7 @@ from financeiro.forms import *
 from vendas.forms import ContatoForm
 from vendas.models import ComprovanteParcela, Contato, Loja, Parcela, Pagamento, StatusPagamento
 from vendas.views import BaseView
+from vendas.views.relatorios import parse_filtro_sim_nao
 from .models import CaixaMensal, CaixaMensalFuncionario, CaixaMensalGastoFixo, GastoFixo, GastosAleatorios
 
 
@@ -654,6 +655,61 @@ class ComprovanteParcelaDownloadView(ComprovanteParcelaBaseView):
         return FileResponse(arquivo, as_attachment=as_attachment, filename=comprovante.nome_arquivo)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Comodato nos relatórios de contas a receber / parcelas
+#   Venda de comodato não tem repasse ao lojista; os relatórios separam os totais.
+# ─────────────────────────────────────────────────────────────────────────────
+
+CHAVES_TOTAIS_CONTAS = (
+    'total_atrasado', 'total_pago', 'total_a_vencer',
+    'total_proximo_vencimento', 'total', 'total_quitado',
+)
+
+
+def _eh_comodato(pagamento):
+    return bool(getattr(pagamento.venda, 'comodato', False))
+
+
+def _valores_conta(pagamento):
+    return {
+        'total_atrasado': pagamento.total_atrasos(),
+        'total_pago': pagamento.valor_pago_ultimo(),
+        'total_a_vencer': pagamento.valor_a_vencer(),
+        'total_proximo_vencimento': pagamento.valor_atual_a_vencer(),
+        'total': pagamento.valor_total_parcelas(),
+        'total_quitado': pagamento.valor_quitado(),
+    }
+
+
+def _somar_totais(valores):
+    valores = list(valores)
+    totais = {chave: sum(v[chave] or 0 for v in valores) for chave in CHAVES_TOTAIS_CONTAS}
+    return {'quantidade': len(valores), **totais}
+
+
+def _totais_por_comodato(linhas):
+    """`linhas` = [(eh_comodato, valores)]; devolve (geral, {'comodato': ..., 'comum': ...})."""
+    linhas = list(linhas)
+    geral = _somar_totais(v for _, v in linhas)
+    return geral, {
+        'comodato': _somar_totais(v for comodato, v in linhas if comodato),
+        'comum': _somar_totais(v for comodato, v in linhas if not comodato),
+    }
+
+
+def _totais_contas_a_receber(contas):
+    return _totais_por_comodato((_eh_comodato(p), _valores_conta(p)) for p in contas)
+
+
+def _totais_parcelas_pagas(parcelas):
+    """Na visão por parcela paga só o valor pago se aplica; demais totais ficam em zero."""
+    def valores(parcela):
+        zerados = dict.fromkeys(CHAVES_TOTAIS_CONTAS, 0)
+        return {**zerados, 'total_pago': parcela.paid_amount}
+
+    return _totais_por_comodato((_eh_comodato(p.pagamento), valores(p)) for p in parcelas)
+
+
 class RelatorioContasAReceberView(BaseView, PermissionRequiredMixin, TemplateView):
     template_name = 'contas_a_receber/relatorio.html'
     permission_required = 'vendas.can_genarate_report_payments'
@@ -675,6 +731,7 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
         lojas = self.request.GET.getlist('lojas')
         status_list = self.request.GET.getlist('status')
         status_pagamento_ids = self.request.GET.getlist('status_pagamento')
+        comodato = parse_filtro_sim_nao(self.request.GET.get('comodato'))
         contas_a_receber = []
 
         if data_inicio and data_fim:
@@ -695,6 +752,9 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
                 if lojas_qs:
                     parcelas_qs = parcelas_qs.filter(pagamento__loja__in=lojas_qs)
 
+                if comodato is not None:
+                    parcelas_qs = parcelas_qs.filter(pagamento__venda__comodato=comodato)
+
                 # Otimizações de consulta para o template
                 parcelas_qs = parcelas_qs.select_related(
                     'pagamento',
@@ -710,6 +770,7 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
                     p.paid_amount = p.valor_pago_efetivo
 
                 total_pago = sum(p.paid_amount for p in parcelas_list)
+                _, totais_comodato = _totais_parcelas_pagas(parcelas_list)
 
                 # Monta contexto específico para listagem por parcelas
                 context = super().get_context_data(**kwargs)
@@ -730,6 +791,7 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
                 context['total_proximo_vencimento'] = 0
                 context['total'] = 0
                 context['total_quitado'] = 0
+                context['totais_comodato'] = totais_comodato
 
                 return context
 
@@ -767,6 +829,9 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
 
             if lojas_qs:
                 pagamentos_qs = pagamentos_qs.filter(loja__in=lojas_qs)
+
+            if comodato is not None:
+                pagamentos_qs = pagamentos_qs.filter(venda__comodato=comodato)
 
             if status_pagamento_ids:
                 pagamentos_qs = pagamentos_qs.filter(statuses__in=status_pagamento_ids).distinct()
@@ -842,29 +907,7 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
 
             contas_a_receber = list(pagamentos_qs)
 
-        total_atrasado = sum(
-            pagamento.total_atrasos() for pagamento in contas_a_receber if contas_a_receber
-        )
-        
-        total_pago = sum(
-            pagamento.valor_pago_ultimo() for pagamento in contas_a_receber if contas_a_receber
-        )
-
-        total_a_vencer = sum(
-            pagamento.valor_a_vencer() for pagamento in contas_a_receber if contas_a_receber
-        )
-
-        total_proximo_vencimento = sum(
-            pagamento.valor_atual_a_vencer() for pagamento in contas_a_receber if contas_a_receber
-        )
-
-        total = sum(
-            pagamento.valor_total_parcelas() for pagamento in contas_a_receber
-        )
-
-        total_quitado = sum(
-            pagamento.valor_quitado() for pagamento in contas_a_receber if contas_a_receber
-        )
+        totais, totais_comodato = _totais_contas_a_receber(contas_a_receber)
 
         context = super().get_context_data(**kwargs)
         context['contas_a_receber'] = contas_a_receber
@@ -872,12 +915,8 @@ class FolhaRelatorioContasAReceberView(BaseView, PermissionRequiredMixin, Templa
         context['status_list'] = [self.STATUS_LABELS.get(status, status) for status in status_list]
         context['data_inicio'] = datetime.strptime(data_inicio, "%Y-%m-%d").date() if data_inicio else None
         context['data_fim'] = datetime.strptime(data_fim, "%Y-%m-%d").date() if data_fim else None
-        context['total_atrasado'] = total_atrasado
-        context['total_pago'] = total_pago
-        context['total_a_vencer'] = total_a_vencer
-        context['total_proximo_vencimento'] = total_proximo_vencimento
-        context['total'] = total
-        context['total_quitado'] = total_quitado
+        context.update({chave: totais[chave] for chave in CHAVES_TOTAIS_CONTAS})
+        context['totais_comodato'] = totais_comodato
 
         return context
 
@@ -903,11 +942,15 @@ class FolhaRelatorioContasAReceberAvancadoView(BaseView, PermissionRequiredMixin
         lojas = self.request.GET.getlist('lojas')
         situacoes = self.request.GET.getlist('situacoes')
         status_pagamento_ids = self.request.GET.getlist('status_pagamento')
+        comodato = parse_filtro_sim_nao(self.request.GET.get('comodato'))
 
         pagamentos_qs = Pagamento.objects.exclude(venda__is_deleted=True).with_status_flags().distinct()
 
         if lojas:
             pagamentos_qs = pagamentos_qs.filter(loja__in=lojas)
+
+        if comodato is not None:
+            pagamentos_qs = pagamentos_qs.filter(venda__comodato=comodato)
 
         # Data da venda
         if data_inicio and data_fim:
@@ -953,6 +996,8 @@ class FolhaRelatorioContasAReceberAvancadoView(BaseView, PermissionRequiredMixin
             pagamento.ultimo_contato = contatos[0] if contatos else None
 
         context['contas'] = contas
+        context['qtd_comodato'] = sum(1 for pagamento in contas if _eh_comodato(pagamento))
+        context['qtd_comum'] = len(contas) - context['qtd_comodato']
         context['data_inicio'] = data_inicio
         context['data_fim'] = data_fim
         context['situacoes'] = [self.SITUACAO_LABELS.get(situacao, situacao) for situacao in situacoes]
@@ -1079,6 +1124,11 @@ class _FiltroParcelasMixin:
         elif status == 'quitado':
             qs = qs.filter(todas_parcelas_pagas=True)
 
+        # Aparelho de comodato (Todos/Sim/Não)
+        comodato = parse_filtro_sim_nao(request.GET.get('comodato'))
+        if comodato is not None:
+            qs = qs.filter(venda__comodato=comodato)
+
         # Período de vencimento das parcelas
         data_inicial = parse_date(request.GET.get('data_inicial') or '')
         data_final = parse_date(request.GET.get('data_final') or '')
@@ -1122,6 +1172,8 @@ class RelatorioParcelasExcelView(_FiltroParcelasMixin, PermissionRequiredMixin, 
     FILL_PAGO = PatternFill('solid', fgColor='92D050')
     FILL_ATRASADO = PatternFill('solid', fgColor='FF0000')
     FILL_AVENCER = PatternFill('solid', fgColor='FFC000')
+    FILL_COMODATO = PatternFill('solid', fgColor='E2D9F3')
+    FILL_TOTAIS = PatternFill('solid', fgColor='FCE4D6')
     THIN = Side(style='thin', color='C9A27E')
     BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 
@@ -1144,6 +1196,7 @@ class RelatorioParcelasExcelView(_FiltroParcelasMixin, PermissionRequiredMixin, 
                 'loja': venda.loja.nome if venda and venda.loja else (pag.loja.nome if pag.loja else ''),
                 'cliente': cliente.nome if cliente else '—',
                 'aparelho': aparelhos or '—',
+                'comodato': bool(venda and venda.comodato),
                 'parcelas': parcelas,
             })
 
@@ -1151,7 +1204,7 @@ class RelatorioParcelasExcelView(_FiltroParcelasMixin, PermissionRequiredMixin, 
         ws = wb.active
         ws.title = 'Parcelamento'
 
-        col_fixas = 3        # Loja, Cliente, Aparelho
+        col_fixas = 4        # Loja, Cliente, Aparelho, Comodato
         col_totais = 4       # Total, Pago, Atrasado, A vencer
         total_cols = col_fixas + max_parcelas + col_totais
 
@@ -1181,7 +1234,7 @@ class RelatorioParcelasExcelView(_FiltroParcelasMixin, PermissionRequiredMixin, 
         # ── Cabeçalho
         header_row = 5
         headers = (
-            ['Loja', 'Cliente', 'Aparelho']
+            ['Loja', 'Cliente', 'Aparelho', 'Comodato']
             + [str(i) for i in range(1, max_parcelas + 1)]
             + ['Total', 'Pago', 'Atrasado', 'A vencer']
         )
@@ -1198,6 +1251,12 @@ class RelatorioParcelasExcelView(_FiltroParcelasMixin, PermissionRequiredMixin, 
             ws.cell(row=r, column=1, value=linha['loja']).border = self.BORDER
             ws.cell(row=r, column=2, value=linha['cliente']).border = self.BORDER
             ws.cell(row=r, column=3, value=linha['aparelho']).border = self.BORDER
+            cel_comodato = ws.cell(row=r, column=4, value='Sim' if linha['comodato'] else 'Não')
+            cel_comodato.border = self.BORDER
+            cel_comodato.alignment = Alignment(horizontal='center')
+            if linha['comodato']:
+                cel_comodato.fill = self.FILL_COMODATO
+                cel_comodato.font = Font(bold=True, color='3D2A73')
 
             tot = tot_pago = tot_atraso = tot_avencer = Decimal('0')
             for p in linha['parcelas']:
@@ -1223,16 +1282,20 @@ class RelatorioParcelasExcelView(_FiltroParcelasMixin, PermissionRequiredMixin, 
                 cel.border = self.BORDER
 
             base = col_fixas + max_parcelas
-            for offset, valor in enumerate([tot, tot_pago, tot_atraso, tot_avencer], start=1):
+            linha['totais'] = (tot, tot_pago, tot_atraso, tot_avencer)
+            for offset, valor in enumerate(linha['totais'], start=1):
                 cel = ws.cell(row=r, column=base + offset, value=_brl(valor))
                 cel.border = self.BORDER
                 cel.alignment = Alignment(horizontal='right')
             r += 1
 
+        self._escrever_totais(ws, r + 1, linhas, col_fixas + max_parcelas)
+
         # ── Larguras / congelamento / grid
         ws.column_dimensions['A'].width = 18
         ws.column_dimensions['B'].width = 24
         ws.column_dimensions['C'].width = 26
+        ws.column_dimensions['D'].width = 12
         for i in range(1, max_parcelas + 1):
             ws.column_dimensions[get_column_letter(col_fixas + i)].width = 14
         for i in range(1, col_totais + 1):
@@ -1250,3 +1313,27 @@ class RelatorioParcelasExcelView(_FiltroParcelasMixin, PermissionRequiredMixin, 
         )
         resp['Content-Disposition'] = f'attachment; filename="{nome}"'
         return resp
+
+    def _escrever_totais(self, ws, linha_inicial, linhas, coluna_base):
+        """Rodapé: total geral, vendas comuns e comodato (quantidade e somas Total/Pago/Atrasado/A vencer)."""
+        grupos = [
+            ('Total geral', linhas, self.FILL_TOTAIS),
+            ('Vendas comuns', [linha for linha in linhas if not linha['comodato']], self.FILL_TOTAIS),
+            ('Comodato (sem repasse ao lojista)', [linha for linha in linhas if linha['comodato']], self.FILL_COMODATO),
+        ]
+        for deslocamento, (rotulo, grupo, fill_rotulo) in enumerate(grupos):
+            r = linha_inicial + deslocamento
+            cel = ws.cell(row=r, column=1, value=rotulo)
+            cel.font = Font(bold=True)
+            cel.fill = fill_rotulo
+            cel.border = self.BORDER
+            qtd = ws.cell(row=r, column=2, value=f'{len(grupo)} cliente(s)')
+            qtd.font = Font(bold=True)
+            qtd.border = self.BORDER
+            for indice in range(4):
+                soma = sum((linha['totais'][indice] for linha in grupo), Decimal('0'))
+                cel = ws.cell(row=r, column=coluna_base + 1 + indice, value=_brl(soma))
+                cel.font = Font(bold=True)
+                cel.fill = self.FILL_TOTAIS
+                cel.border = self.BORDER
+                cel.alignment = Alignment(horizontal='right')

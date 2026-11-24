@@ -25,6 +25,8 @@ Relatório de Parcelas
         <span class="badge" style="background:#FF0000;color:#fff;">Atrasado</span>
         <span class="badge" style="background:#FFC000;color:#000;">A vencer</span>.
         Cada célula mostra o valor e o vencimento da parcela.
+        A coluna <strong>Comodato</strong> (Sim/Não) identifica aparelhos de comodato, e o rodapé
+        separa os totais de vendas comuns e de comodato (comodato não tem repasse ao lojista).
       </p>
 
       <form method="get" action="{% url 'financeiro:relatorio_parcelas_excel' %}" target="_blank">

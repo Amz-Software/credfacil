@@ -18,6 +18,7 @@
     .right { text-align: right; }
     .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #eee; margin-right: 4px; }
   </style>
+  {% include "relatorios/_estilo_comodato.html" %}
 </head>
 <body>
   {% include "components/report_header_print.html" with titulo="Relatório Avançado - Contas a Receber" %}
@@ -45,7 +46,7 @@
     </thead>
     <tbody>
       {% for p in contas %}
-      <tr>
+      <tr class="{% if p.venda.comodato %}linha-comodato{% endif %}">
         <td>{{ p.venda.loja.nome|default:"-" }}</td>
         <td>{{ p.venda.criado_em|date:"d/m/Y" }}</td>
         <td>{{ p.venda.cliente.nome|default:"-" }}</td>
@@ -68,6 +69,7 @@
           {% if p.devolucao %}<span class="badge">Devolução</span>{% endif %}
           {% if p.sem_contato %}<span class="badge">Sem contato</span>{% endif %}
           {% if p.mais_prazo %}<span class="badge">Mais prazo</span>{% endif %}
+          {% if p.venda.comodato %}<span class="selo-comodato">Comodato</span>{% endif %}
         </td>
         <td>
           {% for s in p.statuses.all %}
@@ -89,6 +91,15 @@
       <tr><td colspan="10" class="center">Sem registros no período/critério informado.</td></tr>
       {% endfor %}
     </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="10">
+          <strong>Total: {{ contas|length }} pagamento(s)</strong>
+          &nbsp;|&nbsp; Vendas comuns: {{ qtd_comum }}
+          &nbsp;|&nbsp; <span class="selo-comodato">Comodato</span> {{ qtd_comodato }} (sem repasse ao lojista)
+        </td>
+      </tr>
+    </tfoot>
   </table>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>

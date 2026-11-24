@@ -1,0 +1,51 @@
+{% comment %}
+  Estilo do destaque de aparelho de comodato nos relatórios impressos (PDF/print).
+  Impressos podem usar cor fixa (ver CLAUDE.md). Uso: incluir dentro do <head>.
+{% endcomment %}
+<style>
+    .selo-comodato {
+        display: inline-block;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: bold;
+        color: #3D2A73;
+        background-color: #E2D9F3;
+        border: 1px solid #B9A6E0;
+        white-space: nowrap;
+    }
+
+    tr.linha-comodato td:first-child {
+        border-left: 4px solid #6F42C1;
+    }
+
+    table.resumo-comodato {
+        width: auto;
+        min-width: 60%;
+        margin: 10px auto 20px;
+    }
+
+    table.resumo-comodato th,
+    table.resumo-comodato td {
+        text-align: right;
+    }
+
+    table.resumo-comodato th:first-child,
+    table.resumo-comodato td:first-child {
+        text-align: left;
+    }
+
+    .resumo-comodato-titulo {
+        text-align: center;
+        margin: 16px 0 4px;
+        font-size: 13px;
+        font-weight: bold;
+    }
+
+    .resumo-comodato-nota {
+        text-align: center;
+        font-size: 10px;
+        color: #555;
+        margin: 0 0 8px;
+    }
+</style>

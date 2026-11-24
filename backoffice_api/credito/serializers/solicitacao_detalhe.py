@@ -82,6 +82,7 @@ class CreditoAnaliseDetalheSerializer(serializers.Serializer):
     aprovado_por = CreditoUsuarioRefSerializer(allow_null=True)
     vendedor = CreditoUsuarioRefSerializer(source='criado_por', allow_null=True)
     analise_online = serializers.BooleanField()
+    comodato = serializers.BooleanField(help_text='Aparelho de comodato: a venda não tem repasse ao lojista.')
     segunda_compra = serializers.BooleanField()
     observacao = serializers.CharField(allow_null=True)
     data_pagamento = serializers.CharField(allow_null=True)

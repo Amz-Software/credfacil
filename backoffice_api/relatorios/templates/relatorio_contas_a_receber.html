@@ -6,6 +6,8 @@
   body { font-size: 6.5pt; }
   th, td { padding: 3px 4px; }
   .filtros { margin-bottom: 8px; color: #444; font-size: 8pt; }
+  .selo-comodato { display: inline-block; margin-left: 3px; padding: 0 3px; border: 1px solid #6f42c1; border-radius: 2px; color: #6f42c1; font-size: 85%; font-weight: 700; }
+  .comodato-resumo td { background: #f3eefb; }
 {% endblock %}
 {% block report_header_meta %}<div class="meta">{{ titulo }} · Emitido por {{ usuario.get_username }}</div>{% endblock %}
 {% block report_content %}
@@ -13,7 +15,7 @@
 <div class="filtros">
   Período: {{ filtros.data_inicial|date:"d/m/Y" }} a {{ filtros.data_final|date:"d/m/Y" }}<br>
   Lojas: {% if lojas_nomes %}{{ lojas_nomes|join:", " }}{% else %}Todas do seu acesso{% endif %}<br>
-  Status: {{ status_rotulos|join:", " }}
+  Status: {{ status_rotulos|join:", " }}{% if filtros.comodato == True %}<br>Comodato: Sim{% elif filtros.comodato == False %}<br>Comodato: Não{% endif %}
 </div>
 <table>
   <thead><tr>
@@ -25,7 +27,7 @@
   <tbody>
   {% for l in linhas %}
     <tr>
-      <td>{{ l.loja|title }}</td><td>{{ l.data_venda|date:"d/m/Y" }}</td><td>{{ l.cliente|title }}</td>
+      <td>{{ l.loja|title }}</td><td>{{ l.data_venda|date:"d/m/Y" }}</td><td>{{ l.cliente|title }}{% if l.comodato %} <span class="selo-comodato">Comodato</span>{% endif %}</td>
       <td>{{ l.produto|title }}</td><td>{{ l.imei|default:"-" }}</td>
       <td>{{ l.situacoes|join:", " }}</td>
       <td>{% for c in l.contatos %}{{ c }}{% if not forloop.last %}<br>{% endif %}{% empty %}-{% endfor %}</td>
@@ -53,6 +55,11 @@
     <td class="text-right">{{ totais.total_a_vencer|floatformat:2 }}</td><td></td>
     <td class="text-right">{{ totais.total|floatformat:2 }}</td><td></td><td></td>
     <td class="text-right">{{ totais.total_quitado|floatformat:2 }}</td>
+  </tr>
+  <tr class="comodato-resumo">
+    <td colspan="9">Vendas comuns: {{ totais.demais_quantidade }} · R$ {{ totais.demais_valor|floatformat:2 }}</td>
+    <td colspan="9">Comodato (sem repasse ao lojista): {{ totais.comodato_quantidade }} · R$ {{ totais.comodato_valor|floatformat:2 }}
+      ({% if totais.modo == 'parcelas' %}valor pago{% else %}valor total{% endif %})</td>
   </tr></tfoot>
 </table>
 {% endblock %}

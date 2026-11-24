@@ -12,6 +12,20 @@ def _textos(**kwargs) -> serializers.ListField:
     return serializers.ListField(child=serializers.CharField(), **kwargs)
 
 
+# ── Comodato (repasse 0 ao lojista: todo o valor fica com a IPX) ────────────
+
+class TotaisComodatoSerializer(serializers.Serializer):
+    comodato_quantidade = serializers.IntegerField(help_text='Registros de vendas de comodato.')
+    comodato_valor = _dinheiro(help_text='Valor principal do relatório nas vendas de comodato.')
+    demais_quantidade = serializers.IntegerField(help_text='Registros das demais vendas (comuns).')
+    demais_valor = _dinheiro(help_text='Valor principal do relatório nas demais vendas.')
+
+
+class TotaisRepasseComodatoSerializer(TotaisComodatoSerializer):
+    comodato_ipx = _dinheiro(help_text='Valor financiado das vendas de comodato: fica com a IPX (repasse 0).')
+    demais_repasse = _dinheiro(help_text='Repasse ao lojista, só das vendas comuns.')
+
+
 # ── Vendas e solicitações ───────────────────────────────────────────────────
 
 class LinhaVendaSerializer(serializers.Serializer):
@@ -34,9 +48,10 @@ class LinhaVendaSerializer(serializers.Serializer):
     valor_total = _dinheiro()
     valor_juros = _dinheiro()
     pagamento_bloqueado = serializers.BooleanField()
+    comodato = serializers.BooleanField()
 
 
-class TotaisVendasSerializer(serializers.Serializer):
+class TotaisVendasSerializer(TotaisRepasseComodatoSerializer):
     total_vendas = serializers.IntegerField()
     total_entrada = _dinheiro()
     total_repasse = _dinheiro()
@@ -64,9 +79,10 @@ class LinhaSolicitacaoSerializer(serializers.Serializer):
     valor_repasse = _dinheiro()
     valor_total = _dinheiro()
     valor_juros = _dinheiro()
+    comodato = serializers.BooleanField(help_text='Solicitação de aparelho de comodato.')
 
 
-class TotaisSolicitacoesSerializer(serializers.Serializer):
+class TotaisSolicitacoesSerializer(TotaisRepasseComodatoSerializer):
     total_solicitacoes = serializers.IntegerField()
     total_entrada = _dinheiro()
     total_repasse = _dinheiro()
@@ -97,9 +113,10 @@ class LinhaContaSerializer(serializers.Serializer):
     parcelas_totais = serializers.IntegerField(allow_null=True)
     parcelas_pagas = serializers.IntegerField(allow_null=True)
     valor_quitado = _dinheiro(allow_null=True)
+    comodato = serializers.BooleanField()
 
 
-class TotaisContasSerializer(serializers.Serializer):
+class TotaisContasSerializer(TotaisComodatoSerializer):
     modo = serializers.ChoiceField(choices=['parcelas', 'pagamentos'])
     quantidade = serializers.IntegerField()
     total_atrasado = _dinheiro()
@@ -127,10 +144,16 @@ class LinhaSituacaoSerializer(serializers.Serializer):
     status_pagamento = _textos()
     analista_ultimo_registro = serializers.CharField(allow_null=True)
     ultimo_contato = UltimoContatoSerializer(allow_null=True)
+    comodato = serializers.BooleanField()
 
 
 class TotaisQuantidadeSerializer(serializers.Serializer):
     quantidade = serializers.IntegerField()
+
+
+class TotaisSituacoesSerializer(TotaisQuantidadeSerializer):
+    comodato_quantidade = serializers.IntegerField()
+    demais_quantidade = serializers.IntegerField()
 
 
 class ParcelaGradeSerializer(serializers.Serializer):
@@ -145,6 +168,7 @@ class LinhaParcelasSerializer(serializers.Serializer):
     loja = serializers.CharField()
     cliente = serializers.CharField()
     aparelho = serializers.CharField()
+    comodato = serializers.BooleanField()
     parcelas = ParcelaGradeSerializer(many=True)
     total = _dinheiro()
     total_pago = _dinheiro()
@@ -152,7 +176,7 @@ class LinhaParcelasSerializer(serializers.Serializer):
     total_a_vencer = _dinheiro()
 
 
-class TotaisParcelasSerializer(serializers.Serializer):
+class TotaisParcelasSerializer(TotaisComodatoSerializer):
     quantidade = serializers.IntegerField()
     maximo_parcelas = serializers.IntegerField()
     total = _dinheiro()

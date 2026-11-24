@@ -75,6 +75,26 @@ def soma(valores) -> Decimal:
     return sum((v or Decimal(0) for v in valores), Decimal(0))
 
 
+def filtrar_comodato(queryset: QuerySet, filtros: dict, campo: str) -> QuerySet:
+    """Filtro "Comodato" (Sim/Não); vazio (None) não filtra."""
+    comodato = filtros.get('comodato')
+    if comodato is None:
+        return queryset
+    return queryset.filter(**{campo: comodato})
+
+
+def separar_comodato(linhas: list, e_comodato: Callable, valor: Callable) -> dict:
+    """Quantidade e soma de `valor` das linhas de comodato e das demais (vendas comuns)."""
+    comodato = [linha for linha in linhas if e_comodato(linha)]
+    demais = [linha for linha in linhas if not e_comodato(linha)]
+    return {
+        'comodato_quantidade': len(comodato),
+        'comodato_valor': soma(valor(linha) for linha in comodato),
+        'demais_quantidade': len(demais),
+        'demais_valor': soma(valor(linha) for linha in demais),
+    }
+
+
 def sim_nao(valor, sim: str, nao: str) -> str:
     """Como o filtro `yesno` do Django com dois valores (None vira o "não")."""
     return sim if valor else nao

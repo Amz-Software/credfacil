@@ -26,8 +26,10 @@ class Periodo:
     fim: date | None = None
 
 
-def vendas_das_lojas(lojas: QuerySet) -> QuerySet:
-    return Venda.objects.filter(is_deleted=False, loja__in=lojas)
+def vendas_das_lojas(lojas: QuerySet, comodato: bool | None = None) -> QuerySet:
+    """Vendas ativas das lojas; `comodato` True/False restringe às de comodato ou às comuns."""
+    vendas = Venda.objects.filter(is_deleted=False, loja__in=lojas)
+    return vendas if comodato is None else vendas.filter(comodato=comodato)
 
 
 def vendas_do_periodo(vendas: QuerySet, periodo: Periodo) -> QuerySet:

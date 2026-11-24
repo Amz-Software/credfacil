@@ -1,7 +1,8 @@
 """Planilha do relatório de parcelas: mesma grade colorida de `RelatorioParcelasExcelView`.
 
 Extraída de financeiro/views.py (a tela antiga continua com a dela). Verde = pago,
-vermelho = atrasado, amarelo = a vencer.
+vermelho = atrasado, amarelo = a vencer. A coluna "Comodato" (Sim/Não) marca as vendas
+de comodato (sem repasse ao lojista).
 """
 from io import BytesIO
 
@@ -18,10 +19,10 @@ FILL_ATRASADO = PatternFill('solid', fgColor='FF0000')
 FILL_A_VENCER = PatternFill('solid', fgColor='FFC000')
 LINHA_FINA = Side(style='thin', color='C9A27E')
 BORDA = Border(left=LINHA_FINA, right=LINHA_FINA, top=LINHA_FINA, bottom=LINHA_FINA)
-COLUNAS_FIXAS = 3   # Loja, Cliente, Aparelho
+COLUNAS_FIXAS = 4   # Loja, Cliente, Aparelho, Comodato
 COLUNAS_TOTAIS = 4  # Total, Pago, Atrasado, A vencer
 LINHA_CABECALHO = 5
-LARGURAS_FIXAS = {'A': 18, 'B': 24, 'C': 26}
+LARGURAS_FIXAS = {'A': 18, 'B': 24, 'C': 26, 'D': 11}
 LARGURA_PARCELA = 14
 LARGURA_TOTAL = 13
 
@@ -59,7 +60,7 @@ def _titulo_e_legenda(ws, total_colunas: int, quantidade: int) -> None:
 
 
 def _cabecalho(ws, max_parcelas: int) -> None:
-    textos = ['Loja', 'Cliente', 'Aparelho'] + [str(i) for i in range(1, max_parcelas + 1)] + [
+    textos = ['Loja', 'Cliente', 'Aparelho', 'Comodato'] + [str(i) for i in range(1, max_parcelas + 1)] + [
         'Total', 'Pago', 'Atrasado', 'A vencer',
     ]
     for coluna, texto in enumerate(textos, start=1):
@@ -70,7 +71,8 @@ def _cabecalho(ws, max_parcelas: int) -> None:
 
 
 def _linha(ws, numero_linha: int, dados: dict, max_parcelas: int) -> None:
-    for coluna, valor in enumerate((dados['loja'], dados['cliente'], dados['aparelho']), start=1):
+    fixas = (dados['loja'], dados['cliente'], dados['aparelho'], 'Sim' if dados.get('comodato') else 'Não')
+    for coluna, valor in enumerate(fixas, start=1):
         ws.cell(row=numero_linha, column=coluna, value=valor).border = BORDA
     for parcela in dados['parcelas']:
         coluna = COLUNAS_FIXAS + parcela['numero']

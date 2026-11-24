@@ -73,6 +73,7 @@
             text-align: left;
         }
     </style>
+    {% include "relatorios/_estilo_comodato.html" %}
 </head>
 
 <body>
@@ -103,9 +104,9 @@
             <tbody>
                 {% for venda in vendas %}
                 {% with ac=venda.cliente.analise_credito %}
-                <tr {% if venda.possui_pagamento_bloqueado %}style="color:red;"{% endif %}>
+                <tr class="{% if venda.comodato %}linha-comodato{% endif %}" {% if venda.possui_pagamento_bloqueado %}style="color:red;"{% endif %}>
                     <td>{{ venda.loja|title }}</td>
-                    <td>{{ venda.cliente.nome|title }}</td>
+                    <td>{{ venda.cliente.nome|title }}{% if venda.comodato %} <span class="selo-comodato">Comodato</span>{% endif %}</td>
                     <td>{{ venda.data_venda }}</td>
                     <td>{{ venda.vendedor|title }}</td>
                     <td>{{ venda.qtd_total_parcelas }}</td>
@@ -153,6 +154,8 @@
                 </tr>
             </tfoot>
         </table>
+
+        {% include "relatorios/_resumo_comodato_vendas.html" with resumo=resumo_comodato %}
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>

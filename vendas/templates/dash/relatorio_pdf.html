@@ -119,6 +119,7 @@
 
 {% block report_content %}
     <div class="ipix-report-title">Relatório Dashboard - Todas as Lojas</div>
+    {% if filtro_comodato == True %}<p class="comodato-filtro" style="margin: 0 0 8px; color: #6f42c1; font-weight: 700;">Somente vendas de comodato (sem repasse ao lojista; o valor fica com a IPX)</p>{% elif filtro_comodato == False %}<p class="comodato-filtro" style="margin: 0 0 8px; color: #6f42c1; font-weight: 700;">Somente vendas comuns (sem comodato)</p>{% endif %}
 
     {% if dados_por_loja %}
         <!-- Resumo Geral -->

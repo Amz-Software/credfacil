@@ -1,0 +1,40 @@
+{% comment %}
+  Resumo comodato x vendas comuns (relatórios impressos de vendas/solicitações).
+  Parâmetro: resumo = vendas.views.relatorios.resumo_comodato_vendas(...)
+  Opcionais: qtd_comodato / qtd_comum / rotulo_quantidade (para contar solicitações em vez de vendas).
+{% endcomment %}
+<p class="resumo-comodato-titulo">Comodato x vendas comuns</p>
+<p class="resumo-comodato-nota">Venda de comodato não tem repasse ao lojista: o valor financiado fica com a IPX. O cliente paga igual.</p>
+<table class="resumo-comodato">
+    <thead>
+        <tr>
+            <th>Tipo</th>
+            <th>{{ rotulo_quantidade|default:"Vendas" }}</th>
+            <th>Entrada</th>
+            <th>Valor Total</th>
+            <th>Juros</th>
+            <th>Repasse ao lojista (vendas comuns)</th>
+            <th>Fica com a IPX (comodato)</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Vendas comuns</td>
+            <td>{% if qtd_comum is not None %}{{ qtd_comum }}{% else %}{{ resumo.comum.quantidade }}{% endif %}</td>
+            <td>R$ {{ resumo.comum.entrada|floatformat:2 }}</td>
+            <td>R$ {{ resumo.comum.valor|floatformat:2 }}</td>
+            <td>R$ {{ resumo.comum.juros|floatformat:2 }}</td>
+            <td>R$ {{ resumo.comum.repasse|floatformat:2 }}</td>
+            <td>-</td>
+        </tr>
+        <tr class="linha-comodato">
+            <td><span class="selo-comodato">Comodato</span></td>
+            <td>{% if qtd_comodato is not None %}{{ qtd_comodato }}{% else %}{{ resumo.comodato.quantidade }}{% endif %}</td>
+            <td>R$ {{ resumo.comodato.entrada|floatformat:2 }}</td>
+            <td>R$ {{ resumo.comodato.valor|floatformat:2 }}</td>
+            <td>R$ {{ resumo.comodato.juros|floatformat:2 }}</td>
+            <td>R$ 0,00 (sem repasse)</td>
+            <td>R$ {{ resumo.comodato.financiado|floatformat:2 }}</td>
+        </tr>
+    </tbody>
+</table>

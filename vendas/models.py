@@ -160,6 +160,21 @@ class LojaQuerySet(models.QuerySet):
         ).filter(repasses_pendentes=0)  # Apenas lojas sem repasses pendentes
 
 
+def _repasse_da_venda(venda):
+    """Repasse ao lojista de uma venda; comodato não tem repasse.
+
+    Vendas antigas sem `repasse_logista` usam o valor legado do produto.
+    """
+    if venda.comodato:
+        return 0
+    if venda.repasse_logista:
+        return venda.repasse_logista
+    return sum(
+        item.produto.valor_repasse_logista * item.quantidade
+        for item in ProdutoVenda.objects.filter(venda=venda)
+    )
+
+
 class Loja(Base):
     nome = models.CharField(max_length=100)
     cnpj = models.CharField(max_length=14, null=True, blank=True)
@@ -232,49 +247,12 @@ class Loja(Base):
         return status_repasses_por_loja([self], meses_atras=meses_atras, limite_meses=limite_meses)[self.id]
 
     def calcular_valor_repasse(self, data_inicio, data_fim):
-        if data_inicio and data_fim:
-            vendas = self.venda_loja.filter(data_venda__date__gte=data_inicio, data_venda__date__lte=data_fim, is_deleted=False)
-            valor_repasse = sum(
-                venda.repasse_logista if venda.repasse_logista else sum(
-                    produto.produto.valor_repasse_logista * produto.quantidade
-                    for produto in ProdutoVenda.objects.filter(venda=venda)
-                )
-                for venda in vendas
-            )
-            return valor_repasse
-
-        elif data_inicio:
-            vendas = self.venda_loja.filter(data_venda__date__gte=data_inicio, is_deleted=False)
-            valor_repasse = sum(
-                venda.repasse_logista if venda.repasse_logista else sum(
-                    produto.produto.valor_repasse_logista * produto.quantidade
-                    for produto in ProdutoVenda.objects.filter(venda=venda)
-                )
-                for venda in vendas
-            )
-            return valor_repasse
-
-        elif data_fim:
-            vendas = self.venda_loja.filter(data_venda__date__lte=data_fim, is_deleted=False)
-            valor_repasse = sum(
-                venda.repasse_logista if venda.repasse_logista else sum(
-                    produto.produto.valor_repasse_logista * produto.quantidade
-                    for produto in ProdutoVenda.objects.filter(venda=venda)
-                )
-                for venda in vendas
-            )
-            return valor_repasse
-
-        else:
-            vendas = self.venda_loja.filter(is_deleted=False)
-            valor_repasse = sum(
-                venda.repasse_logista if venda.repasse_logista else sum(
-                    produto.produto.valor_repasse_logista * produto.quantidade
-                    for produto in ProdutoVenda.objects.filter(venda=venda)
-                )
-                for venda in vendas
-            )
-            return valor_repasse
+        vendas = self.venda_loja.filter(is_deleted=False)
+        if data_inicio:
+            vendas = vendas.filter(data_venda__date__gte=data_inicio)
+        if data_fim:
+            vendas = vendas.filter(data_venda__date__lte=data_fim)
+        return sum(_repasse_da_venda(venda) for venda in vendas)
 
     def __str__(self):
         return self.nome
@@ -342,6 +320,8 @@ class Venda(Base):
     caixa = models.ForeignKey('vendas.Caixa', on_delete=models.CASCADE, related_name='vendas', null=True, blank=True)
     observacao = models.TextField(null=True, blank=True)
     repasse_logista = models.DecimalField(max_digits=10, decimal_places=2)
+    # Copiado da análise ao gerar a venda: comodato não tem repasse ao lojista (repasse_logista = 0).
+    comodato = models.BooleanField(default=False, verbose_name='Aparelho de comodato')
     documento_assinado = models.FileField(upload_to=upload_to_venda, null=True, blank=True)
     foto_cliente = models.ImageField(upload_to=upload_to_venda, null=True, blank=True)
     imagem_imei = models.ImageField(upload_to=upload_to_venda, null=True, blank=True)
@@ -457,9 +437,17 @@ class Venda(Base):
         return total_custo
     
     @cached_property
+    def valor_financiado(self):
+        """Valor do produto menos a entrada (= repasse ao lojista, exceto no comodato, que tem repasse 0)."""
+        if not self.comodato:
+            return self.repasse_logista
+        valor_produtos = sum((item.produto.valor or 0) * item.quantidade for item in self.itens_venda.all())
+        return valor_produtos - self.valor_entrada_cliente
+
+    @cached_property
     def juros(self):
         entrada_pagamento = self.pagamentos.filter(tipo_pagamento__nome__iexact='ENTRADA').aggregate(total=models.Sum('valor'))['total'] or 0
-        return sum((self.valor_total_venda - (entrada_pagamento + self.repasse_logista)) * produto.quantidade for produto in self.itens_venda.all())
+        return sum((self.valor_total_venda - (entrada_pagamento + self.valor_financiado)) * produto.quantidade for produto in self.itens_venda.all())
 
     def __str__(self):
         return f"{self.cliente} - {self.data_venda.strftime('%d/%m/%Y')}"
@@ -505,6 +493,8 @@ class AnaliseCreditoCliente(Base):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='EA')
     status_aplicativo = models.CharField(max_length=20, choices=STATUS_APP_CHOICES, default='P', verbose_name='Status do aplicativo')
     analise_online = models.BooleanField(default=False, verbose_name='Análise Online')
+    # Aparelho de comodato: a venda gerada não tem repasse ao lojista (tudo fica com a IPX).
+    comodato = models.BooleanField(default=False, verbose_name='Aparelho de comodato')
     data_pagamento = models.CharField(max_length=20, null=True, blank=True, choices=(
         ('1', 'Dia 1'),
         ('10', 'Dia 10'),

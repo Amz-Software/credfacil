@@ -144,6 +144,34 @@ class GerarVendaDaAnaliseTests(CenarioMixin, TestCase):
 
         self.assertEqual(venda.pagamentos.get(tipo_pagamento__nome='IPX').valor, Decimal('960.00'))
 
+    def test_comodato_nao_tem_repasse_ao_lojista(self):
+        self.analise.comodato = True
+        self.analise.save()
+
+        venda = self.gerar()
+
+        self.assertTrue(venda.comodato)
+        self.assertEqual(venda.repasse_logista, Decimal('0'))
+        # O cliente paga igual: só muda o destino do dinheiro.
+        self.assertEqual(venda.pagamentos.get(tipo_pagamento__nome='IPX').valor, Decimal('1200.00'))
+
+    def test_juros_do_comodato_iguais_aos_da_venda_comum(self):
+        comum = self.gerar()
+        self.assertEqual(comum.juros, Decimal('200.00'))
+
+        venda = Venda.objects.get(pk=comum.pk)
+        Venda.objects.filter(pk=venda.pk).update(comodato=True, repasse_logista=0)
+        comodato = Venda.objects.get(pk=venda.pk)
+        self.assertEqual(comodato.juros, Decimal('200.00'))
+
+    def test_repasse_da_loja_ignora_vendas_de_comodato(self):
+        venda = self.gerar()
+        self.assertEqual(self.loja.calcular_valor_repasse(None, None), Decimal('1000.00'))
+
+        Venda.objects.filter(pk=venda.pk).update(comodato=True, repasse_logista=0)
+
+        self.assertEqual(self.loja.calcular_valor_repasse(None, None), 0)
+
     def assert_erro(self, trecho, *, na_edicao=None, **kwargs):
         with self.assertRaises(ErroDeNegocio) as ctx:
             self.gerar(**kwargs)

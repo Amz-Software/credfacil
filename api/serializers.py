@@ -218,6 +218,7 @@ class AnaliseCreditoClienteSerializer(serializers.ModelSerializer):
             "status_aplicativo",
             "status_app_display",
             "analise_online",
+            "comodato",
             "data_pagamento",
             "numero_parcelas",
             "produto",
@@ -588,6 +589,9 @@ class SolicitacaoCreditoInputSerializer(serializers.Serializer):
     numero_parcelas = serializers.CharField()
     entrada_informada = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     analise_online = serializers.BooleanField(required=False)
+    comodato = serializers.BooleanField(
+        required=False, help_text="Opcional. Aparelho de comodato: a venda não tem repasse ao lojista."
+    )
     segunda_compra = serializers.BooleanField(required=False)
     email_icloud = serializers.EmailField(required=False, allow_blank=True)
     senha_icloud = serializers.CharField(required=False, allow_blank=True)

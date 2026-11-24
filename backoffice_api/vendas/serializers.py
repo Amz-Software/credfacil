@@ -77,7 +77,7 @@ class VendaListaSerializer(serializers.ModelSerializer):
         model = Venda
         fields = [
             'id', 'numero', 'data_venda', 'cliente', 'cpf_mascarado', 'loja', 'vendedor',
-            'total', 'situacao', 'origem', 'tem_iphone', 'is_deleted', 'is_trocado',
+            'total', 'situacao', 'origem', 'tem_iphone', 'comodato', 'is_deleted', 'is_trocado',
             'documentos_completos', 'status_contrato', 'modificado_por', 'modificado_em',
         ]
         read_only_fields = fields
@@ -227,7 +227,7 @@ class AnaliseOrigemDaVendaSerializer(serializers.ModelSerializer):
         model = AnaliseCreditoCliente
         fields = [
             'id', 'status', 'status_display', 'data_analise', 'data_aprovacao', 'aprovado_por',
-            'produto', 'numero_parcelas', 'data_pagamento', 'entrada_informada', 'analise_online',
+            'produto', 'numero_parcelas', 'data_pagamento', 'entrada_informada', 'analise_online', 'comodato',
             'segunda_compra',
         ]
         read_only_fields = fields

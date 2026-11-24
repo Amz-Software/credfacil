@@ -73,7 +73,7 @@ RELATORIOS: dict[str, DefinicaoRelatorio] = {d.id: d for d in (
         descricao='Pagamentos por situação (cobrança, BO, bloqueio...) com o último contato registrado.',
         permissao=PERMISSAO_RELATORIO_PAGAMENTOS, permissao_global_lojas=PERMISSAO_TODOS_PAGAMENTOS,
         filtros=f.FiltrosSituacoesSerializer, servico=situacoes,
-        serializer_linha=s.LinhaSituacaoSerializer, serializer_totais=s.TotaisQuantidadeSerializer,
+        serializer_linha=s.LinhaSituacaoSerializer, serializer_totais=s.TotaisSituacoesSerializer,
         template_pdf='relatorio_situacoes.html',
         contexto_pdf=_rotulos('situacoes', 'financeiro.forms.RelatorioContasAReceberAvancadoForm'),
     ),

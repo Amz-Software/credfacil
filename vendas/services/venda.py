@@ -117,7 +117,8 @@ def calcular_valores_venda(analise) -> ValoresVenda:
     return ValoresVenda(
         entrada=entrada,
         valor_credfacil=valor_financiado + (valor_financiado * parcelamento.porcentagem_juros / 100),
-        repasse_logista=produto.valor - entrada,
+        # Comodato: nada é repassado ao lojista, o valor todo fica com a IPX.
+        repasse_logista=Decimal('0') if analise.comodato else valor_financiado,
         parcelas=parcelas,
         porcentagem_desconto=parcelamento.porcentagem_desconto,
     )
@@ -179,6 +180,7 @@ def gerar_venda_da_analise(cliente, vendedor, *, bloquear_imei_de_venda_cancelad
             vendedor=vendedor,
             caixa=caixa,
             repasse_logista=valores.repasse_logista,
+            comodato=analise.comodato,
             observacao=analise.observacao,
             criado_por=vendedor,
             modificado_por=vendedor,

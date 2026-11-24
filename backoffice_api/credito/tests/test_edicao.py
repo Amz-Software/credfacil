@@ -68,6 +68,23 @@ class EdicaoTests(CenarioCredito):
         self.assertIn('data_pagamento', resposta.json()['erro']['campos'])
         self.assertEqual(cliente.patch(self.url(self.sol_a.pk), {'bairro': 'Umarizal'}, format='json').status_code, 200)
 
+    def test_analista_marca_comodato_antes_da_venda(self):
+        resposta = self.logar(self.analista).patch(self.url(self.sol_a.pk), {'comodato': True}, format='json')
+        self.assertEqual(resposta.status_code, 200, resposta.content)
+        self.sol_a.analise_credito.refresh_from_db()
+        self.assertTrue(self.sol_a.analise_credito.comodato)
+        self.assertIs(resposta.json()['analise']['comodato'], True)
+
+    def test_comodato_travado_depois_da_venda(self):
+        venda = Venda.objects.create(cliente=self.sol_a, vendedor=self.vendedor, loja=self.loja_a, repasse_logista=0)
+        analise = self.sol_a.analise_credito
+        analise.venda = venda
+        analise.status = 'A'
+        analise.save()
+        resposta = self.logar(self.analista).patch(self.url(self.sol_a.pk), {'comodato': True}, format='json')
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn('comodato', resposta.json()['erro']['campos'])
+
     def test_sem_permissao_403_e_outra_loja_404(self):
         self.assertEqual(self.logar(self.sem_permissao).patch(self.url(self.sol_a.pk), {}, format='json').status_code, 403)
         self.assertEqual(self.logar(self.analista).patch(self.url(self.sol_b.pk), {}, format='json').status_code, 404)

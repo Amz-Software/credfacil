@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from vendas.models import Pagamento, Parcela, ProdutoVenda
 
-from .comum import EscopoRelatorio, soma
+from .comum import EscopoRelatorio, filtrar_comodato, separar_comodato, soma
 
 PAGO, ATRASADO, A_VENCER = 'pago', 'atrasado', 'a_vencer'
 
@@ -24,6 +24,7 @@ def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
         .with_status_flags()
     )
     pagamentos = escopo.aplicar(pagamentos, 'loja')
+    pagamentos = filtrar_comodato(pagamentos, filtros, 'venda__comodato')
     status = filtros.get('status') or 'todos'
     if status == 'atrasado':
         pagamentos = pagamentos.filter(com_parcela_atrasada=True)
@@ -77,6 +78,7 @@ def linha(pagamento: Pagamento, hoje: date | None = None) -> dict:
         'loja': loja.nome if loja else '',
         'cliente': venda.cliente.nome if venda and venda.cliente_id else '—',
         'aparelho': aparelhos or '—',
+        'comodato': bool(venda and venda.comodato),
         'parcelas': grade,
         'total': totais['total'],
         'total_pago': totais[PAGO],
@@ -99,4 +101,5 @@ def totais(pagamentos: QuerySet, filtros: dict | None = None) -> dict:
         'total_pago': soma(l['total_pago'] for l in todas),
         'total_atrasado': soma(l['total_atrasado'] for l in todas),
         'total_a_vencer': soma(l['total_a_vencer'] for l in todas),
+        **separar_comodato(todas, lambda l: l['comodato'], lambda l: l['total']),
     }

@@ -47,6 +47,7 @@ class CreditoSolicitacaoListaSerializer(serializers.Serializer):
     icloud_confirmado_analista = serializers.BooleanField(source='analise_credito.icloud_confirmado_analista')
     tem_imei = serializers.SerializerMethodField()
     analise_online = serializers.BooleanField(source='analise_credito.analise_online')
+    comodato = serializers.BooleanField(source='analise_credito.comodato')
     segunda_compra = serializers.BooleanField(source='analise_credito.segunda_compra')
     venda_gerada = serializers.SerializerMethodField()
     venda_id = serializers.IntegerField(source='analise_credito.venda_id', allow_null=True)

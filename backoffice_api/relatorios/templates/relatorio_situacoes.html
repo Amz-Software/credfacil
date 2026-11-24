@@ -5,6 +5,8 @@
 {% block report_head %}
   body { font-size: 7.5pt; }
   .filtros { margin-bottom: 8px; color: #444; }
+  .selo-comodato { display: inline-block; margin-left: 3px; padding: 0 3px; border: 1px solid #6f42c1; border-radius: 2px; color: #6f42c1; font-size: 85%; font-weight: 700; }
+  .comodato-resumo td { background: #f3eefb; }
 {% endblock %}
 {% block report_header_meta %}<div class="meta">{{ titulo }} · Emitido por {{ usuario.get_username }}</div>{% endblock %}
 {% block report_content %}
@@ -12,7 +14,7 @@
 <div class="filtros">
   {% if filtros.data_inicial and filtros.data_final %}Período: {{ filtros.data_inicial|date:"d/m/Y" }} a {{ filtros.data_final|date:"d/m/Y" }}<br>{% endif %}
   {% if situacoes_rotulos %}Situações: {{ situacoes_rotulos|join:", " }}<br>{% endif %}
-  Lojas: {% if lojas_nomes %}{{ lojas_nomes|join:", " }}{% else %}Todas do seu acesso{% endif %}
+  Lojas: {% if lojas_nomes %}{{ lojas_nomes|join:", " }}{% else %}Todas do seu acesso{% endif %}{% if filtros.comodato == True %}<br>Comodato: Sim{% elif filtros.comodato == False %}<br>Comodato: Não{% endif %}
 </div>
 <table>
   <thead><tr>
@@ -22,7 +24,7 @@
   <tbody>
   {% for l in linhas %}
     <tr>
-      <td>{{ l.loja|default:"-" }}</td><td>{{ l.data_venda|date:"d/m/Y" }}</td><td>{{ l.cliente|default:"-" }}</td>
+      <td>{{ l.loja|default:"-" }}</td><td>{{ l.data_venda|date:"d/m/Y" }}</td><td>{{ l.cliente|default:"-" }}{% if l.comodato %} <span class="selo-comodato">Comodato</span>{% endif %}</td>
       <td class="text-center">{{ l.lembrete|yesno:"Sim,Não" }}</td>
       <td>{% for c in l.contatos %}{{ c }}{% if not forloop.last %}<br>{% endif %}{% empty %}-{% endfor %}</td>
       <td>{{ l.imei|default:"-" }}</td>
@@ -35,5 +37,10 @@
     <tr><td colspan="10" class="text-center">Sem registros no período/critério informado.</td></tr>
   {% endfor %}
   </tbody>
+  <tfoot><tr class="comodato-resumo">
+    <td colspan="4">Total: {{ totais.quantidade }}</td>
+    <td colspan="3">Vendas comuns: {{ totais.demais_quantidade }}</td>
+    <td colspan="3">Comodato: {{ totais.comodato_quantidade }}</td>
+  </tr></tfoot>
 </table>
 {% endblock %}

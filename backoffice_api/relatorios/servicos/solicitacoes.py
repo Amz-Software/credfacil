@@ -7,8 +7,8 @@ from django.db.models import QuerySet
 
 from vendas.models import AnaliseCreditoCliente, Cliente, Venda
 
-from .comum import EscopoRelatorio, filtro_periodo, rotulo_status_analise, sim_nao, soma
-from .vendas import anotar_valores_da_venda, juros
+from .comum import EscopoRelatorio, filtrar_comodato, filtro_periodo, rotulo_status_analise, sim_nao
+from .vendas import anotar_valores_da_venda, juros, resumo_financeiro
 
 
 def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
@@ -27,6 +27,7 @@ def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
         clientes = clientes.filter(analise_credito__criado_por__in=filtros['vendedores'])
     if filtros.get('produtos'):
         clientes = clientes.filter(analise_credito__produto__in=filtros['produtos'])
+    clientes = filtrar_comodato(clientes, filtros, 'analise_credito__comodato')
     clientes = escopo.aplicar(clientes, 'loja')
     return (
         Cliente.objects.filter(pk__in=clientes.values('pk'))
@@ -36,19 +37,10 @@ def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
 
 
 def totais(clientes: QuerySet, filtros: dict | None = None) -> dict:
-    vendas = list(
-        anotar_valores_da_venda(Venda.objects.filter(cliente__in=clientes.values('pk')))
-        .values('valor_total_calc', 'valor_entrada_calc', 'repasse_logista', 'qtd_itens_calc')
-    )
+    """Valores de todas as vendas dos clientes; comodato e demais contam vendas, não solicitações."""
     return {
         'total_solicitacoes': clientes.count(),
-        'total_entrada': soma(v['valor_entrada_calc'] for v in vendas),
-        'total_repasse': soma(v['repasse_logista'] for v in vendas),
-        'total_valor': soma(v['valor_total_calc'] for v in vendas),
-        'total_juros': soma(
-            (v['valor_total_calc'] - (v['valor_entrada_calc'] + (v['repasse_logista'] or 0))) * v['qtd_itens_calc']
-            for v in vendas
-        ),
+        **resumo_financeiro(Venda.objects.filter(cliente__in=clientes.values('pk'))),
     }
 
 
@@ -93,4 +85,5 @@ def _linha(cliente, analise, vendas: dict) -> dict:
         'valor_repasse': venda.repasse_logista if venda else 0,
         'valor_total': venda.valor_contabilizado_calc if venda else 0,
         'valor_juros': juros(venda) if venda else 0,
+        'comodato': bool(analise and analise.comodato),
     }

@@ -1,6 +1,7 @@
 """Relatórios de vendas e de solicitações (formulário e folha de impressão)."""
 from collections import defaultdict
 from datetime import datetime, timedelta
+from decimal import Decimal
 import logging
 
 from django.contrib import messages
@@ -15,6 +16,49 @@ from vendas.models import Cliente, Loja, Pagamento, PreAnaliseRapida, Venda
 
 
 logger = logging.getLogger(__name__)
+
+ZERO = Decimal('0')
+
+
+def parse_filtro_sim_nao(valor):
+    """Converte o valor de um filtro Sim/Não/Todos da querystring.
+
+    'True'/'1' -> True, 'False'/'0' -> False; vazio ou qualquer outro -> None (Todos).
+    """
+    normalizado = (valor or '').strip().lower()
+    if normalizado in ('true', '1'):
+        return True
+    if normalizado in ('false', '0'):
+        return False
+    return None
+
+
+def _somar(vendas, atributo):
+    return sum((getattr(venda, atributo) or ZERO for venda in vendas), ZERO)
+
+
+def _resumo_grupo_vendas(vendas):
+    return {
+        'quantidade': len(vendas),
+        'valor': _somar(vendas, 'valor_total_venda'),
+        'entrada': _somar(vendas, 'valor_entrada_cliente'),
+        'juros': _somar(vendas, 'juros'),
+        'repasse': _somar(vendas, 'repasse_logista'),
+        'financiado': _somar(vendas, 'valor_financiado'),
+    }
+
+
+def resumo_comodato_vendas(vendas):
+    """Separa quantidade e valores das vendas de comodato e das vendas comuns.
+
+    No comodato o repasse ao lojista é zero: o valor financiado fica com a IPX
+    (`comodato['financiado']`). Nas vendas comuns, `comum['repasse']` é o que vai ao lojista.
+    """
+    vendas = list(vendas)
+    return {
+        'comodato': _resumo_grupo_vendas([v for v in vendas if v.comodato]),
+        'comum': _resumo_grupo_vendas([v for v in vendas if not v.comodato]),
+    }
 
 
 def _clientes_quitados_por_loja(pagamento_ids):
@@ -93,6 +137,7 @@ class FolhaRelatorioSolicitacoesView(PermissionRequiredMixin, TemplateView):
         analise_serasa  = request.GET.get('analise_serasa')
         vr              = request.GET.get('venda_realizada', '').lower()
         analise_online  = request.GET.get('analise_online')
+        comodato        = parse_filtro_sim_nao(request.GET.get('comodato'))
 
         filtros = {}
         user = request.user
@@ -118,6 +163,9 @@ class FolhaRelatorioSolicitacoesView(PermissionRequiredMixin, TemplateView):
         analise_online_normalizada = (analise_online or '').strip().lower()
         if analise_online_normalizada in ('true', 'false', '1', '0'):
             filtros['analise_credito__analise_online'] = analise_online_normalizada in ('true', '1')
+
+        if comodato is not None:
+            filtros['analise_credito__comodato'] = comodato
 
         # datas
         if data_inicial and data_final:
@@ -187,6 +235,10 @@ class FolhaRelatorioSolicitacoesView(PermissionRequiredMixin, TemplateView):
             for cliente in self.solicitacoes
             for venda in cliente.vendas.all()
         )
+        self.resumo_comodato = resumo_comodato_vendas(
+            venda for cliente in self.solicitacoes for venda in cliente.vendas.all()
+        )
+        self.solicitacoes_comodato = self.solicitacoes.filter(analise_credito__comodato=True).count()
 
         # formata datas para exibição
         self.data_inicial_str = (
@@ -210,6 +262,9 @@ class FolhaRelatorioSolicitacoesView(PermissionRequiredMixin, TemplateView):
             'total_entrada': self.total_entrada,
             'total_repasse': self.total_repasse,
             'total_juros':   self.total_juros,
+            'resumo_comodato': self.resumo_comodato,
+            'solicitacoes_comodato': self.solicitacoes_comodato,
+            'solicitacoes_comuns': self.total_vendas - self.solicitacoes_comodato,
             'data_inicial':  self.data_inicial_str,
             'data_final':    self.data_final_str,
             'lojas':         Loja.objects.filter(id__in=self.request.GET.getlist('lojas')) if self.loja else Loja.objects.all(),
@@ -231,8 +286,11 @@ class FolhaRelatorioVendasView(PermissionRequiredMixin, TemplateView):
         parcelas = request.GET.getlist('parcelas')
         loja_ids = request.GET.getlist('lojas')
         analise_online = request.GET.get('analise_online')
+        comodato = parse_filtro_sim_nao(request.GET.get('comodato'))
 
         filtros = {}
+        if comodato is not None:
+            filtros['comodato'] = comodato
 
         # datas
         if data_inicial and data_final:
@@ -299,6 +357,7 @@ class FolhaRelatorioVendasView(PermissionRequiredMixin, TemplateView):
         self.total_valor = sum(v.valor_total_venda for v in self.vendas)
         self.total_entrada = sum(v.valor_entrada_cliente for v in self.vendas)
         self.total_repasse = sum(v.repasse_logista for v in self.vendas)
+        self.resumo_comodato = resumo_comodato_vendas(self.vendas)
 
         # guarda strings formatadas
         self.data_inicial_str = datetime.strptime(data_inicial, '%Y-%m-%d').strftime("%d/%m/%Y") if data_inicial else None
@@ -319,6 +378,7 @@ class FolhaRelatorioVendasView(PermissionRequiredMixin, TemplateView):
             'total_valor': self.total_valor,
             'total_entrada': self.total_entrada,
             'total_repasse': self.total_repasse,
+            'resumo_comodato': self.resumo_comodato,
             'data_inicial': self.data_inicial_str,
             'data_final': self.data_final_str,
             'lojas': Loja.objects.filter(id__in=self.request.GET.getlist('lojas')) if self.loja else Loja.objects.all(),

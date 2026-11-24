@@ -9,7 +9,7 @@ from django.db.models import Prefetch, QuerySet
 
 from vendas.models import Contato, Pagamento, ProdutoVenda
 
-from .comum import EscopoRelatorio, inicio_do_dia
+from .comum import EscopoRelatorio, filtrar_comodato, inicio_do_dia
 from .contas_a_receber import contatos_do_cliente, primeiro_item
 
 SITUACOES_FILTRAVEIS = (
@@ -26,6 +26,7 @@ ROTULOS_SITUACAO = (
 def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
     pagamentos = Pagamento.objects.exclude(venda__is_deleted=True).with_status_flags()
     pagamentos = escopo.aplicar(pagamentos, 'loja')
+    pagamentos = filtrar_comodato(pagamentos, filtros, 'venda__comodato')
     inicio, fim = filtros.get('data_inicial'), filtros.get('data_final')
     if inicio and fim:
         pagamentos = pagamentos.filter(
@@ -50,7 +51,14 @@ def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
 
 
 def totais(pagamentos: QuerySet, filtros: dict | None = None) -> dict:
-    return {'quantidade': pagamentos.count()}
+    """Sem valores na folha: só a quantidade, separando os pagamentos de vendas de comodato."""
+    comodato = list(pagamentos.values_list('venda__comodato', flat=True))
+    quantidade_comodato = sum(1 for valor in comodato if valor)
+    return {
+        'quantidade': len(comodato),
+        'comodato_quantidade': quantidade_comodato,
+        'demais_quantidade': len(comodato) - quantidade_comodato,
+    }
 
 
 def _linha(pagamento) -> dict:
@@ -65,6 +73,7 @@ def _linha(pagamento) -> dict:
         'data_venda': venda.criado_em,
         'cliente': venda.cliente.nome,
         'lembrete': pagamento.lembrete,
+        'comodato': venda.comodato,
         'contatos': contatos_do_cliente(venda.cliente),
         'imei': (item.imei if item else '') or '',
         'situacoes': [rotulo for campo, rotulo in ROTULOS_SITUACAO if getattr(pagamento, campo)],

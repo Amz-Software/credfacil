@@ -15,7 +15,17 @@ from django.utils import timezone
 
 from vendas.models import Pagamento, Parcela, ProdutoVenda
 
-from .comum import DINHEIRO, ZERO, EscopoRelatorio, soma, soma_relacionada, valor_pago_efetivo, valor_restante
+from .comum import (
+    DINHEIRO,
+    ZERO,
+    EscopoRelatorio,
+    filtrar_comodato,
+    separar_comodato,
+    soma,
+    soma_relacionada,
+    valor_pago_efetivo,
+    valor_restante,
+)
 
 MODO_PARCELAS = 'parcelas'
 MODO_PAGAMENTOS = 'pagamentos'
@@ -31,6 +41,7 @@ def modo(filtros: dict) -> str:
 def _consultar_parcelas_pagas(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
     fim = filtros['data_final'] + timedelta(days=1)
     parcelas = Parcela.objects.filter(pago=True, data_pagamento__gte=filtros['data_inicial'], data_pagamento__lt=fim)
+    parcelas = filtrar_comodato(parcelas, filtros, 'pagamento__venda__comodato')
     return (
         escopo.aplicar(parcelas, 'pagamento__loja')
         .annotate(valor_pago_calc=valor_pago_efetivo())
@@ -115,6 +126,7 @@ def _consultar_pagamentos(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
         Pagamento.objects.filter(venda__is_deleted=False, devolucao=False).with_status_flags()
     )
     pagamentos = escopo.aplicar(pagamentos, 'loja')
+    pagamentos = filtrar_comodato(pagamentos, filtros, 'venda__comodato')
     if filtros.get('status_pagamento'):
         pagamentos = pagamentos.filter(statuses__in=filtros['status_pagamento'])
     if status_lista and 'todos' not in status_lista:
@@ -151,15 +163,17 @@ def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
 
 
 def totais(consulta: QuerySet, filtros: dict) -> dict:
+    """Valor de referência de comodato/demais: o valor pago (modo parcelas) ou o total das parcelas."""
     if modo(filtros) == MODO_PARCELAS:
-        valores = list(consulta.values_list('valor_pago_calc', flat=True))
+        linhas = list(consulta.values('valor_pago_calc', 'pagamento__venda__comodato'))
         return {
-            'modo': MODO_PARCELAS, 'quantidade': len(valores), 'total_pago': soma(valores),
+            'modo': MODO_PARCELAS, 'quantidade': len(linhas), 'total_pago': soma(l['valor_pago_calc'] for l in linhas),
             'total_atrasado': 0, 'total_a_vencer': 0, 'total_proximo_vencimento': 0, 'total': 0, 'total_quitado': 0,
+            **separar_comodato(linhas, lambda l: bool(l['pagamento__venda__comodato']), lambda l: l['valor_pago_calc']),
         }
     linhas = list(consulta.values(
         'valor_atrasado_calc', 'valor_pago_ultimo_calc', 'valor_a_vencer_calc', 'valor_atual_a_vencer_calc',
-        'valor_total_parcelas_calc', 'valor_quitado_calc',
+        'valor_total_parcelas_calc', 'valor_quitado_calc', 'venda__comodato',
     ))
     return {
         'modo': MODO_PAGAMENTOS,
@@ -170,6 +184,7 @@ def totais(consulta: QuerySet, filtros: dict) -> dict:
         'total_proximo_vencimento': soma(l['valor_atual_a_vencer_calc'] for l in linhas),
         'total': soma(l['valor_total_parcelas_calc'] for l in linhas),
         'total_quitado': soma(l['valor_quitado_calc'] for l in linhas),
+        **separar_comodato(linhas, lambda l: bool(l['venda__comodato']), lambda l: l['valor_total_parcelas_calc']),
     }
 
 
@@ -212,6 +227,7 @@ def _base(venda, pagamento) -> dict:
         'produto': item.produto.nome if item else '',
         'imei': (item.imei if item else '') or '',
         'contatos': contatos_do_cliente(venda.cliente),
+        'comodato': venda.comodato,
     }
 
 

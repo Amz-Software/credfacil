@@ -243,6 +243,7 @@ def _normalizar_campos_opcionais_solicitacao(request_data):
     bool_fields = [
         "recebe_auxilio",
         "analise_online",
+        "comodato",
         "restricao",
         "obteve_contato",
         "obteve_contato_pessoal",

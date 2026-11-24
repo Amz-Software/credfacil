@@ -7,12 +7,23 @@ Os testes conferem que os números batem com as propriedades do modelo.
 """
 from decimal import Decimal
 
-from django.db.models import Exists, IntegerField, OuterRef, Prefetch, QuerySet, Subquery, Sum, Value
+from django.db.models import Exists, F, IntegerField, OuterRef, Prefetch, QuerySet, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
 
 from vendas.models import AnaliseCreditoCliente, Pagamento, PreAnaliseRapida, ProdutoVenda, Venda
 
-from .comum import EscopoRelatorio, filtro_periodo, rotulo_status_analise, sim_nao, soma, soma_relacionada
+from .comum import (
+    EscopoRelatorio,
+    filtrar_comodato,
+    filtro_periodo,
+    rotulo_status_analise,
+    separar_comodato,
+    sim_nao,
+    soma,
+    soma_relacionada,
+)
+
+CAMPOS_TOTAIS = ('valor_total_calc', 'valor_entrada_calc', 'repasse_logista', 'qtd_itens_calc', 'comodato', 'valor_produtos_calc')
 
 
 def anotar_valores_da_venda(vendas: QuerySet) -> QuerySet:
@@ -31,13 +42,52 @@ def anotar_valores_da_venda(vendas: QuerySet) -> QuerySet:
         valor_contabilizado_calc=soma_relacionada(pagamentos.filter(tipo_pagamento__nao_contabilizar=False), 'venda', 'valor'),
         qtd_parcelas_calc=Coalesce(Subquery(qtd_parcelas, output_field=IntegerField()), Value(0)),
         qtd_itens_calc=Coalesce(Subquery(qtd_itens, output_field=IntegerField()), Value(0)),
+        valor_produtos_calc=soma_relacionada(ProdutoVenda.objects.all(), 'venda', F('produto__valor') * F('quantidade')),
         bloqueada_calc=Exists(Pagamento.objects.filter(venda=OuterRef('pk'), bloqueado=True)),
     )
 
 
+def financiado(comodato: bool, repasse, valor_produtos, entrada) -> Decimal:
+    """Regra de `Venda.valor_financiado`: o repasse; no comodato (repasse 0), produtos − entrada."""
+    if not comodato:
+        return repasse or Decimal(0)
+    return (valor_produtos or Decimal(0)) - (entrada or Decimal(0))
+
+
+def _juros(total, entrada, valor_financiado, qtd_itens) -> Decimal:
+    """Regra de `Venda.juros`: (total − (entrada + valor financiado)) × quantidade de itens."""
+    return (total - (entrada + valor_financiado)) * qtd_itens
+
+
 def juros(venda) -> Decimal:
-    """Regra de `Venda.juros`: (total − (entrada + repasse)) × quantidade de itens."""
-    return (venda.valor_total_calc - (venda.valor_entrada_calc + (venda.repasse_logista or 0))) * venda.qtd_itens_calc
+    valor_financiado = financiado(venda.comodato, venda.repasse_logista, venda.valor_produtos_calc, venda.valor_entrada_calc)
+    return _juros(venda.valor_total_calc, venda.valor_entrada_calc, valor_financiado, venda.qtd_itens_calc)
+
+
+def _financiado_da_linha(linha: dict) -> Decimal:
+    return financiado(linha['comodato'], linha['repasse_logista'], linha['valor_produtos_calc'], linha['valor_entrada_calc'])
+
+
+def resumo_financeiro(vendas: QuerySet) -> dict:
+    """Totais de valores das vendas, separando comodato (repasse 0, fica com a IPX) das demais.
+
+    `demais_repasse` é o repasse ao lojista (só vendas comuns); `comodato_ipx` é o valor
+    financiado das vendas de comodato, que fica todo com a IPX.
+    """
+    linhas = list(anotar_valores_da_venda(vendas).values(*CAMPOS_TOTAIS))
+    comodato = [l for l in linhas if l['comodato']]
+    return {
+        'total_entrada': soma(l['valor_entrada_calc'] for l in linhas),
+        'total_repasse': soma(l['repasse_logista'] for l in linhas),
+        'total_valor': soma(l['valor_total_calc'] for l in linhas),
+        'total_juros': soma(
+            _juros(l['valor_total_calc'], l['valor_entrada_calc'], _financiado_da_linha(l), l['qtd_itens_calc'])
+            for l in linhas
+        ),
+        **separar_comodato(linhas, lambda l: l['comodato'], lambda l: l['valor_total_calc']),
+        'comodato_ipx': soma(_financiado_da_linha(l) for l in comodato),
+        'demais_repasse': soma(l['repasse_logista'] for l in linhas if not l['comodato']),
+    }
 
 
 def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
@@ -54,6 +104,7 @@ def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
         vendas = vendas.filter(produtos__in=filtros['produtos'])
     if filtros.get('analise_online') is not None:
         vendas = vendas.filter(analises_credito_venda__analise_online=filtros['analise_online'])
+    vendas = filtrar_comodato(vendas, filtros, 'comodato')
     vendas = escopo.aplicar(vendas, 'loja')
     ids = vendas.values('pk').distinct()
     segunda_compra = PreAnaliseRapida.objects.filter(cliente_gerado_id=OuterRef('cliente_id'), segunda_compra=True)
@@ -70,17 +121,8 @@ def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
 
 
 def totais(vendas: QuerySet, filtros: dict | None = None) -> dict:
-    linhas = list(vendas.values('valor_total_calc', 'valor_entrada_calc', 'repasse_logista', 'qtd_itens_calc'))
-    return {
-        'total_vendas': len(linhas),
-        'total_entrada': soma(l['valor_entrada_calc'] for l in linhas),
-        'total_repasse': soma(l['repasse_logista'] for l in linhas),
-        'total_valor': soma(l['valor_total_calc'] for l in linhas),
-        'total_juros': soma(
-            (l['valor_total_calc'] - (l['valor_entrada_calc'] + (l['repasse_logista'] or 0))) * l['qtd_itens_calc']
-            for l in linhas
-        ),
-    }
+    resumo = resumo_financeiro(Venda.objects.filter(pk__in=vendas.values('pk')))
+    return {'total_vendas': resumo['comodato_quantidade'] + resumo['demais_quantidade'], **resumo}
 
 
 def _analise_do_cliente(cliente):
@@ -115,6 +157,7 @@ def linha(venda) -> dict:
         'valor_total': venda.valor_contabilizado_calc,
         'valor_juros': juros(venda),
         'pagamento_bloqueado': venda.bloqueada_calc,
+        'comodato': venda.comodato,
     }
 
 

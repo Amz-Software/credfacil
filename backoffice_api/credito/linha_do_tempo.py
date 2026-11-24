@@ -43,6 +43,7 @@ CAMPOS_ANALISE = (
     Campo('data_pagamento', 'Dia de pagamento', 'escolha', ROTULOS_DIA_PAGAMENTO),
     Campo('entrada_informada', 'Entrada informada'),
     Campo('analise_online', 'Análise online', 'bool'),
+    Campo('comodato', 'Aparelho de comodato', 'bool'),
     Campo('segunda_compra', 'Segunda compra', 'bool'),
     Campo('imei_id', 'IMEI (estoque)', 'fk', referencia='imei'),
     Campo('imei_informado', 'IMEI informado'),

@@ -51,14 +51,15 @@ CAMPOS_COMPROVANTES = (
 )
 CAMPOS_ANALISE = (
     'produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada',
-    'analise_online', 'segunda_compra', 'numero_autenticador',
+    'analise_online', 'comodato', 'segunda_compra', 'numero_autenticador',
 )
 CAMPOS_EDITAVEIS = (
     CAMPOS_CLIENTE + CAMPOS_CONTATO_ADICIONAL + CAMPOS_INFORMACAO_PESSOAL + CAMPOS_COMPROVANTES + CAMPOS_ANALISE
 )
 CAMPOS_ARQUIVO = tuple(campo for campo, d in ARQUIVOS_SOLICITACAO.items() if d.origem == 'comprovantes')
 # Depois da venda gerada a aba "Produto" fica travada para todos (regra da API do vendedor).
-CAMPOS_PRODUTO = ('produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada')
+# `comodato` entra junto: ele define o repasse gravado na venda.
+CAMPOS_PRODUTO = ('produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada', 'comodato')
 
 MSG_SEM_PERMISSAO_CAMPO = 'Você não pode alterar este campo.'
 MSG_PRODUTO_TRAVADO = 'As informações de Produto não podem ser alteradas após a venda ter sido gerada.'
