@@ -314,7 +314,8 @@ DATABASES = {
         # Nenhuma query pode esperar para sempre (incidente de 2026-11-12).
         # Valores em segundos; 0 desliga (o deploy usa 0 no `migrate`, para um
         # ALTER TABLE longo não ser cortado no meio).
-        'OPTIONS': _timeouts_mysql(),
+        # utf8mb4 na conexão: sem isso o driver usa utf8mb3 e qualquer emoji (WhatsApp) falha ao gravar.
+        'OPTIONS': {**_timeouts_mysql(), 'charset': 'utf8mb4'},
     },
 }
 
