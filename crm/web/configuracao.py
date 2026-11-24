@@ -66,18 +66,19 @@ def geral(request: HttpRequest) -> HttpResponse:
 
 # --- avisos automáticos de cobrança --------------------------------------------------------------
 
+# Textos de utilidade: informativos, sem pressão nem ameaça (a Meta recusa template em tom de cobrança
+# agressiva e reclassifica oferta como marketing). A oferta de aparelho novo fica para a conversa.
 SUGESTOES_COBRANCA = (
-    ('3 dias antes', 'Olá, {nome}! Passando para lembrar que sua parcela de {valor} vence em {vencimento}. '
-                     'Se precisar do PIX ou tiver alguma dúvida, é só responder esta mensagem.'),
-    ('No dia', 'Oi, {nome}! Sua parcela de {valor} vence hoje, {vencimento}. Para receber o PIX ou tirar '
-               'dúvidas, é só responder esta mensagem.'),
+    ('3 dias antes', 'Olá, {nome}! Passando para lembrar que a parcela de {valor} do seu aparelho vence em '
+                     '{vencimento}. Se precisar da chave PIX ou tiver alguma dúvida, é só responder esta mensagem.'),
+    ('No dia', 'Oi, {nome}! A parcela de {valor} do seu aparelho vence hoje, {vencimento}. Para receber o PIX ou '
+               'tirar dúvidas, é só responder esta mensagem.'),
     ('2 dias depois', 'Olá, {nome}. Ainda não identificamos o pagamento da parcela de {valor}, com vencimento em '
-                      '{vencimento}. Se já pagou, responda com o comprovante. Se precisar do PIX, é só pedir.'),
+                      '{vencimento}. Se já pagou, responda com o comprovante. Se precisar do PIX, é só pedir por aqui.'),
     ('Sem retorno', 'Olá, {nome}. Ainda não tivemos retorno sobre a parcela de {valor}, vencida em {vencimento}. '
-                    'Responda esta mensagem para regularizar ou enviar o comprovante.'),
-    ('Quitação', 'Parabéns, {nome}! Seu contrato está quitado. Obrigado pela confiança! Se quiser um aparelho '
-                 'novo, temos condições especiais para você. Responda para saber mais ou para tirar o app do '
-                 'aparelho.'),
+                    'Responda esta mensagem para combinarmos o pagamento ou enviar o comprovante.'),
+    ('Quitação', 'Parabéns, {nome}! Seu contrato com a IPX foi quitado. Obrigado pela confiança! Para remover o '
+                 'aplicativo do aparelho ou tirar qualquer dúvida, é só responder esta mensagem.'),
 )
 
 

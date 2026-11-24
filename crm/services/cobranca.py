@@ -22,7 +22,7 @@ from django.db.models import Count, Max, Q
 from django.utils import timezone
 
 from crm.models import ConfiguracaoCRM, Conversa, Mensagem, TentativaContato, VersaoAbertura
-from crm.services import aberturas, avisos, contatos
+from crm.services import aberturas, avisos, contatos, expediente
 from crm.services.conversas import ConflitoCRM, conversa_do_telefone
 from crm.services.pagamentos import formatar_reais
 from crm.telefone import com_ddi
@@ -37,6 +37,7 @@ INTERVALO_RODADAS = 15 * 60  # segundos: a rotina do worker roda a cada minuto
 CHAVE_RODADA = 'crm:cobranca:ultima_rodada'
 JANELA_QUITACAO = timedelta(days=3)
 MAX_ENVIOS_POR_RODADA = 300
+ALERTA_DEPOIS_DE_REPETICOES = 1  # pedido de comprovante + 1 repetição sem resposta → a equipe assume
 MAX_FALHAS_SEGUIDAS = 5  # Meta fora do ar, token vencido, template pausado: para e tenta na próxima rodada
 TIPOS_AVISO = (Tipo.AVISO_ANTES, Tipo.AVISO_DIA, Tipo.AVISO_APOS, Tipo.AVISO_INSISTENCIA, Tipo.AVISO_QUITACAO)
 
@@ -167,6 +168,12 @@ def _candidatas_da_etapa(etapa: Etapa, hoje: date, ativada_em: date):
             .order_by('data_vencimento', 'pk'))
 
 
+def clientes_em_atraso(ids, hoje: date) -> set[int]:
+    """Clientes (entre `ids`) com parcela do crediário vencida e sem pagamento informado."""
+    return set(_parcelas_abertas().filter(data_vencimento__lt=hoje, pagamento__venda__cliente_id__in=list(ids))
+               .values_list('pagamento__venda__cliente_id', flat=True))
+
+
 def _cliente_escreveu_depois(cliente, momento: datetime) -> bool:
     return (Mensagem.objects.filter(conversa__clientes=cliente, direcao=Mensagem.Direcao.ENTRADA,
                                     criado_em__gt=momento)
@@ -175,7 +182,7 @@ def _cliente_escreveu_depois(cliente, momento: datetime) -> bool:
 
 def _proxima_insistencia(config: ConfiguracaoCRM, parcela, hoje: date) -> int | None:
     """Sequência da próxima insistência, ou None se não é hora (respondeu, intervalo, limite)."""
-    avisos_da_parcela = list(parcela.avisos_crm.all())
+    avisos_da_parcela = [a for a in parcela.avisos_crm.all() if a.tipo != Tipo.ALERTA]
     pedido = next((a for a in avisos_da_parcela if a.tipo == Tipo.AVISO_APOS), None)
     if pedido is None:
         return None
@@ -265,6 +272,21 @@ class _Rodada:
             if sequencia is not None:
                 self.tentar(versao, parcela, Tipo.AVISO_INSISTENCIA, sequencia)
 
+    def alertas(self) -> None:
+        """Não pagou e não respondeu ao pedido de comprovante nem à repetição: vai para a fila da equipe
+        (ligação, C4M, referência). Um alerta por parcela; não conta como aviso ao cliente."""
+        com_pedido = TentativaContato.objects.filter(tipo=Tipo.AVISO_APOS).values('parcela_id')
+        candidatas = (_parcelas_abertas().filter(pk__in=com_pedido, data_vencimento__lt=self.hoje)
+                      .annotate(repeticoes=Count('avisos_crm', filter=Q(avisos_crm__tipo=Tipo.AVISO_INSISTENCIA)),
+                                alertas=Count('avisos_crm', filter=Q(avisos_crm__tipo=Tipo.ALERTA)))
+                      .filter(repeticoes__gte=ALERTA_DEPOIS_DE_REPETICOES, alertas=0)
+                      .prefetch_related('avisos_crm__mensagem__conversa'))
+        for parcela in candidatas:
+            try:
+                alertar(parcela)
+            except Exception:  # noqa: BLE001
+                logger.exception('Falha no alerta da parcela %s.', parcela.pk)
+
     def quitacoes(self) -> None:
         versao = versao_vigente(self.config, CAMPO_QUITACAO)
         if versao is None:
@@ -273,6 +295,40 @@ class _Rodada:
             ultima = pagamento.parcelas_pagamento.order_by('-numero_parcela').first()
             if ultima is not None:
                 self.tentar(versao, ultima, Tipo.AVISO_QUITACAO)
+
+
+NOTA_ALERTA = ('Alerta de cobrança: {nome} não pagou a parcela {numero} (vencida em {vencimento}, {valor}) e não '
+               'respondeu a {avisos} aviso(s). Tente ligação, outro número (C4M) ou as referências, sem falar da '
+               'dívida com terceiros.')
+
+
+def alertar(parcela) -> bool:
+    """Registra o alerta (único por parcela) e põe a conversa do cliente na fila da equipe."""
+    from crm.services.conversas import nota_automatica, transferir
+
+    avisos_enviados = [a for a in parcela.avisos_crm.all() if a.automatica]
+    cliente = parcela.pagamento.venda.cliente
+    if any(a.resultado == TentativaContato.Resultado.RESPONDEU for a in avisos_enviados):
+        return False
+    pedido = next((a for a in avisos_enviados if a.tipo == Tipo.AVISO_APOS), None)
+    if pedido is None or _cliente_escreveu_depois(cliente, pedido.criado_em):
+        return False
+    try:
+        with transaction.atomic():
+            TentativaContato.objects.create(cliente=cliente, numero=pedido.numero, tipo=Tipo.ALERTA, parcela=parcela,
+                                            observacao='Não pagou e não respondeu aos avisos.')
+    except IntegrityError:
+        return False
+    conversa = next((a.mensagem.conversa for a in reversed(avisos_enviados) if a.mensagem_id), None)
+    if conversa is None:
+        return True
+    nota = NOTA_ALERTA.format(nome=_primeiro_nome(cliente), numero=parcela.numero_parcela,
+                              vencimento=parcela.data_vencimento.strftime('%d/%m/%Y'),
+                              valor=formatar_reais(parcela.valor_restante), avisos=len(avisos_enviados))
+    if not transferir(conversa, nota):
+        nota_automatica(conversa, nota)
+        avisos.emitir(conversa, 'conversa_atualizada')
+    return True
 
 
 def _reservar_rodada() -> bool:
@@ -290,12 +346,15 @@ def rodar(agora: datetime | None = None, forcar: bool = False) -> dict:
     local = timezone.localtime(agora or timezone.now())
     if not config.cobranca_ativa or not config.cobranca_hora_envio <= local.time() < FIM_DOS_ENVIOS:
         return {}
+    if local.weekday() == expediente.DOMINGO or expediente.feriado(local.date()):
+        return {}  # cobrança não sai em domingo nem feriado
     if not forcar and not _reservar_rodada():
         return {}
     rodada = _Rodada(config, local.date())
     rodada.quitacoes()
     rodada.etapas()
     rodada.insistencias()
+    rodada.alertas()
     return rodada.enviados
 
 

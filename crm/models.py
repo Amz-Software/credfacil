@@ -354,7 +354,7 @@ class ConfiguracaoCRM(models.Model):
         default=5, help_text='Sem retorno do cliente, repete o aviso a cada quantos dias.',
     )
     cobranca_max_insistencias = models.PositiveSmallIntegerField(
-        default=6, help_text='Quantas vezes repetir, no máximo, depois do pedido de comprovante.',
+        default=3, help_text='Quantas vezes repetir, no máximo, depois do pedido de comprovante.',
     )
     modelo_aviso_antes = models.ForeignKey(ModeloAbertura, null=True, blank=True, on_delete=models.SET_NULL,
                                            related_name='+')

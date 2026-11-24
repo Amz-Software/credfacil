@@ -130,10 +130,17 @@ class TelefonesTests(CobrancaBase):
         self.assertEqual(contatos.ficha(self.cliente, desde).status, contatos.Status.NAO_LOCALIZADO)
 
 
+def proximo_dia_de_cobranca(dia: date) -> date:
+    """A régua não roda em domingo nem feriado: os testes usam sempre um dia em que ela roda."""
+    while dia.weekday() == expediente.DOMINGO or expediente.feriado(dia):
+        dia += timedelta(days=1)
+    return dia
+
+
 class ReguaBase(CobrancaBase):
     def setUp(self):
         super().setUp()
-        self.hoje = timezone.localdate()
+        self.hoje = proximo_dia_de_cobranca(timezone.localdate())
         modelo = self.abertura_aprovada('Aviso de parcela', CORPO_AVISO)
         quitacao = self.abertura_aprovada('Quitação', CORPO_QUITACAO)
         ConfiguracaoCRM.objects.filter(pk=1).update(
@@ -356,7 +363,7 @@ class RobustezReguaTests(ReguaBase):
     def test_ligar_a_regua_nao_recupera_etapas_de_antes_da_ativacao(self):
         Parcela.objects.filter(pk=self.parcelas[1].pk).update(pago=True)
         self.vencer_em(self.parcelas[2], 2)  # o "3 dias antes" seria ontem
-        ConfiguracaoCRM.objects.filter(pk=1).update(cobranca_ativada_em=timezone.now())
+        ConfiguracaoCRM.objects.filter(pk=1).update(cobranca_ativada_em=momento(self.hoje, 8))
 
         self.assertEqual(self.rodar(), {})
 
@@ -371,6 +378,58 @@ class RobustezReguaTests(ReguaBase):
         self.assertEqual((antigo.origem, antigo.situacao),
                          (TelefoneCliente.Origem.OUTRO, TelefoneCliente.Situacao.NAO_VERIFICADO))
         self.assertEqual(contatos.para_aviso(self.cliente).telefone, '91977776666')
+
+
+class AlertaTests(ReguaBase):
+    def _avisado_sem_resposta(self) -> Conversa:
+        """Parcela vencida com pedido de comprovante e uma repetição, sem resposta do cliente."""
+        Parcela.objects.filter(pk=self.parcelas[2].pk).update(pago=True)
+        parcela = self.vencer_em(self.parcelas[1], -10)
+        telefone = contatos.para_aviso(self.cliente)
+        conversa = Conversa.objects.create(telefone='5591999990000')
+        conversa.clientes.add(self.cliente)
+        for tipo, dias in ((Tipo.AVISO_APOS, 8), (Tipo.AVISO_INSISTENCIA, 3)):
+            mensagem = Mensagem.objects.create(conversa=conversa, direcao=Mensagem.Direcao.SAIDA,
+                                               autor=Mensagem.Autor.AUTOMATICO, origem=Mensagem.Origem.COBRANCA,
+                                               status=Mensagem.Status.ENTREGUE, texto='aviso', processada=True)
+            tentativa = TentativaContato.objects.create(
+                cliente=self.cliente, telefone=telefone, numero=telefone.telefone, tipo=tipo, parcela=parcela,
+                sequencia=1 if tipo == Tipo.AVISO_INSISTENCIA else 0, mensagem=mensagem)
+            TentativaContato.objects.filter(pk=tentativa.pk).update(
+                criado_em=timezone.now() - timedelta(days=dias))
+        return conversa
+
+    def test_nao_pagou_e_nao_respondeu_vai_para_a_fila_uma_vez(self):
+        conversa = self._avisado_sem_resposta()
+
+        self.rodar()
+        self.rodar()
+
+        alerta = TentativaContato.objects.get(tipo=Tipo.ALERTA)
+        self.assertFalse(alerta.automatica)
+        conversa.refresh_from_db()
+        self.assertEqual(conversa.modo, Conversa.Modo.AGUARDANDO)
+        self.assertIn('não respondeu', conversa.notas.get().texto)
+        ficha = contatos.ficha(self.cliente, timezone.now() - timedelta(days=30), em_atraso=True)
+        self.assertTrue(ficha.alerta)
+        self.assertEqual(ficha.avisos, 2)  # o alerta é interno: não conta como aviso ao cliente
+
+    def test_quem_respondeu_nao_gera_alerta(self):
+        conversa = self._avisado_sem_resposta()
+        Mensagem.objects.create(conversa=conversa, direcao=Mensagem.Direcao.ENTRADA, autor=Mensagem.Autor.CLIENTE,
+                                texto='vou pagar sexta', processada=True)
+
+        self.rodar()
+
+        self.assertFalse(TentativaContato.objects.filter(tipo=Tipo.ALERTA).exists())
+
+    def test_domingo_e_feriado_nao_cobra(self):
+        Parcela.objects.filter(pk=self.parcelas[1].pk).update(pago=True)
+        domingo = self.hoje + timedelta(days=(expediente.DOMINGO - self.hoje.weekday()) % 7)
+        Parcela.objects.filter(pk=self.parcelas[2].pk).update(data_vencimento=domingo + timedelta(days=3))
+
+        self.assertEqual(self.rodar(domingo), {})
+        self.assertEqual(self.rodar(date(domingo.year, 12, 25)), {})
 
 
 class ConfiguracaoCobrancaTests(CobrancaBase):

@@ -17,7 +17,7 @@ from django.utils import timezone
 from crm.models import Conversa, EncaminhamentoIA, Mensagem, TelefoneCliente, TentativaContato
 from crm.services import contatos
 from crm.services.assistente import anexos
-from crm.services.cobranca import TIPO_CREDFACIL, _parcelas_abertas
+from crm.services.cobranca import TIPO_CREDFACIL, _parcelas_abertas, clientes_em_atraso
 from crm.services.contatos import Status
 from crm.telefone import formatar_telefone
 
@@ -32,6 +32,7 @@ ZERO = Decimal('0.00')
 
 
 class Relatorio:
+    ALERTA = 'alerta'
     SEM_RESPOSTA = 'sem_resposta'
     BLOQUEADOS = 'bloqueados'
     REFERENCIAS = 'referencias'
@@ -40,6 +41,7 @@ class Relatorio:
     TODOS = 'todos'
 
     ROTULOS = {
+        ALERTA: 'Não pagou e não respondeu',
         SEM_RESPOSTA: 'Sem resposta',
         BLOQUEADOS: 'Bloqueados',
         REFERENCIAS: 'Referências sem sucesso',
@@ -50,6 +52,7 @@ class Relatorio:
 
     # Falta de resposta não é bloqueio: "bloqueados" só com bloqueio confirmado pela equipe.
     REGRAS = {
+        ALERTA: lambda f: f.alerta,
         SEM_RESPOSTA: lambda f: f.avisos > 0 and not f.respondeu,
         BLOQUEADOS: lambda f: f.bloqueado,
         REFERENCIAS: lambda f: f.referencia_sem_sucesso,
@@ -180,8 +183,11 @@ def _no_escopo(clientes: QuerySet, usuario) -> QuerySet:
 def fichas(filtros: Filtros, hoje: date | None = None, usuario=None) -> list[tuple]:
     """[(cliente, ficha)] da população visível ao usuário (a ficha é o status de contato de cada um)."""
     clientes = list(_no_escopo(_clientes(ids_da_populacao(filtros, hoje), filtros), usuario))
-    escreveram = contatos.clientes_que_escreveram([c.pk for c in clientes], filtros.inicio, filtros.fim)
-    return [(cliente, contatos.ficha(cliente, filtros.inicio, filtros.fim, escreveu=cliente.pk in escreveram))
+    ids = [c.pk for c in clientes]
+    escreveram = contatos.clientes_que_escreveram(ids, filtros.inicio, filtros.fim)
+    atrasados = clientes_em_atraso(ids, hoje or timezone.localdate())
+    return [(cliente, contatos.ficha(cliente, filtros.inicio, filtros.fim, escreveu=cliente.pk in escreveram,
+                                     em_atraso=cliente.pk in atrasados))
             for cliente in clientes]
 
 
@@ -248,7 +254,7 @@ def relatorio(nome: str, filtros: Filtros, pagina: int | str = 1, hoje: date | N
 # --- indicadores do painel -----------------------------------------------------------------------
 
 def _avisos(filtros: Filtros) -> QuerySet:
-    return (TentativaContato.objects.exclude(tipo=TentativaContato.Tipo.MANUAL)
+    return (TentativaContato.objects.exclude(tipo__in=(TentativaContato.Tipo.MANUAL, TentativaContato.Tipo.ALERTA))
             .filter(_filtro_vencimento(filtros, 'parcela__'), criado_em__range=(filtros.inicio, filtros.fim)))
 
 

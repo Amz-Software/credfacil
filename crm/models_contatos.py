@@ -57,6 +57,7 @@ class TentativaContato(models.Model):
         AVISO_APOS = 'AVISO_APOS', 'Pedido de comprovante após o vencimento'
         AVISO_INSISTENCIA = 'AVISO_INSIST', 'Nova tentativa sem retorno'
         AVISO_QUITACAO = 'AVISO_QUITAC', 'Mensagem de quitação'
+        ALERTA = 'ALERTA', 'Alerta para a equipe: não pagou e não respondeu'
         MANUAL = 'MANUAL', 'Registrada pela equipe'
 
     class Canal(models.TextChoices):
@@ -104,7 +105,8 @@ class TentativaContato(models.Model):
 
     @property
     def automatica(self) -> bool:
-        return self.tipo != self.Tipo.MANUAL
+        """Aviso enviado ao cliente pela régua (alerta é interno, para a equipe)."""
+        return self.tipo not in (self.Tipo.MANUAL, self.Tipo.ALERTA)
 
 
 class EncaminhamentoIA(models.Model):

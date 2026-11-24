@@ -273,10 +273,16 @@ class Ficha:
     bloqueado: bool
     referencia_sem_sucesso: bool
     alternativos: int
+    em_atraso: bool = False
 
     @property
     def rotulo(self) -> str:
         return Status.ROTULOS[self.status]
+
+    @property
+    def alerta(self) -> bool:
+        """Tem parcela vencida, recebeu aviso e não respondeu: a equipe precisa agir."""
+        return self.em_atraso and self.avisos > 0 and not self.respondeu
 
 
 def _referencias_esgotadas(refs: list[TelefoneCliente], tentativas: list[TentativaContato]) -> bool:
@@ -318,11 +324,13 @@ def clientes_que_escreveram(ids, desde: datetime, ate: datetime | None = None) -
     return set(entradas.values_list('conversa__clientes', flat=True).distinct())
 
 
-def ficha(cliente, desde: datetime, ate: datetime | None = None, escreveu: bool | None = None) -> Ficha:
+def ficha(cliente, desde: datetime, ate: datetime | None = None, escreveu: bool | None = None,
+          em_atraso: bool = False) -> Ficha:
     """Status do cliente no período (só leitura). `escreveu` pode vir calculado em lote."""
     telefones = telefones_para_leitura(cliente)
     tentativas = [t for t in cliente.tentativas_crm.all()
-                  if t.criado_em >= desde and (ate is None or t.criado_em < ate)]
+                  if t.tipo != TentativaContato.Tipo.ALERTA
+                  and t.criado_em >= desde and (ate is None or t.criado_em < ate)]
     if escreveu is None:
         escreveu = cliente.pk in clientes_que_escreveram([cliente.pk], desde, ate)
     respondeu = escreveu or any(t.resultado == Resultado.RESPONDEU for t in tentativas)
@@ -335,4 +343,5 @@ def ficha(cliente, desde: datetime, ate: datetime | None = None, escreveu: bool 
         bloqueado=any(t.situacao == Situacao.BLOQUEADO for t in telefones),
         referencia_sem_sucesso=any(t.resultado == Resultado.REFERENCIA_SEM_SUCESSO for t in tentativas),
         alternativos=max(len(utilizaveis(cliente, telefones)) - 1, 0),
+        em_atraso=em_atraso,
     )

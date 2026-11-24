@@ -3,11 +3,14 @@
 Só para clientes vinculados à conversa e que o usuário pode ver. Número de referência
 aparece só como contato para ligar: nada de dívida ou parcela junto dele.
 """
+from datetime import timedelta
+
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from crm.models import Conversa, TelefoneCliente, TentativaContato
-from crm.services import contatos
+from crm.services import cobranca, contatos
 from crm.services.contatos import ErroContato
 from crm.services.conversas import ConflitoCRM, nota_automatica
 from crm.services.organizacao import pode_ver_cliente
@@ -82,6 +85,16 @@ def _opcoes() -> dict:
     }
 
 
+JANELA_ALERTA = timedelta(days=30)
+
+
+def _alerta(cliente) -> bool:
+    """Mesmo critério da aba "Não pagou e não respondeu" (avisos dos últimos 30 dias)."""
+    hoje = timezone.localdate()
+    em_atraso = cliente.pk in cobranca.clientes_em_atraso([cliente.pk], hoje)
+    return em_atraso and contatos.ficha(cliente, timezone.now() - JANELA_ALERTA, em_atraso=True).alerta
+
+
 def dados_do_cliente(cliente) -> dict:
     """Telefones (sincronizados com o cadastro) e as últimas tentativas, prontos para o template."""
     telefones = contatos.sincronizar(cliente)
@@ -89,6 +102,7 @@ def dados_do_cliente(cliente) -> dict:
                   [:MAX_TENTATIVAS_PAINEL])
     return {
         'cliente_id': cliente.pk,
+        'alerta': _alerta(cliente),
         'telefones': [_telefone_dict(cliente, t) for t in telefones],
         'tentativas': [_tentativa_dict(t) for t in tentativas],
         **_opcoes(),
