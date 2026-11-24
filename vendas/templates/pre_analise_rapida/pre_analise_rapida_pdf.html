@@ -2,7 +2,7 @@
 
 {% block report_title %}Relatório de Análises Rápidas{% endblock %}
 
-{% block report_page_size %}A4 landscape{% endblock %}
+{% block report_page_size %}{{ tamanho_pagina|default:'A4 landscape' }}{% endblock %}
 
 {% block report_head %}
     .subtitle { color: #555; font-size: 9pt; margin-bottom: 10px; }

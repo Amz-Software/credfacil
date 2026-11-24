@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from backoffice_api.nucleo.erros import REGRA_DE_NEGOCIO, ErroBackoffice
 from backoffice_api.nucleo.escopo import filtrar_por_lojas, lojas_da_requisicao
+from backoffice_api.nucleo.papel import tamanho_pagina
 from backoffice_api.nucleo.views import BackofficeAPIView
 
 from .definicoes import RELATORIOS, DefinicaoRelatorio
@@ -101,6 +102,7 @@ class RelatorioPreviaView(_RelatorioBase):
 
 class RelatorioPdfView(EntregaDeArquivoMixin, _RelatorioBase):
     def get(self, request):
+        pagina = tamanho_pagina(request.query_params)
         validados, consulta = self.preparar()
         quantidade = consulta.count()
         if quantidade > LIMITE_LINHAS_PDF:
@@ -116,6 +118,7 @@ class RelatorioPdfView(EntregaDeArquivoMixin, _RelatorioBase):
             'filtros': validados,
             'lojas_nomes': [loja.nome for loja in validados.get('lojas') or []],
             'usuario': request.user,
+            'tamanho_pagina': pagina,
             **self.relatorio.contexto_pdf(validados),
         }
         resposta = resposta_pdf(renderizar_template_local(self.relatorio.template_pdf, contexto), f'relatorio_{self.relatorio.id}')

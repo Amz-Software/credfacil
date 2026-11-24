@@ -5,6 +5,7 @@ from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_sche
 from rest_framework.response import Response
 
 from backoffice_api.nucleo.escopo import filtrar_por_lojas
+from backoffice_api.nucleo.papel import tamanho_pagina
 from backoffice_api.nucleo.views import BackofficeAPIView
 from backoffice_api.relatorios.pdf import EntregaDeArquivoMixin, resposta_pdf
 from vendas.models import AnaliseCreditoCliente
@@ -117,8 +118,12 @@ class PainelGraficosPdfView(EntregaDeArquivoMixin, _FiltroGraficosMixin, Backoff
         responses={(200, 'application/pdf'): OpenApiResponse(OpenApiTypes.BINARY, description='Arquivo PDF.')},
     )
     def get(self, request):
+        pagina = tamanho_pagina(request.query_params)
         _, recorte, loja, periodo, comodato = self.filtros()
-        contexto = contexto_relatorio_dashboard(recorte, periodo, request.user, comodato=comodato)
+        contexto = {
+            **contexto_relatorio_dashboard(recorte, periodo, request.user, comodato=comodato),
+            'tamanho_pagina': pagina,
+        }
         resposta = resposta_pdf(get_template(TEMPLATE_PDF).render(contexto), 'relatorio_dashboard')
         self.auditar(
             'relatorio_gerado',

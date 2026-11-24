@@ -1,6 +1,7 @@
 """Produtos: permissões, escopo de loja, validações, auditoria, simulação e PDF."""
 import re
 
+from backoffice_api.tests.pdf import A2_PAISAGEM, tamanho_da_pagina
 from backoffice_api.tests.fabricas import cliente_logado, criar_loja, criar_usuario
 from produtos.models import Produto
 
@@ -208,6 +209,13 @@ class RelatorioPDFTests(ProdutosBase):
         self.assertEqual(resposta.status_code, 200)
         self.assertEqual(resposta['Content-Type'], 'application/pdf')
         self.assertTrue(resposta.content.startswith(b'%PDF'))
+
+    def test_pdf_aceita_papel_e_recusa_papel_invalido(self):
+        cliente = cliente_logado(criar_usuario('vend', permissoes=VER, lojas=(self.loja_a,)))
+        resposta = cliente.get(self.URL_PDF, {'papel': 'A2', 'orientacao': 'paisagem'})
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(tamanho_da_pagina(resposta.content), A2_PAISAGEM)
+        self.assertErro(cliente.get(self.URL_PDF, {'papel': 'A9'}), 400, 'validacao', 'papel')
 
     def test_pdf_aceita_accept_pdf(self):
         cliente = cliente_logado(criar_usuario('vend', permissoes=VER, lojas=(self.loja_a,)))

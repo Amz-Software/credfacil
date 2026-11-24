@@ -32,7 +32,9 @@ def _lojas_do_filtro(params) -> str:
     return ', '.join(Loja.objects.filter(pk__in=ids).order_by('nome').values_list('nome', flat=True)) or 'Todas'
 
 
-def gerar_pdf_pre_analises(pre_analises: QuerySet, params) -> tuple[bytes, int]:
+def gerar_pdf_pre_analises(
+    pre_analises: QuerySet, params, tamanho_pagina: str = 'A4 landscape',
+) -> tuple[bytes, int]:
     """Devolve (bytes do PDF, quantidade de linhas)."""
     linhas = [_linha(pre) for pre in pre_analises]
     html = get_template(TEMPLATE).render({
@@ -43,6 +45,7 @@ def gerar_pdf_pre_analises(pre_analises: QuerySet, params) -> tuple[bytes, int]:
         'data_inicio': params.get('data_inicio', '') or SEM_VALOR,
         'data_fim': params.get('data_fim', '') or SEM_VALOR,
         'gerado_em': timezone.localtime(timezone.now()).strftime('%d/%m/%Y %H:%M'),
+        'tamanho_pagina': tamanho_pagina,
     })
     return weasyprint.HTML(string=html).write_pdf(), len(linhas)
 

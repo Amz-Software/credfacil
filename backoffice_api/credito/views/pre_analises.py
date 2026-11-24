@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from backoffice_api.nucleo.erros import NAO_ENCONTRADO_RECURSO, PROIBIDO_ACESSO, ErroBackoffice
+from backoffice_api.nucleo.papel import tamanho_pagina
 from backoffice_api.nucleo.permissoes import EmGrupo
 from backoffice_api.nucleo.views import BackofficeAPIView, BackofficeReadOnlyViewSet
 from vendas.models import PreAnaliseRapida
@@ -174,7 +175,7 @@ class RelatorioPreAnalisesView(MetodoAntesDaPermissaoMixin, BackofficeAPIView):
     def get(self, request):
         params = request.query_params
         qs = ordenar_pre_analises(filtrar_pre_analises(self.filtrar_por_lojas(_base_pre_analises(), 'loja'), params), params)
-        pdf, total = gerar_pdf_pre_analises(qs, params)
+        pdf, total = gerar_pdf_pre_analises(qs, params, tamanho_pagina(params))
         self.auditar('relatorio_pre_analises_gerado', dados={'filtros': params.dict(), 'total': total})
         resposta = HttpResponse(pdf, content_type='application/pdf')
         resposta['Content-Disposition'] = f'attachment; filename="{nome_do_arquivo()}"'

@@ -1,7 +1,7 @@
 {% extends "components/report_base.html" %}
 {% comment %} PDF do relatório de situações (mesmas colunas da folha financeiro/templates/contas_a_receber/folha_relatorio_avancado.html). {% endcomment %}
 {% block report_title %}{{ titulo }}{% endblock %}
-{% block report_page_size %}A4 landscape{% endblock %}
+{% block report_page_size %}{{ tamanho_pagina|default:'A4 landscape' }}{% endblock %}
 {% block report_head %}
   body { font-size: 7.5pt; }
   .filtros { margin-bottom: 8px; color: #444; }

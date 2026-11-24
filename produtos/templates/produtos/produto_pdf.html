@@ -2,7 +2,7 @@
 
 {% block report_title %}Listagem de Produtos{% endblock %}
 
-{% block report_page_size %}A4 landscape{% endblock %}
+{% block report_page_size %}{{ tamanho_pagina|default:'A4 landscape' }}{% endblock %}
 
 {% block report_head %}
     table { font-size: 8pt; }

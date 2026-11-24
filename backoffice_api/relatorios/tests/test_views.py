@@ -6,6 +6,7 @@ from django.test import TestCase
 from backoffice_api.models import RegistroAuditoria
 from backoffice_api.painel.tests import cenario
 from backoffice_api.painel.tests.cenario import dias
+from backoffice_api.tests.pdf import A2_PAISAGEM, A3_RETRATO, A4_PAISAGEM, tamanho_da_pagina
 from backoffice_api.tests.fabricas import cliente_logado, criar_loja, criar_usuario
 
 BASE = '/api/bo/v1/relatorios/'
@@ -128,6 +129,22 @@ class ArquivosTests(BaseRelatorios):
         self.assertEqual(formatos, {
             ('vendas', 'pdf'), ('solicitacoes', 'pdf'), ('contas_a_receber', 'pdf'), ('situacoes', 'pdf'), ('parcelas', 'pdf'),
         })
+
+    def test_pdf_sai_no_papel_escolhido(self):
+        vendas = self.cliente(VENDAS)
+        padrao = vendas.get(BASE + 'vendas/pdf/')
+        a2 = vendas.get(BASE + 'vendas/pdf/', {'papel': 'A2', 'orientacao': 'paisagem'})
+        a3_retrato = vendas.get(BASE + 'vendas/pdf/', {'papel': 'A3', 'orientacao': 'retrato'})
+        for resposta in (padrao, a2, a3_retrato):
+            self._pdf_ok(resposta)
+        self.assertEqual(tamanho_da_pagina(padrao.content), A4_PAISAGEM)
+        self.assertEqual(tamanho_da_pagina(a2.content), A2_PAISAGEM)
+        self.assertEqual(tamanho_da_pagina(a3_retrato.content), A3_RETRATO)
+
+    def test_papel_invalido_responde_400(self):
+        resposta = self.cliente(VENDAS).get(BASE + 'vendas/pdf/', {'papel': 'A9'})
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn('papel', resposta.json()['erro']['campos'])
 
     def test_pdf_sem_permissao_responde_403(self):
         self.assertEqual(self.cliente(VENDAS).get(BASE + 'situacoes/pdf/').status_code, 403)

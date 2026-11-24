@@ -2,6 +2,7 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from backoffice_api.models import RegistroAuditoria
+from backoffice_api.tests.pdf import A3_RETRATO, A4_PAISAGEM, tamanho_da_pagina
 from vendas.models import PreAnaliseRapida
 
 from .fabricas import BASE, CenarioCredito, criar_pre_analise, criar_usuario, pdf
@@ -95,6 +96,14 @@ class PreAnaliseTests(CenarioCredito):
         self.assertEqual(resposta['Content-Type'], 'application/pdf')
         self.assertTrue(resposta.content.startswith(b'%PDF'))
         self.assertEqual(RegistroAuditoria.objects.get(acao='relatorio_pre_analises_gerado').dados['total'], 1)
+
+    def test_relatorio_pdf_no_papel_escolhido(self):
+        url = f'{BASE}/pre-analises/relatorio.pdf'
+        analista = self.logar(self.analista)
+        self.assertEqual(tamanho_da_pagina(analista.get(url).content), A4_PAISAGEM)
+        resposta = analista.get(url, {'papel': 'A3', 'orientacao': 'retrato'})
+        self.assertEqual(tamanho_da_pagina(resposta.content), A3_RETRATO)
+        self.assertEqual(analista.get(url, {'orientacao': 'deitado'}).status_code, 400)
 
     def test_relatorio_para_administrador_sem_permissao_extra(self):
         admin = criar_usuario('adm2', grupos=('ADMINISTRADOR',))

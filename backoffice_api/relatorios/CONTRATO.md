@@ -66,7 +66,8 @@ Contém dados pessoais (nome, telefones): não guardar em cache no navegador.
 ---
 
 ## GET `<id>/pdf/`
-**Permissão:** a do relatório. Mesmos filtros (sem paginação). PDF gerado no servidor (WeasyPrint, A4 paisagem, base `components/report_base.html`), mesmas colunas da folha atual; `parcelas` sai na mesma grade colorida da planilha.
+**Permissão:** a do relatório. Mesmos filtros (sem paginação). PDF gerado no servidor (WeasyPrint, A4 paisagem por padrão, base `components/report_base.html`), mesmas colunas da folha atual; `parcelas` sai na mesma grade colorida da planilha.
+Papel opcional: `papel` = `A4` (padrão) | `A3` | `A2` | `A1` | `carta` | `oficio` e `orientacao` = `paisagem` (padrão) | `retrato`. O servidor diagrama na folha escolhida (A2 cabe mais linhas por página); valor fora da lista → 400 `validacao` com `campos.papel`/`campos.orientacao`. Os mesmos parâmetros valem para `catalogo/produtos/relatorio.pdf`, `credito/pre-analises/relatorio.pdf` e `painel/graficos/relatorio.pdf` (`backoffice_api/nucleo/papel.py`).
 Resposta `application/pdf`, `Content-Disposition: attachment; filename="relatorio_<id>_AAAAMMDD_HHMMSS.pdf"`, `Cache-Control: no-store`.
 Limite: mais de **3000** registros → 422 `regra_de_negocio` ("Refine os filtros"). Erros sempre em JSON.
 

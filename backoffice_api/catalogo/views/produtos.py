@@ -10,6 +10,7 @@ from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.response import Response
 
 from backoffice_api.nucleo.erros import ErroBackoffice
+from backoffice_api.nucleo.papel import tamanho_pagina
 from produtos.models import Produto
 
 from ..base import CatalogoAPIView, CatalogoViewSet, loja_escolhida, lojas_para_filtro
@@ -180,10 +181,13 @@ class ProdutoRelatorioPDFView(CatalogoAPIView):
     renderer_classes = [JSONRenderer, PDFRenderer]
 
     def get(self, request):
+        pagina = tamanho_pagina(request.query_params)
         produtos = _lista_filtrada(self)
         marca_id = ler_id(request.query_params, 'marca')
         marca = marcas_visiveis(lojas_para_filtro(self)).filter(pk=marca_id).first() if marca_id else None
-        pdf = gerar_pdf_produtos(produtos, busca=ler_busca(request.query_params), marca=marca)
+        pdf = gerar_pdf_produtos(
+            produtos, busca=ler_busca(request.query_params), marca=marca, tamanho_pagina=pagina,
+        )
         resposta = HttpResponse(pdf, content_type='application/pdf')
         resposta['Content-Disposition'] = 'inline; filename="produtos.pdf"'
         return resposta

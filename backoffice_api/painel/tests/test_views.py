@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from backoffice_api.models import RegistroAuditoria
+from backoffice_api.tests.pdf import A2_PAISAGEM, A4_PAISAGEM, tamanho_da_pagina
 from backoffice_api.tests.fabricas import cliente_logado, criar_loja, criar_usuario
 from vendas.models import AnaliseCreditoCliente
 
@@ -187,6 +188,13 @@ class GraficosPdfTests(BaseCarteira):
         self.assertEqual(registro.usuario, user)
         self.assertEqual(registro.dados['relatorio'], 'painel_graficos')
         self.assertEqual(registro.dados['filtros']['data_inicio'], cenario.dias(-90).isoformat())
+
+    def test_pdf_no_papel_escolhido(self):
+        cliente = cliente_logado(criar_usuario('pdf', permissoes=('vendas.can_generate_dashboard_report',)))
+        self.assertEqual(tamanho_da_pagina(cliente.get(URL_PDF).content), A4_PAISAGEM)
+        a2 = cliente.get(URL_PDF, {'papel': 'A2', 'orientacao': 'paisagem'})
+        self.assertEqual(tamanho_da_pagina(a2.content), A2_PAISAGEM)
+        self.assertEqual(cliente.get(URL_PDF, {'papel': 'A9'}).status_code, 400)
 
     def test_erro_de_validacao_continua_em_json(self):
         user = criar_usuario('pdf', permissoes=('vendas.can_generate_dashboard_report',))

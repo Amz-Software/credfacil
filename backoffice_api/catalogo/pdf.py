@@ -50,7 +50,9 @@ def buscar_recurso_local(url: str, *args, **kwargs) -> dict:
     return {'string': Path(arquivo).read_bytes(), 'mime_type': tipo or 'application/octet-stream'}
 
 
-def gerar_pdf_produtos(produtos: QuerySet, *, busca: str, marca: Marca | None) -> bytes:
+def gerar_pdf_produtos(
+    produtos: QuerySet, *, busca: str, marca: Marca | None, tamanho_pagina: str = 'A4 landscape',
+) -> bytes:
     import weasyprint
 
     html = render_to_string(TEMPLATE_PDF_PRODUTOS, {
@@ -58,5 +60,6 @@ def gerar_pdf_produtos(produtos: QuerySet, *, busca: str, marca: Marca | None) -
         'search': busca,
         'marca': marca,
         'gerado_em': timezone.localtime(timezone.now()),
+        'tamanho_pagina': tamanho_pagina,
     })
     return weasyprint.HTML(string=html, base_url=BASE_URL_PDF, url_fetcher=buscar_recurso_local).write_pdf()

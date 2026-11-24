@@ -2,7 +2,7 @@
 
 {% block report_title %}Relatório Dashboard - Todas as Lojas{% endblock %}
 
-{% block report_page_size %}A4 landscape{% endblock %}
+{% block report_page_size %}{{ tamanho_pagina|default:'A4 landscape' }}{% endblock %}
 
 {% block report_head %}
         body { font-size: 12px; line-height: 1.4; color: #333; }
