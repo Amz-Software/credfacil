@@ -34,8 +34,8 @@ PARAMETROS_GRAFICOS = [
     OpenApiParameter('loja', OpenApiTypes.INT, description='Id da loja (dentro do escopo).'),
     OpenApiParameter('data_inicio', OpenApiTypes.DATE, description='AAAA-MM-DD.'),
     OpenApiParameter('data_fim', OpenApiTypes.DATE, description='AAAA-MM-DD.'),
-]
     OpenApiParameter('comodato', OpenApiTypes.BOOL, description='true = só vendas de comodato; false = só as comuns.'),
+]
 
 
 class PainelResumoView(BackofficeAPIView):
@@ -130,10 +130,10 @@ class PainelGraficosPdfView(EntregaDeArquivoMixin, _FiltroGraficosMixin, Backoff
                     'loja': loja.pk if loja else None,
                     'data_inicio': periodo.inicio.isoformat() if periodo.inicio else None,
                     'data_fim': periodo.fim.isoformat() if periodo.fim else None,
+                    'comodato': comodato,
                 },
                 'lojas': sorted(recorte.values_list('pk', flat=True)),
                 'clientes_listados': len(contexto['clientes_quitados_lista']),
             },
         )
-                    'comodato': comodato,
         return resposta
