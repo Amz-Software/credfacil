@@ -2,7 +2,7 @@
 from .lojas import LojaDetalheView, LojaLogoView, LojaQrCodeView, LojasView, LojaVendasView, ReplicarQrCodeView
 from .numeros import NumerosAutenticadoresViewSet
 from .opcoes import OpcoesFormularioView
-from .repasses import RepassesAgendadosView, RepassesView, RepasseView
+from .repasses import PagarPeriodoView, RepassePeriodoPdfView, RepassesAgendadosView, RepassesView, RepasseView
 
 __all__ = [
     'LojaDetalheView',
@@ -12,7 +12,9 @@ __all__ = [
     'LojaVendasView',
     'NumerosAutenticadoresViewSet',
     'OpcoesFormularioView',
+    'PagarPeriodoView',
     'ReplicarQrCodeView',
+    'RepassePeriodoPdfView',
     'RepassesAgendadosView',
     'RepassesView',
     'RepasseView',

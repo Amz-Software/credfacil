@@ -48,6 +48,13 @@ def _periodo(ano: int, mes: int, dia: int) -> PeriodoRepasse:
     return PeriodoRepasse(data, date(ano, mes, 16), date(ano, mes, 25))
 
 
+def periodo_do_dia(dia: date) -> PeriodoRepasse:
+    """Competência de uma data do calendário (dias 6, 16 ou 26)."""
+    if dia.day not in Loja.REPASSES_DIAS:
+        raise ErroDeNegocio('A data do repasse deve ser dia 06, 16 ou 26.')
+    return _periodo(dia.year, dia.month, dia.day)
+
+
 def periodos_de_repasse(hoje: date, meses_atras: int = 0,
                         limite_meses: int = LIMITE_MESES_REPASSE) -> list[PeriodoRepasse]:
     """Datas de repasse (dias 6, 16 e 26) do mês mais antigo até o atual, em ordem."""

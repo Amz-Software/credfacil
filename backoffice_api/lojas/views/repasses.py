@@ -8,9 +8,13 @@ from rest_framework.response import Response
 from financeiro.models import Repasse
 
 from ...nucleo.erros import VALIDACAO, ErroBackoffice
+from ...relatorios.pdf import EntregaDeArquivoMixin
 from ..base import TAGS, LojasBaseView
+from ..pdf_repasse import resposta_pdf_do_periodo
+from ..repasse_periodo import pagar_periodo, resumo_do_periodo
 from ..serializers_repasses import (
     AgendaDaLojaSerializer,
+    PeriodoDaLojaSerializer,
     RepasseCriacaoSerializer,
     RepasseEdicaoSerializer,
     RepasseSerializer,
@@ -158,3 +162,37 @@ class RepassesAgendadosView(RepassesBaseView):
                 'total_atrasados': atrasados,
             })
         return paginador.get_paginated_response(AgendaDaLojaSerializer(agenda, many=True).data)
+
+
+@extend_schema(tags=TAGS)
+class PagarPeriodoView(RepassesBaseView):
+    """Botão "Marcar como pago" do calendário: cria o repasse do período já pago, com o total."""
+
+    permissoes = {'POST': ['financeiro.add_repasse']}
+
+    @extend_schema(request=PeriodoDaLojaSerializer, responses={201: RepasseSerializer})
+    def post(self, request):
+        entrada = PeriodoDaLojaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        loja = self.obter_loja(entrada.validated_data['loja'])
+        repasse = pagar_periodo(loja, entrada.validated_data['data'], request.user)
+        self.auditar('repasse_periodo_pago', objeto=repasse, dados={'loja_id': loja.pk, **_retrato(repasse)})
+        return Response(RepasseSerializer(repasse).data, status=201)
+
+
+@extend_schema(tags=TAGS)
+class RepassePeriodoPdfView(EntregaDeArquivoMixin, RepassesBaseView):
+    """PDF do período: vendas da competência, total devido e repasses lançados."""
+
+    permissoes = {'GET': ['financeiro.view_repasse']}
+
+    @extend_schema(
+        parameters=[OpenApiParameter('loja', int, required=True),
+                    OpenApiParameter('data', OpenApiTypes.DATE, required=True)],
+        responses={(200, 'application/pdf'): OpenApiTypes.BINARY},
+    )
+    def get(self, request):
+        entrada = PeriodoDaLojaSerializer(data=request.query_params)
+        entrada.is_valid(raise_exception=True)
+        loja = self.obter_loja(entrada.validated_data['loja'])
+        return resposta_pdf_do_periodo(resumo_do_periodo(loja, entrada.validated_data['data']))

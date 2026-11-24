@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block titulo %}Repasse {{ periodo.data }} · {{ loja.nome }}{% endblock %}
+{% block pagina %}@bottom-left { content: "Emitido em {{ emitido_em }}"; font-size: 7pt; color: #888; }{% endblock %}
+{% block estilo %}
+  .titulo-secao { font-weight: 700; margin: 14px 0 6px; text-transform: uppercase; }
+  .resumo td { width: 33%; }
+  .valor { font-size: 13pt; font-weight: 700; }
+  tfoot td { font-weight: 700; background: #F5F5F9; }
+  .vazio { color: #777; font-style: italic; }
+{% endblock %}
+{% block conteudo %}
+{% include "_cabecalho.html" %}
+
+<table class="resumo">
+  <tr>
+    <td><strong>Data do repasse</strong><br>{{ periodo.data }}</td>
+    <td><strong>Competência</strong><br>{{ periodo.inicio }} a {{ periodo.fim }}</td>
+    <td><strong>Total devido</strong><br><span class="valor">R$ {{ total }}</span></td>
+  </tr>
+</table>
+
+<div class="titulo-secao">Vendas do período ({{ vendas|length }})</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width: 9%;">Venda</th>
+      <th style="width: 16%;">Data</th>
+      <th style="width: 25%;">Cliente</th>
+      <th style="width: 15%;">CPF</th>
+      <th style="width: 20%;">Produto</th>
+      <th style="width: 15%;" class="text-right">Repasse</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for venda in vendas %}
+    <tr>
+      <td>{{ venda.numero }}</td>
+      <td>{{ venda.data }}</td>
+      <td>{{ venda.cliente }}</td>
+      <td>{{ venda.cpf }}</td>
+      <td>{{ venda.produtos }}</td>
+      <td class="text-right">R$ {{ venda.repasse }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="vazio">Nenhuma venda no período.</td></tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><td colspan="5">Total</td><td class="text-right">R$ {{ total }}</td></tr>
+  </tfoot>
+</table>
+
+<div class="titulo-secao">Repasses lançados</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width: 15%;">Data</th>
+      <th style="width: 15%;" class="text-right">Valor</th>
+      <th style="width: 15%;">Situação</th>
+      <th>Observação</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for repasse in repasses %}
+    <tr>
+      <td>{{ repasse.data }}</td>
+      <td class="text-right">R$ {{ repasse.valor }}</td>
+      <td>{{ repasse.status }}</td>
+      <td>{{ repasse.observacao }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4" class="vazio">Nenhum repasse lançado para este período.</td></tr>
+    {% endfor %}
+  </tbody>
+  {% if repasses %}
+  <tfoot>
+    <tr><td>Total lançado</td><td class="text-right">R$ {{ total_lancado }}</td><td colspan="2"></td></tr>
+  </tfoot>
+  {% endif %}
+</table>
+{% endblock %}

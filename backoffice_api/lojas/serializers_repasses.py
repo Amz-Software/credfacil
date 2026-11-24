@@ -62,6 +62,13 @@ class RepasseCriacaoSerializer(serializers.Serializer):
             self.fields['loja'].queryset = lojas
 
 
+class PeriodoDaLojaSerializer(serializers.Serializer):
+    """Identifica um período do calendário: loja + data do repasse (dia 6, 16 ou 26)."""
+
+    loja = serializers.IntegerField(min_value=1)
+    data = serializers.DateField()
+
+
 class RepasseEdicaoSerializer(serializers.Serializer):
     valor = serializers.DecimalField(min_value=Decimal('0.01'), required=False, **DINHEIRO)
     data = serializers.DateField(required=False)
