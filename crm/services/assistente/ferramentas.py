@@ -56,6 +56,14 @@ DEFINICOES = [
         },
     },
     {
+        'name': 'simular_quitacao',
+        'description': (
+            'Valor para o cliente identificado quitar de uma vez tudo o que falta de cada compra, com o desconto '
+            'de quitação do plano. É o mesmo valor da opção "quitação total" da página de pagamento (link).'
+        ),
+        'input_schema': {'type': 'object', 'properties': {}, 'additionalProperties': False},
+    },
+    {
         'name': 'simular_antecipacao',
         'description': (
             'Calcula o desconto estimado para o cliente identificado adiantar parcelas a vencer (regra da '
@@ -265,6 +273,42 @@ def _antecipar(turno: Turno, entrada: dict) -> dict:
     }
 
 
+def _quitacao_da_compra(pagamento) -> dict | None:
+    """Mesma conta da página pública de pagamento (vendas/views/publico.py): soma o valor das parcelas
+    em aberto e tira a porcentagem_desconto do plano."""
+    abertas = [p for p in pagamento.parcelas_pagamento.all() if not p.pago]
+    if not abertas:
+        return None
+    total = sum((p.valor for p in abertas), Decimal('0'))
+    percentual = pagamento.porcentagem_desconto or Decimal('0')
+    desconto = (total * percentual / 100).quantize(CENTAVO, rounding=ROUND_HALF_UP)
+    return {
+        'produto': pagamentos._produto(pagamento.venda), 'parcelas_em_aberto': len(abertas),
+        'total_em_aberto': _reais(total), 'percentual_desconto': f'{percentual.normalize():f}%',
+        'desconto': _reais(desconto), 'valor_para_quitar': _reais(total - desconto),
+        'link': pagamentos._link(pagamento.token_publico),
+    }
+
+
+def _quitar(turno: Turno, entrada: dict) -> dict:
+    compras = []
+    for pagamento in pagamentos.pagamentos_em_aberto(_clientes_liberados(turno)):
+        compra = _quitacao_da_compra(pagamento)
+        if compra:
+            compras.append(compra)
+        if len(compras) >= MAX_COMPRAS:
+            break
+    turno.usou_dados = True
+    if not compras:
+        return {'observacao': 'Nenhuma parcela em aberto: não há o que quitar.'}
+    return {
+        'compras': compras,
+        'observacao': ('Informe o valor para quitar e mande o link: na página há a opção "quitação total" com o '
+                       'PIX desse valor. Com 0% não há desconto de quitação nesse plano. Depois do pagamento, peça '
+                       'o comprovante e transfira (QUITACAO) para a equipe confirmar a quitação.'),
+    }
+
+
 def _comprovante(turno: Turno, entrada: dict) -> dict:
     parcela = _parcelas_do_cliente(turno, [entrada.get('parcela_id')])[0]
     if parcela.pagamento_efetuado:
@@ -303,6 +347,7 @@ EXECUTORES = {
     'identificar_cliente': _identificar,
     'consultar_parcelas': _consultar,
     'gerar_link_pagamento': _gerar_link,
+    'simular_quitacao': _quitar,
     'simular_antecipacao': _antecipar,
     'registrar_comprovante': _comprovante,
     'transferir_para_atendente': _transferir,

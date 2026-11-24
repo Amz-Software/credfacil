@@ -285,6 +285,22 @@ class FerramentasNovasTests(CobrancaBase):
         self.assertIn('R$ 2,00', resultado)
         self.assertIn('R$ 98,00', resultado)
 
+    def test_quitacao_usa_o_desconto_do_plano_como_a_pagina_de_pagamento(self):
+        from vendas.models import Pagamento
+
+        Pagamento.objects.filter(pk=self.pagamento.pk).update(porcentagem_desconto=Decimal('30'))
+        roteiro = self.com_roteiro(ferramenta('identificar_cliente', IDENTIDADE_CERTA),
+                                   ferramenta('simular_quitacao', {}, 'tu_2'),
+                                   texto('Para quitar hoje fica R$ 140,00.'))
+
+        self.receber('quero quitar tudo', wamid='w1')
+
+        resultado = roteiro.resultado(2)['content']
+        self.assertIn('"total_em_aberto": "R$ 200,00"', resultado)
+        self.assertIn('"percentual_desconto": "30%"', resultado)
+        self.assertIn('"valor_para_quitar": "R$ 140,00"', resultado)
+        self.assertIn(f'/pagamento/{self.pagamento.token_publico}/', resultado)
+
     def test_antecipacao_sem_regra_manda_transferir(self):
         futura = Parcela.objects.filter(pagamento=self.pagamento).order_by('-numero_parcela').first()
         roteiro = self.com_roteiro(ferramenta('identificar_cliente', IDENTIDADE_CERTA),

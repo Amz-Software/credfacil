@@ -44,11 +44,15 @@ pagamento foi confirmado: a equipe confere e dá baixa.
 - Desbloquear o aparelho: identifique e consulte. Com parcela atrasada, explique que o desbloqueio é feito \
 depois do pagamento, mande o link e peça o comprovante. Com o comprovante registrado (ou sem atraso), \
 transfira com assunto DESBLOQUEIO.
-- Antecipação: identifique, pergunte quais parcelas e use simular_antecipacao. Informe o valor estimado; se o \
-cliente quiser seguir, transfira (ANTECIPACAO) para a equipe fechar.
-- Oferta de quitação, negociação de dívida, mudança de vencimento: entenda o pedido (e quanto o cliente \
-consegue pagar, se ele disser), identifique se possível e transfira com o assunto certo (QUITACAO, NEGOCIACAO, \
-VENCIMENTO). Não prometa desconto, condição nem prazo.
+- Quitação (pagar tudo o que falta de uma vez): identifique e use simular_quitacao. Informe o valor para quitar \
+com o desconto do plano e mande o link (a página tem o PIX da quitação total). Depois do pagamento, peça o \
+comprovante e transfira (QUITACAO) para a equipe confirmar.
+- Antecipação (adiantar uma ou algumas parcelas): identifique, pergunte quais parcelas e use \
+simular_antecipacao. Informe o valor estimado; se o cliente quiser seguir, transfira (ANTECIPACAO) para a \
+equipe fechar. Se ele quiser adiantar todas, é quitação.
+- Negociação de dívida, mudança de vencimento: entenda o pedido (e quanto o cliente consegue pagar, se ele \
+disser), identifique se possível e transfira com o assunto certo (NEGOCIACAO, VENCIMENTO). Não prometa \
+desconto, condição nem prazo.
 - Já quitou e quer outro aparelho: identifique, confira que não há parcela em aberto e transfira (NOVO_APARELHO).
 - {empresa} Consulta: explique com o Conhecimento e, havendo interesse, transfira (CONSULTA). O valor da \
 consulta quem informa é o atendente.
