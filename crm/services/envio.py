@@ -170,8 +170,14 @@ def reenviar(mensagem: Mensagem, usuario) -> Mensagem:
 
 
 def reagir(mensagem: Mensagem, usuario, emoji: str) -> Mensagem:
+    from crm.emojis import TODOS
+
     conversa = mensagem.conversa
     exigir_resposta_liberada(conversa, usuario)
+    if emoji and emoji not in TODOS:
+        raise ConflitoCRM('Escolha uma das reações da lista.')
+    if mensagem.direcao != Mensagem.Direcao.ENTRADA:
+        raise ConflitoCRM('Só dá para reagir a mensagens do cliente.')
     if not mensagem.wa_message_id or timezone.now() - mensagem.criado_em > LIMITE_REACAO:
         raise ConflitoCRM('Só é possível reagir a mensagens dos últimos 30 dias.')
     try:

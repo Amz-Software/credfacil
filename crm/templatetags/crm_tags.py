@@ -4,6 +4,7 @@ from datetime import datetime
 from django import template
 from django.utils import timezone
 
+from crm.emojis import GRUPOS as GRUPOS_EMOJI, REACOES_RAPIDAS
 from crm.telefone import formatar_telefone
 from crm.web.filtros import Filtros
 
@@ -19,7 +20,6 @@ ICONE_STATUS = {
     'ERRO': ('bx bx-error-circle text-danger', 'Erro no envio'),
 }
 ROTULO_ORIGEM = {'ABERTURA': 'Abertura', 'BOAS_VINDAS': 'Boas-vindas', 'PROGRAMADA': 'Programada'}
-REACOES_RAPIDAS = ('👍', '❤️', '😂', '😮', '🙏', '✅')
 UNIDADES_BYTES = ('B', 'KB', 'MB', 'GB')
 BYTES_POR_UNIDADE = 1024
 
@@ -119,6 +119,12 @@ def filtros_com(filtros: Filtros, **trocas) -> str:
 @register.simple_tag
 def reacoes() -> tuple[str, ...]:
     return REACOES_RAPIDAS
+
+
+@register.simple_tag
+def grupos_emoji() -> tuple:
+    """Seletor de emojis do compositor e da reação: ((nome do grupo, emojis), ...)."""
+    return GRUPOS_EMOJI
 
 
 CORES_AVATAR = ('amarelo', 'azul', 'verde', 'roxo', 'laranja', 'rosa')

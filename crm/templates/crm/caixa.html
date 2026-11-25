@@ -19,6 +19,9 @@
         <i class="bx bx-test-tube"></i>Modo simulado
       </span>
       {% endif %}
+      <button type="button" class="btn btn-outline-secondary d-none d-xl-inline-flex align-items-center" data-crm-recolher-menu aria-pressed="false" title="Recolher ou abrir o menu lateral do sistema">
+        <i class="bx bx-left-indent me-1" aria-hidden="true"></i><span data-crm-rotulo>Recolher menu</span>
+      </button>
       {% if perms.crm.gerenciar_crm %}
       <a href="{% url 'crm:cobranca' %}" class="btn btn-outline-secondary"><i class="bx bx-bar-chart-alt-2 me-1"></i>Cobrança</a>
       <a href="{% url 'crm:configuracao' %}" class="btn btn-outline-secondary"><i class="bx bx-cog me-1"></i>Configuração</a>

@@ -22,6 +22,8 @@
   var PERTO_DO_FIM_PX = 160;
   var ALTURA_MAX_TEXTO_PX = 160;
   var PARTES = ['cabecalho', 'mensagens', 'compositor', 'painel'];
+  var CHAVE_MENU = 'crm:menu-recolhido';
+  var CHAVE_PAINEL = 'crm:painel-recolhido';
 
   var conversaId = raiz.getAttribute('data-conversa') || '';
   var urlLista = raiz.getAttribute('data-url-lista');
@@ -195,6 +197,80 @@
     if (nome === 'compositor') {
       ajustarAltura(el.querySelector('[data-crm-texto]'));
     }
+    if (nome === 'cabecalho') {
+      marcarBotoesPainel();
+    }
+  }
+
+  // --- Recolher o menu do sistema e o painel do cliente (preferência guardada no navegador) ---
+
+  function lerPreferencia(chave) {
+    try {
+      return window.localStorage.getItem(chave) === '1';
+    } catch (erro) {
+      return false;
+    }
+  }
+
+  function gravarPreferencia(chave, ligado) {
+    try {
+      window.localStorage.setItem(chave, ligado ? '1' : '0');
+    } catch (erro) {
+      nada();
+    }
+  }
+
+  function menuRecolhido() {
+    return document.documentElement.classList.contains('layout-menu-collapsed');
+  }
+
+  function marcarBotaoMenu(recolhido) {
+    var botao = document.querySelector('[data-crm-recolher-menu]');
+    if (!botao) {
+      return;
+    }
+    botao.setAttribute('aria-pressed', recolhido ? 'true' : 'false');
+    var rotulo = botao.querySelector('[data-crm-rotulo]');
+    if (rotulo) {
+      rotulo.textContent = recolhido ? 'Abrir menu' : 'Recolher menu';
+    }
+  }
+
+  function recolherMenu(recolher, animar) {
+    if (window.Helpers && typeof window.Helpers.setCollapsed === 'function') {
+      window.Helpers.setCollapsed(recolher, animar);
+    } else {
+      document.documentElement.classList.toggle('layout-menu-collapsed', recolher);
+    }
+    marcarBotaoMenu(recolher);
+  }
+
+  function marcarBotoesPainel() {
+    var recolhido = raiz.classList.contains('crm-caixa--sem-painel');
+    document.querySelectorAll('[data-crm-recolher-painel]').forEach(function (botao) {
+      botao.setAttribute('aria-pressed', recolhido ? 'true' : 'false');
+    });
+  }
+
+  function recolherPainel(recolher) {
+    raiz.classList.toggle('crm-caixa--sem-painel', recolher);
+    marcarBotoesPainel();
+  }
+
+  // --- Emojis: entram onde está o cursor do campo de mensagem ---
+
+  function inserirEmoji(emoji) {
+    var campo = document.querySelector('[data-crm-texto]');
+    if (!campo) {
+      return;
+    }
+    var inicio = campo.selectionStart == null ? campo.value.length : campo.selectionStart;
+    var fim = campo.selectionEnd == null ? inicio : campo.selectionEnd;
+    campo.value = campo.value.slice(0, inicio) + emoji + campo.value.slice(fim);
+    var posicao = inicio + emoji.length;
+    campo.focus();
+    campo.setSelectionRange(posicao, posicao);
+    ajustarAltura(campo);
   }
 
   function atualizarParte(nome, forcar) {
@@ -498,6 +574,31 @@
 
   document.addEventListener('click', function (evento) {
     var alvo = evento.target;
+    var emoji = alvo.closest('[data-crm-emoji]');
+    if (emoji) {
+      inserirEmoji(emoji.getAttribute('data-crm-emoji'));
+      return;
+    }
+    var mais = alvo.closest('[data-crm-mais-reacoes]');
+    if (mais) {
+      var todas = mais.closest('form').querySelector('[data-crm-todas-reacoes]');
+      var abrir = todas.classList.contains('d-none');
+      todas.classList.toggle('d-none', !abrir);
+      mais.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+      return;
+    }
+    if (alvo.closest('[data-crm-recolher-menu]')) {
+      var recolherMenuAgora = !menuRecolhido();
+      recolherMenu(recolherMenuAgora, true);
+      gravarPreferencia(CHAVE_MENU, recolherMenuAgora);
+      return;
+    }
+    if (alvo.closest('[data-crm-recolher-painel]')) {
+      var recolherPainelAgora = !raiz.classList.contains('crm-caixa--sem-painel');
+      recolherPainel(recolherPainelAgora);
+      gravarPreferencia(CHAVE_PAINEL, recolherPainelAgora);
+      return;
+    }
     var rapida = alvo.closest('[data-crm-resposta-rapida]');
     if (rapida) {
       evento.preventDefault();
@@ -601,6 +702,10 @@
     }
   }, INTERVALO_MS);
 
+  if (lerPreferencia(CHAVE_MENU)) {
+    recolherMenu(true, false);
+  }
+  recolherPainel(lerPreferencia(CHAVE_PAINEL));
   rolarParaFim();
   // As imagens terminam de carregar depois: desce de novo para a última mensagem.
   window.addEventListener('load', rolarParaFim);

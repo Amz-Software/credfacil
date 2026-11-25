@@ -1,5 +1,5 @@
 {% load crm_tags %}
-{% reacoes as reacoes_rapidas %}
+{% reacoes as reacoes_rapidas %}{% grupos_emoji as grupos_reacao %}
 {% url 'crm:midia' m.id as url_midia %}
 <div class="crm-msg crm-msg--{{ m.direcao|lower }}{% if m.autor == 'SISTEMA' %} crm-msg--sistema{% endif %}" id="crmMsg{{ m.id }}" data-mensagem-id="{{ m.id }}">
   <div class="crm-msg__balao">
@@ -85,12 +85,18 @@
     </button>
     {% if m.direcao == 'ENTRADA' %}
     <div class="dropdown d-inline-block">
-      <button type="button" class="btn btn-sm btn-icon btn-text-secondary" data-bs-toggle="dropdown" aria-expanded="false" title="Reagir">
+      <button type="button" class="btn btn-sm btn-icon btn-text-secondary" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="Reagir">
         <i class="bx bx-smile"></i><span class="visually-hidden">Reagir</span>
       </button>
       <form method="post" action="{% url 'crm:reagir' m.id %}" class="dropdown-menu crm-reacoes p-1" data-crm-acao>
         {% csrf_token %}<input type="hidden" name="proxima" value="{% url 'crm:conversa' conversa.id %}">
-        {% for emoji in reacoes_rapidas %}<button type="submit" name="emoji" value="{{ emoji }}" class="btn btn-sm">{{ emoji }}</button>{% endfor %}
+        <div class="d-flex align-items-center">
+          {% for emoji in reacoes_rapidas %}<button type="submit" name="emoji" value="{{ emoji }}" class="btn btn-sm">{{ emoji }}</button>{% endfor %}
+          <button type="button" class="btn btn-sm crm-reacoes__mais" data-crm-mais-reacoes aria-expanded="false" title="Mais reações"><i class="bx bx-plus"></i><span class="visually-hidden">Mais reações</span></button>
+        </div>
+        <div class="crm-emojis__grade crm-reacoes__todas d-none" data-crm-todas-reacoes>
+          {% for nome, emojis in grupos_reacao %}{% for e in emojis %}<button type="submit" name="emoji" value="{{ e }}" class="crm-emojis__item" aria-label="Reagir com {{ e }}">{{ e }}</button>{% endfor %}{% endfor %}
+        </div>
         {% if m.reacao_equipe %}<button type="submit" name="emoji" value="" class="btn btn-sm small text-muted" title="Tirar reação">✕</button>{% endif %}
       </form>
     </div>

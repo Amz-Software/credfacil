@@ -127,6 +127,32 @@ class AcoesTests(CrmTestCase):
         self.assertEqual((saida.texto, saida.status), ('Olá, Maria!', Mensagem.Status.ENVIADO))
         self.assertEqual((conversa.situacao, conversa.modo), ('RESOLVIDA', 'AUTOMATICO'))
 
+    def test_emojis_no_compositor_e_reacoes_da_lista(self):
+        recebida = self.receber('Oi, tudo bem?')
+        conversa = recebida.conversa
+        web = self.web(self.atendente)
+        base = f'/crm/conversas/{conversa.pk}/'
+        web.post(f'{base}assumir/')
+
+        pagina = self.web(self.atendente, ajax=False).get(base)
+        enviada = web.post(f'{base}enviar/', {'texto': 'Oi! 😊👍'})
+        reagiu = web.post(f'/crm/mensagens/{recebida.pk}/reagir/', {'emoji': '🎉'})
+        fora_da_lista = web.post(f'/crm/mensagens/{recebida.pk}/reagir/', {'emoji': 'texto qualquer'})
+        saida = Mensagem.objects.get(direcao='SAIDA', autor='HUMANO')
+        na_propria = web.post(f'/crm/mensagens/{saida.pk}/reagir/', {'emoji': '👍'})
+
+        self.assertContains(pagina, 'data-crm-emoji="😊"')
+        self.assertContains(pagina, 'data-crm-recolher-menu')
+        self.assertContains(pagina, 'data-crm-recolher-painel')
+        self.assertContains(pagina, 'data-crm-mais-reacoes')
+        self.assertEqual(enviada.status_code, 200)
+        self.assertEqual(saida.texto, 'Oi! 😊👍')
+        self.assertEqual(reagiu.status_code, 200)
+        recebida.refresh_from_db()
+        self.assertEqual(recebida.dados['reacao_equipe'], '🎉')
+        self.assertEqual(fora_da_lista.status_code, 409)
+        self.assertEqual(na_propria.status_code, 409)
+
     def test_sem_js_volta_para_a_conversa_com_mensagem(self):
         self.receber('Oi')
         conversa = Conversa.objects.get()

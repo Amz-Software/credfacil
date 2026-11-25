@@ -1,4 +1,5 @@
 {% load crm_tags %}
+{% grupos_emoji as grupos %}
 {% url 'crm:conversa' conversa.id as url_da_conversa %}
 {% if conversa.pode_responder %}
 <form method="post" action="{% url 'crm:enviar' conversa.id %}" enctype="multipart/form-data"
@@ -44,6 +45,17 @@
           </ul>
         </div>
         {% endif %}
+        <div class="dropup">
+          <button type="button" class="btn btn-sm btn-icon btn-text-secondary" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="Emojis">
+            <i class="bx bx-smile"></i><span class="visually-hidden">Emojis</span>
+          </button>
+          <div class="dropdown-menu crm-emojis p-2">
+            {% for nome, emojis in grupos %}
+            <div class="crm-emojis__grupo">{{ nome }}</div>
+            <div class="crm-emojis__grade">{% for e in emojis %}<button type="button" class="crm-emojis__item" data-crm-emoji="{{ e }}" aria-label="Inserir {{ e }}">{{ e }}</button>{% endfor %}</div>
+            {% endfor %}
+          </div>
+        </div>
         <label class="btn btn-sm btn-icon btn-text-secondary mb-0" title="Anexar arquivo (até 25 MB)">
           <i class="bx bx-paperclip"></i><span class="visually-hidden">Anexar arquivo</span>
           <input type="file" name="arquivo" class="d-none" data-crm-anexo

@@ -571,3 +571,24 @@
 /* Relatórios de cobrança */
 .crm-cobranca__indicador { font-size: 1.5rem; font-weight: 700; color: var(--ipix-heading); }
 .crm-cobranca__rotulo { font-size: .8125rem; color: var(--ipix-muted); }
+
+/* --- Tela ampliada: sem limite de largura; menu do sistema e painel do cliente recolhíveis --- */
+.crm-pagina--caixa { max-width: none; }
+@media (min-width: 1400px) {
+  .crm-caixa--com-conversa.crm-caixa--sem-painel { grid-template-columns: 300px minmax(0, 1fr); }
+  .crm-caixa--sem-painel .crm-coluna--painel { display: none; }
+}
+[data-crm-recolher-painel][aria-pressed="true"],
+[data-crm-recolher-menu][aria-pressed="true"] { background: var(--ipix-secondary-soft); }
+
+/* --- Seletor de emojis (compositor) e todas as reações --- */
+.crm-emojis { width: 18.5rem; max-height: 17rem; overflow-y: auto; }
+.crm-emojis__grupo { font-size: 0.75rem; color: var(--ipix-muted); margin: 0.25rem 0.25rem 0.125rem; }
+.crm-emojis__grade { display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.125rem; }
+.crm-emojis__item {
+  border: 0; background: transparent; border-radius: 0.375rem;
+  font-size: 1.25rem; line-height: 1; padding: 0.3rem 0; cursor: pointer;
+}
+.crm-emojis__item:hover, .crm-emojis__item:focus-visible { background: var(--ipix-surface-muted); }
+.crm-reacoes__todas { width: 18.5rem; max-height: 12rem; overflow-y: auto; margin-top: 0.25rem;
+  padding-top: 0.25rem; border-top: 1px solid var(--ipix-border); }
