@@ -108,7 +108,8 @@ continua em `crm/services/*` (a tela Django e a SPA produzem o mesmo resultado).
 | GET | `conversas/{id}/` | — | **ConversaDetalhe**. Não marca como lida |
 | POST | `conversas/{id}/ler/` | — | **ConversaEstado**. Zera `nao_lidas` e agenda o recibo de leitura (tiques azuis). Chame ao abrir a conversa e, com ela aberta e a aba visível, a cada `mensagem_nova` dela |
 | GET | `conversas/{id}/mensagens/` | `?antes=<id da mais antiga já carregada>` `&limite=` (1–100, padrão 50) | `{results: [Mensagem] (cronológica), tem_mais_antigas, proximo_cursor}`. `antes` de outra conversa → 400 |
-| POST | `conversas/iniciar/` | `{telefone: "(91) 98888-1111", modelo: "<chave>", nome?: "João"}` | 201 **ConversaEstado** (assumida por quem iniciou). Abertura inexistente/não aprovada → 409 |
+| POST | `conversas/iniciar/` | `{telefone: "(91) 98888-1111", modelo: "<chave>", nome?: "João", conta?: 123}` | 201 **ConversaEstado** (assumida por quem iniciou). Abertura inexistente/não aprovada → 409. Com `conta` (Pagamento de contas a receber, mesmo escopo de lojas): vincula o cliente, usa o primeiro nome dele se `nome` vier vazio e preenche `{valor}`/`{vencimento}` com a parcela em aberto mais antiga, liberando as aberturas de cobrança; conta fora do escopo → 404 |
+| GET | `contas/{id}/abertura/` | — | `{cliente: {id, nome}, parcela: {numero, valor, vencimento, vencida} \| null, telefones: [{rotulo, telefone, telefone_formatado, conversa: {id, janela_aberta, assumida_por} \| null}], aberturas: [{chave, titulo, texto (preenchido), cobranca, disponivel}]}`. Não cria conversa. Escopo de lojas de contas a receber (`can_view_all_payments`) → 404 fora dele |
 
 ### Ações sobre a conversa (POST, respondem **ConversaEstado**)
 

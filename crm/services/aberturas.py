@@ -339,20 +339,23 @@ def _despachar_template(mensagem: Mensagem, nome_meta: str, parametros: list[str
     mensagem.save(update_fields=['status', 'wa_message_id', 'erro'])
 
 
-def enviar_abertura(conversa: Conversa, usuario, chave: str, nome: str = '') -> Conversa:
+def enviar_abertura(conversa: Conversa, usuario, chave: str, nome: str = '',
+                    cobranca: dict[str, str] | None = None) -> Conversa:
     """Com a janela aberta só assume; fora dela envia o template e assume.
 
+    `cobranca` traz {valor, vencimento} de uma parcela conhecida (contas a receber); sem ela,
+    as mensagens com esses marcadores continuam só nos avisos automáticos.
     Valida modelo, nome e antispam antes de assumir: pedido inválido não muda a posse.
     """
     if conversa.janela_aberta():
         return assumir(conversa, usuario)
     versao = _versao_para_envio(chave)
-    if so_cobranca(versao):
+    if so_cobranca(versao) and not cobranca:
         raise ConflitoCRM('Esta mensagem é usada só nos avisos automáticos de cobrança.')
     nome = (nome or conversa.primeiro_nome).strip()
-    if versao.mapa_parametros and not nome:
+    if 'nome' in (versao.mapa_parametros or []) and not nome:
         raise ConflitoCRM('Informe o nome do cliente para esta mensagem.')
-    texto, parametros = renderizar(versao, {'nome': nome.split()[0] if nome else ''})
+    texto, parametros = renderizar(versao, {**(cobranca or {}), 'nome': nome.split()[0] if nome else ''})
     with transaction.atomic():
         Conversa.objects.select_for_update().get(pk=conversa.pk)
         exigir_sem_abertura_recente(conversa)
@@ -401,13 +404,19 @@ def reenviar_abertura(mensagem: Mensagem, usuario) -> Mensagem:
     return mensagem
 
 
-def iniciar_conversa(telefone: str, usuario, chave: str, nome: str = '') -> Conversa:
+def iniciar_conversa(telefone: str, usuario, chave: str, nome: str = '', cliente=None,
+                     cobranca: dict[str, str] | None = None) -> Conversa:
+    """Acha ou cria a conversa do telefone e envia a abertura; `cliente` fica vinculado à conversa."""
     digitos = com_ddi(telefone)
     if not 12 <= len(digitos) <= MAX_DIGITOS_TELEFONE:
         raise ConflitoCRM('Informe o telefone com DDD.')
-    _versao_para_envio(chave)  # valida antes de criar a conversa
+    versao = _versao_para_envio(chave)  # valida antes de criar a conversa
+    if so_cobranca(versao) and not cobranca:
+        raise ConflitoCRM('Esta mensagem é usada só nos avisos automáticos de cobrança.')
     conversa = conversa_do_telefone(digitos)
     if nome and not conversa.contato_nome:
         Conversa.objects.filter(pk=conversa.pk).update(contato_nome=nome.strip()[:150])
         conversa.refresh_from_db()
-    return enviar_abertura(conversa, usuario, chave, nome)
+    if cliente is not None:
+        conversa.clientes.add(cliente)
+    return enviar_abertura(conversa, usuario, chave, nome, cobranca)

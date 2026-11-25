@@ -5,7 +5,7 @@ from rest_framework.response import Response
 
 from crm.apresentacao import anotar_lista
 from crm.models import Mensagem
-from crm.services import aberturas
+from crm.services import abertura_conta, aberturas
 from crm.web.filtros import Filtros, contadores, filtrar_conversas
 
 from ..apresentacao import detalhe, estado, itens_lista, pagina_mensagens
@@ -18,6 +18,7 @@ from ..serializers.saida import (
 )
 from ..servicos import marcar_lida
 from . import TAGS
+from .conta import ContaDoCrmMixin, obter_pagamento_da_conta
 
 
 def _filtros(params: dict) -> Filtros:
@@ -75,12 +76,21 @@ class MensagensView(CrmAPIView):
         return Response(PaginaMensagensSerializer(pagina_mensagens(conversa, antes, params['limite'])).data)
 
 
-class IniciarView(CrmAPIView):
+class IniciarView(ContaDoCrmMixin, CrmAPIView):
     permissoes = {'POST': ACESSO}
 
     @extend_schema(tags=TAGS, summary='Nova conversa com uma mensagem de abertura aprovada',
                    request=IniciarSerializer, responses={201: ConversaEstadoSerializer})
     def post(self, request):
         dados = self.validar(IniciarSerializer)
-        nova = aberturas.iniciar_conversa(dados['telefone'], request.user, dados['modelo'], dados['nome'])
+        cliente = cobranca = None
+        if dados.get('conta'):
+            pagamento = obter_pagamento_da_conta(self, dados['conta'])
+            cliente = pagamento.venda.cliente
+            if not abertura_conta.telefone_do_cliente(cliente, dados['telefone']):
+                raise ValidationError({'telefone': ['Use um telefone cadastrado do cliente desta conta.']})
+            cobranca = abertura_conta.valores_de_cobranca(abertura_conta.parcela_de_referencia(pagamento))
+        nome = dados['nome'] or (abertura_conta.primeiro_nome(cliente) if cliente else '')
+        nova = aberturas.iniciar_conversa(dados['telefone'], request.user, dados['modelo'], nome,
+                                          cliente=cliente, cobranca=cobranca)
         return Response(ConversaEstadoSerializer(estado(nova.pk, request.user)).data, status=201)

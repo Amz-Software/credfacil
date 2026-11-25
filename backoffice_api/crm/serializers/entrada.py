@@ -102,6 +102,10 @@ class AberturaEnvioSerializer(CrmSerializer):
 
 class IniciarSerializer(AberturaEnvioSerializer):
     telefone = serializers.CharField(max_length=LIMITE_TELEFONE, help_text='Com DDD; o 55 é acrescentado.')
+    conta = serializers.IntegerField(
+        required=False, allow_null=True, min_value=1,
+        help_text='Conta a receber (Pagamento): vincula o cliente e preenche {valor} e {vencimento} '
+                  'com a parcela em aberto mais antiga.')
 
 
 # --- envio ----------------------------------------------------------------------------------

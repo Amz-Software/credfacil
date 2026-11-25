@@ -1,7 +1,7 @@
 """Rotas do módulo crm da API do backoffice (`/api/bo/v1/crm/`). Contrato em `CONTRATO.md`."""
 from django.urls import path
 
-from .views import acoes, anotacoes, apoio, caixa, configuracao, envio, midia, simulador
+from .views import acoes, anotacoes, apoio, caixa, configuracao, conta, envio, midia, simulador
 
 CONVERSA = 'conversas/<int:pk>/'
 MENSAGEM = 'mensagens/<int:mensagem_id>/'
@@ -18,6 +18,7 @@ urlpatterns = [
     # Conversas
     path('conversas/', caixa.ConversasView.as_view(), name='conversas'),
     path('conversas/iniciar/', caixa.IniciarView.as_view(), name='iniciar'),
+    path('contas/<int:pk>/abertura/', conta.AberturaContaView.as_view(), name='abertura-conta'),
     path(CONVERSA, caixa.ConversaView.as_view(), name='conversa'),
     path(f'{CONVERSA}ler/', caixa.LerView.as_view(), name='ler'),
     path(f'{CONVERSA}mensagens/', caixa.MensagensView.as_view(), name='mensagens'),

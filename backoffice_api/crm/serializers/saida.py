@@ -273,6 +273,46 @@ class AberturaDisponivelSerializer(CrmSerializer):
     disponivel = serializers.BooleanField(help_text='Aprovada pela Meta e pronta para envio.')
 
 
+class ConversaDoTelefoneSerializer(CrmSerializer):
+    id = serializers.IntegerField()
+    janela_aberta = serializers.BooleanField()
+    assumida_por = serializers.CharField(allow_null=True)
+
+
+class TelefoneDaContaSerializer(CrmSerializer):
+    rotulo = serializers.CharField()
+    telefone = serializers.CharField(help_text='Só dígitos, com 55.')
+    telefone_formatado = serializers.CharField()
+    conversa = ConversaDoTelefoneSerializer(allow_null=True, help_text='Conversa já existente com este número.')
+
+
+class ParcelaDaContaSerializer(CrmSerializer):
+    numero = serializers.IntegerField()
+    valor = serializers.CharField(help_text='Valor restante formatado (R$).')
+    vencimento = serializers.DateField()
+    vencida = serializers.BooleanField()
+
+
+class AberturaDaContaSerializer(CrmSerializer):
+    chave = serializers.CharField()
+    titulo = serializers.CharField()
+    texto = serializers.CharField(allow_blank=True, help_text='Já preenchido com nome, valor e vencimento.')
+    cobranca = serializers.BooleanField(help_text='Usa {valor}/{vencimento} da parcela.')
+    disponivel = serializers.BooleanField()
+
+
+class ClienteDaContaSerializer(CrmSerializer):
+    id = serializers.IntegerField()
+    nome = serializers.CharField()
+
+
+class AberturaContaSerializer(CrmSerializer):
+    cliente = ClienteDaContaSerializer()
+    parcela = ParcelaDaContaSerializer(allow_null=True)
+    telefones = TelefoneDaContaSerializer(many=True)
+    aberturas = AberturaDaContaSerializer(many=True)
+
+
 class RespostaRapidaMiniSerializer(CrmSerializer):
     id = serializers.IntegerField()
     atalho = serializers.CharField()
