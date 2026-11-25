@@ -139,6 +139,9 @@ def checkout_cartao(cobrar: Cobrar, expira_em: datetime, max_parcelas: int, url_
         'reference_id': cobrar.referencia,
         'expiration_date': _iso(expira_em),
         'customer_modifiable': True,
+        # Já preenchido (o cliente só digita o cartão). Sem telefone: no checkout o formato é outro.
+        'customer': {'name': cobrar.pagador.nome[:120], 'email': cobrar.pagador.email,
+                     'tax_id': _digitos(cobrar.pagador.cpf)},
         'items': _itens(cobrar),
         'payment_methods': [{'type': 'CREDIT_CARD'}],
         'payment_methods_configs': [{

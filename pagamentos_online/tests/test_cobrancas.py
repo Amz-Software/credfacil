@@ -83,6 +83,9 @@ class GerarCobrancaTest(PagamentoOnlineTestCase):
         self.assertNotIn('INTEREST_FREE_INSTALLMENTS', str(corpo))
         self.assertEqual(corpo['items'][0]['unit_amount'], 10526)
         self.assertEqual(cobranca.link_pagamento, 'https://pagamento.pagbank.com.br/p?code=1')
+        self.assertEqual(corpo['customer']['tax_id'], self.pagamento.venda.cliente.cpf)
+        self.assertEqual(corpo['customer']['email'], 'cobranca@exemplo.com')
+        self.assertNotIn('phones', corpo['customer'])
 
     def test_recusa_do_pagbank_cancela_a_cobranca_e_mostra_mensagem_amigavel(self):
         with self.pagbank((400, {'error_messages': [{'description': 'invalid tax_id'}]})):

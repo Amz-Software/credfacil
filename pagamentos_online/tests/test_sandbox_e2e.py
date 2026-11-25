@@ -35,7 +35,7 @@ from pagamentos_online.servicos.cobrancas import (
 from vendas.models import ComprovanteParcela, Pagamento
 
 LIGADO = os.environ.get('PAGBANK_SANDBOX_E2E') == '1'
-CPF_TESTE = '52998224725'  # CPF válido de teste, sem dono real
+CPF_TESTE = '11144477735'  # CPF válido de teste (o 529.982.247-25 o sandbox trata como do vendedor)
 ESPERA_PAGAMENTO = 60  # segundos
 
 
