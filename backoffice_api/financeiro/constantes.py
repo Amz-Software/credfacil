@@ -48,12 +48,13 @@ PARCELA_ATRASADA = 'atrasado'
 PARCELA_PAGA_PARCIALMENTE = 'pago_parcialmente'
 
 # Ordenação da lista: valor de `?ordenar=` -> campo do queryset.
+ORDENACAO_PROXIMO_VENCIMENTO = 'proximo_vencimento'
 ORDENACAO_LISTA = {
     'criado_em': 'criado_em',
     'id': 'id',
     'valor': 'valor',
     'cliente': 'venda__cliente__nome',
-    'proximo_vencimento': 'next_vencimento',
+    ORDENACAO_PROXIMO_VENCIMENTO: 'next_vencimento',  # anotado em `filtros.ordenar`
 }
 ORDENACAO_PADRAO = '-criado_em'
 

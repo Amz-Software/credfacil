@@ -11,6 +11,8 @@ from django.utils import timezone
 
 from vendas.models import Pagamento, Parcela, ProdutoVenda
 
+from ...financeiro.condicoes import com_pagamento_pendente, com_parcela_atrasada, todas_parcelas_pagas
+
 from .comum import EscopoRelatorio, filtrar_comodato, separar_comodato, soma
 
 PAGO, ATRASADO, A_VENCER = 'pago', 'atrasado', 'a_vencer'
@@ -21,17 +23,17 @@ def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
         Pagamento.objects.exclude(venda__is_deleted=True)
         .filter(tipo_pagamento__parcelas=True)
         .exclude(tipo_pagamento__caixa=True)
-        .with_status_flags()
+        .exclude(tipo_pagamento__nome__iexact='ENTRADA')
     )
     pagamentos = escopo.aplicar(pagamentos, 'loja')
     pagamentos = filtrar_comodato(pagamentos, filtros, 'venda__comodato')
     status = filtros.get('status') or 'todos'
     if status == 'atrasado':
-        pagamentos = pagamentos.filter(com_parcela_atrasada=True)
+        pagamentos = pagamentos.filter(com_parcela_atrasada())
     elif status == 'a_vencer':
-        pagamentos = pagamentos.filter(com_pagamento_pendente=True)
+        pagamentos = pagamentos.filter(com_pagamento_pendente())
     elif status == 'quitado':
-        pagamentos = pagamentos.filter(todas_parcelas_pagas=True)
+        pagamentos = pagamentos.filter(todas_parcelas_pagas())
     if filtros.get('data_inicial'):
         pagamentos = pagamentos.filter(parcelas_pagamento__data_vencimento__gte=filtros['data_inicial'])
     if filtros.get('data_final'):

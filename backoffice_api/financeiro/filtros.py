@@ -1,16 +1,18 @@
 """Filtros e ordenação da lista de contas a receber (`?busca=`, `?status=`...)."""
 import re
 
-from django.db.models import Exists, OuterRef, Q, QuerySet
+from django.db.models import OuterRef, Q, QuerySet, Subquery
 
 from vendas.models import Pagamento, Parcela
 
 from ..nucleo.erros import PROIBIDO_ACESSO, VALIDACAO, ErroBackoffice
+from .condicoes import com_pagamento_pendente, com_parcela_atrasada, existe_parcela, todas_parcelas_pagas
 from .constantes import (
     FILTRO_PAGAMENTO_EFETUADO,
     FILTROS_SITUACAO,
     ORDENACAO_LISTA,
     ORDENACAO_PADRAO,
+    ORDENACAO_PROXIMO_VENCIMENTO,
     STATUS_ATRASADO,
     STATUS_LISTA,
     STATUS_NO_PRAZO,
@@ -24,13 +26,24 @@ PADRAO_CPF = re.compile(r'[\d.\-\s]+')
 
 
 def base_contas_a_receber() -> QuerySet:
-    """Pagamentos parcelados de vendas ativas, como na tela Django (sem ENTRADA nem caixa)."""
+    """Pagamentos parcelados de vendas ativas, como na tela Django (sem ENTRADA nem caixa).
+
+    Sem as agregações de `with_status_flags`: com GROUP BY sobre todas as parcelas a
+    página levava segundos em produção. Os filtros de status usam EXISTS e o estado
+    de cada linha sai das parcelas pré-carregadas (`flags_calculadas`).
+    """
     return (
         Pagamento.objects.exclude(venda__is_deleted=True)
-        .with_status_flags()
+        .exclude(tipo_pagamento__nome__iexact='ENTRADA')
         .exclude(tipo_pagamento__caixa=True)
         .filter(tipo_pagamento__parcelas=True)
     )
+
+
+def _proximo_vencimento() -> Subquery:
+    """Menor vencimento entre as parcelas em aberto (mesmo `next_vencimento` do model)."""
+    parcelas = Parcela.objects.filter(pagamento=OuterRef('pk'), pago=False).order_by('data_vencimento')
+    return Subquery(parcelas.values('data_vencimento')[:1])
 
 
 def _erro_campo(campo: str, mensagem: str) -> ErroBackoffice:
@@ -55,15 +68,13 @@ def _filtrar_busca(queryset: QuerySet, termo: str) -> QuerySet:
 def _filtrar_status(queryset: QuerySet, status: str) -> QuerySet:
     if status not in STATUS_LISTA:
         raise _erro_campo('status', f'Use um destes valores: {", ".join(STATUS_LISTA)}.')
-    if status == STATUS_NO_PRAZO:
-        # Mesma regra da tela: ao menos uma parcela paga.
-        return queryset.filter(Exists(Parcela.objects.filter(pagamento=OuterRef('pk'), pago=True)))
-    filtros = {
-        STATUS_ATRASADO: {'com_parcela_atrasada': True},
-        STATUS_QUITADO: {'todas_parcelas_pagas': True},
-        STATUS_PENDENTE: {'com_pagamento_pendente': True},
+    condicoes = {
+        STATUS_NO_PRAZO: existe_parcela(pago=True),  # regra da tela: ao menos uma parcela paga
+        STATUS_ATRASADO: com_parcela_atrasada(),
+        STATUS_QUITADO: todas_parcelas_pagas(),
+        STATUS_PENDENTE: com_pagamento_pendente(),
     }
-    return queryset.filter(**filtros[status])
+    return queryset.filter(condicoes[status])
 
 
 def _ids_inteiros(valores: list[str], campo: str) -> list[int]:
@@ -86,9 +97,7 @@ def _filtrar_situacoes(queryset: QuerySet, situacoes: list[str]) -> QuerySet:
         if situacao not in FILTROS_SITUACAO:
             raise _erro_campo('situacao', f'Use um destes valores: {", ".join(FILTROS_SITUACAO)}.')
         if situacao == FILTRO_PAGAMENTO_EFETUADO:
-            queryset = queryset.filter(
-                Exists(Parcela.objects.filter(pagamento=OuterRef('pk'), pagamento_efetuado=True))
-            )
+            queryset = queryset.filter(existe_parcela(pagamento_efetuado=True))
         else:
             queryset = queryset.filter(**{situacao: True})
     return queryset
@@ -109,6 +118,8 @@ def ordenar(queryset: QuerySet, valor: str) -> QuerySet:
     chave = valor.lstrip('-')
     if chave not in ORDENACAO_LISTA:
         raise _erro_campo('ordenar', f'Use um destes campos: {", ".join(ORDENACAO_LISTA)}.')
+    if chave == ORDENACAO_PROXIMO_VENCIMENTO:
+        queryset = queryset.annotate(**{ORDENACAO_LISTA[chave]: _proximo_vencimento()})
     campo = f'-{ORDENACAO_LISTA[chave]}' if decrescente else ORDENACAO_LISTA[chave]
     return queryset.order_by(campo) if chave == 'id' else queryset.order_by(campo, '-id')
 

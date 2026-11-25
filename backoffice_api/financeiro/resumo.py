@@ -30,18 +30,8 @@ class FlagsStatus:
     com_pagamento_pendente: bool
 
 
-def flags_anotadas(pagamento) -> FlagsStatus:
-    """Indicadores já anotados por `with_status_flags` (lista)."""
-    return FlagsStatus(
-        todas_parcelas_pagas=pagamento.todas_parcelas_pagas,
-        pago_dentro_prazo=pagamento.pago_dentro_prazo,
-        com_parcela_atrasada=pagamento.com_parcela_atrasada,
-        com_pagamento_pendente=pagamento.com_pagamento_pendente,
-    )
-
-
 def flags_calculadas(parcelas: list, hoje: date) -> FlagsStatus:
-    """Mesma regra de `with_status_flags`, calculada em memória (detalhe)."""
+    """Mesma regra de `with_status_flags`, calculada em memória (lista e detalhe)."""
     total = len(parcelas)
     pagas = sum(1 for p in parcelas if p.pago)
     pagas_no_prazo = sum(

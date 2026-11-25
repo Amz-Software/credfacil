@@ -9,7 +9,6 @@ from vendas.models import ComprovanteParcela, Contato, Pagamento, Parcela, Statu
 from .constantes import ROTULOS_SITUACAO, SITUACOES
 from .resumo import (
     estado_da_conta,
-    flags_anotadas,
     flags_calculadas,
     rotulo_do_estado,
     tem_parcela_vencida_em_aberto,
@@ -149,7 +148,7 @@ class ContaAReceberListaSerializer(serializers.ModelSerializer):
         return _produto(pagamento)
 
     def get_estado(self, pagamento) -> str:
-        return estado_da_conta(pagamento, flags_anotadas(pagamento))
+        return estado_da_conta(pagamento, flags_calculadas(_parcelas(pagamento), _hoje(self.context)))
 
     def get_estado_rotulo(self, pagamento) -> str:
         return rotulo_do_estado(self.get_estado(pagamento))
