@@ -2,6 +2,7 @@
 from datetime import date
 from decimal import Decimal
 
+from django.db.models import Q
 from django.utils import timezone
 
 from vendas.models import Loja, Pagamento, Parcela
@@ -73,9 +74,7 @@ def cobranca(cobranca_online: Cobranca) -> dict:
 
 
 def _itens(cobranca_online: Cobranca) -> list:
-    """Itens já carregados (prefetch); cobrança sem itens = a própria parcela."""
-    itens = sorted(cobranca_online.itens.all(), key=lambda i: (i.parcela.numero_parcela, i.parcela_id))
-    return itens or cobranca_online.itens_da_baixa()
+    return cobranca_online.itens_da_baixa()
 
 
 def _item(item) -> dict:
@@ -86,10 +85,10 @@ def _item(item) -> dict:
 def _cobrancas_relevantes(pagamento: Pagamento) -> list[Cobranca]:
     """Pagas e pendentes ainda válidas, mais recentes primeiro."""
     agora = timezone.now()
-    todas = (Cobranca.objects.filter(parcela__pagamento=pagamento)
-             .select_related('parcela').prefetch_related('itens__parcela').order_by('-criado_em'))
-    return [c for c in todas if c.status == Cobranca.Status.PAGA or (
-        c.status == Cobranca.Status.PENDENTE and c.expira_em > agora and c.pagbank_id)]
+    pendente_valida = Q(status=Cobranca.Status.PENDENTE, expira_em__gt=agora) & ~Q(pagbank_id='')
+    return list(Cobranca.objects.filter(parcela__pagamento=pagamento)
+                .filter(Q(status=Cobranca.Status.PAGA) | pendente_valida)
+                .select_related('parcela').prefetch_related('itens__parcela').order_by('-criado_em'))
 
 
 def _cobrancas_por_parcela(cobrancas: list[Cobranca]) -> dict[int, list[Cobranca]]:
@@ -137,7 +136,8 @@ def _quitacao(pagamento: Pagamento, abertas: list[Parcela], chave: str, online: 
     plano = _plano_quitacao(pagamento, abertas)
     if plano is None:
         return None
-    opcoes_online = [o.como_dict() for o in opcoes_para_valor(plano.valor)] if online else []
+    informada = any(p.pagamento_efetuado for p in abertas)
+    opcoes_online = [o.como_dict() for o in opcoes_para_valor(plano.valor)] if online and not informada else []
     return {
         'total_restante': _dinheiro(plano.total_sem_desconto),
         'porcentagem_desconto': _dinheiro(pagamento.porcentagem_desconto or 0),
@@ -145,7 +145,7 @@ def _quitacao(pagamento: Pagamento, abertas: list[Parcela], chave: str, online: 
         'total_com_desconto': _dinheiro(plano.valor),
         'pode_pagar_online': bool(opcoes_online),
         'opcoes': opcoes_online,
-        'pix_estatico': None if online else pix_estatico(
+        'pix_estatico': None if opcoes_online else pix_estatico(
             chave, plano.valor, f'{pagamento.pk:04d}QT', 'Quitacao total'),
         'pode_informar': any(not p.pagamento_efetuado for p in abertas),
     }

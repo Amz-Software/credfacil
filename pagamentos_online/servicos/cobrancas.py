@@ -17,7 +17,7 @@ from vendas.services.erros import ErroDeNegocio
 from ..models import Cobranca, ConfiguracaoPagamentoOnline, ItemCobranca
 from ..pagbank import cliente, payloads
 from ..taxas import total_boleto, total_cartao, total_pix
-from .planos import Plano, plano_de_parcelas, plano_de_quitacao, rotulo_do_plano
+from .planos import Plano, juntar, plano_de_parcelas, plano_de_quitacao, rotulo_do_plano
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ FOLGA_REUSO = {Forma.PIX: timedelta(minutes=10), Forma.CARTAO: timedelta(minutes
 EM_CRIACAO = timedelta(seconds=60)  # mais que o timeout da chamada ao PagBank
 CAMPO_EXIGIDO = {Forma.PIX: 'pix_copia_cola', Forma.BOLETO: 'boleto_linha_digitavel', Forma.CARTAO: 'link_pagamento'}
 MAX_PARCELAS_POR_COBRANCA = 60
+MAX_ID = 2**31 - 1
 
 
 @dataclass(frozen=True)
@@ -219,6 +220,16 @@ def _travar(pagamento_id: int, parcela_ids: list[int] | None) -> tuple[Pagamento
     return pagamento, travadas
 
 
+def _exigir_cobravel(plano: Plano) -> None:
+    """Sem valor a cobrar ou com parcela já informada como paga (aguardando a equipe): não gera, evita pagar duas vezes."""
+    if plano.valor <= 0:
+        raise ErroDeNegocio('Não há valor a cobrar. Fale com a nossa equipe.')
+    informadas = [item.parcela.numero_parcela for item in plano.itens if item.parcela.pagamento_efetuado]
+    if informadas:
+        raise ErroDeNegocio(f'O pagamento da parcela {juntar(informadas)} já foi informado e aguarda a conferência '
+                            'da nossa equipe. Fale com a gente antes de pagar de novo.')
+
+
 def _montar_plano(pagamento: Pagamento, parcelas: list[Parcela], quitacao: bool) -> Plano:
     return plano_de_quitacao(pagamento, parcelas) if quitacao else plano_de_parcelas(pagamento, parcelas)
 
@@ -231,6 +242,7 @@ def _reservar(pagamento_id: int, parcela_ids: list[int] | None, forma: str, orig
         pagamento, parcelas = _travar(pagamento_id, parcela_ids)
         _validar(pagamento, forma, configuracao)
         plano = _montar_plano(pagamento, parcelas, quitacao=parcela_ids is None)
+        _exigir_cobravel(plano)
         total, taxa = _totais(forma, plano.valor, configuracao)
         existente = _reaproveitavel(plano, forma, total)
         if existente:

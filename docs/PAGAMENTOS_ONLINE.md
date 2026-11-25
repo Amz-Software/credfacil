@@ -19,6 +19,9 @@ App Django `pagamentos_online`. O cliente paga por Pix, boleto ou cartão uma pa
   - **Pago a menor:** credita em ordem sem desconto e anota para acerto.
   - **Parcela já paga no meio do caminho:** o valor dela vira excedente para acerto.
   - **Comprovante:** o mesmo PDF é anexado em cada parcela.
+- **Não gera cobrança:**
+  - quando o valor é zero;
+  - quando alguma parcela já foi "informada" pelo cliente e aguarda a conferência da equipe, para evitar pagar duas vezes. A quitação online também some do app nesse caso.
 - **A cobrança é reaproveitada.** Se já existe uma pendente e válida para o mesmo valor, ela volta em vez de criar outra.
 - **A baixa só acontece depois de consultar o pedido** (`GET /orders/{id}`). O corpo da notificação não basta, e a assinatura `x-authenticity-token` é obrigatória. Se o mesmo pagamento chegar duas vezes, não há baixa em dobro. Se a parcela já estava paga, a cobrança fica marcada como `pagamento_duplicado` para acerto manual.
 - **A baixa manual continua existindo** para o Pix do carnê (QR fixo com a chave da empresa), transferência e dinheiro. Ela usa o campo `Parcela.origem_baixa` (`pagbank`, `pix_carne`, `transferencia`, `dinheiro`, `cartao_loja`, `outro`).

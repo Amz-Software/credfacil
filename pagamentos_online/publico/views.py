@@ -24,7 +24,7 @@ from vendas.services.erros import ErroDeNegocio
 
 from ..models import Cobranca
 from ..servicos.cobrancas import (
-    MAX_PARCELAS_POR_COBRANCA, gerar_cobranca, gerar_cobranca_agrupada, plano_para_exibir,
+    MAX_ID, MAX_PARCELAS_POR_COBRANCA, gerar_cobranca, gerar_cobranca_agrupada, plano_para_exibir,
 )
 from ..servicos.comprovante import gerar_pdf, nome_do_arquivo, nome_para_download
 from . import dados
@@ -139,7 +139,8 @@ class CriarCobrancaView(PublicoView):
 
 def ids_da_query(texto: str) -> list[int]:
     partes = [p.strip() for p in (texto or '').split(',') if p.strip()]
-    if not partes or len(partes) > MAX_PARCELAS_POR_COBRANCA or not all(p.isdigit() for p in partes):
+    validas = all(re.fullmatch(r'[0-9]{1,10}', p) and 0 < int(p) <= MAX_ID for p in partes)
+    if not partes or len(partes) > MAX_PARCELAS_POR_COBRANCA or not validas:
         raise ErroDeNegocio('Escolha as parcelas que quer pagar.')
     return [int(p) for p in partes]
 
@@ -158,7 +159,7 @@ class CobrancaAgrupadaEntrada(serializers.Serializer):
     """Também usado pelo backoffice."""
 
     forma = serializers.ChoiceField(choices=Cobranca.Forma.choices)
-    parcelas = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False,
+    parcelas = serializers.ListField(child=serializers.IntegerField(min_value=1, max_value=MAX_ID), required=False,
                                      max_length=MAX_PARCELAS_POR_COBRANCA)
     quitacao = serializers.BooleanField(required=False, default=False)
 

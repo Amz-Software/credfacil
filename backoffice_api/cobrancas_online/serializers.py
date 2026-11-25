@@ -3,6 +3,7 @@ from urllib.parse import urlsplit
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import URLValidator
+from django.utils import timezone
 from rest_framework import serializers
 
 from pagamentos_online.models import Cobranca, ConfiguracaoPagamentoOnline, RegistroPagBank
@@ -105,8 +106,7 @@ class CobrancaSerializer(serializers.ModelSerializer):
         return nome_do_usuario(cobranca.criado_por)
 
     def _itens(self, cobranca: Cobranca) -> list:
-        itens = sorted(cobranca.itens.all(), key=lambda i: (i.parcela.numero_parcela, i.parcela_id))
-        return itens or cobranca.itens_da_baixa()
+        return cobranca.itens_da_baixa()
 
     def get_itens(self, cobranca) -> list[dict]:
         return ItemSerializer(self._itens(cobranca), many=True).data
@@ -115,7 +115,8 @@ class CobrancaSerializer(serializers.ModelSerializer):
         return rotulo(cobranca.tipo, [i.parcela.numero_parcela for i in self._itens(cobranca)])
 
     def get_qr_code_base64(self, cobranca) -> str | None:
-        if cobranca.forma != Cobranca.Forma.PIX or cobranca.status != Cobranca.Status.PENDENTE:
+        vencida = cobranca.expira_em <= timezone.now()
+        if cobranca.forma != Cobranca.Forma.PIX or cobranca.status != Cobranca.Status.PENDENTE or vencida:
             return None
         return qr_code_base64(cobranca.pix_copia_cola) if cobranca.pix_copia_cola else None
 

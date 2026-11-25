@@ -216,3 +216,33 @@ class BackofficeAgrupadoTest(ComDesconto):
         ids = f'{self.parcelas[0].pk},{self.parcelas[1].pk}'
         dados = self.bo.get(f'{self.URL}pagamentos/{self.pagamento.pk}/opcoes/?parcelas={ids}').json()
         self.assertEqual(dados['valor'], '200.00')
+
+
+class EndurecimentoAgrupadoTest(ComDesconto):
+    def url(self, sufixo=''):
+        return f'/api/publico/v1/pagamentos/{self.pagamento.token_publico}/{sufixo}'
+
+    def test_ids_malformados_ou_enormes_viram_400(self):
+        for ids in ('²', '99999999999999999999', '0'):
+            self.assertEqual(self.client.get(self.url(f'opcoes/?parcelas={ids}')).status_code, 400, ids)
+        corpo = {'forma': 'pix', 'parcelas': [2**40]}
+        self.assertEqual(self.client.post(self.url('cobrancas/'), corpo, content_type='application/json').status_code,
+                         400)
+
+    def test_quitacao_de_valor_zero_nao_chama_o_pagbank(self):
+        Pagamento.objects.filter(pk=self.pagamento.pk).update(porcentagem_desconto=Decimal('100'))
+        self.pagamento.refresh_from_db()
+        with self.pagbank() as simulado, self.assertRaisesMessage(ErroDeNegocio, 'Não há valor a cobrar'):
+            gerar_quitacao(self.pagamento, PIX, CLIENTE)
+        self.assertEqual(simulado.call_count, 0)
+        self.assertFalse(Cobranca.objects.exists())
+
+    def test_parcela_informada_como_paga_bloqueia_a_quitacao_online(self):
+        self.parcelas[2].pagamento_efetuado = True
+        self.parcelas[2].save()
+        with self.pagbank() as simulado, self.assertRaisesMessage(ErroDeNegocio, 'parcela 3 já foi informado'):
+            gerar_quitacao(self.pagamento, PIX, CLIENTE)
+        self.assertEqual(simulado.call_count, 0)
+        quitacao = self.client.get(self.url()).json()['quitacao']
+        self.assertFalse(quitacao['pode_pagar_online'])
+        self.assertEqual(quitacao['opcoes'], [])

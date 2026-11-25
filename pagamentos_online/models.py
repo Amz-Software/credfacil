@@ -145,7 +145,10 @@ class Cobranca(models.Model):
 
     def itens_da_baixa(self) -> list['ItemCobranca']:
         """Itens em ordem de parcela; cobrança sem itens (anterior a eles) vira um item da própria parcela."""
-        itens = list(self.itens.select_related('parcela').order_by('parcela__numero_parcela', 'parcela_id'))
+        if 'itens' in getattr(self, '_prefetched_objects_cache', {}):
+            itens = sorted(self.itens.all(), key=lambda i: (i.parcela.numero_parcela, i.parcela_id))
+        else:
+            itens = list(self.itens.select_related('parcela').order_by('parcela__numero_parcela', 'parcela_id'))
         return itens or [ItemCobranca(cobranca=self, parcela=self.parcela, valor=self.valor_parcela, desconto=ZERO)]
 
     def numeros_das_parcelas(self) -> list[int]:

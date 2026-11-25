@@ -19,6 +19,7 @@ MAX_PARCELAS_POR_COMPRA = 12
 MAX_MOTIVO = 1000
 MAX_FRACAO_DESCONTO = Decimal('0.5')  # antecipação nunca passa de 50% da parcela
 CENTAVO = Decimal('0.01')
+MAX_ID = 2**31 - 1
 MAX_COPIA_COLA = 512  # payload EMV do Pix (BR Code); bem abaixo do limite de texto do WhatsApp
 Assunto = EncaminhamentoIA.Assunto
 
@@ -232,6 +233,8 @@ def _parcelas_do_cliente(turno: Turno, ids) -> list:
     clientes = _clientes_liberados(turno)
     try:
         ids = [int(i) for i in ids]
+        if not all(0 < i <= MAX_ID for i in ids):
+            raise ValueError('fora do intervalo')
     except (TypeError, ValueError) as erro:
         raise ErroFerramenta('parcela_id inválido: use um parcela_id de consultar_parcelas.') from erro
     parcelas = list(Parcela.objects.select_related('pagamento')
@@ -264,6 +267,8 @@ def _ids_pedidos(entrada: dict) -> list:
         ids = [entrada.get('parcela_id')]
     if not ids:
         raise ErroFerramenta('Informe parcela_id (ou parcela_ids) de consultar_parcelas.')
+    if len(ids) > MAX_PARCELAS_POR_COMPRA:
+        raise ErroFerramenta(f'No máximo {MAX_PARCELAS_POR_COMPRA} parcelas por pagamento.')
     return ids
 
 
@@ -286,7 +291,7 @@ def _gerar_link(turno: Turno, entrada: dict) -> dict:
     parcelas = _parcelas_do_cliente(turno, _ids_pedidos(entrada))
     if len({p.pagamento_id for p in parcelas}) > 1:
         raise ErroFerramenta('As parcelas são de compras diferentes: gere um pagamento para cada compra.')
-    quitacao = bool(entrada.get('quitacao'))
+    quitacao = entrada.get('quitacao') in (True, 'true')
     turno.usou_dados = True
     resumo = _resumo_do_pagamento(parcelas, quitacao)
     if entrada.get('forma') == 'pix':
