@@ -177,3 +177,53 @@ class DivergenciasTest(ComCobrancaPix):
             self.notificar({'id': 'ORDE_9'}, **{'x-product-id': 'CHEC_9'})
         cartao.refresh_from_db()
         self.assertEqual(cartao.status, Cobranca.Status.PENDENTE)
+
+
+class AvisoSemAssinaturaTest(ComCobrancaPix):
+    """O sandbox manda os avisos sem nenhum cabeçalho de assinatura: viram só um sinal para consultar o pedido."""
+
+    def avisar(self, corpo: dict, **cabecalhos):
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(URL, data=json.dumps(corpo), content_type='application/json',
+                                    **{f'HTTP_{k.upper().replace("-", "_")}': v for k, v in cabecalhos.items()})
+
+    def test_aviso_sem_assinatura_consulta_o_pedido_e_da_baixa(self):
+        with self.pagbank((200, pedido_pago(self.referencia, 10000))) as simulado:
+            resposta = self.avisar({'id': 'ORDE_1'})
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(simulado.call_args.args[1].endswith('/orders/ORDE_1'))
+        self.parcela.refresh_from_db()
+        self.assertTrue(self.parcela.pago)
+
+    def test_exigir_assinatura_recusa_aviso_sem_ela(self):
+        with self.settings(PAGBANK_EXIGIR_ASSINATURA=True), self.pagbank() as simulado:
+            resposta = self.avisar({'id': 'ORDE_1'})
+        self.assertEqual(resposta.status_code, 401)
+        self.assertEqual(simulado.call_count, 0)
+
+    def test_sem_assinatura_o_cabecalho_do_checkout_nao_vale(self):
+        cartao = Cobranca.objects.create(
+            parcela=self.parcelas[1], forma=Cobranca.Forma.CARTAO, origem=Cobranca.Origem.CLIENTE,
+            valor_parcela=Decimal('100.00'), taxa=Decimal('5.26'), valor_total=Decimal('105.26'),
+            pagbank_id='CHEC_9', link_pagamento='https://pag', expira_em=timezone.now() + timedelta(hours=1),
+        )
+        pago = pedido_pago('referencia-desconhecida', 10526, pedido_id='ORDE_9', tipo='CREDIT_CARD')
+        with self.pagbank((200, pago)):
+            self.avisar({'id': 'ORDE_9'}, **{'x-product-id': 'CHEC_9'})
+        cartao.refresh_from_db()
+        self.assertEqual(cartao.status, Cobranca.Status.PENDENTE)
+
+    def test_sem_assinatura_nao_encerra_checkout_pelo_corpo(self):
+        cartao = Cobranca.objects.create(
+            parcela=self.parcelas[1], forma=Cobranca.Forma.CARTAO, origem=Cobranca.Origem.CLIENTE,
+            valor_parcela=Decimal('100.00'), taxa=Decimal('0'), valor_total=Decimal('100.00'),
+            pagbank_id='CHEC_8', link_pagamento='https://pag', expira_em=timezone.now() + timedelta(hours=1),
+        )
+        self.avisar({'id': 'CHEC_8', 'status': 'EXPIRED'})
+        cartao.refresh_from_db()
+        self.assertEqual(cartao.status, Cobranca.Status.PENDENTE)
+
+    def test_pedido_inexistente_responde_404_sem_pedir_reenvio(self):
+        with self.pagbank((404, {'error_messages': [{'code': 'not_found'}]})):
+            resposta = self.avisar({'id': 'ORDE_falso'})
+        self.assertEqual(resposta.status_code, 404)

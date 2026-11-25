@@ -23,7 +23,14 @@ App Django `pagamentos_online`. O cliente paga por Pix, boleto ou cartão uma pa
   - quando o valor é zero;
   - quando alguma parcela já foi "informada" pelo cliente e aguarda a conferência da equipe, para evitar pagar duas vezes. A quitação online também some do app nesse caso.
 - **A cobrança é reaproveitada.** Se já existe uma pendente e válida para o mesmo valor, ela volta em vez de criar outra.
-- **A baixa só acontece depois de consultar o pedido** (`GET /orders/{id}`). O corpo da notificação não basta, e a assinatura `x-authenticity-token` é obrigatória. Se o mesmo pagamento chegar duas vezes, não há baixa em dobro. Se a parcela já estava paga, a cobrança fica marcada como `pagamento_duplicado` para acerto manual.
+- **A baixa só acontece depois de consultar o pedido** (`GET /orders/{id}`). O corpo da notificação não basta.
+- **Assinatura dos avisos:**
+  - Aviso com `x-authenticity-token` inválido é recusado (401).
+  - O sandbox manda os avisos **sem nenhum cabeçalho de assinatura**, como confirmado no teste de 25/11/2026. Por isso, um aviso sem assinatura vale só como sinal para consultar o pedido com o nosso token. Ele não usa o atalho do cabeçalho `x-product-id`, não encerra checkout pelo corpo e tem um limite de 300 por minuto.
+  - Com `PAGBANK_EXIGIR_ASSINATURA=True`, aviso sem assinatura é recusado.
+- **Testes no sandbox real:** ficam em `pagamentos_online/tests/test_sandbox_e2e.py` e só rodam com `PAGBANK_SANDBOX_E2E=1`.
+  - O teste do aviso também exige `PAGBANK_SANDBOX_URL_PUBLICA`, um túnel https para a porta 8765.
+  - O teste do cartão também exige `PAGBANK_SANDBOX_CARTAO=1`, e alguém paga o checkout com um cartão de teste. Se o mesmo pagamento chegar duas vezes, não há baixa em dobro. Se a parcela já estava paga, a cobrança fica marcada como `pagamento_duplicado` para acerto manual.
 - **A baixa manual continua existindo** para o Pix do carnê (QR fixo com a chave da empresa), transferência e dinheiro. Ela usa o campo `Parcela.origem_baixa` (`pagbank`, `pix_carne`, `transferencia`, `dinheiro`, `cartao_loja`, `outro`).
 - **Conciliação:** o `crm_rotinas` consulta as cobranças Pix e boleto pendentes a cada 5 minutos e expira as vencidas. Pix e cartão expiram 1 hora depois da validade; boleto, 5 dias depois, por causa da compensação. Os registros com mais de 180 dias são apagados.
 - **Homologação:** toda chamada e toda notificação ficam em `RegistroPagBank`, com requisição e resposta e nunca com o token. Elas aparecem em `GET /api/bo/v1/cobrancas_online/registros/`.

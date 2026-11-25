@@ -188,14 +188,15 @@ def _processar_checkout(corpo: dict) -> Cobranca | None:
     return cobranca
 
 
-def processar_notificacao(corpo: dict, produto_id: str = '') -> Cobranca | None:
-    """Corpo de uma notificação já autenticada. Pedidos são consultados de novo na API."""
+def processar_notificacao(corpo: dict, produto_id: str = '', assinado: bool = True) -> Cobranca | None:
+    """Pedidos são sempre consultados de novo na API. Sem assinatura, o aviso só serve de sinal para a consulta:
+    não encerra checkout pelo corpo nem usa o cabeçalho `x-product-id`."""
     identificador = str(corpo.get('id') or '')
     if identificador.startswith(PREFIXO_CHECKOUT) and not corpo.get('charges'):
-        return _processar_checkout(corpo)
+        return _processar_checkout(corpo) if assinado else None
     if not identificador.startswith(PREFIXO_PEDIDO):
         logger.warning('Notificação do PagBank sem pedido reconhecível: %s', identificador[:40])
         return None
-    checkout_id = produto_id if produto_id.startswith(PREFIXO_CHECKOUT) else ''
+    checkout_id = produto_id if assinado and produto_id.startswith(PREFIXO_CHECKOUT) else ''
     pedido = cliente.consultar_pedido(identificador)
     return processar_pedido(pedido, checkout_id)

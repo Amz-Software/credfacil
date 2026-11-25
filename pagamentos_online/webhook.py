@@ -1,11 +1,17 @@
 """Notificações do PagBank (`/api/pagbank/notificacao/`).
 
-Assinatura `x-authenticity-token` obrigatória. O pedido é consultado de novo na API antes
-da baixa. Responde 503 quando o PagBank não responde à consulta, para ele reenviar.
+O aviso nunca é a fonte da baixa: o pedido é sempre consultado de novo na API, com o nosso token.
+- Com `x-authenticity-token`: precisa conferir, senão 401.
+- Sem assinatura (o sandbox não manda): vale só como sinal para consultar o pedido, sem o atalho do
+  cabeçalho `x-product-id` e sem encerrar cobranças; há um limite global por minuto. Com
+  PAGBANK_EXIGIR_ASSINATURA, é recusado.
+Responde 503 quando o PagBank não responde à consulta, para ele reenviar; 404 quando o pedido não existe.
 """
 import json
 import logging
 
+from django.conf import settings
+from django.core.cache import caches
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -18,6 +24,20 @@ from .servicos.baixa import processar_notificacao
 logger = logging.getLogger(__name__)
 
 TAMANHO_MAXIMO = 64 * 1024  # notificações do PagBank são pequenas
+LIMITE_SEM_ASSINATURA = 300  # avisos sem assinatura por minuto (todos juntos)
+JANELA_LIMITE = 60
+PEDIDO_INEXISTENTE = {400, 404}
+
+
+def _sem_assinatura_demais() -> bool:
+    cache = caches[getattr(settings, 'CRM_CACHE_LIMITES', 'default')]
+    chave = 'pagamentos_online:avisos_sem_assinatura'
+    cache.add(chave, 0, timeout=JANELA_LIMITE)
+    try:
+        return cache.incr(chave) > LIMITE_SEM_ASSINATURA
+    except ValueError:  # expirou entre o add e o incr
+        cache.set(chave, 1, timeout=JANELA_LIMITE)
+        return False
 
 
 def _registrar(corpo, cabecalhos: dict, status_http: int, cobranca=None) -> None:
@@ -44,17 +64,34 @@ class NotificacaoPagBankView(View):
             corpo = json.loads(corpo_bruto)
         except ValueError:
             corpo = None
-        if not cliente.assinatura_valida(corpo_bruto, request.headers.get('x-authenticity-token', '')):
-            # Sem gravar o corpo: quem não tem o token não enche o banco.
-            logger.warning('Notificação do PagBank com assinatura inválida (%s bytes).', len(corpo_bruto))
-            return HttpResponse(status=401)
+        assinatura = request.headers.get('x-authenticity-token', '')
+        recusa = self._recusa(corpo_bruto, assinatura)
+        if recusa:
+            return recusa
+        cabecalhos['assinado'] = bool(assinatura)
         if not isinstance(corpo, dict):
             _registrar(None, cabecalhos, 400)
             return HttpResponse(status=400)
         try:
-            cobranca = processar_notificacao(corpo, cabecalhos['x-product-id'])
-        except cliente.ErroPagBank:
-            _registrar(corpo, cabecalhos, 503)
-            return HttpResponse(status=503)
+            cobranca = processar_notificacao(corpo, cabecalhos['x-product-id'], assinado=bool(assinatura))
+        except cliente.ErroPagBank as erro:
+            status_http = 404 if erro.status_http in PEDIDO_INEXISTENTE else 503
+            _registrar(corpo, cabecalhos, status_http)
+            return HttpResponse(status=status_http)
         _registrar(corpo, cabecalhos, 200, cobranca)
         return HttpResponse(status=200)
+
+    def _recusa(self, corpo_bruto: bytes, assinatura: str) -> HttpResponse | None:
+        """Sem gravar o corpo nas recusas: quem não tem o token não enche o banco."""
+        if assinatura:
+            if cliente.assinatura_valida(corpo_bruto, assinatura):
+                return None
+            logger.warning('Notificação do PagBank com assinatura inválida (%s bytes).', len(corpo_bruto))
+            return HttpResponse(status=401)
+        if settings.PAGBANK_EXIGIR_ASSINATURA:
+            logger.warning('Notificação do PagBank sem assinatura recusada (PAGBANK_EXIGIR_ASSINATURA).')
+            return HttpResponse(status=401)
+        if _sem_assinatura_demais():
+            logger.warning('Avisos sem assinatura acima do limite: recusado.')
+            return HttpResponse(status=429)
+        return None

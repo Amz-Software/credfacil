@@ -571,6 +571,7 @@ REDIS_DB=0
 # PagBank (app pagamentos_online; ver docs/PAGAMENTOS_ONLINE.md). Sem token, o pagamento online fica indisponível.
 PAGBANK_TOKEN=...
 PAGBANK_AMBIENTE=sandbox   # sandbox | producao
+PAGBANK_EXIGIR_ASSINATURA=False   # True recusa aviso sem x-authenticity-token (o sandbox não assina)
 
 # Sentry (padrão: DSN atual; vazio desliga; não roda em manage.py test)
 SENTRY_DSN=...

@@ -157,6 +157,8 @@ CHANNEL_LAYERS = {
 PAGBANK_TOKEN = os.environ.get('PAGBANK_TOKEN', '')
 PAGBANK_AMBIENTE = os.environ.get('PAGBANK_AMBIENTE', 'sandbox').strip().lower()
 PAGBANK_TIMEOUT = float(os.environ.get('PAGBANK_TIMEOUT', '20'))
+# O sandbox manda os avisos sem assinatura; com True, aviso sem x-authenticity-token é recusado.
+PAGBANK_EXIGIR_ASSINATURA = os.environ.get('PAGBANK_EXIGIR_ASSINATURA', 'False').strip().lower() in ('1', 'true', 'sim')
 if PAGBANK_AMBIENTE not in ('sandbox', 'producao'):
     raise ImproperlyConfigured("PAGBANK_AMBIENTE deve ser 'sandbox' ou 'producao'.")
 
