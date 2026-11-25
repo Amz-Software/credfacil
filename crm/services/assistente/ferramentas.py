@@ -25,6 +25,14 @@ Assunto = EncaminhamentoIA.Assunto
 
 DEFINICOES = [
     {
+        'name': 'mostrar_menu',
+        'description': (
+            'Envia ao cliente a mensagem de boas-vindas com o menu de serviços (lista numerada e botão '
+            '"Ver opções"), que já se apresenta e pergunta o nome. Depois de usar, não escreva mais nada neste turno.'
+        ),
+        'input_schema': {'type': 'object', 'properties': {}, 'additionalProperties': False},
+    },
+    {
         'name': 'identificar_cliente',
         'description': (
             'Confere a identidade do cliente pelo CPF e pela data de nascimento que ELE digitou nesta conversa. '
@@ -120,7 +128,7 @@ DEFINICOES = [
         'input_schema': {
             'type': 'object',
             'properties': {
-                'assunto': {'type': 'string', 'enum': list(Assunto.values),
+                'assunto': {'type': 'string', 'enum': [a for a in Assunto.values if a != Assunto.NOVO_APARELHO],
                             'description': 'Assunto principal do atendimento.'},
                 'motivo': {
                     'type': 'string',
@@ -144,6 +152,7 @@ class Turno:
 
     conversa: Conversa
     transferiu: bool = False
+    mostrar_menu: bool = False  # o motor envia o menu de serviços no lugar do texto do modelo
     usou_dados: bool = False  # a resposta pode conter dados do cliente (o histórico oculta se a identidade expirar)
     # Textos do sistema enviados depois da resposta (ex.: Pix copia e cola), sem passar pelo modelo.
     mensagens_do_sistema: list[str] = field(default_factory=list)
@@ -420,7 +429,13 @@ def _transferir(turno: Turno, entrada: dict) -> dict:
                           'horário como base, que a equipe responde no próximo atendimento.')}
 
 
+def _menu(turno: Turno, entrada: dict) -> dict:
+    turno.mostrar_menu = True
+    return {'ok': True, 'instrucao': 'O menu será enviado agora. Encerre o turno sem escrever texto.'}
+
+
 EXECUTORES = {
+    'mostrar_menu': _menu,
     'identificar_cliente': _identificar,
     'consultar_parcelas': _consultar,
     'gerar_link_pagamento': _gerar_link,

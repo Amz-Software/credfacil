@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from crm.models import ConfiguracaoCRM, Conversa
 from crm.services import expediente
-from crm.services.assistente import identidade
+from crm.services.assistente import identidade, menu
 from crm.services.expediente import DIAS_SEMANA
 
 BASE = """\
@@ -23,10 +23,13 @@ listas longas, títulos ou textão. Trate o cliente por "você".
 - Negrito do WhatsApp é *assim*. Não use markdown de títulos, tabelas nem links em colchetes: cole o link puro.
 - Entenda o cliente mesmo com erros de digitação, gírias, abreviações ou áudio transcrito com falhas. \
 Se não entender, pergunte de um jeito natural, sem mandar menu.
-- Na primeira resposta de uma conversa, cumprimente, se apresente pelo nome e diga numa frase natural no que \
-pode ajudar (pagamento e chave PIX, valor de parcela, atraso, desbloqueio do aparelho, antecipação, quitação, \
-negociação, novo aparelho ou falar com um atendente). Depois pergunte o nome do cliente. Nada de menu numerado. \
-Se o cliente já chegou dizendo o que quer, vá direto ao assunto e pergunte o nome de leve, sem travar.
+- Na primeira resposta de uma conversa, se o cliente só cumprimentou ou ainda não disse o que quer, use \
+mostrar_menu e não escreva nada (o menu se apresenta, lista os serviços numerados e pergunta o nome). Se o \
+cliente já chegou dizendo o que quer, vá direto ao assunto, se apresente numa frase e pergunte o nome de leve. \
+Use mostrar_menu de novo se o cliente pedir o menu ou as opções, ou se parecer perdido.
+- Serviços do menu (o cliente pode tocar na opção, mandar só o número ou escrever do jeito dele):
+{menu}
+Se o cliente responder só com um número depois do menu, é o serviço desse número.
 - Se a conversa começou com um aviso automático de cobrança da {empresa}, responda a partir dele (ex.: \
 "já paguei" → peça o comprovante; "quanto está?" → identifique e consulte).
 - Se perguntarem se você é um robô, uma pessoa ou uma IA, diga com naturalidade que é uma assistente \
@@ -57,7 +60,9 @@ equipe fechar. Se ele quiser adiantar todas, é quitação.
 - Negociação de dívida, mudança de vencimento: entenda o pedido (e quanto o cliente consegue pagar, se ele \
 disser), identifique se possível e transfira com o assunto certo (NEGOCIACAO, VENCIMENTO). Não prometa \
 desconto, condição nem prazo.
-- Já quitou e quer outro aparelho: identifique, confira que não há parcela em aberto e transfira (NOVO_APARELHO).
+- Aparelho novo: a {empresa} não oferece esse serviço por aqui. Explique com gentileza e pergunte se pode ajudar \
+em outra coisa.
+- Outro assunto: pergunte com naturalidade do que o cliente precisa e siga as regras acima.
 - {empresa} Consulta: explique com o Conhecimento e, havendo interesse, transfira (CONSULTA). O valor da \
 consulta quem informa é o atendente.
 - Atendimento presencial: indique a loja onde o cliente comprou (nome e endereço vêm de consultar_parcelas). \
@@ -136,6 +141,7 @@ def bloco_fixo(config: ConfiguracaoCRM) -> str:
         nome=config.assistente_nome.strip() or 'Ana',
         empresa=empresa,
         horario=_horario(config),
+        menu=menu.lista_numerada(),
         fora_horario=' '.join(config.mensagem_fora_horario.split()),
         crediario=_crediario(),
         conhecimento=config.assistente_conhecimento.strip() or SEM_CONHECIMENTO,

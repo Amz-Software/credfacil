@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from django.utils import timezone
 
 from crm.models import LIMITE_TEXTO, ConfiguracaoCRM, Conversa, Mensagem
-from crm.services.assistente import historico, ia, identidade, instrucoes
+from crm.services.assistente import historico, ia, identidade, instrucoes, menu
 from crm.services.assistente.ferramentas import DEFINICOES, ErroFerramenta, Turno, executar
 
 logger = logging.getLogger(__name__)
@@ -129,6 +129,13 @@ def _enviar(conversa: Conversa, texto: str, pessoal: bool) -> None:
         transferir(conversa, NOTA_NAO_ENTREGUE)
 
 
+def _enviar_menu(conversa: Conversa) -> None:
+    from crm.services.conversas import transferir
+
+    if menu.enviar(conversa).status == Mensagem.Status.ERRO:
+        transferir(conversa, NOTA_NAO_ENTREGUE)
+
+
 def _texto_do_turno(turno: Turno) -> str:
     try:
         texto = _conversar(turno)
@@ -142,6 +149,8 @@ def _texto_do_turno(turno: Turno) -> str:
             return AVISO_TRANSFERENCIA
         raise FalhaAssistente('Erro inesperado no assistente.') from erro
     texto = texto.strip()
+    if turno.mostrar_menu:
+        return ''  # o menu já cumprimenta, lista os serviços e pergunta o nome
     if texto:
         return texto
     if turno.transferiu:
@@ -163,6 +172,9 @@ def atender(conversa: Conversa) -> None:
     conversa.refresh_from_db(fields=['modo'])
     if conversa.modo != Conversa.Modo.AUTOMATICO and not turno.transferiu:
         logger.info('Conversa %s foi assumida pela equipe durante o turno da IA; resposta descartada.', conversa.pk)
+        return
+    if turno.mostrar_menu and not turno.transferiu:
+        _enviar_menu(conversa)
         return
     # Com cliente identificado, qualquer resposta pode repetir dados dele (mesmo sem ferramenta neste turno).
     pessoal = turno.usou_dados or bool(identidade.clientes_verificados(conversa))

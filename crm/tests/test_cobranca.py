@@ -16,7 +16,7 @@ from crm.tests.test_assistente import IDENTIDADE_CERTA, AssistenteBase, ferramen
 from vendas.models import ComprovanteParcela, ContatoAdicional, Parcela
 
 CORPO_AVISO = 'Olá, {nome}! Sua parcela de {valor} vence em {vencimento}. Responda se precisar do PIX.'
-CORPO_QUITACAO = 'Parabéns, {nome}! Seu contrato está quitado. Responda se quiser um aparelho novo.'
+CORPO_QUITACAO = 'Parabéns, {nome}! Seu contrato está quitado. Responda se tiver alguma dúvida.'
 Tipo = TentativaContato.Tipo
 
 
@@ -351,6 +351,24 @@ class FerramentasNovasTests(CobrancaBase):
         self.assertEqual((encaminhamento.assunto, encaminhamento.fora_do_horario), ('NEGOCIACAO', True))
         self.assertIn('fora do nosso horário', roteiro.resultado(1)['content'])
 
+    def test_primeira_mensagem_envia_o_menu_numerado_com_lista_interativa(self):
+        from crm.services.assistente import menu
+
+        self.com_roteiro(ferramenta('mostrar_menu', {}), texto('Oi! Tudo bem?'))
+
+        self.receber('oi', wamid='w1')
+
+        saidas = Mensagem.objects.filter(direcao=Mensagem.Direcao.SAIDA)
+        self.assertEqual(saidas.count(), 1)  # só o menu: o texto do modelo é descartado
+        enviada = saidas.get()
+        self.assertTrue(enviada.dados['menu'])
+        self.assertTrue(enviada.dados['ia'])
+        self.assertEqual(enviada.dados['lista']['itens'], list(menu.SERVICOS))
+        self.assertIn('1. Desbloquear o aparelho\n2. Parcela em atraso', enviada.texto)
+        self.assertIn('10. Falar com um atendente', enviada.texto)
+        self.assertIn('qual é o seu nome?', enviada.texto)
+        self.assertTrue(all(len(item) <= 24 for item in menu.SERVICOS))  # limite da Meta por item
+
     def test_instrucoes_trazem_horario_assuntos_e_consulta(self):
         conversa = self.receber('oi', wamid='w0').conversa
         fixo, turno = (bloco['text'] for bloco in instrucoes.montar_system(conversa))
@@ -359,6 +377,8 @@ class FerramentasNovasTests(CobrancaBase):
         self.assertIn('sábados, das 08:00 às 18:00', fixo)
         self.assertIn('IPX Consulta', fixo)
         self.assertIn('DESBLOQUEIO', fixo)
+        self.assertIn('8. IPX Consulta', fixo)
+        self.assertNotIn('NOVO_APARELHO', fixo)
         self.assertTrue('horário comercial' in turno or 'atendendo agora' in turno)
 
 

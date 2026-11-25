@@ -67,7 +67,7 @@ def geral(request: HttpRequest) -> HttpResponse:
 # --- avisos automáticos de cobrança --------------------------------------------------------------
 
 # Textos de utilidade: informativos, sem pressão nem ameaça (a Meta recusa template em tom de cobrança
-# agressiva e reclassifica oferta como marketing). A oferta de aparelho novo fica para a conversa.
+# agressiva e reclassifica oferta como marketing).
 SUGESTOES_COBRANCA = (
     ('3 dias antes', 'Olá, {nome}! Passando para lembrar que a parcela de {valor} do seu aparelho vence em '
                      '{vencimento}. Se precisar da chave PIX ou tiver alguma dúvida, é só responder esta mensagem.'),

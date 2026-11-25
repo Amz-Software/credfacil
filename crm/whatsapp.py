@@ -113,6 +113,14 @@ class ProviderMeta:
     def enviar_texto(self, para: str, texto: str, responde_a: str = '') -> str:
         return self._enviar(para, {'type': 'text', 'text': {'body': texto, 'preview_url': True}}, responde_a)
 
+    def enviar_lista(self, para: str, corpo: str, botao: str, secao: str, itens: list[tuple[str, str]]) -> str:
+        """Mensagem interativa de lista: o cliente toca no botão e escolhe um item (chega como list_reply)."""
+        linhas = [{'id': ident, 'title': titulo} for ident, titulo in itens]
+        return self._enviar(para, {'type': 'interactive', 'interactive': {
+            'type': 'list', 'body': {'text': corpo},
+            'action': {'button': botao, 'sections': [{'title': secao, 'rows': linhas}]},
+        }})
+
     def enviar_template(self, para: str, nome: str, parametros: list[str]) -> str:
         componentes = []
         if parametros:
@@ -225,6 +233,9 @@ class ProviderSimulado:
         return f'sim.{uuid.uuid4().hex}'
 
     def enviar_texto(self, para, texto, responde_a=''):
+        return self._wamid()
+
+    def enviar_lista(self, para, corpo, botao, secao, itens):
         return self._wamid()
 
     def enviar_template(self, para, nome, parametros):

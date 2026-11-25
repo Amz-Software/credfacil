@@ -70,6 +70,24 @@ def _despachar_texto(mensagem: Mensagem) -> None:
     mensagem.save(update_fields=['status', 'wa_message_id', 'erro'])
 
 
+def enviar_lista(conversa: Conversa, corpo: str, botao: str, secao: str, itens: list[tuple[str, str]],
+                 autor: str = Mensagem.Autor.AUTOMATICO, dados: dict | None = None) -> Mensagem:
+    """Lista interativa (menu de serviços). No CRM aparece como texto; as opções ficam em dados['lista']."""
+    mensagem = Mensagem.objects.create(
+        conversa=conversa, direcao=Mensagem.Direcao.SAIDA, autor=autor, tipo=Mensagem.Tipo.TEXTO,
+        texto=corpo, status=Mensagem.Status.PENDENTE, envio_iniciado_em=timezone.now(), processada=True,
+        dados={**(dados or {}), 'lista': {'botao': botao, 'itens': [titulo for _, titulo in itens]}},
+    )
+    try:
+        wamid = obter_provider().enviar_lista(conversa.telefone, corpo, botao, secao, itens)
+        mensagem.status, mensagem.wa_message_id, mensagem.erro = Mensagem.Status.ENVIADO, wamid or None, ''
+    except ErroWhatsApp as exc:
+        mensagem.status, mensagem.erro = Mensagem.Status.ERRO, exc.mensagem
+    mensagem.save(update_fields=['status', 'wa_message_id', 'erro'])
+    _apos_envio(conversa, mensagem)
+    return mensagem
+
+
 def enviar_texto(conversa: Conversa, texto: str, usuario=None, autor: str = Mensagem.Autor.HUMANO,
                  origem: str = '', responde_a_id=None, exigir_trava: bool = True) -> Mensagem:
     texto = (texto or '').strip()

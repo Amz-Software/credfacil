@@ -79,7 +79,9 @@ Configurações → Usuários e Acessos → Grupos.
   `ComprovanteParcela` e marca a parcela como "pagamento informado", o mesmo da página pública) e
   `transferir_para_atendente` (assunto + nota; grava `EncaminhamentoIA`). Assuntos que conduz:
   PIX, valor e atraso de parcela, comprovante, desbloqueio, antecipação, quitação, negociação,
-  mudança de vencimento, novo aparelho, IPX Consulta, atendente. Vê as 2 imagens/PDFs mais
+  mudança de vencimento, IPX Consulta, atendente. Na primeira mensagem (se o cliente só
+  cumprimentou) envia o menu de serviços: lista numerada + lista interativa do WhatsApp
+  (`crm/services/assistente/menu.py`, ferramenta `mostrar_menu`). Vê as 2 imagens/PDFs mais
   recentes do cliente (últimos 30 min). Cliente identificado falando de outro número: o número
   entra em `TelefoneCliente` (origem "atendimento"), sem trocar o principal. Fora do horário
   comercial (`hora_abertura`/`hora_fechamento`/`hora_fechamento_sabado`; domingo e feriados
