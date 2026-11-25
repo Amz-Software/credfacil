@@ -57,6 +57,15 @@
       </form>
     {% endif %}
 
+    {% ligacoes_ativas as ligacoes %}
+    {% if ligacoes %}
+    <button type="button" class="btn btn-sm btn-outline-success" title="Ligar pelo WhatsApp"
+            data-ligar="{% url 'crm:ligar' conversa.id %}" data-pedir-permissao="{% url 'crm:pedir_permissao_ligacao' conversa.id %}"
+            data-conversa="{{ conversa.id }}" data-nome="{{ conversa.nome_exibicao }}">
+      <i class="bx bx-phone" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Ligar</span>
+    </button>
+    {% endif %}
+
     <div class="dropdown">
       <button type="button" class="btn btn-sm btn-icon btn-outline-secondary" data-bs-toggle="dropdown" aria-expanded="false" title="Mais ações">
         <i class="bx bx-dots-horizontal-rounded"></i><span class="visually-hidden">Mais ações</span>

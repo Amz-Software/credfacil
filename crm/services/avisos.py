@@ -22,8 +22,8 @@ def _para_mim(conversa, usuario_id: int) -> bool:
     return False
 
 
-def emitir(conversa, tipo: str) -> None:
-    """Avisa todos que acessam o CRM que a conversa mudou (a tela recarrega)."""
+def emitir(conversa, tipo: str, **extra) -> None:
+    """Avisa todos que acessam o CRM que a conversa mudou (a tela recarrega). `extra`: só ids, nunca conteúdo."""
     from notificacao.utils import enviar_evento_ws
 
     try:
@@ -34,6 +34,7 @@ def emitir(conversa, tipo: str) -> None:
                 'tipo': tipo,
                 'conversa_id': conversa.pk,
                 'para_mim': _para_mim(conversa, usuario_id),
+                **extra,
             })
     except Exception:  # noqa: BLE001 — aviso nunca quebra o fluxo
         logger.warning('Falha ao emitir evento do CRM (ignorada).', exc_info=True)

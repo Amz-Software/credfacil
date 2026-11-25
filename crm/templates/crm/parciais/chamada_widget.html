@@ -1,0 +1,37 @@
+{% comment %}Atendimento de ligações pelo WhatsApp (static/js/crm/chamadas.js). Fica em todas as telas de quem acessa o CRM.{% endcomment %}
+{% load static crm_tags %}
+{% ligacoes_ativas as ligacoes %}
+{% if ligacoes %}
+<div class="crm-ligacao d-none" id="crmLigacao" role="dialog" aria-live="assertive" aria-label="Ligação pelo WhatsApp"
+     data-url-tocando="{% url 'crm:chamadas_tocando' %}"
+     data-url-chamada="{% url 'crm:chamada' 0 %}"
+     data-url-atender="{% url 'crm:chamada_atender' 0 %}"
+     data-url-encerrar="{% url 'crm:chamada_encerrar' 0 %}"
+     data-url-conversa="{% url 'crm:conversa' 0 %}"
+     data-som="{% static 'sounds/notification-alert.mp3' %}">
+  <div class="crm-ligacao__info">
+    <span class="crm-ligacao__icone"><i class="bx bxs-phone-call" aria-hidden="true"></i></span>
+    <div class="min-w-0">
+      <strong class="d-block text-truncate" data-ligacao-nome></strong>
+      <span class="crm-ligacao__situacao" data-ligacao-situacao></span>
+      <span class="crm-ligacao__tempo d-none" data-ligacao-tempo>00:00</span>
+    </div>
+  </div>
+  <div class="crm-ligacao__acoes">
+    <button type="button" class="btn btn-sm btn-success" data-ligacao-atender>
+      <i class="bx bx-phone me-1" aria-hidden="true"></i>Atender
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-ligacao-ignorar>Ignorar</button>
+    <button type="button" class="btn btn-sm btn-primary d-none" data-ligacao-permissao>Pedir permissão</button>
+    <button type="button" class="btn btn-sm btn-icon btn-outline-secondary d-none" data-ligacao-mudo aria-pressed="false" title="Silenciar meu microfone">
+      <i class="bx bx-microphone" aria-hidden="true"></i><span class="visually-hidden">Silenciar meu microfone</span>
+    </button>
+    <button type="button" class="btn btn-sm btn-danger d-none" data-ligacao-desligar>
+      <i class="bx bx-phone-off me-1" aria-hidden="true"></i>Desligar
+    </button>
+    <a href="#" class="btn btn-sm btn-text-secondary" data-ligacao-abrir>Abrir conversa</a>
+  </div>
+  <audio data-ligacao-audio autoplay></audio>
+</div>
+<script src="{% static 'js/crm/chamadas.js' %}"></script>
+{% endif %}

@@ -21,6 +21,8 @@ recebidas.
 | `WHATSAPP_API_VERSION` | não | Padrão `v23.0` |
 | `OPENAI_API_KEY` | não | Liga a transcrição de áudios recebidos (`whisper-1`) |
 | `ANTHROPIC_API_KEY` | não | Liga o assistente de IA (Claude) quando ele também está ativo na Configuração |
+| `WHATSAPP_CHAMADAS_PHONE_NUMBER_ID` | não | Número das ligações (ex.: número de teste da Meta). Vazio = o mesmo das mensagens |
+| `WHATSAPP_CHAMADAS_TOKEN` | não | Token para esse número de ligações. Vazio = `WHATSAPP_TOKEN` |
 | `ASSISTENTE_MODELO` | não | Modelo do assistente. Padrão `claude-sonnet-5-5` |
 | `ASSISTENTE_ESFORCO` | não | `low` (padrão), `medium`, `high`, `xhigh` ou `max` |
 | `ASSISTENTE_TELEFONES_TESTE` | não | Números separados por vírgula: se preenchida, só eles falam com a IA (os demais seguem no menu). Para testar em produção |
@@ -112,6 +114,15 @@ Configurações → Usuários e Acessos → Grupos.
   parcela do crediário, `{vencimento}`), independente de `cobranca_ativa`. Uma vez por venda
   (`Mensagem.origem = COMPRA`, `dados.compra.venda_id`), na conversa do cliente; falha da Meta não
   desfaz a venda. A resposta de `gerar-venda/` traz `confirmacao_whatsapp` para a SPA avisar o vendedor.
+- **Ligações pelo WhatsApp** (Calling API; `crm/services/chamadas.py`, `crm/whatsapp_chamadas.py`,
+  `static/js/crm/chamadas.js`): a equipe atende e liga pelo navegador (WebRTC; o áudio vai direto
+  navegador ↔ Meta, o servidor só troca o SDP). Recebida toca para todos do CRM e a primeira pessoa
+  que atende fica com ela (e com a conversa, se estiver livre); feita exige a conversa assumida e
+  permissão do cliente (botão "Pedir permissão", só com a janela de 24 h aberta). Cada ligação vira
+  uma linha na conversa (tipo `CHAMADA`) e a feita vira `TentativaContato` (canal Ligação). Requisitos
+  da Meta: número com limite de 2.000+ contatos/dia (o número de teste não exige), campo `calls`
+  assinado no webhook do app e "Ativar ligações no número" na Configuração (manda o horário de
+  atendimento). O webhook ignora mensagens e ligações de outros números da empresa.
 - **Telefones e status de contato** (`crm/services/contatos.py`): números do cadastro, usados no
   atendimento, localizados no C4M (precisam ser validados) e de referência, com situação e
   histórico de tentativas; status por cliente (contato realizado, aguardando retorno, contato

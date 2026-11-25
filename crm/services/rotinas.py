@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from crm.models import Conversa, Mensagem, Midia
-from crm.services import aberturas, cobranca, conversas, midias, organizacao
+from crm.services import aberturas, chamadas, cobranca, conversas, midias, organizacao
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +86,7 @@ def rodar_tudo(incluir_aberturas: bool = True) -> dict:
         ('entradas', reprocessar_entradas),
         ('retorno_automatico', retornar_resolvidas),
         ('cobranca', cobranca.rodar),
+        ('chamadas_esquecidas', chamadas.fechar_esquecidas),
         ('pagamentos_online', _conciliar_pagamentos_online),
     ]
     if incluir_aberturas:

@@ -416,6 +416,7 @@
     </button>
   </div>
   <script src="{% static 'js/versao.js' %}"></script>
+  {% if perms.crm.acessar_crm %}{% include "crm/parciais/chamada_widget.html" %}{% endif %}
   {% endif %}
   {% include "components/confirm_modal.html" %}
   <script src="{% static 'js/confirm-action.js' %}"></script>

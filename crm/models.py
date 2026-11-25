@@ -150,6 +150,7 @@ class Mensagem(models.Model):
         LOCALIZACAO = 'LOCALIZACAO', 'Localização'
         CONTATO = 'CONTATO', 'Contato'
         REACAO = 'REACAO', 'Reação'
+        CHAMADA = 'CHAMADA', 'Ligação'
         DESCONHECIDO = 'DESCONHECIDO', 'Não suportada'
 
     class Origem(models.TextChoices):
@@ -347,6 +348,12 @@ class ConfiguracaoCRM(models.Model):
                   'passa para a equipe.',
     )
 
+    chamadas_ativas = models.BooleanField(
+        default=False,
+        help_text='Mostra o botão de ligar e toca as ligações recebidas pelo WhatsApp no CRM. A ligação também '
+                  'precisa estar ativada no número da Meta.',
+    )
+
     # Avisos automáticos de cobrança (templates aprovados pela Meta).
     cobranca_ativa = models.BooleanField(default=False)
     cobranca_ativada_em = models.DateTimeField(null=True, blank=True, editable=False)
@@ -385,3 +392,4 @@ class ConfiguracaoCRM(models.Model):
 
 
 from crm.models_contatos import EncaminhamentoIA, TelefoneCliente, TentativaContato  # noqa: E402,F401
+from crm.models_chamadas import Chamada  # noqa: E402,F401

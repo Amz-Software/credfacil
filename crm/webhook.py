@@ -73,8 +73,11 @@ def normalizar(mensagem: dict, nomes: dict[str, str]) -> EntradaNormalizada:
         dados['botao_payload'] = (mensagem.get('button') or {}).get('payload', '')
     elif tipo_meta == 'interactive':
         interativo = mensagem.get('interactive') or {}
-        resposta = interativo.get('button_reply') or interativo.get('list_reply') or {}
-        tipo, texto = Mensagem.Tipo.TEXTO, resposta.get('title', '')
+        if interativo.get('type') == 'call_permission_reply':
+            tipo, texto, dados['permissao_ligacao'] = _permissao_de_ligacao(interativo.get('call_permission_reply') or {})
+        else:
+            resposta = interativo.get('button_reply') or interativo.get('list_reply') or {}
+            tipo, texto = Mensagem.Tipo.TEXTO, resposta.get('title', '')
     elif tipo_meta in TIPOS_MIDIA:
         objeto = mensagem.get(tipo_meta) or {}
         tipo, midia_id = TIPOS_MIDIA[tipo_meta], objeto.get('id', '')
@@ -112,12 +115,53 @@ def normalizar(mensagem: dict, nomes: dict[str, str]) -> EntradaNormalizada:
     )
 
 
+def _permissao_de_ligacao(resposta: dict) -> tuple[str, str, dict]:
+    aceitou = resposta.get('response') == 'accept'
+    permanente = bool(resposta.get('is_permanent'))
+    texto = ('📞 Autorizou receber ligações' + (' (sem prazo)' if permanente else ' por 7 dias')) if aceitou \
+        else '📞 Não autorizou receber ligações'
+    return Mensagem.Tipo.TEXTO, texto, {'aceitou': aceitou, 'permanente': permanente}
+
+
+def _do_numero(valor: dict, aceitos: set[str]) -> bool:
+    """Evento de outro número da empresa (ex.: número de teste da Meta no mesmo app) é ignorado."""
+    numero = (valor.get('metadata') or {}).get('phone_number_id', '')
+    return not numero or not aceitos or numero in aceitos
+
+
+def _processar_chamadas(valor: dict) -> None:
+    from crm.services import chamadas
+
+    numero = (valor.get('metadata') or {}).get('phone_number_id', '')
+    for evento in valor.get('calls', []):
+        try:
+            if evento.get('event') == 'connect':
+                chamadas.receber_conexao(evento, numero)
+            elif evento.get('event') == 'terminate':
+                chamadas.encerrar_pelo_webhook(evento)
+        except Exception:  # noqa: BLE001
+            logger.exception('Falha ao tratar a ligação %s.', evento.get('id'))
+    for status in valor.get('statuses', []):
+        if status.get('type') == 'call':
+            try:
+                chamadas.aplicar_status(status)
+            except Exception:  # noqa: BLE001
+                logger.exception('Falha ao aplicar status da ligação %s.', status.get('id'))
+
+
 def processar_payload(payload: dict) -> None:
+    from crm.whatsapp_chamadas import numeros_aceitos
+
+    principal = {credenciais().phone_number_id} - {''}
     for entrada in payload.get('entry', []):
         for mudanca in entrada.get('changes', []):
-            if mudanca.get('field') != 'messages':
-                continue
             valor = mudanca.get('value') or {}
+            if mudanca.get('field') == 'calls':
+                if _do_numero(valor, numeros_aceitos()):
+                    _processar_chamadas(valor)
+                continue
+            if mudanca.get('field') != 'messages' or not _do_numero(valor, principal):
+                continue
             nomes = {c.get('wa_id', ''): (c.get('profile') or {}).get('name', '') for c in valor.get('contacts', [])}
             for mensagem in valor.get('messages', []):
                 try:
@@ -125,6 +169,9 @@ def processar_payload(payload: dict) -> None:
                 except Exception:  # noqa: BLE001
                     logger.exception('Falha ao gravar mensagem do webhook %s.', mensagem.get('id'))
             for status in valor.get('statuses', []):
+                if status.get('type') == 'call':
+                    _processar_chamadas({'metadata': valor.get('metadata'), 'statuses': [status]})
+                    continue
                 try:
                     aplicar_status(status.get('id', ''), status.get('status', ''), status.get('errors'))
                 except Exception:  # noqa: BLE001

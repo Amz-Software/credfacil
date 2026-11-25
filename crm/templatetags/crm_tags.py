@@ -122,6 +122,14 @@ def reacoes() -> tuple[str, ...]:
 
 
 @register.simple_tag
+def ligacoes_ativas() -> bool:
+    """Ligações pelo WhatsApp ligadas na Configuração (mostra o botão de ligar e o atendimento)."""
+    from crm.models import ConfiguracaoCRM
+
+    return ConfiguracaoCRM.obter().chamadas_ativas
+
+
+@register.simple_tag
 def grupos_emoji() -> tuple:
     """Seletor de emojis do compositor e da reação: ((nome do grupo, emojis), ...)."""
     return GRUPOS_EMOJI

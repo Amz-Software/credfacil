@@ -52,6 +52,19 @@
         </div>
       </div>
     </div>
+
+    <div class="card mt-4">
+      <div class="card-header"><h5 class="mb-0">Ligações pelo WhatsApp</h5></div>
+      <div class="card-body small">
+        <p class="text-muted">A equipe atende e liga pelo navegador (precisa de microfone). A Meta exige o número com limite de 2.000 contatos por dia ou mais e o campo <code>calls</code> assinado no webhook do app. Para testar antes, use o número de teste da Meta em <code>WHATSAPP_CHAMADAS_PHONE_NUMBER_ID</code> (e, se precisar, <code>WHATSAPP_CHAMADAS_TOKEN</code>) no <code>.env</code>.</p>
+        <p class="mb-2">Número das ligações: {% if integracao.numero_chamadas_teste %}<span class="badge bg-label-warning">número de teste</span>{% else %}<span class="badge bg-label-secondary">o mesmo das mensagens</span>{% endif %}</p>
+        <form method="post" action="{% url 'crm:ativar_ligacoes' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-outline-success"><i class="bx bx-phone me-1"></i>Ativar ligações no número</button>
+        </form>
+        <p class="text-muted mt-2 mb-0">Ativa o botão de ligar no WhatsApp do cliente no horário de atendimento acima e liga as ligações aqui no CRM.</p>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock aba %}

@@ -43,6 +43,7 @@ def _integracao(request: HttpRequest) -> dict[str, Any]:
         'itens': itens,
         'transcricao': bool(os.environ.get('OPENAI_API_KEY', '').strip()),
         'assistente_ia': bool(os.environ.get('ANTHROPIC_API_KEY', '').strip()),
+        'numero_chamadas_teste': bool(os.environ.get('WHATSAPP_CHAMADAS_PHONE_NUMBER_ID', '').strip()),
         'api_version': cred.versao,
         'webhook_url': request.build_absolute_uri(CAMINHO_WEBHOOK),
         'privacidade_url': request.build_absolute_uri(reverse('politica_privacidade')),

@@ -34,7 +34,7 @@ class ConfiguracaoForm(_BootstrapMixin, forms.ModelForm):
         fields = ['nome_empresa', 'boas_vindas_ativa', 'mensagem_boas_vindas', 'retorno_automatico_horas',
                   'autoatendimento_ativo', 'assistente_ativo', 'assistente_nome', 'assistente_conhecimento',
                   'hora_abertura', 'hora_fechamento', 'hora_fechamento_sabado', 'mensagem_fora_horario',
-                  'antecipacao_percentual_dia', 'url_publica', 'razao_social', 'cnpj', 'email_privacidade']
+                  'antecipacao_percentual_dia', 'chamadas_ativas', 'url_publica', 'razao_social', 'cnpj', 'email_privacidade']
         labels = {
             'nome_empresa': 'Nome da empresa nas mensagens',
             'boas_vindas_ativa': 'Enviar boas-vindas quando o cliente chamar',
@@ -49,6 +49,7 @@ class ConfiguracaoForm(_BootstrapMixin, forms.ModelForm):
             'hora_fechamento_sabado': 'Equipe para de atender às (sábado)',
             'mensagem_fora_horario': 'Mensagem de fora do horário',
             'antecipacao_percentual_dia': 'Desconto de antecipação (% ao dia)',
+            'chamadas_ativas': 'Ligações pelo WhatsApp no CRM',
             'url_publica': 'Endereço público do sistema',
             'razao_social': 'Razão social',
             'cnpj': 'CNPJ',
