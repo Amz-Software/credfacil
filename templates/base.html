@@ -402,6 +402,21 @@
     data-pode-ver-modal="{% if perms.vendas.change_status_analise %}1{% else %}0{% endif %}"></script>
 
   <script src="{% static 'js/toasts.js' %}"></script>
+  {% if user.is_authenticated %}
+  <div class="aviso-versao d-none" id="avisoNovaVersao" role="status" aria-live="polite"
+       data-versao="{{ versao_app }}" data-url="{% url 'versao' %}">
+    <i class="bx bx-refresh aviso-versao__icone" aria-hidden="true"></i>
+    <div class="aviso-versao__texto">
+      <strong>Nova versão disponível</strong>
+      <span>Atualize para usar as últimas melhorias.</span>
+    </div>
+    <button type="button" class="btn btn-sm btn-primary" data-versao-atualizar>Atualizar</button>
+    <button type="button" class="btn btn-sm btn-icon btn-text-secondary" data-versao-depois title="Lembrar depois">
+      <i class="bx bx-x" aria-hidden="true"></i><span class="visually-hidden">Lembrar depois</span>
+    </button>
+  </div>
+  <script src="{% static 'js/versao.js' %}"></script>
+  {% endif %}
   {% include "components/confirm_modal.html" %}
   <script src="{% static 'js/confirm-action.js' %}"></script>
 

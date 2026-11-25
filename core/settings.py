@@ -217,6 +217,7 @@ TEMPLATES = [
                 'core.context_processors.menu_items',
                 'core.context_processors.loja',
                 'core.context_processors.notificacoes_usuario',
+                'core.versao.contexto',
             ],
         },
     },

@@ -23,6 +23,7 @@ from rest_framework_simplejwt.views import (
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from api.views import CustomTokenObtainPairView, LogoutJwtView, foto_celular_view
 from core.midia import servir_midia
+from core.versao import versao
 from crm.web.publico import politica_privacidade
 from crm.webhook import WebhookWhatsAppView
 from pagamentos_online.webhook import NotificacaoPagBankView
@@ -38,6 +39,7 @@ if not settings.USE_S3:
 
 urlpatterns += [
     path('admin/', admin.site.urls),
+    path('versao/', versao, name='versao'),
     path("select2/", include("django_select2.urls")),
     path('', include('vendas.urls')),
     path('', include('produtos.urls')),

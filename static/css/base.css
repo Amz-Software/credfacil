@@ -233,3 +233,30 @@
   .whatsapp-text { display: none; }
   .whatsapp-icon-wrapper { margin-right: 0; }
 }
+
+/* Aviso de nova versão (static/js/versao.js): centralizado embaixo, longe do botão do WhatsApp. */
+.aviso-versao {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: 1090;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.75rem 0.75rem 0.75rem 1rem;
+  background: var(--ipix-surface);
+  color: var(--ipix-text);
+  border: 1px solid var(--ipix-border);
+  border-radius: 0.75rem;
+  box-shadow: var(--ipix-shadow);
+}
+.aviso-versao__icone { font-size: 1.5rem; color: var(--ipix-primary); }
+.aviso-versao__texto { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.aviso-versao__texto strong { color: var(--ipix-heading); }
+.aviso-versao__texto span { font-size: 0.8125rem; color: var(--ipix-muted); }
+@media (max-width: 575.98px) {
+  .aviso-versao { bottom: 5.5rem; }
+  .aviso-versao__texto span { display: none; }
+}
