@@ -55,7 +55,17 @@ def _autenticadores(form) -> list[dict] | None:
 
 
 def opcoes_de_edicao(cliente: Cliente, user) -> dict:
-    form = _montar(cliente, user).analise
+    return opcoes_do_formulario(_montar(cliente, user).analise)
+
+
+def opcoes_de_criacao(user) -> dict:
+    """Opções da nova solicitação: produtos da loja da CredFácil (IPIXX), que vê todos os ativos."""
+    from .criacao import formulario_de_analise, loja_da_credfacil
+
+    return opcoes_do_formulario(formulario_de_analise(user, loja_da_credfacil()))
+
+
+def opcoes_do_formulario(form) -> dict:
     produtos = _produtos(form.fields['produto'])
     marcas = {produto['marca_id'] for produto in produtos if produto['marca_id']}
     return {

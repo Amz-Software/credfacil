@@ -129,6 +129,19 @@ parcelamento precisa existir para a marca (se produto/parcelas mudarem); depois 
 Resposta 200: o detalhe + `"aviso"` (texto quando há outras solicitações com o mesmo CPF/RG/nome/telefone, senão `null`).
 Auditoria: `solicitacao_editada` com a lista de campos alterados.
 
+### `POST solicitacoes/` — nova solicitação
+Permissão: `vendas.add_cliente` + grupo ANALISTA, ADMINISTRADOR ou SUPERADMIN (ou superusuário). JSON ou multipart.
+A loja é **sempre a da CredFácil** (IPIXX, `Loja.credfacil = True`); `loja` no corpo é ignorada. Sem essa loja → 400.
+Campos: os mesmos da edição (acima). Obrigatórios como no app do vendedor (forms de `vendas/forms.py`), exceto
+os documentos, que são **opcionais** (anexe depois pelo PATCH). `quantidade_dependentes` vale 0 se não vier.
+Regras: validações dos forms (CPF, idade mínima…); referências não podem ser iguais; ao menos uma referência completa;
+parcelamento cadastrado para a marca do produto. Erros → 400 `validacao` com `campos`.
+Resposta 201: o detalhe + `"aviso"` (como no PATCH). Auditoria: `solicitacao_criada`. A notificação
+`proposta_criada` sai para analistas/administradores (signal da análise).
+
+### `GET solicitacoes/opcoes-criacao/`
+Permissão: a mesma do POST. Mesmo formato de `opcoes-edicao`, para a loja da CredFácil (todos os produtos ativos que ela vê).
+
 ### `GET solicitacoes/{id}/arquivos/{campo}/`
 Permissão: `vendas.view_cliente` (+ regra do Serasa para `consulta_serasa*`, senão 403). `campo`:
 `documento_identificacao_frente, documento_identificacao_verso, comprovante_residencia, foto_cliente, consulta_serasa, consulta_serasa_2, codigo_reserva`.

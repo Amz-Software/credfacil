@@ -18,10 +18,12 @@ from vendas.models import AnaliseCreditoCliente, Cliente, ConsultaSerasaAcesso, 
 from vendas.services.kpis import contar_por_status
 
 from ..arquivos import ARQUIVOS_SOLICITACAO, TIPO_SERASA, mime_pelos_bytes, responder_arquivo
+from ..criacao import criar_solicitacao
 from ..edicao import editar_solicitacao
 from ..filtros import analises_para_kpis, filtrar_solicitacoes, ordenar_solicitacoes
-from ..opcoes_edicao import opcoes_de_edicao
+from ..opcoes_edicao import opcoes_de_criacao, opcoes_de_edicao
 from ..regras import (
+    GRUPOS_CRIACAO,
     GRUPOS_OBSERVACAO,
     PERMISSAO_DECIDIR,
     PERMISSAO_VER,
@@ -117,6 +119,8 @@ class SolicitacaoViewSet(
         'retrieve': [PERMISSAO_VER],
         'kpis': [PERMISSAO_VER],
         'arquivo': [PERMISSAO_VER],
+        'create': ['vendas.add_cliente', EmGrupo(*GRUPOS_CRIACAO)],
+        'opcoes_criacao': ['vendas.add_cliente', EmGrupo(*GRUPOS_CRIACAO)],
         'partial_update': ['vendas.change_cliente'],
         'qr_instalacao': ['vendas.change_cliente'],
         'opcoes_edicao': ['vendas.change_cliente'],
@@ -163,6 +167,26 @@ class SolicitacaoViewSet(
             'status_opcoes': [{'codigo': c, 'rotulo': r} for c, r in AnaliseCreditoCliente.STATUS_CHOICES],
             'status_app_opcoes': [{'codigo': c, 'rotulo': r} for c, r in AnaliseCreditoCliente.STATUS_APP_CHOICES],
         })
+
+    @extend_schema(
+        request={'multipart/form-data': OpenApiTypes.OBJECT, 'application/json': OpenApiTypes.OBJECT},
+        responses={201: CreditoEdicaoRespostaSerializer},
+        description='Nova solicitação (analista/administrador), sempre na loja da CredFácil (IPIXX). '
+                    'Mesmos campos da edição; documentos opcionais, em multipart (ver CONTRATO.md).',
+    )
+    def create(self, request, *args, **kwargs):
+        with transaction.atomic():
+            resultado = criar_solicitacao(request.user, request.data, request.FILES)
+            cliente = resultado.cliente
+            self.auditar('solicitacao_criada', objeto=cliente.analise_credito, dados={'solicitacao_id': cliente.pk})
+        criado = Cliente.objects.select_related(*RELACOES_DETALHE).get(pk=cliente.pk)
+        contexto = {**self.get_serializer_context(), 'aviso': resultado.aviso}
+        return Response(CreditoEdicaoRespostaSerializer(criado, context=contexto).data, status=201)
+
+    @extend_schema(responses=CreditoOpcoesEdicaoSerializer)
+    @action(detail=False, methods=['get'], url_path='opcoes-criacao')
+    def opcoes_criacao(self, request):
+        return Response(opcoes_de_criacao(request.user))
 
     @extend_schema(
         request={'multipart/form-data': OpenApiTypes.OBJECT, 'application/json': OpenApiTypes.OBJECT},

@@ -60,6 +60,7 @@ CAMPOS_ARQUIVO = tuple(campo for campo, d in ARQUIVOS_SOLICITACAO.items() if d.o
 # Depois da venda gerada a aba "Produto" fica travada para todos (regra da API do vendedor).
 CAMPOS_PRODUTO = ('produto', 'data_pagamento', 'numero_parcelas', 'entrada_informada')
 
+MSG_REVISE = 'Revise os campos destacados.'
 MSG_SEM_PERMISSAO_CAMPO = 'Você não pode alterar este campo.'
 MSG_PRODUTO_TRAVADO = 'As informações de Produto não podem ser alteradas após a venda ter sido gerada.'
 MSG_EDICAO_APOS_VENDA = 'Somente ANALISTA/ADMIN podem editar a solicitação após a venda ser gerada.'
@@ -192,11 +193,11 @@ def _erros_de_conflito(formularios: Formularios) -> dict:
 
 def _validar(formularios: Formularios) -> None:
     if not all([form.is_valid() for form in formularios.todos()]):
-        raise ErroBackoffice('Revise os campos destacados.', campos=_erros_dos_formularios(formularios))
+        raise ErroBackoffice(MSG_REVISE, campos=_erros_dos_formularios(formularios))
     erros = _erros_de_conflito(formularios)
     erros.update(_validar_parcelamento(formularios.analise, somente_se_alterado=True) or {})
     if erros:
-        raise ErroBackoffice('Revise os campos destacados.', campos=erros)
+        raise ErroBackoffice(MSG_REVISE, campos=erros)
 
 
 def _gravar(formularios: Formularios, cliente: Cliente, user) -> Cliente:
@@ -230,7 +231,8 @@ class ResultadoEdicao:
     aviso: str | None
 
 
-def _aviso_de_duplicidade(formularios: Formularios, cliente: Cliente) -> str | None:
+def _aviso_de_duplicidade(formularios: Formularios, cliente: Cliente | None) -> str | None:
+    """`cliente` None = solicitação nova (nada a excluir da busca)."""
     dados = formularios.cliente.cleaned_data
     return _avisos_solicitacoes_existentes(
         cpf=dados.get('cpf'),
@@ -238,7 +240,7 @@ def _aviso_de_duplicidade(formularios: Formularios, cliente: Cliente) -> str | N
         nome=dados.get('nome'),
         telefone=dados.get('telefone'),
         telefone_secundario=dados.get('telefone_secundario'),
-        exclude_cliente_id=cliente.pk,
+        exclude_cliente_id=cliente.pk if cliente else None,
     )
 
 

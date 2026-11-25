@@ -56,8 +56,9 @@ class FilaTests(CenarioCredito):
         ids = [r['id'] for r in self.logar(self.analista).get(self.url()).json()['results']]
         self.assertEqual(ids, [nova.pk, aprovada.pk, self.sol_a.pk])
 
-    def test_post_na_lista_recebe_405(self):
-        self.assertEqual(self.logar(self.admin).post(self.url(), {}).status_code, 405)
+    def test_post_na_lista_sem_permissao_de_criar_recebe_403(self):
+        # A criação existe (ver test_criacao.py), mas exige vendas.add_cliente.
+        self.assertEqual(self.logar(self.admin).post(self.url(), {}).status_code, 403)
 
 
 class KpisTests(CenarioCredito):
