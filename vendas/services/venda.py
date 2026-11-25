@@ -202,3 +202,24 @@ def gerar_venda_da_analise(cliente, vendedor, *, bloquear_imei_de_venda_cancelad
         )
         _criar_pagamentos(venda, analise, valores, data_primeira_parcela)
     return venda
+
+
+def sincronizar_comodato_da_venda(venda: Venda, comodato: bool) -> None:
+    """Leva o comodato da análise para a venda já gerada e refaz o repasse ao lojista.
+
+    Comodato: repasse 0 (o valor fica com a IPX). Venda comum: repasse = valor
+    financiado (valor do produto menos a entrada), a mesma regra da geração.
+    """
+    if venda.comodato == comodato:
+        return
+    venda.comodato = comodato
+    venda.repasse_logista = Decimal('0') if comodato else _valor_financiado(venda)
+    venda.save(update_fields=['comodato', 'repasse_logista'])
+
+
+def _valor_financiado(venda: Venda) -> Decimal:
+    valor_produtos = sum((item.produto.valor or 0) * item.quantidade for item in venda.itens_venda.all())
+    entrada = sum(
+        p.valor for p in venda.pagamentos.filter(tipo_pagamento__nome__iexact=TIPO_ENTRADA)
+    )
+    return Decimal(valor_produtos) - Decimal(entrada)

@@ -716,9 +716,12 @@ class AnaliseCreditoClienteForm(NumeroParcelasChoicesMixin, forms.ModelForm):
                 self.fields['numero_parcelas'].disabled = True
                 self.fields['analise_online'].disabled = True
 
-            # Comodato define o repasse gravado na venda: depois de gerada não muda mais.
-            if venda_gerada:
-                self.fields['comodato'].disabled = True
+            # Comodato muda o repasse da venda: na edição só ANALISTA/ADMINISTRADOR (ou quem
+            # edita venda finalizada) altera; a venda já gerada acompanha (AnaliseCreditoCliente.save).
+            pode_comodato = user_is_analista_or_admin(user) or (
+                user is not None and user.has_perm('vendas.can_edit_finished_sale')
+            )
+            self.fields['comodato'].disabled = not pode_comodato
 
             # Se a venda foi gerada, analistas e usuários com permissão específica podem editar
             if venda_gerada:

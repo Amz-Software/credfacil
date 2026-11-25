@@ -75,13 +75,20 @@ class EdicaoTests(CenarioCredito):
         self.assertTrue(self.sol_a.analise_credito.comodato)
         self.assertIs(resposta.json()['analise']['comodato'], True)
 
-    def test_comodato_travado_depois_da_venda(self):
-        venda = Venda.objects.create(cliente=self.sol_a, vendedor=self.vendedor, loja=self.loja_a, repasse_logista=0)
+    def test_analista_altera_comodato_depois_da_venda_e_a_venda_acompanha(self):
+        venda = Venda.objects.create(cliente=self.sol_a, vendedor=self.vendedor, loja=self.loja_a, repasse_logista=500)
         analise = self.sol_a.analise_credito
         analise.venda = venda
         analise.status = 'A'
         analise.save()
         resposta = self.logar(self.analista).patch(self.url(self.sol_a.pk), {'comodato': True}, format='json')
+        self.assertEqual(resposta.status_code, 200, resposta.content)
+        venda.refresh_from_db()
+        self.assertTrue(venda.comodato)
+        self.assertEqual(venda.repasse_logista, 0)
+
+    def test_vendedor_nao_altera_comodato_na_edicao(self):
+        resposta = self.logar(self.vendedor).patch(self.url(self.sol_a.pk), {'comodato': True}, format='json')
         self.assertEqual(resposta.status_code, 400)
         self.assertIn('comodato', resposta.json()['erro']['campos'])
 

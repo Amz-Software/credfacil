@@ -556,6 +556,14 @@ class AnaliseCreditoCliente(Base):
     
     def __str__(self):
         return f"Análise de crédito para {self.cliente} - {self.data_analise.strftime('%d/%m/%Y')}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Comodato alterado depois da venda gerada: a venda acompanha (repasse 0 ou valor financiado).
+        if self.venda_id:
+            from vendas.services.venda import sincronizar_comodato_da_venda
+
+            sincronizar_comodato_da_venda(self.venda, self.comodato)
     
     class Meta:
         verbose_name_plural = 'Análises de Crédito'

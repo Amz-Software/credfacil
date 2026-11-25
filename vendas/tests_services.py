@@ -164,6 +164,22 @@ class GerarVendaDaAnaliseTests(CenarioMixin, TestCase):
         comodato = Venda.objects.get(pk=venda.pk)
         self.assertEqual(comodato.juros, Decimal('200.00'))
 
+    def test_mudar_comodato_da_analise_depois_da_venda_refaz_o_repasse(self):
+        venda = self.gerar()
+        self.analise.refresh_from_db()
+
+        self.analise.comodato = True
+        self.analise.save()
+        venda.refresh_from_db()
+        self.assertTrue(venda.comodato)
+        self.assertEqual(venda.repasse_logista, Decimal('0'))
+
+        self.analise.comodato = False
+        self.analise.save()
+        venda.refresh_from_db()
+        self.assertFalse(venda.comodato)
+        self.assertEqual(venda.repasse_logista, Decimal('1000.00'))
+
     def test_repasse_da_loja_ignora_vendas_de_comodato(self):
         venda = self.gerar()
         self.assertEqual(self.loja.calcular_valor_repasse(None, None), Decimal('1000.00'))
