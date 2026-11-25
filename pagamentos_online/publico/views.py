@@ -23,8 +23,10 @@ from vendas.models import ComprovanteParcela, Pagamento, Parcela
 from vendas.services.erros import ErroDeNegocio
 
 from ..models import Cobranca
-from ..servicos.cobrancas import gerar_cobranca
-from ..servicos.comprovante import gerar_pdf, nome_do_arquivo
+from ..servicos.cobrancas import (
+    MAX_PARCELAS_POR_COBRANCA, gerar_cobranca, gerar_cobranca_agrupada, plano_para_exibir,
+)
+from ..servicos.comprovante import gerar_pdf, nome_do_arquivo, nome_para_download
 from . import dados
 
 logger = logging.getLogger(__name__)
@@ -135,6 +137,51 @@ class CriarCobrancaView(PublicoView):
         return Response(dados.cobranca(cobranca), status=status.HTTP_201_CREATED)
 
 
+def ids_da_query(texto: str) -> list[int]:
+    partes = [p.strip() for p in (texto or '').split(',') if p.strip()]
+    if not partes or len(partes) > MAX_PARCELAS_POR_COBRANCA or not all(p.isdigit() for p in partes):
+        raise ErroDeNegocio('Escolha as parcelas que quer pagar.')
+    return [int(p) for p in partes]
+
+
+class PlanoView(PublicoView):
+    """Opções (com taxa) para pagar várias parcelas juntas (`?parcelas=1,2`) ou a quitação (`?quitacao=1`)."""
+
+    def get(self, request, token):
+        pagamento = self.pagamento(token)
+        quitacao = request.query_params.get('quitacao') in ('1', 'true')
+        ids = None if quitacao else ids_da_query(request.query_params.get('parcelas', ''))
+        return Response(dados.opcoes_do_plano(plano_para_exibir(pagamento, ids)))
+
+
+class CobrancaAgrupadaEntrada(serializers.Serializer):
+    """Também usado pelo backoffice."""
+
+    forma = serializers.ChoiceField(choices=Cobranca.Forma.choices)
+    parcelas = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False,
+                                     max_length=MAX_PARCELAS_POR_COBRANCA)
+    quitacao = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs):
+        if attrs['quitacao'] == bool(attrs.get('parcelas')):
+            raise serializers.ValidationError('Informe as parcelas ou a quitação.')
+        return attrs
+
+
+class CriarCobrancaAgrupadaView(PublicoView):
+    """Uma cobrança para várias parcelas da compra ou para a quitação com desconto."""
+
+    def post(self, request, token):
+        pagamento = self.pagamento(token)
+        entrada = CobrancaAgrupadaEntrada(data=request.data)
+        if not entrada.is_valid():
+            return _erro('Escolha a forma de pagamento e as parcelas (ou a quitação).', 'validacao')
+        dados_entrada = entrada.validated_data
+        cobranca = gerar_cobranca_agrupada(pagamento, dados_entrada['forma'], Cobranca.Origem.CLIENTE,
+                                           dados_entrada.get('parcelas'), dados_entrada['quitacao'])
+        return Response(dados.cobranca(cobranca), status=status.HTTP_201_CREATED)
+
+
 class CobrancaView(PublicoView):
     """Situação de uma cobrança (o app consulta enquanto o cliente paga)."""
 
@@ -151,7 +198,7 @@ class ComprovanteView(PublicoView):
             Cobranca.objects.select_related('parcela__pagamento__venda__cliente'),
             referencia=referencia, parcela__pagamento=pagamento, status=Cobranca.Status.PAGA,
         )
-        nome = f'comprovante-parcela-{cobranca.parcela.numero_parcela}.pdf'
+        nome = nome_para_download(cobranca)
         anexado = cobranca.parcela.comprovantes.filter(arquivo__endswith=nome_do_arquivo(cobranca)).first()
         if anexado:  # o PDF já gerado na baixa: sem custo de gerar de novo a cada acesso
             resposta = FileResponse(anexado.arquivo.open('rb'), content_type='application/pdf', filename=nome)

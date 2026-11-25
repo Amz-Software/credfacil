@@ -1,7 +1,7 @@
-"""Opções de pagamento de uma parcela e geração da cobrança no PagBank.
+"""Opções de pagamento e geração da cobrança no PagBank (uma parcela, várias ou a quitação).
 
-O valor sempre vem da parcela no banco (nunca de quem pediu). Uma cobrança pendente
-e ainda válida para o mesmo valor é reaproveitada em vez de criar outra.
+O valor sempre vem das parcelas no banco (nunca de quem pediu). Uma cobrança pendente e ainda
+válida para as mesmas parcelas e o mesmo valor é reaproveitada em vez de criar outra.
 """
 import logging
 from dataclasses import asdict, dataclass, replace
@@ -11,12 +11,13 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
-from vendas.models import Parcela
+from vendas.models import Pagamento, Parcela
 from vendas.services.erros import ErroDeNegocio
 
-from ..models import Cobranca, ConfiguracaoPagamentoOnline
+from ..models import Cobranca, ConfiguracaoPagamentoOnline, ItemCobranca
 from ..pagbank import cliente, payloads
 from ..taxas import total_boleto, total_cartao, total_pix
+from .planos import Plano, plano_de_parcelas, plano_de_quitacao, rotulo_do_plano
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ CAMINHO_NOTIFICACAO = '/api/pagbank/notificacao/'
 FOLGA_REUSO = {Forma.PIX: timedelta(minutes=10), Forma.CARTAO: timedelta(minutes=10), Forma.BOLETO: timedelta(days=1)}
 EM_CRIACAO = timedelta(seconds=60)  # mais que o timeout da chamada ao PagBank
 CAMPO_EXIGIDO = {Forma.PIX: 'pix_copia_cola', Forma.BOLETO: 'boleto_linha_digitavel', Forma.CARTAO: 'link_pagamento'}
+MAX_PARCELAS_POR_COBRANCA = 60
 
 
 @dataclass(frozen=True)
@@ -60,10 +62,10 @@ def _totais(forma: str, valor: Decimal, configuracao: ConfiguracaoPagamentoOnlin
     return total_pix(valor)
 
 
-def opcoes_da_parcela(parcela: Parcela, configuracao: ConfiguracaoPagamentoOnline | None = None) -> list[Opcao]:
+def opcoes_para_valor(valor: Decimal, configuracao: ConfiguracaoPagamentoOnline | None = None) -> list[Opcao]:
+    """Cada forma ligada com a taxa somada (a taxa fica com o cliente, menos no Pix)."""
     configuracao = configuracao or ConfiguracaoPagamentoOnline.obter()
-    valor = parcela.valor_restante
-    if parcela.pago or valor <= 0 or not disponivel(configuracao):
+    if valor <= 0 or not disponivel(configuracao):
         return []
     opcoes = []
     for forma in _formas_ativas(configuracao):
@@ -75,6 +77,37 @@ def opcoes_da_parcela(parcela: Parcela, configuracao: ConfiguracaoPagamentoOnlin
     return opcoes
 
 
+def opcoes_da_parcela(parcela: Parcela, configuracao: ConfiguracaoPagamentoOnline | None = None) -> list[Opcao]:
+    if parcela.pago:
+        return []
+    return opcoes_para_valor(parcela.valor_restante, configuracao)
+
+
+def _parcelas_abertas(pagamento: Pagamento) -> list[Parcela]:
+    return list(pagamento.parcelas_pagamento.filter(pago=False).select_related('pagamento__venda__cliente'))
+
+
+def plano_para_exibir(pagamento: Pagamento, parcela_ids: list[int] | None) -> Plano:
+    """Plano sem travar nada (para mostrar valores e opções). `parcela_ids` None = quitação."""
+    if parcela_ids is None:
+        return plano_de_quitacao(pagamento, _parcelas_abertas(pagamento))
+    ids = set(parcela_ids)
+    if len(ids) > MAX_PARCELAS_POR_COBRANCA:
+        raise ErroDeNegocio('Parcelas demais numa cobrança só.')
+    parcelas = list(pagamento.parcelas_pagamento.filter(pk__in=ids))
+    if len(parcelas) != len(ids):
+        raise ErroDeNegocio('Parcela não encontrada nessa compra.')
+    return plano_de_parcelas(pagamento, parcelas)
+
+
+def quitacao_do_pagamento(pagamento: Pagamento) -> Plano | None:
+    """Plano da quitação (para mostrar); None quando não há parcela em aberto."""
+    try:
+        return plano_de_quitacao(pagamento, _parcelas_abertas(pagamento))
+    except ErroDeNegocio:
+        return None
+
+
 def url_notificacao() -> str:
     from crm.models import ConfiguracaoCRM
 
@@ -84,8 +117,8 @@ def url_notificacao() -> str:
     return f'{base}{CAMINHO_NOTIFICACAO}'
 
 
-def _pagador(parcela: Parcela, configuracao: ConfiguracaoPagamentoOnline) -> payloads.Pagador:
-    cliente_venda = parcela.pagamento.venda.cliente
+def _pagador(pagamento: Pagamento, configuracao: ConfiguracaoPagamentoOnline) -> payloads.Pagador:
+    cliente_venda = pagamento.venda.cliente
     email = (cliente_venda.email or '').strip() or configuracao.email_padrao
     if not email:
         raise ErroDeNegocio('Cliente sem e-mail e nenhum e-mail padrão configurado para as cobranças.')
@@ -96,9 +129,11 @@ def _pagador(parcela: Parcela, configuracao: ConfiguracaoPagamentoOnline) -> pay
     )
 
 
-def _descricao(parcela: Parcela) -> str:
-    pagamento = parcela.pagamento
-    return f'Parcela {parcela.numero_parcela}/{pagamento.parcelas or "?"} - compra {pagamento.venda_id}'
+def _descricao(plano: Plano) -> str:
+    pagamento = plano.pagamento
+    if plano.tipo == Cobranca.Tipo.QUITACAO:
+        return f'Quitacao - compra {pagamento.venda_id}'
+    return f'{rotulo_do_plano(plano)}/{pagamento.parcelas or "?"} - compra {pagamento.venda_id}'
 
 
 def _expiracao(forma: str, configuracao: ConfiguracaoPagamentoOnline) -> datetime:
@@ -108,42 +143,46 @@ def _expiracao(forma: str, configuracao: ConfiguracaoPagamentoOnline) -> datetim
     return timezone.now() + timedelta(hours=configuracao.validade_horas)
 
 
-def _reaproveitavel(parcela: Parcela, forma: str, valor: Decimal, total: Decimal) -> Cobranca | None:
+def _parcelas_da_cobranca(cobranca: Cobranca) -> frozenset[int]:
+    return frozenset(item.parcela_id for item in cobranca.itens_da_baixa())
+
+
+def _reaproveitavel(plano: Plano, forma: str, total: Decimal) -> Cobranca | None:
     limite = timezone.now() + FOLGA_REUSO[forma]
-    return (Cobranca.objects
-            .filter(parcela=parcela, forma=forma, status=Cobranca.Status.PENDENTE, valor_parcela=valor,
-                    valor_total=total, expira_em__gt=limite)
-            .exclude(pagbank_id='')
-            .order_by('-criado_em').first())
+    candidatas = (Cobranca.objects
+                  .filter(parcela=plano.primeira, tipo=plano.tipo, forma=forma, status=Cobranca.Status.PENDENTE,
+                          valor_parcela=plano.valor, valor_total=total, expira_em__gt=limite)
+                  .exclude(pagbank_id='')
+                  .order_by('-criado_em'))
+    return next((c for c in candidatas if _parcelas_da_cobranca(c) == plano.parcela_ids), None)
 
 
-def _em_criacao(parcela: Parcela, forma: str) -> bool:
-    """Outra requisição (duplo clique, bot e backoffice juntos) está esperando o PagBank para esta parcela."""
+def _em_criacao(plano: Plano, forma: str) -> bool:
+    """Outra requisição (duplo clique, bot e backoffice juntos) está esperando o PagBank para estas parcelas."""
     recente = timezone.now() - EM_CRIACAO
-    return Cobranca.objects.filter(parcela=parcela, forma=forma, status=Cobranca.Status.PENDENTE,
-                                   pagbank_id='', criado_em__gt=recente).exists()
+    return Cobranca.objects.filter(
+        itens__parcela__in=plano.parcela_ids, forma=forma, status=Cobranca.Status.PENDENTE,
+        pagbank_id='', criado_em__gt=recente,
+    ).exists()
 
 
-def _validar(parcela: Parcela, forma: str, configuracao: ConfiguracaoPagamentoOnline) -> None:
+def _validar(pagamento: Pagamento, forma: str, configuracao: ConfiguracaoPagamentoOnline) -> None:
     if not configuracao.ativo:
         raise ErroDeNegocio('O pagamento online está desligado.')
     if not cliente.configurado():
         raise ErroDeNegocio('O PagBank não está configurado no servidor.')
     if forma not in _formas_ativas(configuracao):
         raise ErroDeNegocio('Essa forma de pagamento não está disponível.')
-    if parcela.pago or parcela.valor_restante <= 0:
-        raise ErroDeNegocio('Essa parcela já está paga.')
-    pagamento = parcela.pagamento
     if pagamento.quitado or pagamento.desativado or pagamento.devolucao or pagamento.venda.is_deleted:
         raise ErroDeNegocio('Essa compra não aceita pagamento online. Fale com a nossa equipe.')
 
 
-def _corpo(cobranca: Cobranca, cobrar: payloads.Cobrar, configuracao: ConfiguracaoPagamentoOnline) -> dict:
+def _corpo(cobranca: Cobranca, cobrar: payloads.Cobrar, plano: Plano, configuracao) -> dict:
     if cobranca.forma == Forma.BOLETO:
-        instrucao = f'Parcela {cobranca.parcela.numero_parcela} - CredFacil'
+        instrucao = f'{rotulo_do_plano(plano)} - CredFacil'
         return payloads.pedido_boleto(cobrar, timezone.localdate(cobranca.expira_em), instrucao)
     if cobranca.forma == Forma.CARTAO:
-        token = cobranca.parcela.pagamento.token_publico
+        token = plano.pagamento.token_publico
         retorno = configuracao.link_app(f'pagamento/{token}?cobranca={cobranca.referencia}')
         return payloads.checkout_cartao(cobrar, cobranca.expira_em, configuracao.cartao_max_parcelas, retorno)
     return payloads.pedido_pix(cobrar, cobranca.expira_em)
@@ -164,37 +203,61 @@ def _cancelar(cobranca: Cobranca, detalhes: dict) -> None:
     cobranca.save(update_fields=['status', 'detalhes_pagamento', 'atualizado_em'])
 
 
-def _reservar(parcela: Parcela, forma: str, origem: str, usuario) -> tuple[Cobranca, payloads.Cobrar, bool]:
-    """Trava a parcela, valida e devolve (cobrança, dados para o PagBank, reaproveitada?)."""
+def _travar(pagamento_id: int, parcela_ids: list[int] | None) -> tuple[Pagamento, list[Parcela]]:
+    """Trava as parcelas (todas as em aberto, quando `parcela_ids` é None) em ordem de pk."""
+    parcelas = Parcela.objects.select_for_update().filter(pagamento_id=pagamento_id)
+    if parcela_ids is None:
+        parcelas = parcelas.filter(pago=False)
+    else:
+        if len(set(parcela_ids)) > MAX_PARCELAS_POR_COBRANCA:
+            raise ErroDeNegocio('Parcelas demais numa cobrança só.')
+        parcelas = parcelas.filter(pk__in=set(parcela_ids))
+    travadas = list(parcelas.order_by('pk'))
+    if parcela_ids is not None and len(travadas) != len(set(parcela_ids)):
+        raise ErroDeNegocio('Parcela não encontrada nessa compra.')
+    pagamento = Pagamento.objects.select_related('venda__cliente').get(pk=pagamento_id)
+    return pagamento, travadas
+
+
+def _montar_plano(pagamento: Pagamento, parcelas: list[Parcela], quitacao: bool) -> Plano:
+    return plano_de_quitacao(pagamento, parcelas) if quitacao else plano_de_parcelas(pagamento, parcelas)
+
+
+def _reservar(pagamento_id: int, parcela_ids: list[int] | None, forma: str, origem: str,
+              usuario) -> tuple[Cobranca, payloads.Cobrar | None, Plano | None]:
+    """Trava as parcelas, valida e devolve (cobrança, dados para o PagBank, plano). Reaproveitada: (c, None, None)."""
     configuracao = ConfiguracaoPagamentoOnline.obter()
     with transaction.atomic():
-        parcela = (Parcela.objects.select_for_update()
-                   .select_related('pagamento__venda__cliente').get(pk=parcela.pk))
-        _validar(parcela, forma, configuracao)
-        valor = parcela.valor_restante
-        total, taxa = _totais(forma, valor, configuracao)
-        existente = _reaproveitavel(parcela, forma, valor, total)
+        pagamento, parcelas = _travar(pagamento_id, parcela_ids)
+        _validar(pagamento, forma, configuracao)
+        plano = _montar_plano(pagamento, parcelas, quitacao=parcela_ids is None)
+        total, taxa = _totais(forma, plano.valor, configuracao)
+        existente = _reaproveitavel(plano, forma, total)
         if existente:
-            return existente, None, True
-        if _em_criacao(parcela, forma):
+            return existente, None, None
+        if _em_criacao(plano, forma):
             raise ErroDeNegocio('Essa cobrança já está sendo gerada. Aguarde alguns segundos e tente de novo.')
         cobrar = payloads.Cobrar(
-            referencia='', descricao=_descricao(parcela), valor=total,
-            pagador=_pagador(parcela, configuracao), url_notificacao=url_notificacao(),
+            referencia='', descricao=_descricao(plano), valor=total,
+            pagador=_pagador(pagamento, configuracao), url_notificacao=url_notificacao(),
         )
         cobranca = Cobranca.objects.create(
-            parcela=parcela, forma=forma, origem=origem, valor_parcela=valor, taxa=taxa, valor_total=total,
-            expira_em=_expiracao(forma, configuracao), criado_por=usuario,
+            tipo=plano.tipo, parcela=plano.primeira, forma=forma, origem=origem, valor_parcela=plano.valor,
+            taxa=taxa, valor_total=total, expira_em=_expiracao(forma, configuracao), criado_por=usuario,
         )
-    return cobranca, replace(cobrar, referencia=str(cobranca.referencia)), False
+        ItemCobranca.objects.bulk_create([
+            ItemCobranca(cobranca=cobranca, parcela=item.parcela, valor=item.valor, desconto=item.desconto)
+            for item in plano.itens
+        ])
+    return cobranca, replace(cobrar, referencia=str(cobranca.referencia)), plano
 
 
-def gerar_cobranca(parcela: Parcela, forma: str, origem: str, usuario=None) -> Cobranca:
-    cobranca, cobrar, reaproveitada = _reservar(parcela, forma, origem, usuario)
-    if reaproveitada:
+def _gerar(pagamento_id: int, parcela_ids: list[int] | None, forma: str, origem: str, usuario) -> Cobranca:
+    cobranca, cobrar, plano = _reservar(pagamento_id, parcela_ids, forma, origem, usuario)
+    if plano is None:
         return cobranca
     try:
-        campos = _enviar(cobranca, _corpo(cobranca, cobrar, ConfiguracaoPagamentoOnline.obter()))
+        campos = _enviar(cobranca, _corpo(cobranca, cobrar, plano, ConfiguracaoPagamentoOnline.obter()))
     except cliente.ErroPagBank as erro:
         _cancelar(cobranca, {'erro': erro.mensagem, 'detalhes': str(erro.detalhes or '')[:500]})
         raise ErroDeNegocio(cliente.MENSAGEM_PADRAO) from erro
@@ -206,3 +269,30 @@ def gerar_cobranca(parcela: Parcela, forma: str, origem: str, usuario=None) -> C
         setattr(cobranca, campo, valor_campo)
     cobranca.save(update_fields=[*campos, 'atualizado_em'])
     return cobranca
+
+
+def gerar_cobranca(parcela: Parcela, forma: str, origem: str, usuario=None) -> Cobranca:
+    return _gerar(parcela.pagamento_id, [parcela.pk], forma, origem, usuario)
+
+
+def gerar_cobranca_de_parcelas(pagamento: Pagamento, parcela_ids: list[int], forma: str, origem: str,
+                               usuario=None) -> Cobranca:
+    """Uma cobrança só para várias parcelas da mesma compra (sem desconto)."""
+    if not parcela_ids:
+        raise ErroDeNegocio('Escolha ao menos uma parcela.')
+    return _gerar(pagamento.pk, list(parcela_ids), forma, origem, usuario)
+
+
+def gerar_quitacao(pagamento: Pagamento, forma: str, origem: str, usuario=None) -> Cobranca:
+    """Todas as parcelas em aberto com o desconto do plano."""
+    return _gerar(pagamento.pk, None, forma, origem, usuario)
+
+
+def gerar_cobranca_agrupada(pagamento: Pagamento, forma: str, origem: str, parcela_ids: list[int] | None = None,
+                            quitacao: bool = False, usuario=None) -> Cobranca:
+    """Entrada única do app, do backoffice e do bot: várias parcelas ou a quitação."""
+    if quitacao == bool(parcela_ids):
+        raise ErroDeNegocio('Informe as parcelas ou a quitação.')
+    if quitacao:
+        return gerar_quitacao(pagamento, forma, origem, usuario)
+    return gerar_cobranca_de_parcelas(pagamento, parcela_ids, forma, origem, usuario)

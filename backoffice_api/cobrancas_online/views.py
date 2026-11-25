@@ -5,7 +5,11 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
 
 from pagamentos_online.models import Cobranca, ConfiguracaoPagamentoOnline, RegistroPagBank
-from pagamentos_online.servicos.cobrancas import gerar_cobranca, opcoes_da_parcela
+from pagamentos_online.publico.dados import opcoes_do_plano
+from pagamentos_online.publico.views import CobrancaAgrupadaEntrada, ids_da_query
+from pagamentos_online.servicos.cobrancas import (
+    gerar_cobranca, gerar_cobranca_agrupada, opcoes_da_parcela, plano_para_exibir, quitacao_do_pagamento,
+)
 from pagamentos_online.servicos.links import enviar_link_whatsapp, link_do_pagamento
 
 from ..financeiro.base import ContasAReceberBaseView
@@ -21,7 +25,8 @@ FILTROS_SIMPLES = ('status', 'forma', 'origem')
 
 
 def _cobrancas():
-    return Cobranca.objects.select_related('parcela__pagamento__venda__cliente', 'criado_por')
+    return (Cobranca.objects.select_related('parcela__pagamento__venda__cliente', 'criado_por')
+            .prefetch_related('itens__parcela'))
 
 
 @extend_schema(tags=TAGS)
@@ -81,7 +86,8 @@ class ParcelaCobrancasView(ContasAReceberBaseView):
 
     def get(self, request, pk: int):
         parcela = self.obter_parcela(pk)
-        cobrancas = _cobrancas().filter(parcela=parcela).order_by('-criado_em', '-id')
+        cobrancas = (_cobrancas().filter(Q(parcela=parcela) | Q(itens__parcela=parcela))
+                     .distinct().order_by('-criado_em', '-id'))
         return Response({
             'cobrancas': CobrancaSerializer(cobrancas, many=True).data,
             'opcoes': [opcao.como_dict() for opcao in opcoes_da_parcela(parcela)],
@@ -97,6 +103,50 @@ class ParcelaCobrancasView(ContasAReceberBaseView):
         self.auditar('cobranca_online_gerada', objeto=parcela,
                      dados={'cobranca_id': cobranca.pk, 'forma': cobranca.forma, 'valor_total': str(cobranca.valor_total)})
         return Response(CobrancaSerializer(_cobrancas().get(pk=cobranca.pk)).data, status=201)
+
+
+@extend_schema(tags=TAGS)
+class PagamentoCobrancasView(ContasAReceberBaseView):
+    """GET: cobranças da compra e a quitação online. POST: cobrança de várias parcelas ou da quitação."""
+
+    permissoes = {'GET': [ANALISTA_OU_ADMIN], 'POST': [ANALISTA_OU_ADMIN, 'vendas.change_pagamento']}
+
+    def get(self, request, pk: int):
+        pagamento = self.obter_pagamento(pk)
+        cobrancas = _cobrancas().filter(parcela__pagamento=pagamento).order_by('-criado_em', '-id')
+        quitacao = quitacao_do_pagamento(pagamento)
+        return Response({
+            'cobrancas': CobrancaSerializer(cobrancas, many=True).data,
+            'quitacao': opcoes_do_plano(quitacao) if quitacao else None,
+            'link_cliente': link_do_pagamento(pagamento),
+        })
+
+    @extend_schema(request=CobrancaAgrupadaEntrada, responses={201: CobrancaSerializer})
+    def post(self, request, pk: int):
+        pagamento = self.obter_pagamento(pk)
+        entrada = CobrancaAgrupadaEntrada(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        dados = entrada.validated_data
+        cobranca = gerar_cobranca_agrupada(pagamento, dados['forma'], Cobranca.Origem.BACKOFFICE,
+                                           dados.get('parcelas'), dados['quitacao'], request.user)
+        self.auditar('cobranca_online_gerada', objeto=pagamento, dados={
+            'cobranca_id': cobranca.pk, 'tipo': cobranca.tipo, 'forma': cobranca.forma,
+            'valor_total': str(cobranca.valor_total),
+        })
+        return Response(CobrancaSerializer(_cobrancas().get(pk=cobranca.pk)).data, status=201)
+
+
+@extend_schema(tags=TAGS)
+class PagamentoOpcoesView(ContasAReceberBaseView):
+    """Valores e opções (com taxa) de `?parcelas=1,2` ou `?quitacao=1` antes de gerar."""
+
+    permissoes = {'GET': [ANALISTA_OU_ADMIN]}
+
+    def get(self, request, pk: int):
+        pagamento = self.obter_pagamento(pk)
+        quitacao = request.query_params.get('quitacao') in ('1', 'true')
+        ids = None if quitacao else ids_da_query(request.query_params.get('parcelas', ''))
+        return Response(opcoes_do_plano(plano_para_exibir(pagamento, ids)))
 
 
 @extend_schema(tags=TAGS)

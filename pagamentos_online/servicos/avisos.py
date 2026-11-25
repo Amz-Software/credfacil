@@ -8,15 +8,24 @@ from vendas.services.notificacoes import GRUPOS_ANALISE, notificar_grupos
 from crm.services.pagamentos import formatar_reais as reais
 
 from ..models import Cobranca
+from .planos import juntar
 
 logger = logging.getLogger(__name__)
 
 TIPO_NOTIFICACAO = 'pagamento_online'
 
 
+def _o_que_pagou(cobranca: Cobranca) -> str:
+    """'a parcela 3', 'as parcelas 3, 4 e 5' ou 'a quitação da compra'."""
+    if cobranca.tipo == Cobranca.Tipo.QUITACAO:
+        return 'a quitação da compra'
+    numeros = cobranca.numeros_das_parcelas()
+    return f'a parcela {numeros[0]}' if len(numeros) == 1 else f'as parcelas {juntar(numeros)}'
+
+
 def _texto_equipe(cobranca: Cobranca) -> str:
     cliente = cobranca.parcela.pagamento.venda.cliente
-    texto = (f'{cliente.nome} pagou a parcela {cobranca.parcela.numero_parcela} '
+    texto = (f'{cliente.nome} pagou {_o_que_pagou(cobranca)} '
              f'({reais(cobranca.valor_parcela)}) via {cobranca.get_forma_display()}.')
     if cobranca.acerto_manual:
         texto += f' Atenção, precisa de acerto: {cobranca.acerto_manual}'
@@ -35,7 +44,8 @@ def _avisar_equipe(cobranca: Cobranca) -> None:
 
 def _texto_cliente(cobranca: Cobranca) -> str:
     primeiro_nome = (cobranca.parcela.pagamento.venda.cliente.nome or '').split(' ')[0]
-    return (f'Oi, {primeiro_nome}! Recebemos o pagamento da parcela {cobranca.parcela.numero_parcela} '
+    artigo, o_que = _o_que_pagou(cobranca).split(' ', 1)
+    return (f'Oi, {primeiro_nome}! Recebemos o pagamento d{artigo} {o_que} '
             f'({reais(cobranca.valor_total)}). Obrigado! O comprovante fica disponível na sua área de pagamentos.')
 
 

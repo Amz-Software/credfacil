@@ -10,16 +10,18 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
-from vendas.models import ORIGEM_BAIXA_PAGBANK, Parcela
+from vendas.models import ORIGEM_BAIXA_PAGBANK, Pagamento, Parcela
 
 from ..models import Cobranca
 from ..pagbank import cliente, payloads
+from .planos import juntar
 
 logger = logging.getLogger(__name__)
 
 PREFIXO_PEDIDO = 'ORDE_'
 PREFIXO_CHECKOUT = 'CHEC_'
-CAMPOS_PARCELA = ['valor_pago', 'pago', 'data_pagamento', 'origem_baixa', 'modificado_em']
+ZERO = Decimal('0')
+CAMPOS_PARCELA = ['valor', 'valor_pago', 'pago', 'data_pagamento', 'origem_baixa', 'modificado_em']
 
 
 def _uuids(textos) -> list[uuid.UUID]:
@@ -49,33 +51,66 @@ def localizar(situacao: payloads.SituacaoPedido, checkout_id: str = '') -> Cobra
     return None
 
 
-def _credito(cobranca: Cobranca, situacao: payloads.SituacaoPedido, restante: Decimal) -> tuple[Decimal, list[str]]:
-    """Quanto entra na parcela e as divergências para a equipe acertar."""
-    avisos = []
-    credito = cobranca.valor_parcela
+def _saldo_a_creditar(cobranca: Cobranca, situacao: payloads.SituacaoPedido) -> tuple[Decimal, bool, list[str]]:
+    """(quanto entra nas parcelas, pago por inteiro?, divergências). A taxa da forma de pagamento não entra."""
     pago = situacao.valor_pago
-    if pago is not None and pago < cobranca.valor_total:
-        credito = min(credito, pago)
-        avisos.append(f'Pago a menor: R$ {pago} de R$ {cobranca.valor_total}.')
-    if credito > restante:
-        avisos.append(f'Pago R$ {credito} com saldo de R$ {restante} na parcela: excedente de R$ {credito - restante}.')
-        credito = restante
-    return credito, avisos
+    if pago is None or pago >= cobranca.valor_total:
+        return cobranca.valor_parcela, True, []
+    aviso = f'Pago a menor: R$ {pago} de R$ {cobranca.valor_total}.'
+    if cobranca.tipo == Cobranca.Tipo.QUITACAO:
+        aviso += ' O desconto da quitação não foi aplicado.'
+    return min(cobranca.valor_parcela, pago), False, [aviso]
 
 
-def _aplicar_na_parcela(cobranca: Cobranca, situacao: payloads.SituacaoPedido, quando) -> list[str]:
-    """Dá baixa no que foi pago e devolve as divergências (vazio quando está tudo certo)."""
-    parcela = Parcela.objects.select_for_update().get(pk=cobranca.parcela_id)
-    if parcela.pago:
-        cobranca.pagamento_duplicado = True
-        return ['A parcela já estava paga: estorno ou acerto manual.']
-    credito, avisos = _credito(cobranca, situacao, max(parcela.valor_restante, Decimal('0')))
-    parcela.valor_pago = (parcela.valor_pago or Decimal('0')) + credito
+def _baixar(parcela: Parcela, credito: Decimal, desconto: Decimal, quando) -> None:
+    if desconto:  # quitação: o valor da parcela cai pelo desconto, como na confirmação manual
+        parcela.valor -= desconto
+    parcela.valor_pago = (parcela.valor_pago or ZERO) + credito
     parcela.pago = parcela.valor_restante <= 0
     parcela.data_pagamento = timezone.localdate(quando)
     parcela.origem_baixa = ORIGEM_BAIXA_PAGBANK
     parcela.save(update_fields=CAMPOS_PARCELA)
+
+
+def _aplicar_nas_parcelas(cobranca: Cobranca, situacao: payloads.SituacaoPedido, quando) -> list[str]:
+    """Dá baixa no que foi pago, parcela por parcela, e devolve as divergências (vazio quando está tudo certo)."""
+    saldo, inteiro, avisos = _saldo_a_creditar(cobranca, situacao)
+    itens = cobranca.itens_da_baixa()
+    parcelas = {p.pk: p for p in Parcela.objects.select_for_update()
+                .filter(pk__in=[i.parcela_id for i in itens]).order_by('pk')}
+    ja_pagas = []
+    for item in itens:
+        parcela = parcelas[item.parcela_id]
+        if parcela.pago:
+            ja_pagas.append(parcela.numero_parcela)
+            continue
+        desconto = item.desconto if inteiro else ZERO
+        necessario = max(parcela.valor_restante - desconto, ZERO)
+        credito = min(saldo, necessario)
+        if credito <= 0:
+            continue
+        _baixar(parcela, credito, desconto if credito == necessario else ZERO, quando)
+        saldo -= credito
+    if len(ja_pagas) == len(itens):
+        cobranca.pagamento_duplicado = True
+        avisos.append('A parcela já estava paga: estorno ou acerto manual.' if len(itens) == 1
+                      else 'As parcelas já estavam pagas: estorno ou acerto manual.')
+    else:
+        if ja_pagas:
+            avisos.append(f'Parcela(s) {juntar(ja_pagas)} já estava(m) paga(s).')
+        if saldo > 0:
+            avisos.append(f'Pago além do saldo das parcelas: excedente de R$ {saldo}.')
+    if cobranca.tipo == Cobranca.Tipo.QUITACAO and inteiro:
+        _marcar_quitado(cobranca.parcela.pagamento_id)
     return avisos
+
+
+def _marcar_quitado(pagamento_id: int) -> None:
+    if Parcela.objects.filter(pagamento_id=pagamento_id, pago=False).exists():
+        return
+    pagamento = Pagamento.objects.get(pk=pagamento_id)
+    pagamento.quitado = True
+    pagamento.save(update_fields=['quitado', 'modificado_em'])  # com update_fields: o signal não recria as parcelas
 
 
 def _anotar_pedido_extra(cobranca: Cobranca, situacao: payloads.SituacaoPedido) -> None:
@@ -104,7 +139,7 @@ def registrar_pagamento(cobranca: Cobranca, situacao: payloads.SituacaoPedido) -
         cobranca.valor_pago = situacao.valor_pago
         cobranca.pagbank_pedido_id = situacao.pedido_id
         cobranca.detalhes_pagamento = situacao.detalhes
-        cobranca.acerto_manual = '\n'.join(_aplicar_na_parcela(cobranca, situacao, quando))
+        cobranca.acerto_manual = '\n'.join(_aplicar_nas_parcelas(cobranca, situacao, quando))
         cobranca.save(update_fields=[
             'status', 'paga_em', 'valor_pago', 'pagbank_pedido_id', 'detalhes_pagamento',
             'pagamento_duplicado', 'acerto_manual', 'atualizado_em',

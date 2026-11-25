@@ -13,11 +13,17 @@ MENSAGEM_JANELA_FECHADA = ('O cliente não conversou com a gente no WhatsApp nas
                            'Copie o link e envie por outro meio.')
 
 
-def link_do_pagamento(pagamento: Pagamento, parcela: Parcela | None = None) -> str:
+def link_do_pagamento(pagamento: Pagamento, parcela: Parcela | None = None, parcelas: list[Parcela] | None = None,
+                      quitacao: bool = False) -> str:
+    """Abre o app já na parcela (`?parcela=`), nas parcelas escolhidas (`?parcelas=1,2`) ou na quitação."""
     configuracao = ConfiguracaoPagamentoOnline.obter()
     caminho = f'pagamento/{pagamento.token_publico}'
-    if parcela is not None:
-        caminho += f'?parcela={parcela.pk}'
+    if quitacao:
+        caminho += '?quitacao=1'
+    elif parcelas and len(parcelas) > 1:
+        caminho += '?parcelas=' + ','.join(str(p.pk) for p in parcelas)
+    elif parcela is not None or parcelas:
+        caminho += f'?parcela={(parcela or parcelas[0]).pk}'
     return configuracao.link_app(caminho) or link_pagina_antiga(pagamento.token_publico)
 
 

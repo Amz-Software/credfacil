@@ -28,8 +28,9 @@
   <table>
     <tr><td class="rotulo">Cliente</td><td>{{ cliente.nome }}</td></tr>
     <tr><td class="rotulo">CPF</td><td>***.{{ cliente.cpf|slice:"3:6" }}.{{ cliente.cpf|slice:"6:9" }}-**</td></tr>
-    <tr><td class="rotulo">Parcela</td><td>{{ parcela.numero_parcela }}ª — vencimento {{ parcela.data_vencimento|date:"d/m/Y" }}</td></tr>
-    <tr><td class="rotulo">Valor da parcela</td><td>R$ {{ cobranca.valor_parcela|floatformat:2|intcomma }}</td></tr>
+    <tr><td class="rotulo">Referente a</td><td>{{ rotulo }}{% if quitacao %} da compra{% endif %}</td></tr>
+    {% for item in itens %}<tr><td class="rotulo">Parcela {{ item.parcela.numero_parcela }}ª (venc. {{ item.parcela.data_vencimento|date:"d/m/Y" }})</td><td>R$ {{ item.valor|floatformat:2|intcomma }}{% if item.desconto %} (desconto de R$ {{ item.desconto|floatformat:2|intcomma }}){% endif %}</td></tr>
+    {% endfor %}<tr><td class="rotulo">{% if itens|length > 1 %}Total das parcelas{% else %}Valor da parcela{% endif %}</td><td>R$ {{ cobranca.valor_parcela|floatformat:2|intcomma }}</td></tr>
     {% if cobranca.taxa %}<tr><td class="rotulo">Taxa da forma de pagamento</td><td>R$ {{ cobranca.taxa|floatformat:2|intcomma }}</td></tr>{% endif %}
     <tr><td class="rotulo">Forma de pagamento</td><td>{{ cobranca.get_forma_display }}{% if cobranca.detalhes_pagamento.parcelas_cartao %} em {{ cobranca.detalhes_pagamento.parcelas_cartao }}x{% endif %}</td></tr>
     <tr><td class="rotulo">Pago em</td><td>{{ paga_em|date:"d/m/Y H:i" }}</td></tr>

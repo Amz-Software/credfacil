@@ -5,12 +5,13 @@ from decimal import Decimal
 from django.utils import timezone
 
 from vendas.models import Loja, Pagamento, Parcela
+from vendas.services.erros import ErroDeNegocio
 from vendas.services.pix import payload_pix, qr_code_base64
 
 from ..models import Cobranca, ConfiguracaoPagamentoOnline
-from ..servicos.cobrancas import disponivel, opcoes_da_parcela
+from ..servicos.cobrancas import disponivel, opcoes_da_parcela, opcoes_para_valor
+from ..servicos.planos import Plano, plano_de_quitacao
 
-CENTAVO = Decimal('0.01')
 NOME_PIX = 'credfacil'
 CIDADE_PIX = 'Belem'
 
@@ -52,7 +53,9 @@ def cobranca(cobranca_online: Cobranca) -> dict:
         'referencia': str(cobranca_online.referencia),
         'forma': cobranca_online.forma,
         'status': cobranca_online.status,
+        'tipo': cobranca_online.tipo,
         'parcela_id': cobranca_online.parcela_id,
+        'parcelas': [_item(item) for item in _itens(cobranca_online)],
         'valor_parcela': _dinheiro(cobranca_online.valor_parcela),
         'taxa': _dinheiro(cobranca_online.taxa),
         'valor_total': _dinheiro(cobranca_online.valor_total),
@@ -69,14 +72,34 @@ def cobranca(cobranca_online: Cobranca) -> dict:
     return dados
 
 
-def _cobrancas_por_parcela(pagamento: Pagamento) -> dict[int, list[Cobranca]]:
+def _itens(cobranca_online: Cobranca) -> list:
+    """Itens já carregados (prefetch); cobrança sem itens = a própria parcela."""
+    itens = sorted(cobranca_online.itens.all(), key=lambda i: (i.parcela.numero_parcela, i.parcela_id))
+    return itens or cobranca_online.itens_da_baixa()
+
+
+def _item(item) -> dict:
+    return {'id': item.parcela_id, 'numero': item.parcela.numero_parcela,
+            'valor': _dinheiro(item.valor), 'desconto': _dinheiro(item.desconto)}
+
+
+def _cobrancas_relevantes(pagamento: Pagamento) -> list[Cobranca]:
+    """Pagas e pendentes ainda válidas, mais recentes primeiro."""
     agora = timezone.now()
+    todas = (Cobranca.objects.filter(parcela__pagamento=pagamento)
+             .select_related('parcela').prefetch_related('itens__parcela').order_by('-criado_em'))
+    return [c for c in todas if c.status == Cobranca.Status.PAGA or (
+        c.status == Cobranca.Status.PENDENTE and c.expira_em > agora and c.pagbank_id)]
+
+
+def _cobrancas_por_parcela(cobrancas: list[Cobranca]) -> dict[int, list[Cobranca]]:
+    """Por parcela: pendentes só as da própria parcela; pagas de qualquer tipo (para o comprovante)."""
     por_parcela: dict[int, list[Cobranca]] = {}
-    for item in Cobranca.objects.filter(parcela__pagamento=pagamento).order_by('-criado_em'):
-        relevante = item.status == Cobranca.Status.PAGA or (
-            item.status == Cobranca.Status.PENDENTE and item.expira_em > agora and item.pagbank_id)
-        if relevante:
-            por_parcela.setdefault(item.parcela_id, []).append(item)
+    for item in cobrancas:
+        if item.status == Cobranca.Status.PENDENTE and item.tipo != Cobranca.Tipo.PARCELA:
+            continue
+        for parcela_id in (i.parcela_id for i in _itens(item)):
+            por_parcela.setdefault(parcela_id, []).append(item)
     return por_parcela
 
 
@@ -103,17 +126,27 @@ def _parcela(parcela: Parcela, hoje: date, cobrancas: list[Cobranca], chave: str
     }
 
 
-def _quitacao(pagamento: Pagamento, abertas: list[Parcela], chave: str) -> dict | None:
-    if not abertas:
+def _plano_quitacao(pagamento: Pagamento, abertas: list[Parcela]) -> Plano | None:
+    try:
+        return plano_de_quitacao(pagamento, abertas)
+    except ErroDeNegocio:
         return None
-    total = sum((p.valor for p in abertas), Decimal('0'))
-    porcentagem = pagamento.porcentagem_desconto or Decimal('0')
-    com_desconto = (total - (total * porcentagem / 100)).quantize(CENTAVO)
+
+
+def _quitacao(pagamento: Pagamento, abertas: list[Parcela], chave: str, online: bool) -> dict | None:
+    plano = _plano_quitacao(pagamento, abertas)
+    if plano is None:
+        return None
+    opcoes_online = [o.como_dict() for o in opcoes_para_valor(plano.valor)] if online else []
     return {
-        'total_restante': _dinheiro(total),
-        'porcentagem_desconto': _dinheiro(porcentagem),
-        'total_com_desconto': _dinheiro(com_desconto),
-        'pix_estatico': pix_estatico(chave, com_desconto, f'{pagamento.pk:04d}QT', 'Quitacao total'),
+        'total_restante': _dinheiro(plano.total_sem_desconto),
+        'porcentagem_desconto': _dinheiro(pagamento.porcentagem_desconto or 0),
+        'valor_desconto': _dinheiro(plano.desconto),
+        'total_com_desconto': _dinheiro(plano.valor),
+        'pode_pagar_online': bool(opcoes_online),
+        'opcoes': opcoes_online,
+        'pix_estatico': None if online else pix_estatico(
+            chave, plano.valor, f'{pagamento.pk:04d}QT', 'Quitacao total'),
         'pode_informar': any(not p.pagamento_efetuado for p in abertas),
     }
 
@@ -125,7 +158,9 @@ def detalhe_do_pagamento(pagamento: Pagamento) -> dict:
     parcelas = list(pagamento.parcelas_pagamento.order_by('numero_parcela', 'id'))
     abertas = [p for p in parcelas if not p.pago]
     pagas = [p for p in parcelas if p.pago]
-    cobrancas = _cobrancas_por_parcela(pagamento)
+    relevantes = _cobrancas_relevantes(pagamento)
+    cobrancas = _cobrancas_por_parcela(relevantes)
+    agrupadas = [c for c in relevantes if c.status == Cobranca.Status.PENDENTE and c.tipo != Cobranca.Tipo.PARCELA]
     return {
         'token': str(pagamento.token_publico),
         'cliente': {'primeiro_nome': (pagamento.venda.cliente.nome or '').split(' ')[0]},
@@ -140,7 +175,8 @@ def detalhe_do_pagamento(pagamento: Pagamento) -> dict:
             'parcelas_atrasadas': sum(1 for p in abertas if situacao(p, hoje) == 'atrasada'),
             'em_confirmacao': sum(1 for p in abertas if p.pagamento_efetuado),
         },
-        'quitacao': _quitacao(pagamento, abertas, chave),
+        'quitacao': _quitacao(pagamento, abertas, chave, online),
+        'cobrancas_agrupadas_pendentes': [cobranca(c) for c in agrupadas] if abertas else [],
         'parcelas': [_parcela(p, hoje, cobrancas.get(p.pk, []), chave, online) for p in parcelas],
     }
 
@@ -161,3 +197,14 @@ def resumo_para_consulta(pagamento: Pagamento) -> dict:
 
 def opcoes(parcela: Parcela) -> list[dict]:
     return [opcao.como_dict() for opcao in opcoes_da_parcela(parcela)]
+
+
+def opcoes_do_plano(plano: Plano) -> dict:
+    return {
+        'tipo': plano.tipo,
+        'valor': _dinheiro(plano.valor),
+        'desconto': _dinheiro(plano.desconto),
+        'parcelas': [{'id': i.parcela.pk, 'numero': i.parcela.numero_parcela, 'valor': _dinheiro(i.valor),
+                      'desconto': _dinheiro(i.desconto)} for i in plano.itens],
+        'opcoes': [o.como_dict() for o in opcoes_para_valor(plano.valor)],
+    }

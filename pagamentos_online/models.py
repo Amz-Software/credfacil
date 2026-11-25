@@ -72,7 +72,15 @@ class ConfiguracaoPagamentoOnline(models.Model):
 
 
 class Cobranca(models.Model):
-    """Uma cobrança criada no PagBank para uma parcela."""
+    """Uma cobrança criada no PagBank: uma parcela, várias parcelas ou a quitação com desconto.
+
+    `parcela` é a primeira parcela cobrada; todas ficam em `itens` (com o valor e o desconto de cada uma).
+    """
+
+    class Tipo(models.TextChoices):
+        PARCELA = 'parcela', 'Parcela'
+        PARCELAS = 'parcelas', 'Várias parcelas'
+        QUITACAO = 'quitacao', 'Quitação'
 
     class Forma(models.TextChoices):
         PIX = 'pix', 'Pix'
@@ -91,11 +99,14 @@ class Cobranca(models.Model):
         BACKOFFICE = 'backoffice', 'Backoffice'
 
     referencia = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    tipo = models.CharField(max_length=10, choices=Tipo.choices, default=Tipo.PARCELA)
     parcela = models.ForeignKey('vendas.Parcela', on_delete=models.PROTECT, related_name='cobrancas_online')
     forma = models.CharField(max_length=10, choices=Forma.choices)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDENTE, db_index=True)
     origem = models.CharField(max_length=12, choices=Origem.choices)
-    valor_parcela = models.DecimalField(max_digits=10, decimal_places=2)
+    valor_parcela = models.DecimalField(
+        max_digits=10, decimal_places=2, help_text='Soma do que entra nas parcelas (já com o desconto da quitação).',
+    )
     taxa = models.DecimalField(max_digits=10, decimal_places=2, default=ZERO)
     valor_total = models.DecimalField(max_digits=10, decimal_places=2)
     pagbank_id = models.CharField(max_length=64, blank=True, default='', db_index=True,
@@ -131,6 +142,28 @@ class Cobranca(models.Model):
 
     def __str__(self) -> str:
         return f'{self.get_forma_display()} de R$ {self.valor_total} ({self.get_status_display()})'
+
+    def itens_da_baixa(self) -> list['ItemCobranca']:
+        """Itens em ordem de parcela; cobrança sem itens (anterior a eles) vira um item da própria parcela."""
+        itens = list(self.itens.select_related('parcela').order_by('parcela__numero_parcela', 'parcela_id'))
+        return itens or [ItemCobranca(cobranca=self, parcela=self.parcela, valor=self.valor_parcela, desconto=ZERO)]
+
+    def numeros_das_parcelas(self) -> list[int]:
+        return [item.parcela.numero_parcela for item in self.itens_da_baixa()]
+
+
+class ItemCobranca(models.Model):
+    """Parcela paga por uma cobrança: `valor` é o que entra nela e `desconto` o abatido na quitação."""
+
+    cobranca = models.ForeignKey(Cobranca, on_delete=models.CASCADE, related_name='itens')
+    parcela = models.ForeignKey('vendas.Parcela', on_delete=models.PROTECT, related_name='itens_cobranca_online')
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    desconto = models.DecimalField(max_digits=10, decimal_places=2, default=ZERO)
+
+    class Meta:
+        verbose_name = 'Parcela da cobrança online'
+        verbose_name_plural = 'Parcelas da cobrança online'
+        constraints = [models.UniqueConstraint(fields=['cobranca', 'parcela'], name='item_cobranca_unico')]
 
 
 class RegistroPagBank(models.Model):

@@ -5,6 +5,7 @@ from unittest import mock
 from django.test import override_settings
 
 from crm.models import Mensagem
+from vendas.models import Parcela
 from crm.tests.test_assistente import IDENTIDADE_CERTA, AssistenteBase, ferramenta, texto
 from pagamentos_online.models import Cobranca, ConfiguracaoPagamentoOnline
 from pagamentos_online.tests.base import RespostaFalsa, resposta_pix
@@ -79,3 +80,34 @@ class AssistentePagBankTests(AssistenteBase):
         self.assertTrue(_links_permitidos('Pague em https://vendas.exemplo.com/pagamento/x'))
         self.assertFalse(_links_permitidos('Pague em https://vendas.exemplo.com:x@evil.com/p'))
         self.assertFalse(_links_permitidos('Pague em vendas.exemplo.com@evil.com/p'))
+
+    def test_quitacao_pelo_pix_direto_gera_a_cobranca_de_quitacao(self):
+        parcela = self.parcela_aberta()
+        roteiro = self.com_roteiro(
+            ferramenta('identificar_cliente', IDENTIDADE_CERTA),
+            ferramenta('gerar_link_pagamento', {'parcela_id': parcela.pk, 'quitacao': True, 'forma': 'pix'}, 'tu_2'),
+            texto('Segue o Pix da quitação.'),
+        )
+        with mock.patch('pagamentos_online.pagbank.cliente.requests.request', side_effect=_pix):
+            self.receber('cpf 529.982.247-25, nasci 17/05/1990, quero quitar no pix', wamid='w1')
+        resultado = json.loads(roteiro.resultado(2)['content'])
+        self.assertTrue(resultado['quitacao'])
+        self.assertEqual(resultado['forma'], 'pix')
+        cobranca = Cobranca.objects.get()
+        self.assertEqual(cobranca.tipo, Cobranca.Tipo.QUITACAO)
+        self.assertEqual(cobranca.itens.count(), resultado['parcelas_em_aberto'])
+        self.assertEqual(self.saidas()[-1], COPIA_COLA)
+
+    def test_varias_parcelas_no_link_abrem_o_app_nas_parcelas_escolhidas(self):
+        abertas = list(Parcela.objects.filter(pagamento=self.parcela_aberta().pagamento, pago=False)
+                       .order_by('numero_parcela')[:2])
+        self.assertEqual(len(abertas), 2)
+        roteiro = self.com_roteiro(
+            ferramenta('identificar_cliente', IDENTIDADE_CERTA),
+            ferramenta('gerar_link_pagamento', {'parcela_ids': [p.pk for p in abertas]}, 'tu_2'),
+            texto('Segue o link.'),
+        )
+        self.receber('cpf 529.982.247-25, nasci 17/05/1990, quero pagar duas', wamid='w1')
+        resultado = json.loads(roteiro.resultado(2)['content'])
+        self.assertEqual(resultado['parcelas'], [p.numero_parcela for p in abertas])
+        self.assertIn('?parcelas=', resultado['url'])

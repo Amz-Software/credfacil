@@ -1,4 +1,4 @@
-"""Comprovante em PDF de um pagamento PagBank, anexado à parcela como os comprovantes manuais."""
+"""Comprovante em PDF de um pagamento PagBank, anexado a cada parcela paga, como os comprovantes manuais."""
 import logging
 
 from django.core.files.base import ContentFile
@@ -8,6 +8,7 @@ from django.utils import timezone
 from vendas.models import ComprovanteParcela
 
 from ..models import Cobranca
+from .planos import rotulo_da_cobranca
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,9 @@ def gerar_pdf(cobranca: Cobranca) -> bytes:
     contexto = {
         'cobranca': cobranca,
         'parcela': parcela,
+        'itens': cobranca.itens_da_baixa(),
+        'rotulo': rotulo_da_cobranca(cobranca),
+        'quitacao': cobranca.tipo == Cobranca.Tipo.QUITACAO,
         'cliente': parcela.pagamento.venda.cliente,
         'paga_em': timezone.localtime(cobranca.paga_em) if cobranca.paga_em else None,
         'emitido_em': timezone.localtime(),
@@ -35,19 +39,32 @@ def gerar_pdf(cobranca: Cobranca) -> bytes:
     return weasyprint.HTML(string=html, url_fetcher=buscar_recurso_local).write_pdf()
 
 
-def anexar_comprovante(cobranca_id: int) -> ComprovanteParcela | None:
-    cobranca = (Cobranca.objects.select_related('parcela__pagamento__venda__cliente', 'parcela__pagamento__loja')
-                .get(pk=cobranca_id))
+def nome_para_download(cobranca: Cobranca) -> str:
+    if cobranca.tipo == Cobranca.Tipo.QUITACAO:
+        return 'comprovante-quitacao.pdf'
+    numeros = '-'.join(str(n) for n in cobranca.numeros_das_parcelas())
+    return f'comprovante-parcela-{numeros}.pdf'
+
+
+def anexar_comprovante(cobranca_id: int) -> list[ComprovanteParcela]:
+    """Gera o PDF uma vez e anexa em cada parcela da cobrança (não duplica se já estiver anexado)."""
+    cobranca = Cobranca.objects.select_related('parcela__pagamento__venda__cliente', 'parcela__pagamento__loja').get(
+        pk=cobranca_id)
     if cobranca.status != Cobranca.Status.PAGA:
-        return None
+        return []
     nome = nome_do_arquivo(cobranca)
-    existente = cobranca.parcela.comprovantes.filter(arquivo__endswith=nome).first()
-    if existente:
-        return existente
-    comprovante = ComprovanteParcela(
-        parcela=cobranca.parcela, loja=cobranca.parcela.pagamento.loja,
-        observacao=f'Pago via PagBank ({cobranca.get_forma_display()}), pedido {cobranca.pagbank_pedido_id}'[:255],
-    )
-    comprovante.arquivo.save(nome, ContentFile(gerar_pdf(cobranca)), save=False)
-    comprovante.save()
-    return comprovante
+    observacao = f'Pago via PagBank ({cobranca.get_forma_display()}), pedido {cobranca.pagbank_pedido_id}'[:255]
+    conteudo = None
+    anexados = []
+    for item in cobranca.itens_da_baixa():
+        existente = item.parcela.comprovantes.filter(arquivo__endswith=nome).first()
+        if existente:
+            anexados.append(existente)
+            continue
+        conteudo = conteudo or gerar_pdf(cobranca)
+        comprovante = ComprovanteParcela(parcela=item.parcela, loja=cobranca.parcela.pagamento.loja,
+                                         observacao=observacao)
+        comprovante.arquivo.save(nome, ContentFile(conteudo), save=False)
+        comprovante.save()
+        anexados.append(comprovante)
+    return anexados

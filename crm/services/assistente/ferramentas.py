@@ -11,7 +11,7 @@ from django.utils import timezone
 from crm.models import ConfiguracaoCRM, Conversa, EncaminhamentoIA
 from crm.services import contatos, expediente, pagamentos
 from crm.services.assistente import anexos, identidade
-from crm.services.links_pagamento import LinkIndisponivel, link_da_parcela, pix_da_parcela
+from crm.services.links_pagamento import LinkIndisponivel, online_disponivel, link_das_parcelas, pix_das_parcelas
 from vendas.services.erros import ErroDeNegocio
 
 MAX_COMPRAS = 5
@@ -50,17 +50,23 @@ DEFINICOES = [
     {
         'name': 'gerar_link_pagamento',
         'description': (
-            'Pagamento de uma parcela em aberto do cliente identificado (use o parcela_id). forma "link" (padrão): '
-            'link da página onde ele escolhe Pix, boleto ou cartão. forma "pix": quando ele pedir o Pix aqui na '
-            'conversa; o código copia e cola é enviado pelo sistema numa mensagem separada.'
+            'Pagamento de parcelas em aberto do cliente identificado. Uma parcela: parcela_id. Várias da mesma '
+            'compra num pagamento só: parcela_ids. Quitação da compra (tudo o que falta, com o desconto do plano): '
+            'quitacao true e um parcela_id dessa compra. forma "link" (padrão): link da página onde ele escolhe '
+            'Pix, boleto ou cartão. forma "pix": quando ele pedir o Pix aqui na conversa; o código copia e cola é '
+            'enviado pelo sistema numa mensagem separada.'
         ),
         'input_schema': {
             'type': 'object',
             'properties': {
                 'parcela_id': {'type': 'integer', 'description': 'parcela_id vindo de consultar_parcelas.'},
+                'parcela_ids': {
+                    'type': 'array', 'items': {'type': 'integer'}, 'minItems': 1, 'maxItems': 12,
+                    'description': 'Várias parcelas da mesma compra (parcela_id de consultar_parcelas).',
+                },
+                'quitacao': {'type': 'boolean', 'description': 'true para quitar a compra da parcela informada.'},
                 'forma': {'type': 'string', 'enum': ['link', 'pix'], 'description': 'link (padrão) ou pix.'},
             },
-            'required': ['parcela_id'],
             'additionalProperties': False,
         },
     },
@@ -238,10 +244,10 @@ def _parcelas_do_cliente(turno: Turno, ids) -> list:
     return parcelas
 
 
-def _pix_direto(turno: Turno, parcela) -> dict | None:
+def _pix_direto(turno: Turno, parcelas: list, quitacao: bool) -> dict | None:
     """Pix do PagBank; None quando não dá (desligado, falha): aí vai o link da página."""
     try:
-        pix = pix_da_parcela(parcela)
+        pix = pix_das_parcelas(parcelas, quitacao)
     except ErroDeNegocio:
         return None
     copia_cola = pix.pop('copia_cola')
@@ -252,18 +258,46 @@ def _pix_direto(turno: Turno, parcela) -> dict | None:
     return pix
 
 
+def _ids_pedidos(entrada: dict) -> list:
+    ids = entrada.get('parcela_ids') or []
+    if not ids and entrada.get('parcela_id') is not None:
+        ids = [entrada.get('parcela_id')]
+    if not ids:
+        raise ErroFerramenta('Informe parcela_id (ou parcela_ids) de consultar_parcelas.')
+    return ids
+
+
+def _resumo_do_pagamento(parcelas: list, quitacao: bool) -> dict:
+    from pagamentos_online.servicos.planos import plano_de_quitacao
+
+    if quitacao:
+        pagamento = parcelas[0].pagamento
+        plano = plano_de_quitacao(pagamento, list(pagamento.parcelas_pagamento.filter(pago=False)))
+        return {'quitacao': True, 'parcelas_em_aberto': len(plano.itens), 'valor': _reais(plano.valor),
+                'desconto_quitacao': _reais(plano.desconto)}
+    numeros = [p.numero_parcela for p in parcelas]
+    total = sum((p.valor_restante for p in parcelas), Decimal('0'))
+    if len(numeros) == 1:
+        return {'parcela': numeros[0], 'valor': _reais(total)}
+    return {'parcelas': numeros, 'valor': _reais(total)}
+
+
 def _gerar_link(turno: Turno, entrada: dict) -> dict:
-    parcela = _parcelas_do_cliente(turno, [entrada.get('parcela_id')])[0]
+    parcelas = _parcelas_do_cliente(turno, _ids_pedidos(entrada))
+    if len({p.pagamento_id for p in parcelas}) > 1:
+        raise ErroFerramenta('As parcelas são de compras diferentes: gere um pagamento para cada compra.')
+    quitacao = bool(entrada.get('quitacao'))
     turno.usou_dados = True
+    resumo = _resumo_do_pagamento(parcelas, quitacao)
     if entrada.get('forma') == 'pix':
-        pix = _pix_direto(turno, parcela)
+        pix = _pix_direto(turno, parcelas, quitacao)
         if pix:
-            return {'parcela': parcela.numero_parcela, **pix}
+            return {**resumo, **pix}
     try:
-        link = link_da_parcela(parcela)
+        link = link_das_parcelas(parcelas, quitacao)
     except LinkIndisponivel as erro:
         raise ErroFerramenta(f'{erro} Transfira para um atendente enviar o pagamento.') from erro
-    resultado = {'parcela': parcela.numero_parcela, 'valor': _reais(parcela.valor_restante), **link}
+    resultado = {**resumo, **link}
     if entrada.get('forma') == 'pix':
         resultado['observacao'] = 'O Pix direto não está disponível agora: mande o link da página.'
     return resultado
@@ -306,19 +340,22 @@ def _antecipar(turno: Turno, entrada: dict) -> dict:
 
 
 def _quitacao_da_compra(pagamento) -> dict | None:
-    """Mesma conta da página pública de pagamento (vendas/views/publico.py): soma o valor das parcelas
-    em aberto e tira a porcentagem_desconto do plano."""
+    """Mesma conta do app do cliente e da cobrança de quitação: o desconto do plano sobre o saldo em aberto."""
+    from pagamentos_online.servicos.links import link_do_pagamento
+    from pagamentos_online.servicos.planos import plano_de_quitacao
+
     abertas = [p for p in pagamento.parcelas_pagamento.all() if not p.pago]
-    if not abertas:
+    try:
+        plano = plano_de_quitacao(pagamento, abertas)
+    except ErroDeNegocio:
         return None
-    total = sum((p.valor for p in abertas), Decimal('0'))
     percentual = pagamento.porcentagem_desconto or Decimal('0')
-    desconto = (total * percentual / 100).quantize(CENTAVO, rounding=ROUND_HALF_UP)
     return {
-        'produto': pagamentos._produto(pagamento.venda), 'parcelas_em_aberto': len(abertas),
-        'total_em_aberto': _reais(total), 'percentual_desconto': f'{percentual.normalize():f}%',
-        'desconto': _reais(desconto), 'valor_para_quitar': _reais(total - desconto),
-        'link': pagamentos._link(pagamento.token_publico),
+        'produto': pagamentos._produto(pagamento.venda), 'parcelas_em_aberto': len(plano.itens),
+        'parcela_id_para_quitar': plano.primeira.pk,
+        'total_em_aberto': _reais(plano.total_sem_desconto), 'percentual_desconto': f'{percentual.normalize():f}%',
+        'desconto': _reais(plano.desconto), 'valor_para_quitar': _reais(plano.valor),
+        'link': link_do_pagamento(pagamento, quitacao=True),
     }
 
 
@@ -333,12 +370,15 @@ def _quitar(turno: Turno, entrada: dict) -> dict:
     turno.usou_dados = True
     if not compras:
         return {'observacao': 'Nenhuma parcela em aberto: não há o que quitar.'}
-    return {
-        'compras': compras,
-        'observacao': ('Informe o valor para quitar e mande o link: na página há a opção "quitação total" com o '
-                       'PIX desse valor. Com 0% não há desconto de quitação nesse plano. Depois do pagamento, peça '
-                       'o comprovante e transfira (QUITACAO) para a equipe confirmar a quitação.'),
-    }
+    if online_disponivel():
+        observacao = ('Informe o valor para quitar. Se o cliente quiser seguir, use gerar_link_pagamento com '
+                      'quitacao true e o parcela_id_para_quitar (forma "pix" se ele pedir o Pix aqui): a baixa '
+                      'e a quitação são automáticas depois do pagamento. Com 0% não há desconto nesse plano.')
+    else:
+        observacao = ('Informe o valor para quitar e mande o link: na página há a opção "quitação total" com o '
+                      'PIX desse valor. Com 0% não há desconto de quitação nesse plano. Depois do pagamento, peça '
+                      'o comprovante e transfira (QUITACAO) para a equipe confirmar a quitação.')
+    return {'compras': compras, 'observacao': observacao}
 
 
 def _comprovante(turno: Turno, entrada: dict) -> dict:
