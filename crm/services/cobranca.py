@@ -225,7 +225,7 @@ def _quitacoes(config: ConfiguracaoCRM, hoje: date):
                     desativado=False)
             .annotate(abertas=Count('parcelas_pagamento', filter=Q(parcelas_pagamento__pago=False)),
                       ultima=Max('parcelas_pagamento__data_pagamento'))
-            .filter(abertas=0, ultima__gte=desde)
+            .filter(abertas=0, ultima__gte=desde, ultima__lte=hoje)  # data no futuro = erro de digitação
             .exclude(parcelas_pagamento__avisos_crm__tipo=Tipo.AVISO_QUITACAO)
             .select_related('venda__cliente'))
 
@@ -369,6 +369,8 @@ def rodar(agora: datetime | None = None, forcar: bool = False) -> dict:
         return {}
     if local.weekday() == expediente.DOMINGO or expediente.feriado(local.date()):
         return {}  # cobrança não sai em domingo nem feriado
+    if config.cobranca_ativada_em and local < timezone.localtime(config.cobranca_ativada_em):
+        return {}  # ligada com data marcada: nada sai antes (nem quitação)
     if not forcar and not _reservar_rodada():
         return {}
     rodada = _Rodada(config, local.date())
