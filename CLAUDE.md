@@ -379,9 +379,10 @@ POST   /api/lojas/{id}/replicar-qrcode/  Replicar QR code para outras lojas
 
 ### Solicitações (Análise de Crédito)
 ```
-GET    /api/solicitacoes/                       Listar análises
+GET    /api/solicitacoes/                       Listar análises (?etapa=minha_acao|aguardando_analista)
+GET    /api/solicitacoes/kpis/                  Contagem por status + `etapas` (de quem é a vez)
 POST   /api/solicitacoes/                       Criar análise + cliente
-GET    /api/solicitacoes/{id}/                  Detalhe
+GET    /api/solicitacoes/{id}/                  Detalhe (+ `marcos` da linha do tempo e `resumo_venda`)
 PATCH  /api/solicitacoes/{id}/                  Atualizar
 POST   /api/solicitacoes/{id}/aprovar/          Aprovar análise
 POST   /api/solicitacoes/{id}/reprovar/         Reprovar análise
@@ -394,6 +395,13 @@ POST   /api/solicitacoes/{id}/confirmar-app/    Confirmar instalação do app
 POST   /api/solicitacoes/{id}/configurar-icloud/         Configurar iCloud (vendedor)
 POST   /api/solicitacoes/{id}/analista-confirm-icloud/   Confirmar iCloud (analista)
 POST   /api/solicitacoes/{id}/informar-imei-analise/     Analista informa IMEI
+```
+
+### Web Push (avisos no celular do vendedor)
+```
+GET    /api/push/chave/          Chave VAPID pública e se o push está ligado
+POST   /api/push/assinaturas/    Inscrever o aparelho ({endpoint, keys: {p256dh, auth}})
+DELETE /api/push/assinaturas/    Cancelar a inscrição do aparelho ({endpoint})
 ```
 
 ### Vendas
@@ -573,6 +581,11 @@ PAGBANK_TOKEN=...
 PAGBANK_AMBIENTE=sandbox   # sandbox | producao
 PAGBANK_EXIGIR_ASSINATURA=False   # True recusa aviso sem x-authenticity-token (o sandbox não assina)
 
+# Web Push (notificacao/push.py); sem as chaves fica desligado. Gerar: python manage.py gerar_chaves_vapid
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_CONTATO=mailto:suporte@centralipx.com
+
 # Sentry (padrão: DSN atual; vazio desliga; não roda em manage.py test)
 SENTRY_DSN=...
 SENTRY_SEND_DEFAULT_PII=False   # True envia IP/cookies/cabeçalhos
@@ -588,6 +601,18 @@ SENTRY_SEND_DEFAULT_PII=False   # True envia IP/cookies/cabeçalhos
 - WebSocket via Django Channels + Redis
 - Função `enviar_ws_para_usuario(user, payload)` para push em tempo real
 - Acionado em: mudanças de status de análise, criação de vendas, etc.
+- `solicitacao_atualizada` (`notificacao/tempo_real.py`): toda gravação da análise/cliente avisa quem
+  criou e os usuários/gerentes da loja; a SPA do vendedor recarrega lista, KPIs e detalhe sozinha
+  (sem notificação no sino). O backoffice Django ignora esse evento.
+- Web Push (`notificacao/push.py`): os eventos que pedem ação do vendedor (`EVENTOS_PUSH`: proposta
+  aceita/negada/cancelada, instalação confirmada, `venda_liberada`, pré-análise aprovada/reprovada)
+  também vão para os aparelhos inscritos (`AssinaturaPush`), com o sistema fechado. Service worker em
+  `front-connect-magic/public/sw.js`.
+- De quem é a vez: `vendas/services/etapa_vendedor.py` (filtro `etapa`), espelhado em
+  `front-connect-magic/src/lib/solicitacao.ts` (`proximoPasso`). Marcos da linha do tempo do vendedor:
+  `vendas/services/marcos_solicitacao.py` (derivados do simple_history da análise).
+- A confirmação de instalação do vendedor vale uma vez (`validar_vendedor_pode_confirmar_instalacao`):
+  repetir não pode voltar o status do app de 'I' para 'C'.
 
 ---
 

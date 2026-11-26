@@ -99,8 +99,21 @@ def marcar_instalacao_pendente(analise: AnaliseCreditoCliente) -> AnaliseCredito
     return atualizar_status_aplicativo(analise, APP_CONFIRMACAO_PENDENTE)
 
 
+def validar_vendedor_pode_confirmar_instalacao(analise: AnaliseCreditoCliente) -> None:
+    """A confirmação do vendedor só vale uma vez: repetir não pode retroceder o status.
+
+    Com o app já instalado ('I'), gravar 'C' de novo obrigaria a analista a
+    confirmar outra vez; com 'C', só repetiria o aviso aos analistas.
+    """
+    if analise.status_aplicativo == APP_INSTALADO:
+        raise ErroDeNegocio('A instalação do aplicativo já foi confirmada pela analista.')
+    if analise.status_aplicativo == APP_CONFIRMACAO_PENDENTE:
+        raise ErroDeNegocio('Você já confirmou a instalação. Aguarde a analista validar.')
+
+
 def confirmar_instalacao_vendedor(analise: AnaliseCreditoCliente, usuario, *, digitos: str = '') -> AnaliseCreditoCliente:
     """Vendedor confirmou a instalação (leitura do QR code): avisa analistas para informarem o IMEI."""
+    validar_vendedor_pode_confirmar_instalacao(analise)
     if digitos:
         analise.imei_ultimos_digitos_vendedor = digitos
     analise.status_aplicativo = APP_CONFIRMACAO_PENDENTE

@@ -23,6 +23,13 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             "para_mim": bool(event.get("para_mim")),
         }))
 
+    async def solicitacao_atualizada(self, event):
+        """Solicitação mudou: só o id do cliente (a SPA recarrega pela API)."""
+        await self.send(text_data=json.dumps({
+            "event": "solicitacao_atualizada",
+            "cliente_id": event.get("cliente_id"),
+        }))
+
     async def send_notification(self, event):
         await self.send(text_data=json.dumps({
             "verb": event["verb"],

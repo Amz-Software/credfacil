@@ -147,3 +147,43 @@ class EnvioWsTests(TestCase):
                 _enviar()  # não pode levantar exceção
 
         self.assertEqual(len(camada.chamadas), 1)
+
+
+class SolicitacaoAtualizadaTests(TestCase):
+    """Toda gravação da análise avisa quem acompanha a solicitação (SPA recarrega sozinha)."""
+
+    def setUp(self):
+        from vendas.tests_services import CenarioMixin, criar_usuario
+
+        cenario = CenarioMixin()
+        cenario.montar_cenario()
+        self.cenario = cenario
+        self.gerente = criar_usuario('gerente', None)
+        cenario.loja.gerentes.add(self.gerente)
+        self.de_fora = criar_usuario('de_fora', None, 'VENDEDOR')
+        cenario.analise.criado_por = cenario.vendedor
+        cenario.analise.save()
+
+    def test_mudanca_da_analise_avisa_vendedor_e_loja(self):
+        from notificacao import tempo_real
+
+        with mock.patch.object(tempo_real, 'enviar_evento_ws') as enviar:
+            self.cenario.analise.status_aplicativo = 'C'
+            self.cenario.analise.save()
+
+        destinatarios = {chamada.args[0] for chamada in enviar.call_args_list}
+        self.assertIn(self.cenario.vendedor.id, destinatarios)
+        self.assertIn(self.gerente.id, destinatarios)
+        self.assertNotIn(self.de_fora.id, destinatarios)
+        mensagem = enviar.call_args_list[0].args[1]
+        self.assertEqual(mensagem, {'type': 'solicitacao_atualizada', 'cliente_id': self.cenario.cliente.pk})
+
+    def test_falha_no_aviso_nao_derruba_o_save(self):
+        from notificacao import tempo_real
+
+        with mock.patch.object(tempo_real, 'enviar_evento_ws', side_effect=RuntimeError('redis')):
+            self.cenario.analise.status = 'R'
+            self.cenario.analise.save()
+
+        self.cenario.analise.refresh_from_db()
+        self.assertEqual(self.cenario.analise.status, 'R')

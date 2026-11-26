@@ -45,7 +45,11 @@ class ClienteConfirmInstalledView(PermissionRequiredMixin, View):
 
     def post(self, request, pk):
         cliente = get_object_or_404(Cliente, pk=pk)
-        servico_analise.confirmar_instalacao_vendedor(cliente.analise_credito, request.user)
+        try:
+            servico_analise.confirmar_instalacao_vendedor(cliente.analise_credito, request.user)
+        except ErroDeNegocio as erro:
+            messages.error(request, erro.mensagem)
+            return redirect('vendas:cliente_list')
         messages.success(request, "✅ Instalação confirmada! Aguardando analista informar IMEI.")
         return redirect('vendas:cliente_list')
 

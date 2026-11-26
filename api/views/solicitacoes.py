@@ -17,7 +17,10 @@ from api.serializers import ClienteSolicitacaoSerializer
 from vendas.models import AnaliseCreditoCliente, Cliente
 from vendas.services import ErroDeNegocio
 from vendas.services.erros import PROIBIDO
+from vendas.services.etapa_vendedor import contar_por_etapa, filtro_etapa
 from vendas.services.kpis import contar_por_status
+from vendas.services.marcos_solicitacao import marcos_da_solicitacao
+from vendas.services.venda import resumo_da_venda
 
 from .solicitacoes_cadastro import CadastroDeSolicitacaoMixin
 from .solicitacoes_etapas import EtapasDaAnaliseMixin
@@ -127,6 +130,11 @@ class SolicitacaoCreditoViewSet(CadastroDeSolicitacaoMixin, EtapasDaAnaliseMixin
         if vendas_nao_finalizadas:
             qs = qs.filter(analise_credito__venda__isnull=True).distinct()
 
+        # De quem é a vez (minha_acao | aguardando_analista); valor desconhecido é ignorado.
+        filtro_da_etapa = filtro_etapa(request.query_params.get("etapa") or "", prefixo="analise_credito__")
+        if filtro_da_etapa is not None:
+            qs = qs.filter(filtro_da_etapa)
+
         # Aplicar filtro de loja baseado em permissões
         if not request.user.has_perm("vendas.view_all_analise_credito"):
             # Se loja foi especificada na query string, verificar se usuário tem acesso
@@ -167,6 +175,7 @@ class SolicitacaoCreditoViewSet(CadastroDeSolicitacaoMixin, EtapasDaAnaliseMixin
             OpenApiParameter("data_inicio", OpenApiTypes.DATE, required=False),
             OpenApiParameter("data_fim", OpenApiTypes.DATE, required=False),
             OpenApiParameter("vendas_nao_finalizadas", OpenApiTypes.STR, required=False),
+            OpenApiParameter("etapa", OpenApiTypes.STR, required=False, description="minha_acao|aguardando_analista"),
         ],
         responses=ClienteSolicitacaoSerializer,
     )
@@ -237,6 +246,9 @@ class SolicitacaoCreditoViewSet(CadastroDeSolicitacaoMixin, EtapasDaAnaliseMixin
                     return Response({"detail": "Acao nao autorizada para esta loja."}, status=403)
 
         data = ClienteSolicitacaoSerializer(cliente).data
+        analise = getattr(cliente, "analise_credito", None)
+        data["marcos"] = marcos_da_solicitacao(analise, request.user) if analise else []
+        data["resumo_venda"] = resumo_da_venda(analise) if analise else None
         return Response(data)
 
     @action(detail=False, methods=["get"], url_path="kpis")
@@ -309,6 +321,7 @@ class SolicitacaoCreditoViewSet(CadastroDeSolicitacaoMixin, EtapasDaAnaliseMixin
         return Response(
             {
                 "kpis": contar_por_status(analises),
+                "etapas": contar_por_etapa(analises),
                 "status_choices": AnaliseCreditoCliente.STATUS_CHOICES,
                 "status_app_choices": AnaliseCreditoCliente.STATUS_APP_CHOICES,
             }

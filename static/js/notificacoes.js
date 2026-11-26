@@ -209,6 +209,11 @@
       return;
     }
 
+    // Solicitação atualizada só avisa a SPA do vendedor para recarregar (não é notificação).
+    if (data.event === 'solicitacao_atualizada') {
+      return;
+    }
+
     if (PODE_VER_MODAL && EVENTOS_MODAL.indexOf(data.event) >= 0) {
       mostrarModalProposta(data);
     }

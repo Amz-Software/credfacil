@@ -41,6 +41,15 @@ class PreAnaliseTests(CenarioCredito):
         self.assertIsNone(self.logar(self.vendedor).get(self.url(self.pre_a.pk)).json()['consulta_serasa'])
         self.assertEqual(self.logar(self.analista).get(self.url(self.pre_b.pk)).status_code, 404)
 
+    def test_aviso_de_aprovacao_leva_a_nova_solicitacao_preenchida(self):
+        from unittest import mock
+
+        with mock.patch('notificacao.signals.enviar_ws_para_usuario') as enviar:
+            self.logar(self.analista).post(self.url(self.pre_a.pk, 'aprovar'))
+
+        urls = {chamada.kwargs['target_url'] for chamada in enviar.call_args_list if chamada.kwargs.get('event') == 'pre_analise_aprovada'}
+        self.assertEqual(urls, {f'/app/solicitacoes/nova?preAnalise={self.pre_a.pk}'})
+
     def test_aprovar_e_nao_decidir_duas_vezes(self):
         cliente = self.logar(self.analista)
         resposta = cliente.post(self.url(self.pre_a.pk, 'aprovar'))

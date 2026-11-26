@@ -152,6 +152,10 @@ class EtapasDaAnaliseMixin:
     def instalar_app(self, request, pk=None):
         cliente = self._cliente_no_escopo(request, pk)
         analise_credito = cliente.analise_credito
+        try:
+            servico_analise.validar_vendedor_pode_confirmar_instalacao(analise_credito)
+        except ErroDeNegocio as erro:
+            return _resposta_de_erro(erro)
         servico_analise.marcar_instalacao_pendente(analise_credito)
         return Response({"detail": "Status alterado para Confirmação Pendente."})
 
@@ -200,7 +204,10 @@ class EtapasDaAnaliseMixin:
         analise_credito = cliente.analise_credito
         # Últimos 4 dígitos do IMEI informados pelo vendedor (referência para o analista).
         digitos = servico_analise.digitos_imei(request.data.get("imei_ultimos_digitos"))
-        servico_analise.confirmar_instalacao_vendedor(analise_credito, request.user, digitos=digitos)
+        try:
+            servico_analise.confirmar_instalacao_vendedor(analise_credito, request.user, digitos=digitos)
+        except ErroDeNegocio as erro:
+            return _resposta_de_erro(erro)
         return Response({"detail": "Leitura do QR code confirmada. Aguardando analista informar IMEI."})
 
 
@@ -319,4 +326,5 @@ class EtapasDaAnaliseMixin:
             venda = gerar_venda_da_analise(cliente, request.user, bloquear_imei_de_venda_cancelada=False)
         except ErroDeNegocio as erro:
             return _resposta_de_erro(erro)
-        return Response(VendaSerializer(venda).data, status=201)
+        dados = {**VendaSerializer(venda).data, "confirmacao_whatsapp": getattr(venda, "confirmacao_whatsapp", False)}
+        return Response(dados, status=201)

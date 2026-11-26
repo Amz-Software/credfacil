@@ -1,4 +1,5 @@
 """Geração da venda a partir de uma análise de crédito aprovada (fluxo CredFacil)."""
+import logging
 import re
 from dataclasses import dataclass
 from decimal import Decimal
@@ -12,6 +13,8 @@ from vendas.models import Caixa, Pagamento, ProdutoVenda, TipoPagamento, Venda
 
 from .erros import ErroDeNegocio
 from .parcelas import calcular_data_primeira_parcela, criar_parcelas
+
+logger = logging.getLogger(__name__)
 
 PARCELAS_PAGAS_MINIMAS_POR_VENDA = 3
 TIPO_ENTRADA = 'ENTRADA'
@@ -201,7 +204,20 @@ def gerar_venda_da_analise(cliente, vendedor, *, bloquear_imei_de_venda_cancelad
             valor_desconto=0,
         )
         _criar_pagamentos(venda, analise, valores, data_primeira_parcela)
+        # Atributo só de leitura para a resposta da API ("enviamos os dados ao cliente").
+        venda.confirmacao_whatsapp = _agendar_compra_confirmada(venda)
     return venda
+
+
+def _agendar_compra_confirmada(venda: Venda) -> bool:
+    """Agenda a mensagem de compra confirmada no WhatsApp (depois do commit). Nunca levanta erro."""
+    try:
+        from crm.services import compra_confirmada
+
+        return compra_confirmada.agendar(venda)
+    except Exception:  # noqa: BLE001 — a venda vale mesmo se o CRM falhar
+        logger.warning('Falha ao agendar a compra confirmada da venda %s.', venda.pk, exc_info=True)
+        return False
 
 
 def sincronizar_comodato_da_venda(venda: Venda, comodato: bool) -> None:
@@ -223,3 +239,28 @@ def _valor_financiado(venda: Venda) -> Decimal:
         p.valor for p in venda.pagamentos.filter(tipo_pagamento__nome__iexact=TIPO_ENTRADA)
     )
     return Decimal(valor_produtos) - Decimal(entrada)
+
+
+def resumo_da_venda(analise) -> dict | None:
+    """Prévia dos valores da venda que `gerar_venda_da_analise` vai criar (para o vendedor
+    revisar com o cliente antes de gerar). None se ainda faltar dado para o cálculo.
+
+    No iPhone a entrada é declarada na hora de gerar: a prévia usa a mínima do produto.
+    """
+    if not analise.numero_parcelas:
+        return None
+    try:
+        valores = calcular_valores_venda(analise)
+    except (ErroDeNegocio, ValueError):  # ValueError: nº de parcelas não numérico
+        return None
+    primeiro_vencimento = calcular_data_primeira_parcela(analise.data_pagamento) if analise.data_pagamento else None
+    valor_parcela = (valores.valor_credfacil / valores.parcelas).quantize(Decimal('0.01'))
+    return {
+        'produto': analise.produto.nome,
+        'valor_produto': str(analise.produto.valor),
+        'entrada': str(valores.entrada),
+        'parcelas': valores.parcelas,
+        'valor_parcela': str(valor_parcela),
+        'total_financiado': str(valores.valor_credfacil.quantize(Decimal('0.01'))),
+        'primeiro_vencimento': primeiro_vencimento.isoformat() if primeiro_vencimento else None,
+    }

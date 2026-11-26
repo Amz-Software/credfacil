@@ -200,10 +200,41 @@ class SolicitacoesEscopoTests(CenarioMixin, APITestCase):
 
     def test_vendedor_age_na_propria_loja(self):
         self.client.force_authenticate(self.vendedor)
+        self.analise.status_aplicativo = 'P'
+        self.analise.save()
 
         self.assertEqual(self._post(self.cliente, 'confirmar-leitura-qrcode').status_code, 200)
         self.assertEqual(self._post(self.cliente, 'configurar-icloud', {'imei_ultimos_digitos': '1234'}).status_code, 200)
         self.assertEqual(self._post(self.cliente, 'log-consulta-serasa', {'tipo': 'serasa'}).status_code, 201)
+
+    def test_vendedor_nao_retrocede_instalacao_validada_pela_analista(self):
+        self.client.force_authenticate(self.vendedor)
+        self.assertEqual(self.analise.status_aplicativo, 'I')
+
+        confirmar = self._post(self.cliente, 'confirmar-leitura-qrcode', {'imei_ultimos_digitos': '1234'})
+        instalar = self._post(self.cliente, 'instalar-app')
+
+        self.assertEqual(confirmar.status_code, 400)
+        self.assertEqual(instalar.status_code, 400)
+        self.analise.refresh_from_db()
+        self.assertEqual(self.analise.status_aplicativo, 'I')
+
+    def test_filtro_minha_acao_e_marcos_no_detalhe(self):
+        self.client.force_authenticate(self.vendedor)
+        self.analise.status_aplicativo = 'P'
+        self.analise.imei = None
+        self.analise.save()
+
+        self.loja.usuarios.add(self.vendedor)
+        lista = reverse('solicitacao-list')
+
+        minha = self.client.get(lista, {'loja': self.loja.pk, 'etapa': 'minha_acao'}).json()
+        aguardando = self.client.get(lista, {'loja': self.loja.pk, 'etapa': 'aguardando_analista'}).json()
+        detalhe = self.client.get(reverse('solicitacao-detail', args=[self.cliente.pk])).json()
+
+        self.assertEqual([r['id'] for r in minha['results']], [self.cliente.pk])
+        self.assertEqual(aguardando['results'], [])
+        self.assertEqual(detalhe['marcos'][0]['tipo'], 'enviada')
 
     def test_vendedor_gera_venda_e_cancela_na_propria_loja(self):
         self.client.force_authenticate(self.vendedor)

@@ -5,6 +5,7 @@ from django.dispatch import receiver
 from vendas.models import AnaliseCreditoCliente, Cliente, PreAnaliseRapida
 from django.contrib.auth import get_user_model
 from notifications.signals import notify
+from notificacao.tempo_real import avisar_solicitacao_atualizada
 from notificacao.utils import enviar_ws_para_usuario
 from estoque.models import EntradaEstoque
 
@@ -31,9 +32,11 @@ def status_anterior(sender, instance, **kwargs):
             anterior = AnaliseCreditoCliente.objects.get(pk=instance.pk)
             instance.status_anterior = anterior.status
             instance.status_aplicativo_anterior = anterior.status_aplicativo
+            instance.tinha_imei_anterior = bool(anterior.imei_id or anterior.imei_informado)
         except AnaliseCreditoCliente.DoesNotExist:
             instance.status_anterior = None
             instance.status_aplicativo_anterior = None
+            instance.tinha_imei_anterior = False
 
 
 @receiver(post_save, sender=AnaliseCreditoCliente)
@@ -303,7 +306,11 @@ def notificar_pre_analise_rapida(sender, instance, created, **kwargs):
                     verb=verb,
                     description=description,
                     # Rota do SPA React (lista de análises rápidas)
-                    target_url='/app/analise-rapida',
+                    # Aprovada: o aviso já leva à nova solicitação preenchida com os dados da pré-análise.
+                    target_url=(
+                        f'/app/solicitacoes/nova?preAnalise={instance.pk}'
+                        if evento == 'pre_analise_aprovada' else '/app/analise-rapida'
+                    ),
                     type_notification='pre_analise_rapida',
                     # Dispara o modal central do VENDEDOR/GERENTE no front React
                     event=evento,
@@ -336,3 +343,48 @@ def notificar_administradores_entrada(sender, instance, created, **kwargs):
                 target_url=instance.get_absolute_url(),
                 type_notification='entrada_estoque',
                 )
+
+# ─── Tempo real da SPA do vendedor ─────────────────────────────────────────
+# Qualquer gravação da análise (aprovação, IMEI, instalação, iCloud, venda) ou do
+# cliente avisa quem acompanha a solicitação, para a tela recarregar sozinha.
+
+@receiver(post_save, sender=AnaliseCreditoCliente)
+def avisar_analise_atualizada(sender, instance, **kwargs):
+    if instance.cliente_id:
+        avisar_solicitacao_atualizada(instance.cliente, criado_por_id=instance.criado_por_id)
+
+
+@receiver(post_save, sender=Cliente)
+def avisar_cliente_atualizado(sender, instance, **kwargs):
+    avisar_solicitacao_atualizada(instance)
+
+
+@receiver(post_save, sender=AnaliseCreditoCliente)
+def avisar_venda_liberada_iphone(sender, instance, created, **kwargs):
+    """iPhone: a analista informou o IMEI e a venda está liberada.
+
+    No Android o mesmo aviso sai como `instalacao_confirmada` (status do app -> 'I');
+    no iPhone o status do app não muda, então o vendedor não era avisado.
+    """
+    if created or not instance.criado_por_id or not instance.produto.is_iphone:
+        return
+    tem_imei = bool(instance.imei_id or instance.imei_informado)
+    if not tem_imei or getattr(instance, 'tinha_imei_anterior', True) or instance.venda_id:
+        return
+    cliente_nome = (instance.cliente.nome or 'Cliente').capitalize()
+    verb = f'Aparelho do cliente {cliente_nome} validado. Venda liberada para geração.'
+    description = f'Loja {(instance.loja.nome if instance.loja else "").capitalize()}.'
+    vendedor = instance.criado_por
+    notify.send(instance, recipient=vendedor, verb=verb, description=description, target=instance.cliente)
+    ultima = vendedor.notifications.unread().order_by('-timestamp').first()
+    if ultima:
+        _ws_seguro(
+            usuario=vendedor,
+            instance=instance,
+            notification_id=ultima.id,
+            verb=verb,
+            description=description,
+            target_url=f'/app/solicitacoes/{instance.cliente.pk}',
+            type_notification='analise_credito_cliente',
+            event='venda_liberada',
+        )

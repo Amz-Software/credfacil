@@ -317,6 +317,28 @@ class TransicoesDaAnaliseTests(CenarioMixin, TestCase):
         aviso = Notification.objects.filter(recipient=self.analista, verb__startswith='Vendedor confirmou instalação').get()
         self.assertIn('IMEI termina em 1234', aviso.description)
 
+    def test_vendedor_nao_retrocede_instalacao_ja_validada(self):
+        self.analise.status_aplicativo = 'I'
+        self.analise.save()
+
+        with self.assertRaises(ErroDeNegocio) as ctx:
+            servico_analise.confirmar_instalacao_vendedor(self.analise, self.vendedor, digitos='1234')
+
+        self.analise.refresh_from_db()
+        self.assertEqual(self.analise.status_aplicativo, 'I')
+        self.assertIn('já foi confirmada', ctx.exception.mensagem)
+
+    def test_vendedor_nao_confirma_instalacao_duas_vezes(self):
+        servico_analise.confirmar_instalacao_vendedor(self.analise, self.vendedor, digitos='1234')
+
+        with self.assertRaises(ErroDeNegocio):
+            servico_analise.confirmar_instalacao_vendedor(self.analise, self.vendedor, digitos='9999')
+
+        self.analise.refresh_from_db()
+        self.assertEqual(self.analise.imei_ultimos_digitos_vendedor, '1234')
+        avisos = Notification.objects.filter(recipient=self.analista, verb__startswith='Vendedor confirmou instalação')
+        self.assertEqual(avisos.count(), 1)
+
     def test_analista_informa_imei_novo_e_libera_android(self):
         servico_analise.marcar_instalacao_pendente(self.analise)
 
