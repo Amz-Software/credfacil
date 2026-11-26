@@ -3,6 +3,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.routers import APIRootView, DefaultRouter
 
 from . import views
+from .views import push as push_views
 
 class PublicAPIRootView(APIRootView):
     permission_classes = [AllowAny]
@@ -28,6 +29,8 @@ router.register("pre-analises-rapidas", views.PreAnaliseRapidaViewSet, basename=
 
 urlpatterns = [
     path("health/", views.health, name="api-health"),
+    path("push/chave/", push_views.push_chave, name="api-push-chave"),
+    path("push/assinaturas/", push_views.push_assinaturas, name="api-push-assinaturas"),
     path("contrato/<uuid:token>/", views.contrato_publico, name="api-contrato-publico"),
     path("buscar-lojas/", views.buscar_lojas_by_username, name="api-buscar-lojas"),
     path("foto-session/", views.foto_session_criar, name="foto-session-criar"),

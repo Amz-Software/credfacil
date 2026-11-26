@@ -165,6 +165,12 @@ if PAGBANK_AMBIENTE not in ('sandbox', 'producao'):
 # Envio WS de notificações: timeout por envio (s).
 NOTIFICACAO_WS_TIMEOUT = float(os.environ.get("NOTIFICACAO_WS_TIMEOUT", "3"))
 
+# Web Push (avisos no celular com o sistema fechado; notificacao/push.py). Sem as chaves, fica desligado.
+# Gerar: python manage.py gerar_chaves_vapid
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
+VAPID_CONTATO = os.environ.get("VAPID_CONTATO", "mailto:suporte@centralipx.com").strip()
+
 # Mídia local: URL assinada e com validade (core/midia.py); sem a assinatura
 # certa, /mediafiles/ responde 404. Com MIDIA_X_ACCEL_PREFIXO (ex.: /_midia/), o
 # Django só confere a assinatura e o nginx entrega o arquivo de um `location internal`.

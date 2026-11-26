@@ -85,8 +85,14 @@ def enviar_evento_ws(usuario_id: int, mensagem: dict[str, Any]) -> None:
 
 def enviar_ws_para_usuario(usuario, instance, notification_id, verb, description, target_url,
                            type_notification=None, event=None) -> None:
-    """Agenda o push WS para o usuário; retorna na hora, sem esperar o Redis."""
+    """Agenda o push WS para o usuário; retorna na hora, sem esperar o Redis.
+
+    Eventos que pedem ação do vendedor também saem por Web Push (celular com o sistema fechado).
+    """
     mensagem = _montar_mensagem(instance, notification_id, verb, description, target_url,
                                 type_notification, event)
     grupo = f"user_{usuario.id}"
     transaction.on_commit(lambda: _despachar(grupo, mensagem))
+    from notificacao import push
+
+    push.agendar(usuario.id, event, verb, description, mensagem["target_url"])
