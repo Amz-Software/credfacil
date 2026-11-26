@@ -107,6 +107,11 @@ Configurações → Usuários e Acessos → Grupos.
   Meta → número marcado "sem WhatsApp" e o próximo aviso usa outro número validado). Política da
   Meta: empresa de cobrança de terceiros é proibida e texto em tom de ameaça é recusado; lembrete
   do próprio credor é utilidade, mas a Meta revisa cada template. Mantenha os textos informativos.
+- **Compra confirmada** (`crm/services/compra_confirmada.py`): quando o vendedor gera a venda, sai para
+  o cliente o template escolhido em Avisos de cobrança → "Compra confirmada" (`{nome}`, `{valor}` = 1ª
+  parcela do crediário, `{vencimento}`), independente de `cobranca_ativa`. Uma vez por venda
+  (`Mensagem.origem = COMPRA`, `dados.compra.venda_id`), na conversa do cliente; falha da Meta não
+  desfaz a venda. A resposta de `gerar-venda/` traz `confirmacao_whatsapp` para a SPA avisar o vendedor.
 - **Telefones e status de contato** (`crm/services/contatos.py`): números do cadastro, usados no
   atendimento, localizados no C4M (precisam ser validados) e de referência, com situação e
   histórico de tentativas; status por cliente (contato realizado, aguardando retorno, contato

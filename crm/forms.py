@@ -135,14 +135,14 @@ class CobrancaForm(_BootstrapMixin, forms.ModelForm):
     """Régua de avisos automáticos: liga/desliga, horário, repetição e o template de cada etapa."""
 
     CAMPOS_MODELO = ('modelo_aviso_antes', 'modelo_aviso_dia', 'modelo_aviso_apos', 'modelo_aviso_insistencia',
-                     'modelo_aviso_quitacao')
+                     'modelo_aviso_quitacao', 'modelo_compra_confirmada')
 
     class Meta:
         model = ConfiguracaoCRM
         fields = ['cobranca_ativa', 'cobranca_hora_envio', 'cobranca_pular_bom_pagador', 'cobranca_intervalo_dias',
                   'cobranca_max_insistencias',
                   'modelo_aviso_antes', 'modelo_aviso_dia', 'modelo_aviso_apos', 'modelo_aviso_insistencia',
-                  'modelo_aviso_quitacao']
+                  'modelo_aviso_quitacao', 'modelo_compra_confirmada']
         labels = {
             'cobranca_ativa': 'Enviar avisos automáticos de cobrança',
             'cobranca_hora_envio': 'Enviar a partir das',
@@ -154,6 +154,7 @@ class CobrancaForm(_BootstrapMixin, forms.ModelForm):
             'modelo_aviso_apos': '2 dias depois do vencimento (pede o comprovante)',
             'modelo_aviso_insistencia': 'Repetição para quem não respondeu',
             'modelo_aviso_quitacao': 'Quitação (recompra e retirada do app)',
+            'modelo_compra_confirmada': 'Compra confirmada (sai quando o vendedor gera a venda)',
         }
         widgets = {'cobranca_hora_envio': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M')}
 

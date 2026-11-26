@@ -158,6 +158,7 @@ class Mensagem(models.Model):
         BOAS_VINDAS = 'BOAS_VINDAS', 'Boas-vindas'
         PROGRAMADA = 'PROGRAMADA', 'Programada'
         COBRANCA = 'COBRANCA', 'Aviso de cobrança'
+        COMPRA = 'COMPRA', 'Compra confirmada'
 
     class Status(models.TextChoices):
         RECEBIDO = 'RECEBIDO', 'Recebido'
@@ -370,6 +371,9 @@ class ConfiguracaoCRM(models.Model):
                                                  on_delete=models.SET_NULL, related_name='+')
     modelo_aviso_quitacao = models.ForeignKey(ModeloAbertura, null=True, blank=True, on_delete=models.SET_NULL,
                                               related_name='+')
+    # Enviada ao cliente assim que o vendedor gera a venda (independe de `cobranca_ativa`).
+    modelo_compra_confirmada = models.ForeignKey(ModeloAbertura, null=True, blank=True,
+                                                 on_delete=models.SET_NULL, related_name='+')
 
     class Meta:
         default_permissions = ()

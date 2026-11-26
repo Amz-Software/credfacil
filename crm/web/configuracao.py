@@ -77,6 +77,9 @@ SUGESTOES_COBRANCA = (
                       '{vencimento}. Se já pagou, responda com o comprovante. Se precisar do PIX, é só pedir por aqui.'),
     ('Sem retorno', 'Olá, {nome}. Ainda não tivemos retorno sobre a parcela de {valor}, vencida em {vencimento}. '
                     'Responda esta mensagem para combinarmos o pagamento ou enviar o comprovante.'),
+    ('Compra confirmada', 'Olá, {nome}! Sua compra no crediário IPX foi confirmada. A primeira parcela, de {valor}, '
+                          'vence em {vencimento}. Guarde este número: por aqui você consulta parcelas, recebe o PIX '
+                          'e tira dúvidas.'),
     ('Quitação', 'Parabéns, {nome}! Seu contrato com a IPX foi quitado. Obrigado pela confiança! Para remover o '
                  'aplicativo do aparelho ou tirar qualquer dúvida, é só responder esta mensagem.'),
 )
