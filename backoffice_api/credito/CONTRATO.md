@@ -98,7 +98,8 @@ Permissão: `vendas.view_cliente`. CPF completo.
                       "mudancas": [{"campo": "status", "rotulo": "Status", "de": "Em análise", "para": "Aprovado"}], "texto": null}],
   "acoes": {"editar": true, "aprovar": true, "reprovar": true, "cancelar": true, "observar": true, "alterar_status_app": true,
             "instalar_app": true, "confirmar_instalacao": false, "confirmar_icloud": false, "informar_imei": false,
-            "gerar_venda": false, "ver_serasa": true},
+            "gerar_venda": false, "notificar_vendedor": false, "ver_serasa": true},
+  "vendedor_notificado_em": null,
   "edicao": {"pode_editar": true, "campos_editaveis": ["nome", "telefone", "..."]}
 }
 ```
@@ -183,6 +184,7 @@ Todas respondem `{"mensagem": "...", "solicitacao": <item da fila>}` (200), exce
 | `{id}/confirmar-icloud/` | `change_status_analise` + grupo ANALISTA | — | 422 se o vendedor não configurou. `icloud_confirmado` |
 | `{id}/informar-imei/` | `change_analisecreditocliente` + grupo ANALISTA | `{"imei"}` | Usa o estoque da loja da solicitação (cria o IMEI se preciso); Android vira "Instalado". `imei_informado` |
 | `{id}/gerar-venda/` | `vendas.add_venda` | — | **201** + `"venda_id"`. Mesmo serviço e travas da tela (`gerar_venda_da_analise`). `venda_gerada` (objeto = venda) |
+| `{id}/notificar-vendedor/` | `change_status_analise` | — | Reabre no app do vendedor o popup de gerar venda (evento WS `venda_liberada` + sino + push). 422 se a venda ainda não pode ser gerada; **429** `limite_excedido` com `campos.aguardar_segundos` se usado há menos de 30 s (por solicitação). Resposta traz `aguardar_segundos` e `vendedor_notificado_em`. `vendedor_notificado` |
 | `{id}/log-consulta-serasa/` | `view_cliente` + regra do Serasa | `{"tipo": "serasa"\|"serasa_2"}` | **201** `{"id", "tipo", "aberto_em"}`. `consulta_serasa_aberta` |
 
 Notificações e eventos de WebSocket saem dos signals existentes (`proposta_aceita`, `proposta_negada`,

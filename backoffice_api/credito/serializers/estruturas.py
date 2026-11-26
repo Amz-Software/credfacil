@@ -68,6 +68,7 @@ class CreditoAcoesSerializer(serializers.Serializer):
     confirmar_icloud = serializers.BooleanField()
     informar_imei = serializers.BooleanField()
     gerar_venda = serializers.BooleanField()
+    notificar_vendedor = serializers.BooleanField(help_text='Venda liberada: pode reenviar o aviso ao vendedor.')
     ver_serasa = serializers.BooleanField()
 
 

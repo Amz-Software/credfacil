@@ -14,6 +14,11 @@ class CreditoGerarVendaRespostaSerializer(CreditoAcaoRespostaSerializer):
     venda_id = serializers.IntegerField()
 
 
+class CreditoNotificarVendedorRespostaSerializer(CreditoAcaoRespostaSerializer):
+    aguardar_segundos = serializers.IntegerField(help_text='Segundos até poder notificar de novo.')
+    vendedor_notificado_em = serializers.DateTimeField()
+
+
 class CreditoEdicaoRespostaSerializer(CreditoSolicitacaoDetalheSerializer):
     aviso = serializers.SerializerMethodField(help_text='Aviso de dados já cadastrados em outra solicitação.')
 

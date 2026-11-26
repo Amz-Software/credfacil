@@ -10,11 +10,20 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from vendas.models import Loja, ObservacaoSolicitacao
+from backoffice_api.nucleo.erros import LIMITE_EXCEDIDO, ErroBackoffice
+from notificacao.avisos_vendedor import enviar_venda_liberada
+from vendas.models import AnaliseCreditoCliente, Loja, ObservacaoSolicitacao
 from vendas.services import ErroDeNegocio
 from vendas.services import analise as servico_analise
 from vendas.services.venda import gerar_venda_da_analise
 
+from ..notificar_vendedor import (
+    ACAO_AUDITORIA as ACAO_VENDEDOR_NOTIFICADO,
+    INTERVALO_SEGUNDOS as INTERVALO_NOTIFICAR_VENDEDOR,
+    mensagem_do_aviso,
+    segundos_para_novo_aviso,
+    validar_pode_notificar,
+)
 from ..regras import ROTULOS_STATUS, STATUS_APROVADO, STATUS_CANCELADO, STATUS_REPROVADO
 from ..serializers.entradas import (
     CreditoImeiEntradaSerializer,
@@ -28,6 +37,7 @@ from ..serializers.respostas import (
     CreditoAcaoRespostaSerializer,
     CreditoGerarVendaRespostaSerializer,
     CreditoLogSerasaRespostaSerializer,
+    CreditoNotificarVendedorRespostaSerializer,
 )
 from ..serializers.solicitacao_lista import CreditoSolicitacaoListaSerializer
 
@@ -178,6 +188,32 @@ class AcoesDaSolicitacaoMixin:
             )
         return self._resposta(
             cliente.pk, f'Venda criada para o cliente {cliente.nome}.', status.HTTP_201_CREATED, venda_id=venda.pk,
+        )
+
+    @extend_schema(request=None, responses=CreditoNotificarVendedorRespostaSerializer)
+    @action(detail=True, methods=['post'], url_path='notificar-vendedor')
+    def notificar_vendedor(self, request, pk=None):
+        """Reabre no app do vendedor o popup de gerar venda (no máximo 1 vez a cada 30 s)."""
+        cliente = self.get_object()
+        with transaction.atomic():
+            # Trava a análise: dois cliques simultâneos não passam juntos pelo intervalo.
+            analise = AnaliseCreditoCliente.objects.select_for_update().get(pk=cliente.analise_credito.pk)
+            validar_pode_notificar(analise)
+            aguardar = segundos_para_novo_aviso(analise)
+            if aguardar:
+                raise ErroBackoffice(
+                    f'O vendedor acabou de ser notificado. Aguarde {aguardar} s para notificar de novo.',
+                    codigo=LIMITE_EXCEDIDO, status_http=status.HTTP_429_TOO_MANY_REQUESTS,
+                    campos={'aguardar_segundos': [str(aguardar)]},
+                )
+            registro = self.auditar(
+                ACAO_VENDEDOR_NOTIFICADO, objeto=analise,
+                dados={'solicitacao_id': cliente.pk, 'vendedor_id': analise.criado_por_id},
+            )
+            enviar_venda_liberada(analise, *mensagem_do_aviso(analise))
+        return self._resposta(
+            cliente.pk, f'{analise.criado_por} foi notificado para gerar a venda.',
+            aguardar_segundos=INTERVALO_NOTIFICAR_VENDEDOR, vendedor_notificado_em=registro.criado_em.isoformat(),
         )
 
     @extend_schema(request=CreditoLogSerasaEntradaSerializer, responses={201: CreditoLogSerasaRespostaSerializer})

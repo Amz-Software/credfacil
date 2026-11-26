@@ -134,6 +134,7 @@ class SolicitacaoViewSet(
         'confirmar_icloud': [PERMISSAO_DECIDIR, EmGrupo('ANALISTA')],
         'informar_imei': ['vendas.change_analisecreditocliente', EmGrupo('ANALISTA')],
         'gerar_venda': ['vendas.add_venda'],
+        'notificar_vendedor': [PERMISSAO_DECIDIR],
         'log_consulta_serasa': [PERMISSAO_VER, permissao_ver_serasa],
     }
 

@@ -1,4 +1,9 @@
 """Ações do analista sobre a solicitação."""
+from datetime import timedelta
+from unittest import mock
+
+from django.utils import timezone
+
 from estoque.models import EstoqueImei
 from backoffice_api.models import RegistroAuditoria
 from vendas.models import ConsultaSerasaAcesso, Loja, ObservacaoSolicitacao, Pagamento, Venda
@@ -159,3 +164,58 @@ class LogSerasaTests(CenarioCredito):
         url = self.url(self.sol_a.pk, 'log-consulta-serasa')
         self.assertEqual(self.logar(self.analista).post(url, {'tipo': 'x'}, format='json').status_code, 400)
         self.assertEqual(self.logar(self.vendedor).post(url, {'tipo': 'serasa'}, format='json').status_code, 403)
+
+
+class NotificarVendedorTests(CenarioCredito):
+    def liberar_venda(self):
+        imei = EstoqueImei.objects.create(produto=self.produto, imei='350000000000009', loja=self.loja_a)
+        analise = self.sol_a.analise_credito
+        analise.status, analise.status_aplicativo, analise.imei = 'A', 'I', imei
+        analise.save()
+
+    def test_notifica_o_vendedor_com_o_popup_de_venda_liberada(self):
+        self.liberar_venda()
+        antes = self.vendedor.notifications.unread().count()
+        with mock.patch('notificacao.avisos_vendedor.enviar_ws_para_usuario') as ws:
+            resposta = self.logar(self.analista).post(self.url(self.sol_a.pk, 'notificar-vendedor'))
+        self.assertEqual(resposta.status_code, 200, resposta.content)
+        self.assertEqual(resposta.json()['aguardar_segundos'], 30)
+        self.assertEqual(ws.call_args.kwargs['event'], 'venda_liberada')
+        self.assertEqual(ws.call_args.kwargs['usuario'], self.vendedor)
+        self.assertEqual(ws.call_args.kwargs['target_url'], f'/app/solicitacoes/{self.sol_a.pk}')
+        self.assertEqual(self.vendedor.notifications.unread().count(), antes + 1)
+        registro = RegistroAuditoria.objects.get(acao='vendedor_notificado')
+        self.assertEqual(registro.dados['vendedor_id'], self.vendedor.pk)
+
+    def test_segundo_clique_antes_de_30s_429_e_depois_libera(self):
+        self.liberar_venda()
+        cliente = self.logar(self.analista)
+        url = self.url(self.sol_a.pk, 'notificar-vendedor')
+        with mock.patch('notificacao.avisos_vendedor.enviar_ws_para_usuario'):
+            self.assertEqual(cliente.post(url).status_code, 200)
+            repetido = cliente.post(url)
+            self.assertEqual(repetido.status_code, 429)
+            self.assertEqual(repetido.json()['erro']['codigo'], 'limite_excedido')
+            RegistroAuditoria.objects.filter(acao='vendedor_notificado').update(
+                criado_em=timezone.now() - timedelta(seconds=31),
+            )
+            self.assertEqual(cliente.post(url).status_code, 200)
+        self.assertEqual(RegistroAuditoria.objects.filter(acao='vendedor_notificado').count(), 2)
+
+    def test_venda_nao_liberada_422_e_vendedor_403(self):
+        url = self.url(self.sol_a.pk, 'notificar-vendedor')
+        self.assertEqual(self.logar(self.analista).post(url).status_code, 422)
+        self.assertEqual(self.logar(self.vendedor).post(url).status_code, 403)
+        self.assertFalse(RegistroAuditoria.objects.filter(acao='vendedor_notificado').exists())
+
+    def test_detalhe_mostra_botao_e_ultimo_aviso(self):
+        cliente = self.logar(self.analista)
+        detalhe = cliente.get(self.url(self.sol_a.pk)).json()
+        self.assertFalse(detalhe['acoes']['notificar_vendedor'])
+        self.assertIsNone(detalhe['vendedor_notificado_em'])
+        self.liberar_venda()
+        with mock.patch('notificacao.avisos_vendedor.enviar_ws_para_usuario'):
+            cliente.post(self.url(self.sol_a.pk, 'notificar-vendedor'))
+        detalhe = cliente.get(self.url(self.sol_a.pk)).json()
+        self.assertTrue(detalhe['acoes']['notificar_vendedor'])
+        self.assertIsNotNone(detalhe['vendedor_notificado_em'])

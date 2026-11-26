@@ -6,6 +6,7 @@ from vendas.models import AnaliseCreditoCliente
 from vendas.services import ErroDeNegocio
 from vendas.services import analise as servico_analise
 
+from .notificar_vendedor import pode_notificar
 from .regras import (
     APP_CONFIRMACAO_PENDENTE,
     PERMISSAO_DECIDIR,
@@ -54,5 +55,6 @@ def acoes_disponiveis(user, analise: AnaliseCreditoCliente) -> dict[str, bool]:
             user.has_perm('vendas.change_analisecreditocliente') and analista and _pode_informar_imei(analise)
         ),
         'gerar_venda': user.has_perm('vendas.add_venda') and analise.status == STATUS_APROVADO and not venda_gerada,
+        'notificar_vendedor': decide and analise.status == STATUS_APROVADO and not venda_gerada and pode_notificar(analise),
         'ver_serasa': pode_ver_serasa(user),
     }

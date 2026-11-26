@@ -6,6 +6,7 @@ from vendas.models import AnaliseCreditoCliente, Cliente, PreAnaliseRapida
 from django.contrib.auth import get_user_model
 from notifications.signals import notify
 from notificacao.tempo_real import avisar_solicitacao_atualizada
+from notificacao.avisos_vendedor import enviar_venda_liberada
 from notificacao.utils import enviar_ws_para_usuario
 from estoque.models import EntradaEstoque
 
@@ -374,17 +375,4 @@ def avisar_venda_liberada_iphone(sender, instance, created, **kwargs):
     cliente_nome = (instance.cliente.nome or 'Cliente').capitalize()
     verb = f'Aparelho do cliente {cliente_nome} validado. Venda liberada para geração.'
     description = f'Loja {(instance.loja.nome if instance.loja else "").capitalize()}.'
-    vendedor = instance.criado_por
-    notify.send(instance, recipient=vendedor, verb=verb, description=description, target=instance.cliente)
-    ultima = vendedor.notifications.unread().order_by('-timestamp').first()
-    if ultima:
-        _ws_seguro(
-            usuario=vendedor,
-            instance=instance,
-            notification_id=ultima.id,
-            verb=verb,
-            description=description,
-            target_url=f'/app/solicitacoes/{instance.cliente.pk}',
-            type_notification='analise_credito_cliente',
-            event='venda_liberada',
-        )
+    enviar_venda_liberada(instance, verb, description)

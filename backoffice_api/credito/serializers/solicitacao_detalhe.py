@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from ..acoes_disponiveis import acoes_disponiveis
+from ..notificar_vendedor import ultimo_aviso
 from ..arquivos import ARQUIVOS_SOLICITACAO
 from ..edicao import campos_editaveis, pode_editar
 from ..linha_do_tempo import montar_linha_do_tempo
@@ -158,6 +159,9 @@ class CreditoSolicitacaoDetalheSerializer(serializers.Serializer):
     venda = CreditoVendaRefSerializer(source='analise_credito.venda', allow_null=True)
     linha_do_tempo = serializers.SerializerMethodField()
     acoes = serializers.SerializerMethodField()
+    vendedor_notificado_em = serializers.SerializerMethodField(
+        help_text='Último uso do botão "Notificar vendedor" (o botão volta após 30 s).',
+    )
     edicao = serializers.SerializerMethodField()
 
     @extend_schema_field(CreditoComprovantesSerializer)
@@ -175,6 +179,11 @@ class CreditoSolicitacaoDetalheSerializer(serializers.Serializer):
     @extend_schema_field(CreditoAcoesSerializer)
     def get_acoes(self, cliente):
         return acoes_disponiveis(usuario_da_requisicao(self), cliente.analise_credito)
+
+    @extend_schema_field(serializers.DateTimeField(allow_null=True))
+    def get_vendedor_notificado_em(self, cliente):
+        ultimo = ultimo_aviso(cliente.analise_credito)
+        return ultimo.isoformat() if ultimo else None
 
     @extend_schema_field(CreditoEdicaoSerializer)
     def get_edicao(self, cliente):
