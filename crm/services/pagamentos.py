@@ -5,6 +5,8 @@ from decimal import Decimal
 from crm.models import ConfiguracaoCRM
 
 MAX_PAGAMENTOS_NO_TEXTO = 5
+# Crediário próprio: as parcelas que o cliente paga. ENTRADA (paga na loja) fica de fora.
+TIPO_CREDFACIL = 'IPX'
 
 
 def formatar_reais(valor: Decimal) -> str:
@@ -50,14 +52,34 @@ def _resumo_pagamento(pagamento, hoje: date) -> dict | None:
 
 
 def pagamentos_em_aberto(clientes):
-    """Pagamentos que ainda podem ter parcela a pagar (venda ativa, sem quitação, desativação ou devolução)."""
+    """Pagamentos do crediário IPX que ainda podem ter parcela a pagar (venda ativa, sem quitação,
+    desativação ou devolução).
+
+    Só o tipo IPX: a ENTRADA é paga na loja, no ato da venda, e não é parcela do cliente (a parcela
+    dela costuma ficar sem baixa e apareceria como "em aberto"/"atrasada" para o bot e o menu).
+    """
     from vendas.models import Pagamento
 
     return (Pagamento.objects
             .filter(venda__cliente__in=list(clientes), venda__is_deleted=False,
+                    tipo_pagamento__nome__iexact=TIPO_CREDFACIL,
                     quitado=False, desativado=False, devolucao=False)
             .select_related('venda__loja').prefetch_related('parcelas_pagamento')
             .order_by('venda__data_venda'))
+
+
+def pagamentos_do_cliente(clientes):
+    """Todas as compras no crediário IPX (em andamento e quitadas), da mais recente para a mais antiga.
+
+    Fora: venda cancelada, devolução e pagamento desativado (não são dívida nem histórico do cliente).
+    """
+    from vendas.models import Pagamento
+
+    return (Pagamento.objects
+            .filter(venda__cliente__in=list(clientes), venda__is_deleted=False,
+                    tipo_pagamento__nome__iexact=TIPO_CREDFACIL, desativado=False, devolucao=False)
+            .select_related('venda__loja').prefetch_related('parcelas_pagamento', 'venda__itens_venda__produto')
+            .order_by('-venda__data_venda', '-pk'))
 
 
 def resumo_dos_clientes(clientes) -> list[dict]:

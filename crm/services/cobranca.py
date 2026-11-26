@@ -24,14 +24,13 @@ from django.utils import timezone
 from crm.models import ConfiguracaoCRM, Conversa, Mensagem, TentativaContato, VersaoAbertura
 from crm.services import aberturas, avisos, contatos, expediente
 from crm.services.conversas import ConflitoCRM, conversa_do_telefone
-from crm.services.pagamentos import formatar_reais
+from crm.services.pagamentos import TIPO_CREDFACIL, formatar_reais
 from crm.telefone import com_ddi
 from crm.whatsapp import obter_provider
 
 logger = logging.getLogger(__name__)
 
 Tipo = TentativaContato.Tipo
-TIPO_CREDFACIL = 'IPX'
 FIM_DOS_ENVIOS = time(20, 0)
 INTERVALO_RODADAS = 15 * 60  # segundos: a rotina do worker roda a cada minuto
 CHAVE_RODADA = 'crm:cobranca:ultima_rodada'

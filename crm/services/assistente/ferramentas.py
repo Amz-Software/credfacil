@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from crm.models import ConfiguracaoCRM, Conversa, EncaminhamentoIA
 from crm.services import contatos, expediente, pagamentos
-from crm.services.assistente import anexos, identidade
+from crm.services.assistente import anexos, consulta_parcelas, identidade
 from crm.services.links_pagamento import LinkIndisponivel, online_disponivel, link_das_parcelas, pix_das_parcelas
 from vendas.services.erros import ErroDeNegocio
 
@@ -51,8 +51,9 @@ DEFINICOES = [
     {
         'name': 'consultar_parcelas',
         'description': (
-            'Lista as compras e as parcelas em aberto do cliente já identificado: número, valor, vencimento e '
-            'situação de cada parcela, com o parcela_id usado para gerar o link de pagamento.'
+            'Lista as compras do crediário do cliente já identificado, em andamento e quitadas: parcelas em '
+            'aberto (número, valor, vencimento, situação e o parcela_id usado para gerar o pagamento), quantas '
+            'já foram pagas de quantas, as pagas mais recentes (com a data do pagamento) e, se quitada, quando.'
         ),
         'input_schema': {'type': 'object', 'properties': {}, 'additionalProperties': False},
     },
@@ -172,39 +173,6 @@ def _clientes_liberados(turno: Turno):
     return Cliente.objects.filter(pk__in=ids)
 
 
-def _situacao(parcela, hoje: date) -> str:
-    if parcela.pagamento_efetuado:
-        return 'pagamento informado, aguardando confirmação'
-    return 'atrasada' if parcela.data_vencimento < hoje else 'a vencer'
-
-
-def _loja(venda) -> dict:
-    loja = venda.loja
-    if loja is None:
-        return {}
-    return {'nome': loja.nome, 'endereco': loja.endereco or ''}
-
-
-def _compra(pagamento, hoje: date) -> dict | None:
-    abertas = sorted((p for p in pagamento.parcelas_pagamento.all() if not p.pago),
-                     key=lambda p: p.numero_parcela)
-    if not abertas:
-        return None
-    atrasadas = [p for p in abertas if p.data_vencimento < hoje and not p.pagamento_efetuado]
-    return {
-        'produto': pagamentos._produto(pagamento.venda),
-        'aparelho_bloqueado': bool(pagamento.bloqueado),
-        'loja': _loja(pagamento.venda),
-        'total_em_aberto': _reais(sum((p.valor_restante for p in abertas), Decimal('0'))),
-        'total_atrasado': _reais(sum((p.valor_restante for p in atrasadas), Decimal('0'))),
-        'parcelas': [
-            {'parcela_id': p.pk, 'numero': p.numero_parcela, 'valor': _reais(p.valor_restante),
-             'vencimento': p.data_vencimento.strftime('%d/%m/%Y'), 'situacao': _situacao(p, hoje)}
-            for p in abertas[:MAX_PARCELAS_POR_COMPRA]
-        ],
-    }
-
-
 def _identificar(turno: Turno, entrada: dict) -> dict:
     try:
         clientes = identidade.identificar(turno.conversa, entrada.get('cpf', ''), entrada.get('data_nascimento', ''))
@@ -218,20 +186,8 @@ def _identificar(turno: Turno, entrada: dict) -> dict:
 
 
 def _consultar(turno: Turno, entrada: dict) -> dict:
-    hoje = timezone.localdate()
-    compras: list[dict] = []
-    for pagamento in pagamentos.pagamentos_em_aberto(_clientes_liberados(turno)):
-        compra = _compra(pagamento, hoje)
-        if compra:
-            compras.append(compra)
-        if len(compras) > MAX_COMPRAS:
-            break
+    resultado = consulta_parcelas.consultar(_clientes_liberados(turno), timezone.localdate())
     turno.usou_dados = True
-    resultado = {'compras': compras[:MAX_COMPRAS]}
-    if not compras:
-        resultado['observacao'] = 'Nenhuma parcela em aberto.'
-    elif len(compras) > MAX_COMPRAS:
-        resultado['observacao'] = f'Há mais compras além destas {MAX_COMPRAS}; para ver todas, transfira.'
     return resultado
 
 

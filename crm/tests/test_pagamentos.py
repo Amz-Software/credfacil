@@ -55,6 +55,21 @@ class ResumoTests(PagamentosBase):
                          f'https://credfacil.exemplo.com/pagamento/{self.pagamento.token_publico}/')
         self.assertNotIn(f'/pagamento/{self.pagamento.pk}/', item['link_publico'])
 
+    def test_entrada_nao_conta_como_parcela(self):
+        # ENTRADA paga na loja e nunca baixada: não pode aparecer como parcela aberta/atrasada.
+        entrada = TipoPagamento.objects.create(nome='ENTRADA', caixa=True)
+        pagamento_entrada = Pagamento.objects.create(
+            venda=self.pagamento.venda, tipo_pagamento=entrada, valor=Decimal('200.00'), parcelas=1,
+            loja=self.loja, data_primeira_parcela=date.today() - timedelta(days=60),
+        )
+        Parcela.objects.filter(pagamento=pagamento_entrada).update(data_vencimento=date.today() - timedelta(days=60))
+
+        itens = pagamentos.resumo_do_cliente(self.cliente)
+
+        self.assertEqual([item['pagamento_id'] for item in itens], [self.pagamento.pk])
+        self.assertEqual((itens[0]['parcelas_abertas'], itens[0]['parcelas_atrasadas']), (2, 1))
+        self.assertNotIn(pagamento_entrada, pagamentos.pagamentos_em_aberto([self.cliente]))
+
     def test_pagamento_quitado_ou_desativado_fica_fora(self):
         Pagamento.objects.filter(pk=self.pagamento.pk).update(desativado=True)
 
