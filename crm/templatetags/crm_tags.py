@@ -126,7 +126,8 @@ def ligacoes_ativas() -> bool:
     """Ligações pelo WhatsApp ligadas na Configuração (mostra o botão de ligar e o atendimento)."""
     from crm.models import ConfiguracaoCRM
 
-    return ConfiguracaoCRM.obter().chamadas_ativas
+    # Só lê (uma consulta fixa): obter() criaria a linha e mudaria a contagem de consultas da página.
+    return bool(ConfiguracaoCRM.objects.filter(pk=1).values_list('chamadas_ativas', flat=True).first())
 
 
 @register.simple_tag
