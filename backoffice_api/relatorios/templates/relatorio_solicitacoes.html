@@ -45,11 +45,11 @@
     <td colspan="2">Total Valor: R$ {{ totais.total_valor|floatformat:2 }}</td>
     <td colspan="2">Total Juros: R$ {{ totais.total_juros|floatformat:2 }}</td>
   </tr>
-  <tr class="comodato-resumo">
+  {% if totais.comodato_quantidade %}<tr class="comodato-resumo">
     <td colspan="4">Vendas comuns: {{ totais.demais_quantidade }} · R$ {{ totais.demais_valor|floatformat:2 }}</td>
     <td colspan="3">Repasse ao lojista (só comuns): R$ {{ totais.demais_repasse|floatformat:2 }}</td>
     <td colspan="3">Vendas de comodato: {{ totais.comodato_quantidade }} · R$ {{ totais.comodato_valor|floatformat:2 }}</td>
     <td colspan="3">Fica com a IPX (comodato): R$ {{ totais.comodato_ipx|floatformat:2 }}</td>
-  </tr></tfoot>
+  </tr>{% endif %}</tfoot>
 </table>
 {% endblock %}

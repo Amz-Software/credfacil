@@ -48,9 +48,9 @@
     <td class="text-right">R$ {{ totais.total_atrasado|floatformat:2 }}</td>
     <td class="text-right">R$ {{ totais.total_a_vencer|floatformat:2 }}</td>
   </tr>
-  <tr class="comodato-resumo">
+  {% if totais.comodato_quantidade %}<tr class="comodato-resumo">
     <td colspan="4">Vendas comuns: {{ totais.demais_quantidade }} · R$ {{ totais.demais_valor|floatformat:2 }}</td>
     <td colspan="4">Comodato (sem repasse ao lojista): {{ totais.comodato_quantidade }} · R$ {{ totais.comodato_valor|floatformat:2 }}</td>
-  </tr></tfoot>
+  </tr>{% endif %}</tfoot>
 </table>
 {% endblock %}

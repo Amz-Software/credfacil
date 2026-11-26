@@ -159,6 +159,12 @@ class RelatorioVendasComodatoTests(RelatorioComodatoCenario):
         self.assertIn('Repasse ao lojista (vendas comuns)', html)
         self.assertIn('Fica com a IPX (comodato)', html)
 
+    def test_folha_sem_comodato_nao_mostra_o_resumo(self):
+        html = self._get(FolhaRelatorioVendasView, {'comodato': 'False'}).render().content.decode()
+
+        self.assertNotIn('Comodato x vendas comuns', html)
+        self.assertNotIn('Fica com a IPX (comodato)', html)
+
 
 class RelatorioSolicitacoesComodatoTests(RelatorioComodatoCenario):
     def test_form_tem_filtro_comodato(self):
@@ -200,3 +206,9 @@ class RelatorioSolicitacoesComodatoTests(RelatorioComodatoCenario):
 
         self.assertIn('class="selo-comodato">Comodato</span>', html)
         self.assertIn('Fica com a IPX (comodato)', html)
+
+    def test_folha_sem_comodato_nao_mostra_o_resumo(self):
+        html = self._get(FolhaRelatorioSolicitacoesView, {'comodato': 'False'}).render().content.decode()
+
+        self.assertNotIn('Comodato x vendas comuns', html)
+        self.assertNotIn('Fica com a IPX (comodato)', html)

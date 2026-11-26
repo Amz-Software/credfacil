@@ -2,7 +2,7 @@
 import re
 import zlib
 
-_STREAM = re.compile(rb'stream\r?\n(.*?)\r?\nendstream', re.S)
+_INICIO_STREAM = re.compile(rb'stream\r?\n')
 _MEDIA_BOX = re.compile(rb'/MediaBox\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)')
 
 A4_PAISAGEM = (842, 595)
@@ -12,9 +12,11 @@ A3_RETRATO = (842, 1191)
 
 def _trechos(conteudo: bytes):
     yield conteudo
-    for corpo in _STREAM.findall(conteudo):
+    # Descomprime a partir do início de cada stream: o zlib para sozinho no fim dos dados,
+    # sem depender de achar "endstream" (os bytes comprimidos podem conter essa sequência).
+    for inicio in _INICIO_STREAM.finditer(conteudo):
         try:
-            yield zlib.decompress(corpo)
+            yield zlib.decompressobj().decompress(conteudo[inicio.end():])
         except zlib.error:
             continue
 

@@ -1433,13 +1433,15 @@ class LojaForm(forms.ModelForm):
             'porcentagem_desconto_6',
             'porcentagem_desconto_8',
             'porcentagem_desconto_10',
+            # Sem uso no sistema: ficam no banco, fora do formulário.
+            'inscricao_estadual',
+            'meta_vendas_diaria',
+            'meta_vendas_mensal',
+            'entrada_caixa_diaria',
         ]
 
         widgets = {
             'telefone': forms.TextInput(attrs={'class': 'form-control tel'}),
-            'meta_vendas_diaria': forms.NumberInput(attrs={'class': 'form-control money'}),
-            'meta_vendas_mensal': forms.NumberInput(attrs={'class': 'form-control money'}),
-            'entrada_caixa_diaria': forms.NumberInput(attrs={'class': 'form-control money'}),
             'porcentagem_desconto': forms.NumberInput(attrs={'class': 'form-control money'}),
         }        
 

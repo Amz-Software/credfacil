@@ -155,7 +155,9 @@
             </tfoot>
         </table>
 
+        {% if resumo_comodato.comodato.quantidade %}
         {% include "relatorios/_resumo_comodato_vendas.html" with resumo=resumo_comodato %}
+        {% endif %}
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>

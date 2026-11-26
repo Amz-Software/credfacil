@@ -172,7 +172,9 @@
             </tfoot>
         </table>
 
+        {% if solicitacoes_comodato %}
         {% include "relatorios/_resumo_comodato_vendas.html" with resumo=resumo_comodato qtd_comodato=solicitacoes_comodato qtd_comum=solicitacoes_comuns rotulo_quantidade="Solicitações" %}
+        {% endif %}
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>

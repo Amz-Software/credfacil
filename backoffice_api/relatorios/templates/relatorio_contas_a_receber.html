@@ -56,10 +56,10 @@
     <td class="text-right">{{ totais.total|floatformat:2 }}</td><td></td><td></td>
     <td class="text-right">{{ totais.total_quitado|floatformat:2 }}</td>
   </tr>
-  <tr class="comodato-resumo">
+  {% if totais.comodato_quantidade %}<tr class="comodato-resumo">
     <td colspan="9">Vendas comuns: {{ totais.demais_quantidade }} · R$ {{ totais.demais_valor|floatformat:2 }}</td>
     <td colspan="9">Comodato (sem repasse ao lojista): {{ totais.comodato_quantidade }} · R$ {{ totais.comodato_valor|floatformat:2 }}
       ({% if totais.modo == 'parcelas' %}valor pago{% else %}valor total{% endif %})</td>
-  </tr></tfoot>
+  </tr>{% endif %}</tfoot>
 </table>
 {% endblock %}

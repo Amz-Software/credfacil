@@ -305,8 +305,10 @@
                 <td></td>
                 <td class="end">{{ total_quitado|default:"0.00"|floatformat:2 }}</td>
             </tr>
+            {% if totais_comodato.comodato.quantidade %}
             {% include "contas_a_receber/_linha_totais_comodato.html" with rotulo="Vendas comuns" t=totais_comodato.comum %}
             {% include "contas_a_receber/_linha_totais_comodato.html" with rotulo="Comodato (sem repasse ao lojista)" t=totais_comodato.comodato comodato=True %}
+            {% endif %}
             </tfoot>
         </table>
     </div>

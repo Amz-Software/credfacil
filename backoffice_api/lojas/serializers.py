@@ -78,8 +78,7 @@ class LojaDetalheSerializer(serializers.ModelSerializer):
     class Meta:
         model = Loja
         fields = [
-            'id', 'nome', 'cnpj', 'inscricao_estadual', 'endereco', 'telefone',
-            'meta_vendas_diaria', 'meta_vendas_mensal', 'entrada_caixa_diaria',
+            'id', 'nome', 'cnpj', 'endereco', 'telefone',
             'mensagem_garantia', 'contrato', 'chave_pix', 'codigo_aplicativo',
             'pode_vender_iphone', 'credfacil', 'usuarios', 'gerentes', 'produtos_bloqueados',
             'url_logo', 'url_qr_code', 'criado_em', 'modificado_em',
@@ -148,8 +147,7 @@ class LojaEscritaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Loja
         fields = [
-            'nome', 'cnpj', 'inscricao_estadual', 'endereco', 'telefone',
-            'meta_vendas_diaria', 'meta_vendas_mensal', 'entrada_caixa_diaria',
+            'nome', 'cnpj', 'endereco', 'telefone',
             'mensagem_garantia', 'contrato', 'chave_pix', 'codigo_aplicativo', 'pode_vender_iphone',
             'logo_loja', 'qr_code_aplicativo', 'usuarios', 'gerentes', 'produtos_bloqueados',
         ]

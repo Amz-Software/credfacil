@@ -37,10 +37,12 @@
     <tr><td colspan="10" class="text-center">Sem registros no período/critério informado.</td></tr>
   {% endfor %}
   </tbody>
-  <tfoot><tr class="comodato-resumo">
+  <tfoot>{% if totais.comodato_quantidade %}<tr class="comodato-resumo">
     <td colspan="4">Total: {{ totais.quantidade }}</td>
     <td colspan="3">Vendas comuns: {{ totais.demais_quantidade }}</td>
     <td colspan="3">Comodato: {{ totais.comodato_quantidade }}</td>
-  </tr></tfoot>
+  </tr>{% else %}<tr>
+    <td colspan="10">Total: {{ totais.quantidade }}</td>
+  </tr>{% endif %}</tfoot>
 </table>
 {% endblock %}

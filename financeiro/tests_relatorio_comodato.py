@@ -133,6 +133,13 @@ class RelatoriosFinanceirosComodatoTests(TestCase):
         self.assertIn('Comodato (sem repasse ao lojista) (1):', html)
         self.assertIn('Vendas comuns (1):', html)
 
+    def test_contas_a_receber_sem_comodato_nao_mostra_linhas_de_comodato(self):
+        response = self._get(FolhaRelatorioContasAReceberView, self._periodo(status='todos', comodato='False'))
+        html = response.render().content.decode()
+
+        self.assertNotIn('Comodato (sem repasse ao lojista)', html)
+        self.assertNotIn('Vendas comuns (', html)
+
     def test_contas_a_receber_visao_por_parcelas_pagas_separa_totais(self):
         response = self._get(FolhaRelatorioContasAReceberView, self._periodo(status='pago'))
         ctx = response.context_data
@@ -164,6 +171,12 @@ class RelatoriosFinanceirosComodatoTests(TestCase):
         html = self._get(FolhaRelatorioContasAReceberAvancadoView, {}).render().content.decode()
 
         self.assertIn('<span class="selo-comodato">Comodato</span>', html)
+
+    def test_avancado_sem_comodato_nao_mostra_contagem_de_comodato(self):
+        html = self._get(FolhaRelatorioContasAReceberAvancadoView, {'comodato': 'False'}).render().content.decode()
+
+        self.assertNotIn('(sem repasse ao lojista)', html)
+        self.assertNotIn('Vendas comuns:', html)
 
     # --- parcelas (Excel) ---
 

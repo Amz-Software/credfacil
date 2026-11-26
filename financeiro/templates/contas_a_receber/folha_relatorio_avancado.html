@@ -95,8 +95,10 @@
       <tr>
         <td colspan="10">
           <strong>Total: {{ contas|length }} pagamento(s)</strong>
+          {% if qtd_comodato %}
           &nbsp;|&nbsp; Vendas comuns: {{ qtd_comum }}
           &nbsp;|&nbsp; <span class="selo-comodato">Comodato</span> {{ qtd_comodato }} (sem repasse ao lojista)
+          {% endif %}
         </td>
       </tr>
     </tfoot>

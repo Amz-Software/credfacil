@@ -14,6 +14,7 @@ from backoffice_api.tests.fabricas import cliente_logado, criar_loja, criar_usua
 from vendas.models import Venda
 
 from ..excel_parcelas import gerar_planilha
+from ..pdf import renderizar_template_local
 from ..servicos import contas_a_receber, parcelas, situacoes, solicitacoes, vendas
 from ..servicos.comum import EscopoRelatorio
 
@@ -178,3 +179,31 @@ class EndpointsComodatoTests(CarteiraComComodato):
         resposta = self._cliente(VENDAS).get(BASE + 'vendas/previa/', {'comodato': 'talvez'})
         self.assertEqual(resposta.status_code, 400)
         self.assertIn('comodato', resposta.json()['erro']['campos'])
+
+
+class BlocoComodatoNoPdfTests(TestCase):
+    """O bloco de totais de comodato só sai no PDF quando o resultado tem comodato."""
+
+    TEMPLATES = {
+        'vendas': 'relatorio_vendas.html',
+        'solicitacoes': 'relatorio_solicitacoes.html',
+        'parcelas': 'relatorio_parcelas.html',
+        'contas_a_receber': 'relatorio_contas_a_receber.html',
+        'situacoes': 'relatorio_situacoes.html',
+    }
+
+    def _html(self, template: str, comodato_quantidade: int) -> str:
+        totais = {
+            'quantidade': 3, 'comodato_quantidade': comodato_quantidade, 'comodato_valor': Decimal('100'),
+            'demais_quantidade': 3 - comodato_quantidade, 'demais_valor': Decimal('200'),
+            'comodato_ipx': Decimal('90'), 'demais_repasse': Decimal('150'), 'modo': 'pagamentos',
+        }
+        return renderizar_template_local(template, {'linhas': [], 'totais': totais, 'filtros': {}})
+
+    def test_sem_comodato_nao_mostra_o_bloco(self):
+        for relatorio, template in self.TEMPLATES.items():
+            self.assertNotIn('class="comodato-resumo"', self._html(template, 0), relatorio)
+
+    def test_com_comodato_mostra_o_bloco(self):
+        for relatorio, template in self.TEMPLATES.items():
+            self.assertIn('class="comodato-resumo"', self._html(template, 1), relatorio)
