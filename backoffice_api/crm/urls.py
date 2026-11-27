@@ -1,11 +1,13 @@
 """Rotas do módulo crm da API do backoffice (`/api/bo/v1/crm/`). Contrato em `CONTRATO.md`."""
 from django.urls import path
 
-from .views import acoes, anotacoes, apoio, caixa, configuracao, conta, envio, midia, simulador
+from .views import acoes, anotacoes, apoio, caixa, cobranca, configuracao, conta, disparos, envio, midia, simulador
 
 CONVERSA = 'conversas/<int:pk>/'
 MENSAGEM = 'mensagens/<int:mensagem_id>/'
 CONFIG = 'configuracao/'
+COBRANCA = 'cobranca/'
+DISPARO = 'cobranca/disparos/<int:pk>/'
 
 urlpatterns = [
     # Apoio da caixa de entrada
@@ -65,4 +67,19 @@ urlpatterns = [
     path(f'{CONFIG}simulador/', simulador.SimuladorView.as_view(), name='simulador'),
     path(f'{CONFIG}simulador/receber/', simulador.SimuladorReceberView.as_view(), name='simulador-receber'),
     path(f'{CONFIG}simulador/ler/', simulador.SimuladorLerView.as_view(), name='simulador-ler'),
+    # Central de cobrança (leitura: acessar_crm; escrita: gerenciar_crm)
+    path(f'{COBRANCA}saude/', cobranca.SaudeView.as_view(), name='cobranca-saude'),
+    path(f'{COBRANCA}configuracao/', cobranca.ConfiguracaoCobrancaView.as_view(), name='cobranca-configuracao'),
+    path(f'{COBRANCA}pausar/', cobranca.PausarView.as_view(), name='cobranca-pausar'),
+    path(f'{COBRANCA}retomar/', cobranca.RetomarView.as_view(), name='cobranca-retomar'),
+    path(f'{COBRANCA}agenda/', cobranca.AgendaView.as_view(), name='cobranca-agenda'),
+    path(f'{COBRANCA}agenda/<str:data>/', cobranca.AgendaDiaView.as_view(), name='cobranca-agenda-dia'),
+    path(f'{COBRANCA}historico/', cobranca.HistoricoView.as_view(), name='cobranca-historico'),
+    path(f'{COBRANCA}modelos/', disparos.ModelosView.as_view(), name='cobranca-modelos'),
+    path(f'{COBRANCA}disparos/', disparos.DisparosView.as_view(), name='cobranca-disparos'),
+    path(DISPARO, disparos.DisparoView.as_view(), name='cobranca-disparo'),
+    path(f'{DISPARO}destinatarios/', disparos.DestinatariosView.as_view(), name='cobranca-disparo-destinatarios'),
+    path(f'{DISPARO}confirmar/', disparos.ConfirmarView.as_view(), name='cobranca-disparo-confirmar'),
+    path(f'{DISPARO}cancelar/', disparos.CancelarView.as_view(), name='cobranca-disparo-cancelar'),
+    path(f'{DISPARO}retomar/', disparos.RetomarDisparoView.as_view(), name='cobranca-disparo-retomar'),
 ]

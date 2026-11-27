@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from crm.models import Conversa, Mensagem, Midia
 from crm.services import aberturas, chamadas, cobranca, conversas, midias, organizacao
+from crm.services.central_cobranca import envio_disparos
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,7 @@ def rodar_tudo(incluir_aberturas: bool = True) -> dict:
         ('entradas', reprocessar_entradas),
         ('retorno_automatico', retornar_resolvidas),
         ('cobranca', cobranca.rodar),
+        ('disparos_cobranca', envio_disparos.processar),
         ('chamadas_esquecidas', chamadas.fechar_esquecidas),
         ('pagamentos_online', _conciliar_pagamentos_online),
     ]

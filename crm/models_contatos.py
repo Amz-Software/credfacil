@@ -59,6 +59,7 @@ class TentativaContato(models.Model):
         AVISO_QUITACAO = 'AVISO_QUITAC', 'Mensagem de quitação'
         ALERTA = 'ALERTA', 'Alerta para a equipe: não pagou e não respondeu'
         MANUAL = 'MANUAL', 'Registrada pela equipe'
+        DISPARO = 'DISPARO', 'Disparo manual de cobrança'
 
     class Canal(models.TextChoices):
         WHATSAPP = 'WHATSAPP', 'WhatsApp'
@@ -85,7 +86,7 @@ class TentativaContato(models.Model):
                                  db_index=True)
     parcela = models.ForeignKey('vendas.Parcela', null=True, blank=True, on_delete=models.SET_NULL,
                                 related_name='avisos_crm')
-    sequencia = models.PositiveSmallIntegerField(default=0)
+    sequencia = models.PositiveIntegerField(default=0, help_text='Insistência nº; no disparo, o id do disparo.')
     mensagem = models.ForeignKey('crm.Mensagem', null=True, blank=True, on_delete=models.SET_NULL,
                                  related_name='tentativas')
     observacao = models.CharField(max_length=255, blank=True, default='')
@@ -105,7 +106,7 @@ class TentativaContato(models.Model):
 
     @property
     def automatica(self) -> bool:
-        """Aviso enviado ao cliente pela régua (alerta é interno, para a equipe)."""
+        """Aviso enviado ao cliente pela régua ou por disparo (alerta é interno, para a equipe)."""
         return self.tipo not in (self.Tipo.MANUAL, self.Tipo.ALERTA)
 
 

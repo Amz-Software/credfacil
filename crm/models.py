@@ -368,6 +368,15 @@ class ConfiguracaoCRM(models.Model):
     cobranca_max_insistencias = models.PositiveSmallIntegerField(
         default=3, help_text='Quantas vezes repetir, no máximo, depois do pedido de comprovante.',
     )
+    cobranca_teto_diario = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Máximo de mensagens de cobrança por dia (régua + disparos). Vazio = automático: 80% do limite '
+                  'diário do número na Meta.',
+    )
+    # Última leitura do número na Meta (limite diário e qualidade): vale quando a Meta não responde.
+    meta_limite = models.CharField(max_length=20, blank=True, default='', editable=False)
+    meta_qualidade = models.CharField(max_length=10, blank=True, default='', editable=False)
+    meta_lido_em = models.DateTimeField(null=True, blank=True, editable=False)
     modelo_aviso_antes = models.ForeignKey(ModeloAbertura, null=True, blank=True, on_delete=models.SET_NULL,
                                            related_name='+')
     modelo_aviso_dia = models.ForeignKey(ModeloAbertura, null=True, blank=True, on_delete=models.SET_NULL,
@@ -393,3 +402,4 @@ class ConfiguracaoCRM(models.Model):
 
 from crm.models_contatos import EncaminhamentoIA, TelefoneCliente, TentativaContato  # noqa: E402,F401
 from crm.models_chamadas import Chamada  # noqa: E402,F401
+from crm.models_disparos import DisparoCobranca, ItemDisparo  # noqa: E402,F401

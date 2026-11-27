@@ -156,6 +156,18 @@ def para_aviso(cliente) -> TelefoneCliente | None:
     return opcoes[0] if opcoes else None
 
 
+def para_aviso_sem_gravar(cliente) -> TelefoneCliente | None:
+    """Como `para_aviso`, sem gravar nada (prévias): número que saiu do cadastro não conta (seria rebaixado)."""
+    telefones = [t for t in telefones_para_leitura(cliente)
+                 if t.origem != Origem.CADASTRO or _do_cadastro_atual(cliente, t)]
+    opcoes = utilizaveis(cliente, telefones)
+    return opcoes[0] if opcoes else None
+
+
+def tem_referencia(cliente) -> bool:
+    return any(t.origem == Origem.REFERENCIA for t in telefones_para_leitura(cliente))
+
+
 def registrar_numero_do_atendimento(cliente, numero: str) -> bool:
     """Cliente confirmou a identidade falando de outro número: registra sem trocar o principal.
 

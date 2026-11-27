@@ -21,6 +21,7 @@ TIMEOUT_SEGUNDOS = 20
 TIMEOUT_DOWNLOAD_SEGUNDOS = 60
 BLOCO_DOWNLOAD = 1024 * 1024
 IDIOMA_TEMPLATE = 'pt_BR'
+CAMPOS_DO_NUMERO = 'quality_rating,messaging_limit_tier,whatsapp_business_manager_messaging_limit'
 
 
 class ErroWhatsApp(Exception):
@@ -220,6 +221,17 @@ class ProviderMeta:
         return None
 
 
+    # --- número da empresa ----------------------------------------------------
+    def consultar_numero(self) -> dict:
+        """Limite diário de conversas iniciadas pela empresa e qualidade do número (GREEN/YELLOW/RED)."""
+        resposta = self._get(self.cred.phone_number_id, params={'fields': CAMPOS_DO_NUMERO})
+        return {
+            'limite': resposta.get('whatsapp_business_manager_messaging_limit')
+            or resposta.get('messaging_limit_tier') or '',
+            'qualidade': resposta.get('quality_rating') or '',
+        }
+
+
 class ProviderSimulado:
     """Mesma interface, sem rede. Templates ficam 'em análise' até o simulador decidir."""
 
@@ -261,6 +273,9 @@ class ProviderSimulado:
 
     def consultar_template(self, nome):
         return None
+
+    def consultar_numero(self):
+        return None  # sem Meta: vale a última leitura ou o teto padrão
 
 
 def obter_provider():

@@ -9,6 +9,7 @@ MAX_HORAS_RETORNO = 720
 MAX_PERCENTUAL_DIA = Decimal('5')
 MAX_INTERVALO_COBRANCA = 30
 MAX_INSISTENCIAS = 20
+MAX_TETO_DIARIO = 100_000
 TAMANHO_CNPJ = 14
 NOME_ASSISTENTE_PADRAO = 'Ana'
 
@@ -141,7 +142,7 @@ class CobrancaForm(_BootstrapMixin, forms.ModelForm):
     class Meta:
         model = ConfiguracaoCRM
         fields = ['cobranca_ativa', 'cobranca_hora_envio', 'cobranca_pular_bom_pagador', 'cobranca_intervalo_dias',
-                  'cobranca_max_insistencias',
+                  'cobranca_max_insistencias', 'cobranca_teto_diario',
                   'modelo_aviso_antes', 'modelo_aviso_dia', 'modelo_aviso_apos', 'modelo_aviso_insistencia',
                   'modelo_aviso_quitacao', 'modelo_compra_confirmada']
         labels = {
@@ -150,6 +151,7 @@ class CobrancaForm(_BootstrapMixin, forms.ModelForm):
             'cobranca_pular_bom_pagador': 'Não mandar o lembrete de 3 dias antes para quem sempre paga em dia',
             'cobranca_intervalo_dias': 'Sem retorno, repetir a cada (dias)',
             'cobranca_max_insistencias': 'Máximo de repetições',
+            'cobranca_teto_diario': 'Teto diário de mensagens (vazio = automático)',
             'modelo_aviso_antes': '3 dias antes do vencimento',
             'modelo_aviso_dia': 'No dia do vencimento',
             'modelo_aviso_apos': '2 dias depois do vencimento (pede o comprovante)',
@@ -177,6 +179,12 @@ class CobrancaForm(_BootstrapMixin, forms.ModelForm):
         if vezes > MAX_INSISTENCIAS:
             raise forms.ValidationError(f'Use no máximo {MAX_INSISTENCIAS}.')
         return vezes
+
+    def clean_cobranca_teto_diario(self) -> int | None:
+        teto = self.cleaned_data.get('cobranca_teto_diario')
+        if teto is not None and not 1 <= teto <= MAX_TETO_DIARIO:
+            raise forms.ValidationError(f'Use de 1 a {MAX_TETO_DIARIO} mensagens, ou deixe vazio (automático).')
+        return teto
 
 
 class EtiquetaForm(_BootstrapMixin, forms.ModelForm):

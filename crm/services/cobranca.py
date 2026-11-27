@@ -9,76 +9,54 @@ E a mensagem de quitação quando a última parcela de uma compra é paga.
 
 Nunca cobra parcela paga ou com pagamento informado; no máximo um aviso por cliente por dia;
 nunca usa número de referência (contatos.para_aviso). Só parcelas que entram na régua depois
-de ligada: o histórico antigo de atrasos não é disparado em massa.
+de ligada: o histórico antigo de atrasos não é disparado em massa. Respeita o teto diário e a
+pausa por qualidade do número (central_cobranca.teto). A seleção de candidatas é a mesma usada
+pela agenda da Central de cobrança (central_cobranca.agenda), para a prévia bater com o envio.
 """
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime
 
 from django.conf import settings
 from django.core.cache import caches
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Max, Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from crm.models import ConfiguracaoCRM, Conversa, Mensagem, TentativaContato, VersaoAbertura
-from crm.services import aberturas, avisos, contatos, expediente
+from crm.services import aberturas, avisos, contatos
+from crm.services.central_cobranca import janela, teto
 from crm.services.conversas import ConflitoCRM, conversa_do_telefone
-from crm.services.pagamentos import TIPO_CREDFACIL, formatar_reais
+from crm.services.cobranca_selecao import (  # noqa: F401 — reexportados (relatórios, agenda, testes)
+    ETAPAS, JANELA_QUITACAO, MIN_PARCELAS_BOM_PAGADOR, Etapa, _candidatas_da_etapa, _parcelas_abertas,
+    _parcelas_do_crediario, _quitacoes, bons_pagadores, clientes_em_atraso,
+)
+from crm.services.pagamentos import TIPO_CREDFACIL, formatar_reais  # noqa: F401 — TIPO_CREDFACIL reexportado
 from crm.telefone import com_ddi
 from crm.whatsapp import obter_provider
 
 logger = logging.getLogger(__name__)
 
 Tipo = TentativaContato.Tipo
-FIM_DOS_ENVIOS = time(20, 0)
+FIM_DOS_ENVIOS = janela.FIM_DOS_ENVIOS
 INTERVALO_RODADAS = 15 * 60  # segundos: a rotina do worker roda a cada minuto
 CHAVE_RODADA = 'crm:cobranca:ultima_rodada'
-JANELA_QUITACAO = timedelta(days=3)
 MAX_ENVIOS_POR_RODADA = 300
-MIN_PARCELAS_BOM_PAGADOR = 3
 ALERTA_DEPOIS_DE_REPETICOES = 1  # pedido de comprovante + 1 repetição sem resposta → a equipe assume
 MAX_FALHAS_SEGUIDAS = 5  # Meta fora do ar, token vencido, template pausado: para e tenta na próxima rodada
 TIPOS_AVISO = (Tipo.AVISO_ANTES, Tipo.AVISO_DIA, Tipo.AVISO_APOS, Tipo.AVISO_INSISTENCIA, Tipo.AVISO_QUITACAO)
+TIPOS_CONTATO_CLIENTE = (*TIPOS_AVISO, Tipo.DISPARO)  # contam para "um aviso por cliente por dia"
 
 
-@dataclass(frozen=True)
-class Etapa:
-    tipo: str
-    campo_modelo: str
-    primeiro_dia: int  # dias em relação ao vencimento (negativo = antes)
-    ultimo_dia: int
-
-
-ETAPAS = (
-    Etapa(Tipo.AVISO_ANTES, 'modelo_aviso_antes', -3, -1),
-    Etapa(Tipo.AVISO_DIA, 'modelo_aviso_dia', 0, 0),
-    Etapa(Tipo.AVISO_APOS, 'modelo_aviso_apos', 2, 3),
-)
 CAMPO_INSISTENCIA = 'modelo_aviso_insistencia'
 CAMPO_QUITACAO = 'modelo_aviso_quitacao'
-
-
-def _parcelas_abertas():
-    from vendas.models import Parcela
-
-    return (Parcela.objects
-            .filter(pago=False, pagamento_efetuado=False,
-                    pagamento__tipo_pagamento__nome__iexact=TIPO_CREDFACIL,
-                    pagamento__venda__is_deleted=False, pagamento__quitado=False, pagamento__desativado=False,
-                    pagamento__devolucao=False, pagamento__roubo=False)
-            .select_related('pagamento__venda__cliente__contato_adicional',
-                            'pagamento__venda__cliente__informacao_pessoal'))
 
 
 class FalhaDeEnvio(Exception):
     """A Meta recusou o envio (não é problema do número do cliente): a etapa fica para depois."""
 
 
-def _dia_local(dia: date) -> tuple[datetime, datetime]:
-    """[início, fim) do dia em Belém, sem depender das tabelas de fuso do MySQL (__date)."""
-    inicio = timezone.make_aware(datetime.combine(dia, time.min))
-    return inicio, inicio + timedelta(days=1)
+_dia_local = janela.dia_local
 
 
 def versao_vigente(config: ConfiguracaoCRM, campo: str) -> VersaoAbertura | None:
@@ -94,10 +72,9 @@ def _primeiro_nome(cliente) -> str:
     return partes[0].capitalize() if partes else 'cliente'
 
 
-def _ja_avisado_hoje(cliente, hoje: date) -> bool:
-    inicio, fim = _dia_local(hoje)
-    return TentativaContato.objects.filter(cliente=cliente, tipo__in=TIPOS_AVISO, criado_em__gte=inicio,
-                                           criado_em__lt=fim).exists()
+def _avisado_desde(cliente, desde: datetime) -> bool:
+    return TentativaContato.objects.filter(cliente=cliente, tipo__in=TIPOS_CONTATO_CLIENTE,
+                                           criado_em__gte=desde).exists()
 
 
 def _despachar(mensagem: Mensagem, tentativa_id: int, nome_meta: str, parametros: list[str]) -> None:
@@ -114,11 +91,15 @@ def _despachar(mensagem: Mensagem, tentativa_id: int, nome_meta: str, parametros
 
 
 def enviar_aviso(versao: VersaoAbertura, parcela, tipo: str, sequencia: int = 0,
-                 hoje: date | None = None) -> Mensagem | None:
-    """Registra a tentativa (única por parcela/etapa/sequência) e envia o template. None = nada enviado."""
+                 hoje: date | None = None, desde: datetime | None = None) -> Mensagem | None:
+    """Registra a tentativa (única por parcela/etapa/sequência) e envia o template. None = nada enviado.
+
+    Não envia se o cliente já recebeu aviso desde `desde` (padrão: início de `hoje`; disparo: 48 h).
+    """
     from vendas.models import Cliente
 
     hoje = hoje or timezone.localdate()
+    desde = desde or _dia_local(hoje)[0]
     cliente = parcela.pagamento.venda.cliente
     telefone = contatos.para_aviso(cliente)
     if telefone is None:
@@ -135,7 +116,7 @@ def enviar_aviso(versao: VersaoAbertura, parcela, tipo: str, sequencia: int = 0,
         with transaction.atomic():
             # Trava o cliente: duas rodadas ao mesmo tempo não mandam dois avisos no mesmo dia.
             Cliente.objects.select_for_update().filter(pk=cliente.pk).first()
-            if _ja_avisado_hoje(cliente, hoje):
+            if _avisado_desde(cliente, desde):
                 return None
             tentativa = TentativaContato.objects.create(
                 cliente=cliente, telefone=telefone, numero=telefone.telefone, tipo=tipo, parcela=parcela,
@@ -146,7 +127,7 @@ def enviar_aviso(versao: VersaoAbertura, parcela, tipo: str, sequencia: int = 0,
                 conversa=conversa, direcao=Mensagem.Direcao.SAIDA, autor=Mensagem.Autor.AUTOMATICO,
                 tipo=Mensagem.Tipo.TEXTO, texto=texto, origem=Mensagem.Origem.COBRANCA,
                 status=Mensagem.Status.PENDENTE, envio_iniciado_em=timezone.now(), processada=True,
-                dados={'cobranca': {'tipo': tipo, 'parcela_id': parcela.pk}, 'pessoal': True,
+                dados={'cobranca': {'tipo': tipo, 'parcela_id': parcela.pk, 'sequencia': sequencia}, 'pessoal': True,
                        'abertura': {'versao': versao.nome_meta, 'valores': parametros}},
             )
             TentativaContato.objects.filter(pk=tentativa.pk).update(mensagem=mensagem)
@@ -159,45 +140,21 @@ def enviar_aviso(versao: VersaoAbertura, parcela, tipo: str, sequencia: int = 0,
     return mensagem
 
 
-def _candidatas_da_etapa(etapa: Etapa, hoje: date, ativada_em: date):
-    # Só etapas cujo dia é a partir da ativação: ligar a régua não recupera avisos "atrasados".
-    inicio = max(hoje - timedelta(days=etapa.ultimo_dia), ativada_em - timedelta(days=etapa.primeiro_dia))
-    return (_parcelas_abertas()
-            .filter(data_vencimento__gte=inicio, data_vencimento__lte=hoje - timedelta(days=etapa.primeiro_dia))
-            .exclude(avisos_crm__tipo=etapa.tipo)
-            .order_by('data_vencimento', 'pk'))
-
-
-def clientes_em_atraso(ids, hoje: date) -> set[int]:
-    """Clientes (entre `ids`) com parcela do crediário vencida e sem pagamento informado."""
-    return set(_parcelas_abertas().filter(data_vencimento__lt=hoje, pagamento__venda__cliente_id__in=list(ids))
-               .values_list('pagamento__venda__cliente_id', flat=True))
-
-
-def bons_pagadores(ids, hoje: date) -> set[int]:
-    """Pagou ao menos MIN_PARCELAS_BOM_PAGADOR parcelas do crediário, todas até o vencimento, e não tem
-    parcela vencida em aberto. Parcela paga sem data de pagamento (legado) não conta."""
-    from vendas.models import Parcela
-
-    pagas = (Parcela.objects
-             .filter(pago=True, data_pagamento__isnull=False, pagamento__venda__cliente_id__in=list(ids),
-                     pagamento__tipo_pagamento__nome__iexact=TIPO_CREDFACIL, pagamento__venda__is_deleted=False)
-             .values('pagamento__venda__cliente_id')
-             .annotate(total=Count('pk'), atrasadas=Count('pk', filter=Q(data_pagamento__gt=F('data_vencimento'))))
-             .order_by())
-    pontuais = {item['pagamento__venda__cliente_id'] for item in pagas
-                if item['total'] >= MIN_PARCELAS_BOM_PAGADOR and item['atrasadas'] == 0}
-    return pontuais - clientes_em_atraso(pontuais, hoje)
-
-
 def _cliente_escreveu_depois(cliente, momento: datetime) -> bool:
     return (Mensagem.objects.filter(conversa__clientes=cliente, direcao=Mensagem.Direcao.ENTRADA,
                                     criado_em__gt=momento)
             .exclude(tipo=Mensagem.Tipo.REACAO).exists())
 
 
-def _proxima_insistencia(config: ConfiguracaoCRM, parcela, hoje: date) -> int | None:
-    """Sequência da próxima insistência, ou None se não é hora (respondeu, intervalo, limite)."""
+@dataclass(frozen=True)
+class EstadoInsistencia:
+    pedido_em: datetime  # pedido de comprovante (AVISO_APOS)
+    ultimo: date  # dia do último aviso da parcela
+    feitas: int
+
+
+def estado_insistencia(config: ConfiguracaoCRM, parcela) -> EstadoInsistencia | None:
+    """Situação das repetições da parcela (avisos já prefetchados); None = não repete mais."""
     avisos_da_parcela = [a for a in parcela.avisos_crm.all() if a.tipo != Tipo.ALERTA]
     pedido = next((a for a in avisos_da_parcela if a.tipo == Tipo.AVISO_APOS), None)
     if pedido is None:
@@ -207,38 +164,45 @@ def _proxima_insistencia(config: ConfiguracaoCRM, parcela, hoje: date) -> int | 
     feitas = sum(1 for a in avisos_da_parcela if a.tipo == Tipo.AVISO_INSISTENCIA)
     if feitas >= config.cobranca_max_insistencias:
         return None
-    ultimo = max(a.criado_em for a in avisos_da_parcela)
-    if (hoje - timezone.localtime(ultimo).date()).days < max(config.cobranca_intervalo_dias, 1):
+    ultimo = timezone.localtime(max(a.criado_em for a in avisos_da_parcela)).date()
+    return EstadoInsistencia(pedido_em=pedido.criado_em, ultimo=ultimo, feitas=feitas)
+
+
+def intervalo_cumprido(config: ConfiguracaoCRM, ultimo: date, hoje: date) -> bool:
+    return (hoje - ultimo).days >= max(config.cobranca_intervalo_dias, 1)
+
+
+def _proxima_insistencia(config: ConfiguracaoCRM, parcela, hoje: date) -> int | None:
+    """Sequência da próxima insistência, ou None se não é hora (respondeu, intervalo, limite)."""
+    estado = estado_insistencia(config, parcela)
+    if estado is None or not intervalo_cumprido(config, estado.ultimo, hoje):
         return None
     cliente = parcela.pagamento.venda.cliente
-    return None if _cliente_escreveu_depois(cliente, pedido.criado_em) else feitas + 1
+    return None if _cliente_escreveu_depois(cliente, estado.pedido_em) else estado.feitas + 1
 
 
-def _quitacoes(config: ConfiguracaoCRM, hoje: date):
-    from vendas.models import Pagamento
+def candidatas_insistencia(config: ConfiguracaoCRM):
+    """Parcelas em aberto com pedido de comprovante e repetições abaixo do máximo."""
+    com_pedido = TentativaContato.objects.filter(tipo=Tipo.AVISO_APOS).values('parcela_id')
+    return (_parcelas_abertas().filter(pk__in=com_pedido)
+            .annotate(repeticoes=Count('avisos_crm', filter=Q(avisos_crm__tipo=Tipo.AVISO_INSISTENCIA)))
+            .filter(repeticoes__lt=config.cobranca_max_insistencias)
+            .prefetch_related('avisos_crm').order_by('data_vencimento', 'pk'))
 
-    desde = hoje - JANELA_QUITACAO
-    if config.cobranca_ativada_em:
-        desde = max(desde, timezone.localtime(config.cobranca_ativada_em).date())
-    return (Pagamento.objects
-            .filter(tipo_pagamento__nome__iexact=TIPO_CREDFACIL, venda__is_deleted=False, devolucao=False,
-                    desativado=False)
-            .annotate(abertas=Count('parcelas_pagamento', filter=Q(parcelas_pagamento__pago=False)),
-                      ultima=Max('parcelas_pagamento__data_pagamento'))
-            .filter(abertas=0, ultima__gte=desde, ultima__lte=hoje)  # data no futuro = erro de digitação
-            .exclude(parcelas_pagamento__avisos_crm__tipo=Tipo.AVISO_QUITACAO)
-            .select_related('venda__cliente'))
+
+def avisados_no_dia(dia: date) -> set[int]:
+    inicio, fim = _dia_local(dia)
+    return set(TentativaContato.objects.filter(tipo__in=TIPOS_CONTATO_CLIENTE, criado_em__gte=inicio,
+                                               criado_em__lt=fim).values_list('cliente_id', flat=True))
 
 
 class _Rodada:
-    """Uma passada da régua: um aviso por cliente por dia, no máximo MAX_ENVIOS_POR_RODADA."""
+    """Uma passada da régua: um aviso por cliente por dia, no máximo MAX_ENVIOS_POR_RODADA e o teto do dia."""
 
-    def __init__(self, config: ConfiguracaoCRM, hoje: date):
+    def __init__(self, config: ConfiguracaoCRM, hoje: date, limite: int = MAX_ENVIOS_POR_RODADA):
         self.config, self.hoje = config, hoje
-        inicio, fim = _dia_local(hoje)
-        self.avisados = set(TentativaContato.objects.filter(tipo__in=TIPOS_AVISO, criado_em__gte=inicio,
-                                                            criado_em__lt=fim)
-                            .values_list('cliente_id', flat=True))
+        self.limite = min(limite, MAX_ENVIOS_POR_RODADA)
+        self.avisados = avisados_no_dia(hoje)
         self.enviados: dict[str, int] = {}
         self.falhas_seguidas = 0
         ativada = config.cobranca_ativada_em
@@ -246,7 +210,7 @@ class _Rodada:
 
     @property
     def parada(self) -> bool:
-        return sum(self.enviados.values()) >= MAX_ENVIOS_POR_RODADA or self.falhas_seguidas >= MAX_FALHAS_SEGUIDAS
+        return sum(self.enviados.values()) >= self.limite or self.falhas_seguidas >= MAX_FALHAS_SEGUIDAS
 
     def tentar(self, versao: VersaoAbertura, parcela, tipo: str, sequencia: int = 0) -> None:
         cliente_id = parcela.pagamento.venda.cliente_id
@@ -283,12 +247,7 @@ class _Rodada:
         versao = versao_vigente(self.config, CAMPO_INSISTENCIA)
         if versao is None:
             return
-        com_pedido = TentativaContato.objects.filter(tipo=Tipo.AVISO_APOS).values('parcela_id')
-        candidatas = (_parcelas_abertas().filter(pk__in=com_pedido)
-                      .annotate(repeticoes=Count('avisos_crm', filter=Q(avisos_crm__tipo=Tipo.AVISO_INSISTENCIA)))
-                      .filter(repeticoes__lt=self.config.cobranca_max_insistencias)
-                      .prefetch_related('avisos_crm').order_by('data_vencimento', 'pk'))
-        for parcela in candidatas:
+        for parcela in candidatas_insistencia(self.config):
             sequencia = _proxima_insistencia(self.config, parcela, self.hoje)
             if sequencia is not None:
                 self.tentar(versao, parcela, Tipo.AVISO_INSISTENCIA, sequencia)
@@ -365,18 +324,24 @@ def rodar(agora: datetime | None = None, forcar: bool = False) -> dict:
     """Chamado pela rotina do worker a cada minuto; trabalha de 15 em 15 minutos, no horário de envio."""
     config = ConfiguracaoCRM.obter()
     local = timezone.localtime(agora or timezone.now())
-    if not config.cobranca_ativa or not config.cobranca_hora_envio <= local.time() < FIM_DOS_ENVIOS:
+    if not config.cobranca_ativa or not janela.no_horario(config, local):
         return {}
-    if local.weekday() == expediente.DOMINGO or expediente.feriado(local.date()):
+    if not janela.dia_de_envio(local.date()):
         return {}  # cobrança não sai em domingo nem feriado
     if config.cobranca_ativada_em and local < timezone.localtime(config.cobranca_ativada_em):
         return {}  # ligada com data marcada: nada sai antes (nem quitação)
     if not forcar and not _reservar_rodada():
         return {}
-    rodada = _Rodada(config, local.date())
-    rodada.quitacoes()
-    rodada.etapas()
-    rodada.insistencias()
+    saude = teto.ler_saude(config)
+    if saude.pausada_por_qualidade:
+        logger.warning('Régua pausada: qualidade %s do número na Meta.', saude.qualidade)
+        return {}  # nada sai até a Meta voltar a GREEN
+    restante = teto.restante_no_dia(saude, local.date())
+    rodada = _Rodada(config, local.date(), limite=restante)
+    if restante > 0:  # teto do dia atingido: o resto fica para o próximo dia (os alertas não são mensagem)
+        rodada.quitacoes()
+        rodada.etapas()
+        rodada.insistencias()
     rodada.alertas()
     return rodada.enviados
 
