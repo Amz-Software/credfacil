@@ -102,6 +102,12 @@ def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
         vendas = vendas.filter(analises_credito_venda__numero_parcelas__in=list(filtros['parcelas']))
     if filtros.get('produtos'):
         vendas = vendas.filter(produtos__in=filtros['produtos'])
+    if filtros.get('marcas'):
+        vendas = vendas.filter(produtos__marca__in=filtros['marcas'])
+    if filtros.get('iphone') is True:
+        vendas = vendas.filter(produtos__is_iphone=True)
+    elif filtros.get('iphone') is False:
+        vendas = vendas.exclude(produtos__is_iphone=True)  # venda com algum iPhone não entra
     if filtros.get('analise_online') is not None:
         vendas = vendas.filter(analises_credito_venda__analise_online=filtros['analise_online'])
     vendas = filtrar_comodato(vendas, filtros, 'comodato')

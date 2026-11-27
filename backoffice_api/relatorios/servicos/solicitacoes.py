@@ -27,6 +27,10 @@ def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
         clientes = clientes.filter(analise_credito__criado_por__in=filtros['vendedores'])
     if filtros.get('produtos'):
         clientes = clientes.filter(analise_credito__produto__in=filtros['produtos'])
+    if filtros.get('marcas'):
+        clientes = clientes.filter(analise_credito__produto__marca__in=filtros['marcas'])
+    if filtros.get('iphone') is not None:
+        clientes = clientes.filter(analise_credito__produto__is_iphone=filtros['iphone'])
     clientes = filtrar_comodato(clientes, filtros, 'analise_credito__comodato')
     clientes = escopo.aplicar(clientes, 'loja')
     return (

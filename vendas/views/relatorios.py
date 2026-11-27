@@ -130,6 +130,8 @@ class FolhaRelatorioSolicitacoesView(PermissionRequiredMixin, TemplateView):
         data_inicial    = request.GET.get('data_inicial')
         data_final      = request.GET.get('data_final')
         produtos        = request.GET.getlist('produtos')
+        marcas          = request.GET.getlist('marcas')
+        iphone          = parse_filtro_sim_nao(request.GET.get('iphone'))
         vendedores      = request.GET.getlist('vendedores')
         loja_ids        = request.GET.getlist('lojas')
         status_solicitacao = request.GET.get('status_solicitacao')
@@ -187,6 +189,10 @@ class FolhaRelatorioSolicitacoesView(PermissionRequiredMixin, TemplateView):
             filtros['analise_credito__criado_por__in'] = vendedores
         if produtos:
             filtros['analise_credito__produto__in'] = produtos
+        if marcas:
+            filtros['analise_credito__produto__marca__in'] = marcas
+        if iphone is not None:
+            filtros['analise_credito__produto__is_iphone'] = iphone
 
         # Loja: se não selecionou, pega a loja do usuário logado
         if loja_ids:
@@ -281,6 +287,8 @@ class FolhaRelatorioVendasView(PermissionRequiredMixin, TemplateView):
         data_inicial = request.GET.get('data_inicial')
         data_final = request.GET.get('data_final')
         produtos = request.GET.getlist('produtos')
+        marcas = request.GET.getlist('marcas')
+        iphone = parse_filtro_sim_nao(request.GET.get('iphone'))
         vendedores = request.GET.getlist('vendedores')
         analise_serasa = request.GET.getlist('analise_serasa')
         parcelas = request.GET.getlist('parcelas')
@@ -316,6 +324,10 @@ class FolhaRelatorioVendasView(PermissionRequiredMixin, TemplateView):
             filtros['analises_credito_venda__numero_parcelas__in'] = parcelas
         if produtos:
             filtros['produtos__in'] = produtos
+        if marcas:
+            filtros['produtos__marca__in'] = marcas
+        if iphone:
+            filtros['produtos__is_iphone'] = True
 
         # Loja: se não selecionou, pega a loja do usuário logado
         if loja_ids:
@@ -342,7 +354,10 @@ class FolhaRelatorioVendasView(PermissionRequiredMixin, TemplateView):
         segunda_compra_do_cliente = PreAnaliseRapida.objects.filter(
             cliente_gerado_id=OuterRef('cliente_id'), segunda_compra=True,
         )
-        self.vendas = Venda.objects.filter(is_deleted=False, **filtros).annotate(
+        vendas = Venda.objects.filter(is_deleted=False, **filtros)
+        if iphone is False:
+            vendas = vendas.exclude(produtos__is_iphone=True)  # venda com algum iPhone não entra
+        self.vendas = vendas.annotate(
             is_segunda_compra=Exists(segunda_compra_do_cliente),
         ).distinct()
 

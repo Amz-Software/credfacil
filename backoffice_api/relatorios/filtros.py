@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q, QuerySet
 from rest_framework import serializers
 
-from produtos.models import Produto
+from produtos.models import Marca, Produto
 from vendas.models import AnaliseCreditoCliente, Loja, StatusPagamento
 
 MENSAGEM_PERIODO = 'A data final deve ser igual ou posterior à inicial.'
@@ -34,10 +34,16 @@ def multiplos_de_modelo(rotulo: str = 'nome', **kwargs) -> serializers.ManyRelat
     return OpcoesDeModelo(many=True, required=False, queryset=Loja.objects.none(), rotulo=rotulo, **kwargs)
 
 
+class BooleanoComRotulos(serializers.BooleanField):
+    """Sim/Não com rótulos próprios; recebidos como argumento para sobreviver à cópia do DRF."""
+
+    def __init__(self, *, rotulos_booleano: tuple[str, str] = ('Sim', 'Não'), **kwargs):
+        self.rotulos_booleano = rotulos_booleano
+        super().__init__(**kwargs)
+
+
 def booleano(label: str, opcoes: tuple[str, str] = ('Sim', 'Não')) -> serializers.BooleanField:
-    campo = serializers.BooleanField(label=label, required=False, allow_null=True)
-    campo.rotulos_booleano = opcoes
-    return campo
+    return BooleanoComRotulos(label=label, required=False, allow_null=True, rotulos_booleano=opcoes)
 
 
 def vendedores_das_lojas(lojas: QuerySet) -> QuerySet:
@@ -94,6 +100,8 @@ class FiltrosBase(serializers.Serializer):
 
 class FiltrosVendasSerializer(FiltrosBase):
     produtos = multiplos_de_modelo(label='Produtos')
+    marcas = multiplos_de_modelo(label='Marcas')
+    iphone = booleano('iPhone', ('Somente iPhone', 'Sem iPhone'))
     vendedores = multiplos_de_modelo(label='Vendedores', rotulo='__str__')
     analise_serasa = serializers.MultipleChoiceField(label='Resultado Serasa', choices=OPCOES_SERASA, required=False)
     parcelas = serializers.MultipleChoiceField(label='Número de parcelas', choices=(), required=False)
@@ -101,6 +109,7 @@ class FiltrosVendasSerializer(FiltrosBase):
 
     def configurar_opcoes(self) -> None:
         self.fields['produtos'].child_relation.queryset = Produto.objects.filter(ativo=True).order_by('nome')
+        self.fields['marcas'].child_relation.queryset = Marca.objects.order_by('nome')
         self.fields['vendedores'].child_relation.queryset = vendedores_das_lojas(self.lojas_permitidas)
         self.fields['parcelas'].choices = parcelas_cadastradas()
 

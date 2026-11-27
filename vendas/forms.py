@@ -3,7 +3,7 @@ from django.db.models import OuterRef, Exists
 from accounts.models import User
 from accounts.permissions import user_is_analista_or_admin
 from estoque.models import Estoque, EstoqueImei
-from produtos.models import Produto, Parcelamento
+from produtos.models import Marca, Produto, Parcelamento
 from .models import *
 from django_select2.forms import Select2Widget, ModelSelect2Widget, Select2MultipleWidget
 from django_select2.forms import ModelSelect2MultipleWidget, HeavySelect2Widget
@@ -1481,6 +1481,29 @@ class LojaForm(forms.ModelForm):
     
 
 
+def campo_marcas_relatorio() -> forms.ModelMultipleChoiceField:
+    return forms.ModelMultipleChoiceField(
+        queryset=Marca.objects.order_by('nome'),
+        label='Marcas',
+        required=False,
+        widget=Select2MultipleWidget(attrs={'class': 'form-control'})
+    )
+
+
+def campo_iphone_relatorio() -> forms.TypedChoiceField:
+    return forms.TypedChoiceField(
+        label='iPhone',
+        required=False,
+        choices=[
+            ('', 'Todos'),
+            ('True', 'Somente iPhone'),
+            ('False', 'Sem iPhone'),
+        ],
+        coerce=lambda v: None if v == '' else (v == 'True'),
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+
 class RelatorioVendasForm(forms.Form):
     data_inicial = forms.DateField(
         label='Data Inicial',
@@ -1498,6 +1521,8 @@ class RelatorioVendasForm(forms.Form):
         required=False,
         widget=Select2MultipleWidget(attrs={'class': 'form-control'})
     )
+    marcas = campo_marcas_relatorio()
+    iphone = campo_iphone_relatorio()
     cliente = forms.ModelMultipleChoiceField(
         queryset=Cliente.objects.all(),
         label='Clientes',
@@ -1598,6 +1623,8 @@ class RelatorioSolicitacoesForm(forms.Form):
         required=False,
         widget=Select2MultipleWidget(attrs={'class': 'form-control'})
     )
+    marcas = campo_marcas_relatorio()
+    iphone = campo_iphone_relatorio()
     cliente = forms.ModelMultipleChoiceField(
         label='Clientes',
         queryset=Cliente.objects.all(),
