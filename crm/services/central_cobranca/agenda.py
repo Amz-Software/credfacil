@@ -6,9 +6,13 @@ depois, insistência), com um aviso por cliente por dia e o teto diário. O que 
 bloqueio passageiro (domingo, teto, régua pausada) volta a ser candidato no dia seguinte, como na rotina.
 Nada é gravado: telefones são avaliados sem sincronizar (`contatos.para_aviso_sem_gravar`).
 """
+import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
+from django.conf import settings
+from django.core.cache import caches
+from django.db.models import Count, Prefetch
 from django.utils import timezone
 
 from crm.models import ConfiguracaoCRM, TentativaContato
@@ -18,8 +22,9 @@ from crm.services.cobranca_selecao import (ETAPAS, _candidatas_da_etapa, _parcel
 
 from . import janela
 from .motivos import Motivo, mascarar, telefone_para_aviso
-from .teto import SaudeNumero, restante_no_dia
+from .teto import SaudeNumero, restante
 
+logger = logging.getLogger(__name__)
 Tipo = TentativaContato.Tipo
 DIAS_PADRAO = 7
 MAX_DIAS = 14
@@ -29,6 +34,9 @@ ROTULOS = {'quitacao': 'Quitação', 'antes': 'Antes do vencimento', 'dia': 'No 
            'apos': 'Depois do vencimento', 'insistencia': 'Nova tentativa sem retorno'}
 ORDEM = ('quitacao', 'antes', 'dia', 'apos', 'insistencia')
 PREFETCH_TELEFONES = 'pagamento__venda__cliente__telefones_crm'
+CHAVE_RESERVA = 'crm:cobranca:reserva_regua'
+CHAVE_GERACAO = 'crm:cobranca:agenda_geracao'
+CACHE_SEGUNDOS = 45  # projeção é cara: lista, resumo e reserva ficam 45 s no cache compartilhado
 
 
 @dataclass(frozen=True)
@@ -92,15 +100,16 @@ class _Projecao:
             return Motivo.REGUA_PAUSADA
         if self.ativada and dia < self.ativada.date():
             return Motivo.ANTES_DA_ATIVACAO
-        if self.saude.pausada_por_qualidade:
-            return Motivo.PAUSADA_POR_QUALIDADE
+        if self.saude.pausada:
+            return self.saude.motivo_pausa  # pausada_por_qualidade ou sem_leitura_recente
         if dia == self.hoje and self.local.time() >= janela.FIM_DOS_ENVIOS:
             return Motivo.FORA_DO_HORARIO
         return ''
 
     def dia(self, data: date) -> DiaAgenda:
         hoje = data == self.hoje
-        capacidade = restante_no_dia(self.saude, data) if hoje else self.saude.teto_efetivo
+        # Hoje: vagas da janela móvel de 24 h agora. Dias seguintes: o teto inteiro (estimativa).
+        capacidade = restante(self.saude, self.local) if hoje else self.saude.teto_efetivo
         estado = _Dia(data=data, bloqueio=self.bloqueio(data), capacidade=capacidade,
                       avisados=cobranca.avisados_no_dia(data) if hoje else set())
         self._quitacoes(estado)
@@ -152,9 +161,13 @@ class _Projecao:
     # --- etapas (mesma ordem da rotina) ----------------------------------------------------------
     def _quitacoes(self, estado: _Dia) -> None:
         sem_modelo = '' if self.versoes[cobranca.CAMPO_QUITACAO] else Motivo.ETAPA_SEM_MODELO
-        for pagamento in _quitacoes(self.config, estado.data):
-            ultima = pagamento.parcelas_pagamento.select_related('pagamento__venda__cliente').order_by(
-                '-numero_parcela').first()
+        from vendas.models import Parcela
+
+        parcelas = Parcela.objects.select_related('pagamento__venda__cliente').order_by('-numero_parcela')
+        pagamentos = _quitacoes(self.config, estado.data).prefetch_related(
+            Prefetch('parcelas_pagamento', queryset=parcelas, to_attr='parcelas_desc'))
+        for pagamento in pagamentos:
+            ultima = pagamento.parcelas_desc[0] if pagamento.parcelas_desc else None
             if ultima is not None:
                 self._avaliar(estado, ultima, Tipo.AVISO_QUITACAO, motivo_fixo=sem_modelo)
 
@@ -194,7 +207,8 @@ class _Projecao:
 
     def _informados(self, estado: _Dia) -> None:
         """Pagamento informado (aguardando baixa) não recebe aviso: só aparece como excluído."""
-        informadas = _parcelas_do_crediario().filter(pago=False, pagamento_efetuado=True)
+        informadas = (_parcelas_do_crediario().filter(pago=False, pagamento_efetuado=True)
+                      .prefetch_related(PREFETCH_TELEFONES))
         for etapa in ETAPAS:
             for parcela in _candidatas_da_etapa(etapa, estado.data, self.ativada_em, informadas):
                 cliente = parcela.pagamento.venda.cliente
@@ -206,11 +220,8 @@ class _Projecao:
 def _enviados_hoje(dia: date) -> dict[str, int]:
     inicio, fim = janela.dia_local(dia)
     linhas = (TentativaContato.objects.filter(tipo__in=cobranca.TIPOS_AVISO, criado_em__gte=inicio, criado_em__lt=fim)
-              .values_list('tipo', flat=True))
-    contagem: dict[str, int] = {}
-    for tipo in linhas:
-        contagem[CHAVES[tipo]] = contagem.get(CHAVES[tipo], 0) + 1
-    return contagem
+              .values('tipo').annotate(qtd=Count('pk')).order_by())
+    return {CHAVES[linha['tipo']]: linha['qtd'] for linha in linhas}
 
 
 def projetar(config: ConfiguracaoCRM, saude: SaudeNumero, dias: int = DIAS_PADRAO,
@@ -231,3 +242,55 @@ def dia_da_projecao(config: ConfiguracaoCRM, saude: SaudeNumero, data: date,
         dia += timedelta(days=1)
     return projecao.dia(data)
 
+
+def _cache():
+    return caches[getattr(settings, 'CRM_CACHE_LIMITES', 'default')]
+
+
+def _geracao() -> int:
+    try:
+        return int(_cache().get(CHAVE_GERACAO) or 0)
+    except Exception:  # noqa: BLE001
+        logger.warning('Cache compartilhado indisponível ao ler a geração da agenda.', exc_info=True)
+        return 0
+
+
+def invalidar() -> None:
+    """Configuração mudou (ligar, pausar, teto, modelos): a próxima leitura recalcula a agenda."""
+    try:
+        _cache().set(CHAVE_GERACAO, _geracao() + 1, None)
+    except Exception:  # noqa: BLE001
+        logger.warning('Cache compartilhado indisponível ao invalidar a agenda.', exc_info=True)
+
+
+def em_cache(chave: str, calcular):
+    """Valor calculado (serializável) por CACHE_SEGUNDOS; sem cache compartilhado, calcula sempre."""
+    chave = f'{chave}:g{_geracao()}'
+    try:
+        guardado = _cache().get(chave)
+    except Exception:  # noqa: BLE001
+        logger.warning('Cache compartilhado indisponível ao ler a agenda.', exc_info=True)
+        guardado = None
+    if guardado is not None:
+        return guardado
+    valor = calcular()
+    try:
+        _cache().set(chave, valor, CACHE_SEGUNDOS)
+    except Exception:  # noqa: BLE001
+        logger.warning('Cache compartilhado indisponível ao gravar a agenda.', exc_info=True)
+    return valor
+
+
+def reserva_da_regua(config: ConfiguracaoCRM, saude: SaudeNumero, agora: datetime | None = None) -> dict[date, int]:
+    """Envios que a régua ainda vai fazer, por dia (hoje + MAX_DIAS), para os disparos não ocuparem a vaga dela.
+
+    Fica CACHE_SEGUNDOS no cache compartilhado (a projeção é cara).
+    """
+    local = timezone.localtime(agora or timezone.now())
+
+    def calcular() -> dict[str, int]:
+        return {dia.data.isoformat(): sum(1 for item in dia.itens if item.previsto)
+                for dia in projetar(config, saude, MAX_DIAS, agora=local)}
+
+    guardada = em_cache(f'{CHAVE_RESERVA}:{local.date().isoformat()}', calcular)
+    return {date.fromisoformat(dia): qtd for dia, qtd in guardada.items()}

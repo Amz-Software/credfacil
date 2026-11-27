@@ -7,7 +7,7 @@ from django.utils import timezone
 from crm.apresentacao import usuario_mini
 from crm.models import ConfiguracaoCRM, DisparoCobranca, ItemDisparo
 from crm.services import aberturas, cobranca
-from crm.services.central_cobranca import disparos, teto
+from crm.services.central_cobranca import agenda, disparos, teto
 from crm.services.central_cobranca.motivos import mascarar, rotulo, telefone_para_aviso
 from crm.services.conversas import ConflitoCRM
 from crm.services.pagamentos import formatar_reais
@@ -27,7 +27,7 @@ def _contagens(disparo: DisparoCobranca) -> tuple[Counter, Counter, int]:
             excluidos[linha['motivo']] += linha['qtd']
         elif linha['situacao'] == Situacao.IGNORADO:
             ignorados[linha['motivo']] += linha['qtd']
-        elif linha['situacao'] == Situacao.PENDENTE:
+        elif linha['situacao'] in (Situacao.PENDENTE, Situacao.ENVIANDO):
             pendentes += linha['qtd']
     return excluidos, ignorados, pendentes
 
@@ -53,8 +53,8 @@ def _exemplo(disparo: DisparoCobranca, usuario) -> str:
     return texto
 
 
-def _estimativa(pendentes: int, config: ConfiguracaoCRM, saude: teto.SaudeNumero) -> dict:
-    dias, sem_previsao = disparos.distribuicao(pendentes, config, saude)
+def _estimativa(pendentes: int, config: ConfiguracaoCRM, saude: teto.SaudeNumero, reserva: dict) -> dict:
+    dias, sem_previsao = disparos.distribuicao(pendentes, config, saude, reserva=reserva)
     hoje = timezone.localdate()
     return {'cabem_hoje': next((qtd for dia, qtd in dias if dia == hoje), 0),
             'distribuicao': [{'data': dia.isoformat(), 'quantidade': qtd} for dia, qtd in dias],
@@ -89,7 +89,9 @@ def disparo_detalhe(disparo: DisparoCobranca, usuario) -> dict:
     if disparo.status in COM_ESTIMATIVA:
         config = ConfiguracaoCRM.obter()
         saude = teto.ler_saude(config)
-        estimativa, situacao = _estimativa(pendentes, config, saude), disparos.situacao_envio(config, saude)
+        reserva = agenda.reserva_da_regua(config, saude)
+        situacao = disparos.situacao_envio(config, saude, reserva_hoje=reserva.get(timezone.localdate(), 0))
+        estimativa = _estimativa(pendentes, config, saude, reserva)
     return {
         **disparo_item(disparo),
         'versao': {'nome_meta': disparo.versao.nome_meta, 'corpo': disparo.versao.corpo},

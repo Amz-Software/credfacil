@@ -243,12 +243,15 @@ Número de **referência nunca recebe** aviso (nem aparece como telefone de envi
 | Regra | Detalhe |
 |---|---|
 | Janela de envio | De `cobranca_hora_envio` (padrão 09:00) até **20:00**, hora local. Nada sai em **domingo** nem **feriado** nacional (fixos + Sexta-feira Santa). Vale para régua e disparos. |
-| Teto diário | `efetivo = min(automático, configurado)`. Automático = **80%** do limite diário do número na Meta (`TIER_250`→200, `TIER_1K`→800, `TIER_2K`→1600, `TIER_10K`→8000, `TIER_100K`→80000, `TIER_UNLIMITED`→800000). `cobranca_teto_diario` vazio = automático; preenchido só **baixa** o teto. Sem leitura da Meta: última leitura conhecida; sem nenhuma: **200**. Leitura da Meta guardada por 10 min. |
-| O que conta no teto | Todo template iniciado pela empresa no dia: avisos da régua, envios de disparos, mensagens de abertura e compra confirmada (sem as recusadas pela Meta). |
+| Teto (janela de 24 h) | `efetivo = min(automático, configurado)`, contado nas **últimas 24 h** (janela móvel, como a Meta conta — não por dia do calendário). Automático = **80%** do limite do número na Meta (`TIER_250`→200, `TIER_1K`→800, `TIER_2K`→1600, `TIER_10K`→8000, `TIER_100K`→80000, `TIER_UNLIMITED`→800000). `cobranca_teto_diario` vazio = automático; preenchido só **baixa** o teto. Sem leitura da Meta: última leitura conhecida; sem nenhuma: **200**. Leitura da Meta guardada por 10 min. |
+| O que conta no teto | Todo template iniciado pela empresa nas últimas 24 h: avisos da régua, envios de disparos, mensagens de abertura e compra confirmada (sem as recusadas pela Meta). Cada aviso de cobrança confere o teto de novo na hora de gravar, numa transação travada: régua e disparos, mesmo em processos diferentes, nunca passam do teto juntos. |
+| Vaga da régua | Os disparos só usam `teto − o que a régua ainda vai mandar hoje` (`teto.reserva_regua_hoje`, calculado pela agenda). A régua tem prioridade; o aviso "no dia do vencimento" só vale no próprio dia. |
 | Pausa por qualidade | `quality_rating` **YELLOW** ou **RED** pausa a régua **e** os disparos até a Meta voltar a GREEN (`regua.status = "pausada_por_qualidade"`). |
-| Pausa manual | `pausar/` e `retomar/` ligam/desligam `cobranca_ativa` (só a **régua**; disparos confirmados continuam — cancele-os se precisar). Retomar não muda `cobranca_ativada_em`: a data da primeira ativação continua valendo. |
+| Pausa de segurança | Se a leitura da Meta falha **e** a última leitura boa tem mais de **1 h** (ou nunca houve), régua e disparos param (`regua.status = "sem_leitura_recente"`, `numero.pausa`). Uma falha passageira com leitura recente não pausa (vale a última leitura). No modo simulado não há pausa. Os alertas internos para a equipe continuam rodando em qualquer pausa. |
+| Pausa manual | `pausar/` e `retomar/` ligam/desligam `cobranca_ativa`. **Pausar a régua não pausa os disparos**: cada disparo confirmado continua até concluir; para parar um disparo, use o `cancelar/` dele. Retomar não muda `cobranca_ativada_em`: a data da primeira ativação continua valendo. |
 | Um aviso por dia | Cada cliente recebe no máximo **um** aviso por dia (régua + disparos). |
-| Disparo | Ninguém que recebeu aviso (régua ou disparo) nas **últimas 48 h**; ritmo de **20 envios por minuto** (somando todos os disparos); o que não couber no teto do dia continua no próximo dia de envio; **5 recusas seguidas** da Meta pausam o disparo (`PAUSADO`, com `motivo_pausa`). |
+| Disparo | Ninguém que recebeu aviso (régua ou disparo) nas **últimas 48 h**; ritmo de **20 envios por minuto** (somando todos os disparos); o que não couber no teto continua depois; **5 recusas seguidas** da Meta pausam o disparo (`PAUSADO`, com `motivo_pausa`); se a mensagem for trocada, pausada ou desativada na Meta depois da prévia, o disparo pausa e **não pode ser retomado** (crie outro); **3 dias** depois da confirmação o que não saiu expira (`IGNORADO` com `disparo_expirado`) e o disparo fica `CONCLUIDO`. |
+| Escopo dos disparos | Quem vê todas as lojas (`view_all_analise_credito`/`can_view_all_stores`) vê e mexe em todos os disparos; os demais só nos que criaram (os outros respondem `404`). |
 | Custo estimado | **R$ 0,035** por mensagem (`custo_por_mensagem`). Estimativa, não é a fatura da Meta. |
 
 ### Motivos (códigos estáveis; o `*_display`/`rotulo` traz o texto pronto)
@@ -258,12 +261,13 @@ Número de **referência nunca recebe** aviso (nem aparece como telefone de envi
 | `bom_pagador` | agenda | Sempre pagou em dia: pula o lembrete "antes" (opção `cobranca_pular_bom_pagador`) |
 | `pagamento_informado` | agenda, disparo | Cliente informou pagamento, aguardando baixa |
 | `ja_avisado_hoje` | agenda | Já recebe outro aviso no dia |
-| `limite_diario` | agenda, `situacao_envio` | Teto do dia atingido (fica para o próximo dia) |
+| `limite_diario` | agenda, `situacao_envio` | Sem vaga no teto das últimas 24 h (nos disparos: descontada a vaga da régua) |
 | `sem_telefone_valido` | agenda, disparo | Sem número utilizável |
 | `so_referencia` | agenda, disparo | Só tem número de referência (nunca recebe) |
 | `antes_da_ativacao` | agenda (bloqueio do dia) | Dia anterior à data de ativação da régua |
 | `regua_pausada` | agenda (bloqueio do dia) | `cobranca_ativa = false` |
 | `pausada_por_qualidade` | agenda, `situacao_envio` | Qualidade YELLOW/RED na Meta |
+| `sem_leitura_recente` | agenda, `situacao_envio` | Pausa de segurança: Meta sem resposta e última leitura com mais de 1 h |
 | `domingo_feriado` | agenda, `situacao_envio` | Domingo ou feriado |
 | `fora_do_horario` | agenda (hoje depois das 20h), `situacao_envio` | Fora da janela de envio |
 | `etapa_sem_modelo` | agenda | Etapa sem mensagem aprovada pela Meta (a régua pula a etapa) |
@@ -272,6 +276,8 @@ Número de **referência nunca recebe** aviso (nem aparece como telefone de envi
 | `parcela_paga` | disparo (no envio) | Parcela paga depois da prévia |
 | `parcela_indisponivel` | disparo (no envio) | Parcela saiu do crediário em aberto (quitada, desativada, devolução) |
 | `recusado_pela_meta` | disparo (no envio) | A Meta recusou o envio |
+| `disparo_expirado` | disparo (no envio) | Mais de 3 dias desde a confirmação: não sai mais |
+| `nao_enviado` | disparo (no envio) | Não foi possível montar ou enviar a mensagem (ex.: texto com parâmetro inválido) |
 
 Etapas da régua (`etapa`): `quitacao`, `antes` (3 a 1 dia antes), `dia` (no vencimento), `apos` (2–3 dias
 depois, pede comprovante), `insistencia` (repetição sem retorno). No histórico há também `disparo`.
@@ -282,8 +288,9 @@ depois, pede comprovante), `insistencia` (repetição sem retorno). No históric
 
 ```json
 {"numero": {"limite_tier": "TIER_2K", "limite_meta": 2000, "qualidade": "GREEN", "qualidade_display": "Alta",
-            "fonte": "meta", "lido_em": "2026-11-27T10:00:00-03:00"},
- "teto": {"automatico": 1600, "configurado": null, "efetivo": 1600, "enviados_hoje": 37, "restante_hoje": 1563},
+            "fonte": "meta", "lido_em": "2026-11-27T10:00:00-03:00", "leitura_falhou": false, "pausa": "", "pausa_display": ""},
+ "teto": {"automatico": 1600, "configurado": null, "efetivo": 1600, "enviados_24h": 37, "restante_agora": 1563,
+          "reserva_regua_hoje": 40, "vagas_disparos": 1523},
  "regua": {"status": "ativa", "status_display": "Ativa", "ativa": true, "ativada_em": "2026-11-20T09:00:00-03:00",
            "hora_envio": "09:00", "fim_envio": "20:00",
            "proxima_janela": {"inicio": "2026-11-27T09:00:00-03:00", "fim": "2026-11-27T20:00:00-03:00"},
@@ -292,10 +299,12 @@ depois, pede comprovante), `insistencia` (repetição sem retorno). No históric
  "custo_por_mensagem": "0.035", "simulado": false}
 ```
 - `fonte`: `meta` (leitura atual) | `ultima_leitura` (Meta fora; vale a última leitura gravada) | `padrao` (nunca leu: teto 200). `qualidade`: `GREEN` | `YELLOW` | `RED` | `""` (desconhecida; `qualidade_display` = "Desconhecida"). `limite_meta` é `null` sem leitura.
-- `regua.status`: `ativa` | `pausada` (manual) | `pausada_por_qualidade` | `antes_da_ativacao` (ligada com data futura em `ativada_em`).
+- `numero.pausa`: `""` | `pausada_por_qualidade` | `sem_leitura_recente` (com `pausa_display`). `leitura_falhou`: a última tentativa de ler a Meta deu erro.
+- `teto.enviados_24h`: templates da empresa nas últimas 24 h; `restante_agora` = efetivo − enviados_24h; `reserva_regua_hoje` = avisos que a régua ainda vai mandar hoje; `vagas_disparos` = restante_agora − reserva_regua_hoje.
+- `regua.status`: `ativa` | `pausada` (manual) | `pausada_por_qualidade` | `sem_leitura_recente` | `antes_da_ativacao` (ligada com data futura em `ativada_em`).
 - `proxima_janela`: a janela em curso ou a próxima (`null` se não houver nos próximos 14 dias).
 - `enviando_agora`: régua ativa, dentro da janela, sem pausa e com teto sobrando.
-- `disparos.situacao_envio`: `""` (disparos saindo) ou `fora_do_horario` | `domingo_feriado` | `pausada_por_qualidade` | `limite_diario`.
+- `disparos.situacao_envio`: `""` (disparos saindo) ou `fora_do_horario` | `domingo_feriado` | `pausada_por_qualidade` | `sem_leitura_recente` | `limite_diario`.
 - `simulado`: sem credenciais da Meta (nada sai de verdade).
 
 ### Configuração da régua (`gerenciar_crm`)
@@ -334,7 +343,8 @@ Simula as rodadas de hoje e dos próximos dias com **as mesmas funções de sele
 quitação, antes, dia, depois, insistência; um aviso por cliente por dia; teto). O que fica de fora por
 bloqueio passageiro (domingo, teto, régua pausada) volta a ser candidato no dia seguinte, como na rotina.
 Para **hoje**, só mostra o que **ainda vai sair** (o que já saiu está em `etapas[].enviados` e no histórico),
-e `capacidade` é o que resta do teto. Pagamentos futuros (quitações) e respostas futuras não são previstos;
+e `capacidade` é o que resta do teto na janela de 24 h agora; nos dias seguintes, o teto inteiro (estimativa).
+A agenda fica até **45 s** em cache (mudar a configuração ou pausar/retomar a recalcula). Pagamentos futuros (quitações) e respostas futuras não são previstos;
 os disparos manuais não entram na agenda (estão em `disparos/`).
 
 | Método | Caminho | Entrada | Resposta |
@@ -353,7 +363,7 @@ os disparos manuais não entram na agenda (estão em `disparos/`).
            "motivos": [{"motivo": "bom_pagador", "rotulo": "Bom pagador (sem lembrete antecipado)", "quantidade": 2}]}]}
 ```
 - `dias[].etapas` vem sempre com as 5 etapas, nesta ordem: `quitacao`, `antes`, `dia`, `apos`, `insistencia`. `enviados` só tem valor hoje.
-- `bloqueio` ≠ `""` → nada sai no dia (`domingo_feriado`, `regua_pausada`, `antes_da_ativacao`, `pausada_por_qualidade`, `fora_do_horario`); os candidatos aparecem como excluídos com esse motivo.
+- `bloqueio` ≠ `""` → nada sai no dia (`domingo_feriado`, `regua_pausada`, `antes_da_ativacao`, `pausada_por_qualidade`, `sem_leitura_recente`, `fora_do_horario`); os candidatos aparecem como excluídos com esse motivo.
 
 **ItemAgenda**
 ```json
@@ -400,7 +410,8 @@ com `motivo_pausa`; `retomar/` volta para `AGENDADO`. Para acompanhar, faça pol
 **Consistência prévia × envio:** o público é **congelado na prévia** (um item por parcela avaliada). O envio
 processa exatamente os itens `PENDENTE`, na ordem, e confere cada um de novo com a mesma regra (pago,
 pagamento informado, telefone, 48 h): quem deixou de valer vira `IGNORADO` com o motivo; ninguém novo entra.
-A prévia vale **24 h** para ser confirmada.
+Cada item é reservado (`ENVIANDO`) antes de sair, para dois processos nunca enviarem o mesmo item.
+A prévia vale **24 h** para ser confirmada; o disparo confirmado vale **3 dias**.
 
 | Método | Caminho | Entrada | Resposta |
 |---|---|---|---|
@@ -408,12 +419,12 @@ A prévia vale **24 h** para ser confirmada.
 | GET | `cobranca/disparos/` | `?status=PREVIA\|AGENDADO\|ENVIANDO\|CONCLUIDO\|CANCELADO\|PAUSADO` (sem filtro: todos menos `PREVIA`) `&page` `&page_size` | paginada de **DisparoItem** (mais recentes primeiro) |
 | POST | `cobranca/disparos/` | **PublicoDisparo** (abaixo) | `201` **DisparoDetalhe** (`status = "PREVIA"`) |
 | GET | `cobranca/disparos/{id}/` | — | **DisparoDetalhe** |
-| GET | `cobranca/disparos/{id}/destinatarios/` | `?situacao=PENDENTE\|ENVIADO\|IGNORADO\|FALHOU\|EXCLUIDO` `&page` `&page_size` | paginada de **Destinatario** (pela ordem) |
+| GET | `cobranca/disparos/{id}/destinatarios/` | `?situacao=PENDENTE\|ENVIANDO\|ENVIADO\|IGNORADO\|FALHOU\|EXCLUIDO` `&page` `&page_size` | paginada de **Destinatario** (pela ordem) |
 | POST | `cobranca/disparos/{id}/confirmar/` | — | **DisparoDetalhe** (`AGENDADO`). `409`: não é prévia, prévia com mais de 24 h, nenhum destinatário, mensagem mudou depois da prévia |
 | POST | `cobranca/disparos/{id}/cancelar/` | — | **DisparoDetalhe** (`CANCELADO`). `409` se já concluído/cancelado |
-| POST | `cobranca/disparos/{id}/retomar/` | — | **DisparoDetalhe** (`AGENDADO`). `409` se não está `PAUSADO` ou a mensagem não está aprovada |
+| POST | `cobranca/disparos/{id}/retomar/` | — | **DisparoDetalhe** (`AGENDADO`). `409` se não está `PAUSADO`, se a mensagem mudou/deixou de estar aprovada depois da prévia ou se passou de 3 dias da confirmação |
 
-Id de disparo inexistente → `404 nao_encontrado`.
+Id de disparo inexistente ou fora do seu escopo (criado por outra pessoa, se você não vê todas as lojas) → `404 nao_encontrado`.
 
 **PublicoDisparo** — `modelo` (id, obrigatório) + **exatamente um** critério:
 
@@ -457,13 +468,14 @@ Status: `PREVIA`, `AGENDADO`, `ENVIANDO`, `CONCLUIDO`, `CANCELADO`, `PAUSADO`.
  "situacao_envio": "", "situacao_envio_display": ""}
 ```
 - `estimativa` só em `PREVIA`, `AGENDADO`, `ENVIANDO` e `PAUSADO` (`null` nos demais): reparte os `pendentes`
-  pelos próximos dias de envio (até 30) conforme o teto (hoje: o que resta) e o ritmo de 20/min nas horas
-  que restam da janela. Não desconta os avisos da régua dos próximos dias. Com o número pausado pela
-  qualidade, tudo fica em `sem_previsao`. `cabem_hoje` = quantos saem hoje.
+  pelos próximos dias de envio (até 30) conforme o teto (hoje: o que resta na janela de 24 h; depois, o teto
+  inteiro), **menos a reserva da régua** de cada dia (agenda, até 14 dias), e o ritmo de 20/min nas horas
+  que restam da janela. Com o número pausado (qualidade ou sem leitura), tudo fica em `sem_previsao`.
+  `cabem_hoje` = quantos saem hoje. É estimativa: não considera a expiração de 3 dias.
 - `situacao_envio` (mesmos status): por que não está saindo agora (`""` = saindo) — `fora_do_horario`,
-  `domingo_feriado`, `pausada_por_qualidade`, `limite_diario`. Vazio nos demais status.
+  `domingo_feriado`, `pausada_por_qualidade`, `sem_leitura_recente`, `limite_diario`. Vazio nos demais status.
 - `exemplo`: o texto como o primeiro destinatário (das lojas que você vê) recebe (`""` se nenhum). `custo_estimado` = `total` × R$ 0,035.
-- `pendentes` é 0 num disparo cancelado.
+- `pendentes` (inclui os `ENVIANDO`) é 0 num disparo cancelado.
 
 **Destinatario**
 ```json
@@ -472,7 +484,7 @@ Status: `PREVIA`, `AGENDADO`, `ENVIANDO`, `CONCLUIDO`, `CANCELADO`, `PAUSADO`.
  "situacao": "ENVIADO", "situacao_display": "Enviado", "motivo": "", "motivo_display": "",
  "telefone": "(91) *****-0000", "processado_em": "...", "conversa_id": 12}
 ```
-`situacao`: `PENDENTE` (na fila), `ENVIADO`, `IGNORADO` (deixou de valer no envio, com `motivo`), `FALHOU`
+`situacao`: `PENDENTE` (na fila), `ENVIANDO` (saindo agora), `ENVIADO`, `IGNORADO` (deixou de valer no envio ou expirou, com `motivo`), `FALHOU`
 (`recusado_pela_meta`), `EXCLUIDO` (fora do público já na prévia, com `motivo`). `telefone`: o número usado
 (enviados) ou o que receberia (pendentes); vazio nos demais. O status de entrega de cada envio está no
 histórico (`historico/?disparo={id}`).

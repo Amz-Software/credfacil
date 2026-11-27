@@ -4,6 +4,7 @@ import io
 from datetime import date, datetime, time, timedelta
 from unittest import mock
 
+from django.core.cache import cache
 from django.utils import timezone
 
 from crm.models import ConfiguracaoCRM, DisparoCobranca, TentativaContato
@@ -25,8 +26,8 @@ def momento(dia: date, hora: int = 10) -> datetime:
 class CentralApiBase(CrmApiTestCase):
     def setUp(self):
         super().setUp()
-        teto.limpar_cache()
-        self.addCleanup(teto.limpar_cache)
+        cache.clear()
+        self.addCleanup(cache.clear)
         self.hoje = proximo_dia_de_cobranca(timezone.localdate())
         self.modelo = self.abertura_aprovada('Aviso de parcela', CORPO_AVISO)
         ConfiguracaoCRM.objects.filter(pk=1).update(
@@ -74,6 +75,19 @@ class SaudeConfigTests(CentralApiBase):
         self.assertEqual(dados['regua']['status'], 'pausada_por_qualidade')
         self.assertFalse(dados['regua']['enviando_agora'])
         self.assertEqual(dados['custo_por_mensagem'], '0.035')
+
+    def test_saude_mostra_pausa_de_seguranca_sem_leitura_recente(self):
+        from crm.whatsapp import ErroWhatsApp
+
+        ConfiguracaoCRM.objects.filter(pk=1).update(meta_limite='TIER_2K', meta_qualidade='GREEN',
+                                                    meta_lido_em=timezone.now() - timedelta(hours=3))
+        provider = mock.Mock(consultar_numero=mock.Mock(side_effect=ErroWhatsApp('fora')))
+        with mock.patch.object(teto, 'obter_provider', return_value=provider), self.assertLogs(teto.logger, 'WARNING'):
+            dados = self.api().get(url('cobranca/saude/?atualizar=true')).json()
+
+        self.assertEqual((dados['regua']['status'], dados['numero']['pausa']), ('sem_leitura_recente',) * 2)
+        self.assertTrue(dados['numero']['leitura_falhou'])
+        self.assertIn(dados['disparos']['situacao_envio'], ('sem_leitura_recente', 'fora_do_horario', 'domingo_feriado'))
 
     def test_saude_padrao_sem_meta(self):
         dados = self.api().get(url('cobranca/saude/')).json()
@@ -170,7 +184,7 @@ class DisparosApiTests(CentralApiBase):
         confirmado = self.api(self.gestor).post(url(f'cobranca/disparos/{disparo_id}/confirmar/'))
         with self.captureOnCommitCallbacks(execute=True):
             envio_disparos.processar(momento(self.hoje), forcar=True)
-        detalhe = self.api().get(url(f'cobranca/disparos/{disparo_id}/')).json()
+        detalhe = self.api(self.gestor).get(url(f'cobranca/disparos/{disparo_id}/')).json()
         destinatarios = self.api(self.gestor).get(url(f'cobranca/disparos/{disparo_id}/destinatarios/')).json()
         historico = self.api(self.gestor).get(url(f'cobranca/historico/?disparo={disparo_id}')).json()
 
@@ -230,6 +244,24 @@ class DisparosApiTests(CentralApiBase):
 
         self.assertEqual(resposta.json()['total'], 0)
         self.assertFalse(TentativaContato.objects.exists())
+
+    def test_quem_nao_ve_todas_as_lojas_so_ve_os_proprios_disparos(self):
+        do_gestor = self.criar(parcelas=[self.atrasada.pk]).json()['id']
+        lojista = self.dar_permissao(self.criar_usuario_backoffice('lojista2'), 'vendas.view_cliente')
+        api = self.api(lojista)
+
+        proprio = api.post(url('cobranca/disparos/'), {'modelo': self.modelo.pk, 'vencimento_dia': 10},
+                           format='json').json()['id']
+        lista = api.get(url('cobranca/disparos/?status=PREVIA')).json()
+
+        self.assertEqual([d['id'] for d in lista['results']], [proprio])
+        for metodo, caminho in (('get', ''), ('get', 'destinatarios/'), ('post', 'confirmar/'), ('post', 'cancelar/'),
+                                ('post', 'retomar/')):
+            with self.subTest(caminho=caminho):
+                resposta = getattr(api, metodo)(url(f'cobranca/disparos/{do_gestor}/{caminho}'))
+                self.assertEqual(resposta.status_code, 404)
+        self.assertEqual(DisparoCobranca.objects.get(pk=do_gestor).status, 'PREVIA')
+        self.assertEqual(self.api(self.gestor).get(url('cobranca/disparos/?status=PREVIA')).json()['count'], 2)
 
     def criar_usuario_backoffice(self, nome: str):
         from backoffice_api.tests.fabricas import criar_usuario

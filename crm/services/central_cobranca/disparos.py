@@ -20,7 +20,7 @@ from crm.services.conversas import ConflitoCRM
 
 from . import janela
 from .motivos import Motivo, telefone_para_aviso
-from .teto import SaudeNumero, restante_no_dia
+from .teto import SaudeNumero, restante
 
 Status = DisparoCobranca.Status
 Situacao = ItemDisparo.Situacao
@@ -33,6 +33,8 @@ JANELA_AVISO_RECENTE = timedelta(hours=48)
 VALIDADE_PREVIA = timedelta(hours=24)
 ENVIOS_POR_MINUTO = 20
 MAX_DIAS_DISTRIBUICAO = 30
+IDADE_MAXIMA = timedelta(days=3)  # depois disso da confirmação, o que não saiu expira (texto e valores velhos)
+MENSAGEM_MUDOU = 'A mensagem mudou ou deixou de estar aprovada depois da prévia; crie um novo disparo.'
 
 
 @dataclass(frozen=True)
@@ -173,6 +175,26 @@ def montar_previa(modelo: ModeloAbertura, publico: Publico, usuario, agora: date
     return disparo
 
 
+def versao_igual(disparo: DisparoCobranca) -> bool:
+    """A versão vigente aprovada da mensagem ainda é a da prévia (texto que o gestor conferiu)."""
+    try:
+        return versao_para_disparo(disparo.modelo).pk == disparo.versao_id
+    except ConflitoCRM:
+        return False
+
+
+def expirado(disparo: DisparoCobranca, agora: datetime | None = None) -> bool:
+    return bool(disparo.confirmado_em and (agora or timezone.now()) - disparo.confirmado_em > IDADE_MAXIMA)
+
+
+def visiveis(usuario):
+    """Disparos que o usuário pode ver e mexer: todos para quem vê todas as lojas; senão só os que criou."""
+    from crm.services.organizacao import _ve_todas_as_lojas
+
+    consulta = DisparoCobranca.objects.all()
+    return consulta if _ve_todas_as_lojas(usuario) else consulta.filter(criado_por=usuario)
+
+
 def _travar(disparo: DisparoCobranca) -> DisparoCobranca:
     return DisparoCobranca.objects.select_for_update().get(pk=disparo.pk)
 
@@ -187,8 +209,8 @@ def confirmar(disparo: DisparoCobranca, usuario, agora: datetime | None = None) 
             raise ConflitoCRM('A prévia tem mais de 24 horas; gere uma nova para conferir o público.')
         if disparo.total == 0:
             raise ConflitoCRM('Nenhum destinatário nesta prévia.')
-        if versao_para_disparo(disparo.modelo).pk != disparo.versao_id:
-            raise ConflitoCRM('A mensagem mudou depois da prévia; gere uma nova.')
+        if not versao_igual(disparo):
+            raise ConflitoCRM(MENSAGEM_MUDOU)
         disparo.status, disparo.confirmado_por, disparo.confirmado_em = Status.AGENDADO, usuario, agora
         disparo.save(update_fields=['status', 'confirmado_por', 'confirmado_em', 'atualizado_em'])
     return disparo
@@ -210,7 +232,10 @@ def retomar(disparo: DisparoCobranca) -> DisparoCobranca:
         disparo = _travar(disparo)
         if disparo.status != Status.PAUSADO:
             raise ConflitoCRM('Só um disparo pausado pode ser retomado.')
-        versao_para_disparo(disparo.modelo)
+        if expirado(disparo):
+            raise ConflitoCRM('Este disparo foi confirmado há mais de 3 dias; crie um novo com a prévia atual.')
+        if not versao_igual(disparo):
+            raise ConflitoCRM(MENSAGEM_MUDOU)
         disparo.status, disparo.falhas_seguidas, disparo.motivo_pausa = Status.AGENDADO, 0, ''
         disparo.save(update_fields=['status', 'falhas_seguidas', 'motivo_pausa', 'atualizado_em'])
     return disparo
@@ -218,40 +243,47 @@ def retomar(disparo: DisparoCobranca) -> DisparoCobranca:
 
 # --- estimativa de quando sai -------------------------------------------------------------------
 
-def _capacidade(config, saude: SaudeNumero, dia: date, agora: datetime) -> int:
+def _capacidade(config, saude: SaudeNumero, dia: date, agora: datetime, reserva: dict) -> int:
     hoje = timezone.localtime(agora).date()
-    teto = restante_no_dia(saude, dia) if dia == hoje else saude.teto_efetivo
-    return min(teto, janela.minutos_no_dia(config, dia, agora) * ENVIOS_POR_MINUTO)
+    vagas = restante(saude, agora) if dia == hoje else saude.teto_efetivo
+    return max(min(vagas - reserva.get(dia, 0), janela.minutos_no_dia(config, dia, agora) * ENVIOS_POR_MINUTO), 0)
 
 
-def distribuicao(quantidade: int, config, saude: SaudeNumero, agora: datetime | None = None) -> tuple[list, int]:
+def distribuicao(quantidade: int, config, saude: SaudeNumero, agora: datetime | None = None,
+                 reserva: dict | None = None) -> tuple[list, int]:
     """[(dia, quantidade)] nos próximos dias de envio, pelo teto e pelo ritmo; e quantos ficam sem previsão.
 
-    Estimativa: não desconta os avisos da régua dos próximos dias. Com o número pausado pela qualidade,
-    nada tem previsão.
+    Hoje: vagas da janela móvel de 24 h; dias seguintes: o teto inteiro. Desconta a `reserva` da régua
+    ({dia: envios previstos}, `agenda.reserva_da_regua`). Com o número pausado, nada tem previsão.
     """
     agora = agora or timezone.now()
-    if saude.pausada_por_qualidade:
+    if saude.pausada:
         return [], quantidade
-    hoje, restante, dias = timezone.localtime(agora).date(), quantidade, []
+    reserva = reserva or {}
+    hoje, falta, dias = timezone.localtime(agora).date(), quantidade, []
     for deslocamento in range(MAX_DIAS_DISTRIBUICAO):
-        if restante <= 0:
+        if falta <= 0:
             break
         dia = hoje + timedelta(days=deslocamento)
-        lote = min(restante, _capacidade(config, saude, dia, agora))
+        lote = min(falta, _capacidade(config, saude, dia, agora, reserva))
         if lote > 0:
             dias.append((dia, lote))
-            restante -= lote
-    return dias, restante
+            falta -= lote
+    return dias, falta
 
 
-def situacao_envio(config, saude: SaudeNumero, agora: datetime | None = None) -> str:
+def vagas_do_disparo(saude: SaudeNumero, reserva_hoje: int, agora: datetime | None = None) -> int:
+    """Vagas agora para disparos: o que resta do teto menos o que a régua ainda vai mandar hoje."""
+    return max(restante(saude, agora) - reserva_hoje, 0)
+
+
+def situacao_envio(config, saude: SaudeNumero, agora: datetime | None = None, reserva_hoje: int = 0) -> str:
     """Por que os disparos não estão saindo agora ('' = saindo)."""
     local = timezone.localtime(agora or timezone.now())
     if not janela.dia_de_envio(local.date()):
         return Motivo.DOMINGO_FERIADO
     if not janela.no_horario(config, local):
         return Motivo.FORA_DO_HORARIO
-    if saude.pausada_por_qualidade:
-        return Motivo.PAUSADA_POR_QUALIDADE
-    return Motivo.LIMITE_DIARIO if restante_no_dia(saude, local.date()) <= 0 else ''
+    if saude.pausada:
+        return saude.motivo_pausa
+    return Motivo.LIMITE_DIARIO if vagas_do_disparo(saude, reserva_hoje, local) <= 0 else ''

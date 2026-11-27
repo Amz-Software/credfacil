@@ -30,6 +30,8 @@ from ..servicos import validar_form
 from . import TAGS
 
 TAGS_COBRANCA = TAGS
+CHAVE_AGENDA = 'crm:cobranca:agenda'
+CHAVE_AGENDA_DIA = 'crm:cobranca:agenda_dia'
 
 
 def _clientes_visiveis(ids: set[int], usuario) -> set[int]:
@@ -66,6 +68,7 @@ class ConfiguracaoCobrancaView(CrmAPIView):
         config = form.save()
         cobranca.ao_ligar(config)
         teto.limpar_cache()  # o teto configurado vale já
+        agenda.invalidar()
         self.auditar('crm_cobranca_configuracao_alterada', objeto=config, dados={'campos': sorted(form.changed_data)})
         return Response(CobrancaConfigSerializer(configuracao_dict(ConfiguracaoCRM.obter())).data)
 
@@ -84,6 +87,7 @@ class _Alternar(CrmAPIView):
         ConfiguracaoCRM.objects.filter(pk=config.pk).update(cobranca_ativa=self.ativar)
         config.cobranca_ativa = self.ativar
         cobranca.ao_ligar(config)  # retomar não refaz a data de ativação já marcada
+        agenda.invalidar()
         self.auditar(self.acao, objeto=config, motivo=motivo)
         return Response(SaudeSerializer(saude_dict(config, teto.ler_saude(config))).data)
 
@@ -109,14 +113,25 @@ class AgendaView(CrmAPIView):
         dias = self.validar_query(AgendaQuerySerializer)['dias']
         config = ConfiguracaoCRM.obter()
         saude = teto.ler_saude(config)
-        return Response(AgendaSerializer(agenda_dict(agenda.projetar(config, saude, dias), saude)).data)
+        chave = f'{CHAVE_AGENDA}:{timezone.localdate().isoformat()}:{dias}'
+        dados = agenda.em_cache(chave, lambda: agenda_dict(agenda.projetar(config, saude, dias), saude))
+        return Response(AgendaSerializer(dados).data)
 
 
-def _filtrar_itens(dia: agenda.DiaAgenda, filtros: dict, visiveis: set[int]) -> list:
+def _filtrar_itens(itens: list[dict], filtros: dict, visiveis: set[int]) -> list[dict]:
     situacao, etapa, motivo = filtros.get('situacao'), filtros.get('etapa'), filtros.get('motivo')
-    return [item for item in dia.itens
-            if item.cliente.pk in visiveis and (not etapa or item.etapa == etapa)
-            and (not motivo or item.motivo == motivo) and (not situacao or (situacao == 'previsto') == item.previsto)]
+    return [item for item in itens
+            if item['cliente']['id'] in visiveis and (not etapa or item['etapa'] == etapa)
+            and (not motivo or item['motivo'] == motivo) and (not situacao or item['situacao'] == situacao)]
+
+
+def _dia_em_cache(dia: date) -> dict:
+    def calcular() -> dict:
+        config = ConfiguracaoCRM.obter()
+        projetado = agenda.dia_da_projecao(config, teto.ler_saude(config), dia)
+        return {'itens': itens_agenda(projetado.itens), 'resumo': dia_resumo(projetado)}
+
+    return agenda.em_cache(f'{CHAVE_AGENDA_DIA}:{timezone.localdate().isoformat()}:{dia.isoformat()}', calcular)
 
 
 class AgendaDiaView(CrmAPIView):
@@ -129,12 +144,11 @@ class AgendaDiaView(CrmAPIView):
     def get(self, request, data: str):
         filtros = self.validar_query(AgendaDiaQuerySerializer)
         dia = self._data(data)
-        config = ConfiguracaoCRM.obter()
-        projetado = agenda.dia_da_projecao(config, teto.ler_saude(config), dia)
-        visiveis = _clientes_visiveis({item.cliente.pk for item in projetado.itens}, request.user)
-        resposta = self.paginar_convertendo(_filtrar_itens(projetado, filtros, visiveis), itens_agenda,
+        projetado = _dia_em_cache(dia)
+        visiveis = _clientes_visiveis({item['cliente']['id'] for item in projetado['itens']}, request.user)
+        resposta = self.paginar_convertendo(_filtrar_itens(projetado['itens'], filtros, visiveis), list,
                                             ItemAgendaSerializer)
-        resposta.data['resumo'] = DiaAgendaSerializer(dia_resumo(projetado)).data
+        resposta.data['resumo'] = DiaAgendaSerializer(projetado['resumo']).data
         return resposta
 
     @staticmethod

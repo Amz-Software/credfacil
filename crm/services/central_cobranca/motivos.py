@@ -13,6 +13,7 @@ class Motivo:
     ANTES_DA_ATIVACAO = 'antes_da_ativacao'
     REGUA_PAUSADA = 'regua_pausada'
     PAUSADA_POR_QUALIDADE = 'pausada_por_qualidade'
+    SEM_LEITURA_RECENTE = 'sem_leitura_recente'
     DOMINGO_FERIADO = 'domingo_feriado'
     FORA_DO_HORARIO = 'fora_do_horario'
     ETAPA_SEM_MODELO = 'etapa_sem_modelo'
@@ -21,6 +22,8 @@ class Motivo:
     PARCELA_PAGA = 'parcela_paga'
     PARCELA_INDISPONIVEL = 'parcela_indisponivel'
     RECUSADO_PELA_META = 'recusado_pela_meta'
+    DISPARO_EXPIRADO = 'disparo_expirado'
+    NAO_ENVIADO = 'nao_enviado'
 
     ROTULOS = {
         BOM_PAGADOR: 'Bom pagador (sem lembrete antecipado)',
@@ -32,6 +35,7 @@ class Motivo:
         ANTES_DA_ATIVACAO: 'Antes da data de ativação da régua',
         REGUA_PAUSADA: 'Régua pausada',
         PAUSADA_POR_QUALIDADE: 'Pausada pela qualidade do número na Meta',
+        SEM_LEITURA_RECENTE: 'Pausada por segurança: a Meta não responde há mais de 1 hora',
         DOMINGO_FERIADO: 'Domingo ou feriado',
         FORA_DO_HORARIO: 'Horário de envio encerrado',
         ETAPA_SEM_MODELO: 'Etapa sem mensagem aprovada',
@@ -40,6 +44,8 @@ class Motivo:
         PARCELA_PAGA: 'Parcela paga',
         PARCELA_INDISPONIVEL: 'Parcela fora do crediário em aberto',
         RECUSADO_PELA_META: 'A Meta recusou o envio',
+        DISPARO_EXPIRADO: 'Disparo expirado (mais de 3 dias desde a confirmação)',
+        NAO_ENVIADO: 'Não foi possível montar ou enviar a mensagem',
     }
 
 

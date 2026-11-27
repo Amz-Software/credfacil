@@ -2,6 +2,7 @@
 from datetime import timedelta
 from unittest import mock
 
+from django.core.cache import cache
 from django.utils import timezone
 
 from crm.models import ConfiguracaoCRM, Mensagem, TelefoneCliente, TentativaContato
@@ -31,8 +32,8 @@ def provider_com_numero(limite: str = 'TIER_2K', qualidade: str = 'GREEN', erro:
 class CentralBase(ReguaBase):
     def setUp(self):
         super().setUp()
-        teto.limpar_cache()
-        self.addCleanup(teto.limpar_cache)
+        cache.clear()  # saúde do número, agenda/reserva e trava de minuto ficam no cache
+        self.addCleanup(cache.clear)
         Parcela.objects.filter(pk=self.parcelas[1].pk).update(pago=True)  # sem atraso antigo no cenário
 
     def outro_cliente(self, numero: int, vencimento_em: int, telefone: str | None = None):
@@ -93,7 +94,7 @@ class TetoTests(CentralBase):
             Mensagem.objects.create(conversa=conversa, direcao=Mensagem.Direcao.SAIDA, autor=Mensagem.Autor.HUMANO,
                                     origem=origem, status=status, texto='x')
 
-        self.assertEqual(teto.enviados_no_dia(timezone.localdate()), 2)
+        self.assertEqual(teto.enviados_24h(), 2)
 
     def test_regua_para_no_teto_do_dia(self):
         ConfiguracaoCRM.objects.filter(pk=1).update(cobranca_teto_diario=1)
@@ -253,7 +254,7 @@ class HistoricoTests(CentralBase):
 class RotinaComAlertaTests(CentralBase):
     def test_teto_atingido_ainda_roda_os_alertas(self):
         ConfiguracaoCRM.objects.filter(pk=1).update(cobranca_teto_diario=1)
-        with mock.patch.object(teto, 'restante_no_dia', return_value=0), \
+        with mock.patch.object(teto, 'restante', return_value=0), \
                 mock.patch.object(cobranca._Rodada, 'alertas') as alertas:
             self.assertEqual(self.rodar(), {})
         alertas.assert_called_once()

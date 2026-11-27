@@ -91,15 +91,18 @@ def _despachar(mensagem: Mensagem, tentativa_id: int, nome_meta: str, parametros
 
 
 def enviar_aviso(versao: VersaoAbertura, parcela, tipo: str, sequencia: int = 0,
-                 hoje: date | None = None, desde: datetime | None = None) -> Mensagem | None:
+                 hoje: date | None = None, desde: datetime | None = None, limite: int | None = None) -> Mensagem | None:
     """Registra a tentativa (única por parcela/etapa/sequência) e envia o template. None = nada enviado.
 
     Não envia se o cliente já recebeu aviso desde `desde` (padrão: início de `hoje`; disparo: 48 h).
+    `limite` = teto de envios nas últimas 24 h (padrão: o teto efetivo); conferido dentro da transação
+    travada: sem vaga levanta `teto.TetoAtingido` e nada é gravado.
     """
     from vendas.models import Cliente
 
     hoje = hoje or timezone.localdate()
     desde = desde or _dia_local(hoje)[0]
+    limite = teto.ler_saude().teto_efetivo if limite is None else limite
     cliente = parcela.pagamento.venda.cliente
     telefone = contatos.para_aviso(cliente)
     if telefone is None:
@@ -114,6 +117,7 @@ def enviar_aviso(versao: VersaoAbertura, parcela, tipo: str, sequencia: int = 0,
         return None
     try:
         with transaction.atomic():
+            teto.reservar_vaga(limite)  # trava global: régua e disparos não passam do teto juntos
             # Trava o cliente: duas rodadas ao mesmo tempo não mandam dois avisos no mesmo dia.
             Cliente.objects.select_for_update().filter(pk=cliente.pk).first()
             if _avisado_desde(cliente, desde):
@@ -199,9 +203,12 @@ def avisados_no_dia(dia: date) -> set[int]:
 class _Rodada:
     """Uma passada da régua: um aviso por cliente por dia, no máximo MAX_ENVIOS_POR_RODADA e o teto do dia."""
 
-    def __init__(self, config: ConfiguracaoCRM, hoje: date, limite: int = MAX_ENVIOS_POR_RODADA):
+    def __init__(self, config: ConfiguracaoCRM, hoje: date, limite: int = MAX_ENVIOS_POR_RODADA,
+                 teto_efetivo: int | None = None):
         self.config, self.hoje = config, hoje
         self.limite = min(limite, MAX_ENVIOS_POR_RODADA)
+        self.teto_efetivo = teto_efetivo
+        self.teto_atingido = False
         self.avisados = avisados_no_dia(hoje)
         self.enviados: dict[str, int] = {}
         self.falhas_seguidas = 0
@@ -210,7 +217,8 @@ class _Rodada:
 
     @property
     def parada(self) -> bool:
-        return sum(self.enviados.values()) >= self.limite or self.falhas_seguidas >= MAX_FALHAS_SEGUIDAS
+        return (sum(self.enviados.values()) >= self.limite or self.falhas_seguidas >= MAX_FALHAS_SEGUIDAS
+                or self.teto_atingido)
 
     def tentar(self, versao: VersaoAbertura, parcela, tipo: str, sequencia: int = 0) -> None:
         cliente_id = parcela.pagamento.venda.cliente_id
@@ -218,7 +226,11 @@ class _Rodada:
             return
         self.avisados.add(cliente_id)  # sem número ou com erro: só volta na próxima rodada
         try:
-            mensagem = enviar_aviso(versao, parcela, tipo, sequencia, self.hoje)
+            mensagem = enviar_aviso(versao, parcela, tipo, sequencia, self.hoje, limite=self.teto_efetivo)
+        except teto.TetoAtingido:
+            self.teto_atingido = True  # outro processo (disparo) ocupou a última vaga
+            self.avisados.discard(cliente_id)
+            return
         except FalhaDeEnvio as erro:
             self.falhas_seguidas += 1
             logger.warning('Meta recusou o aviso %s da parcela %s: %s', tipo, parcela.pk, erro)
@@ -333,12 +345,11 @@ def rodar(agora: datetime | None = None, forcar: bool = False) -> dict:
     if not forcar and not _reservar_rodada():
         return {}
     saude = teto.ler_saude(config)
-    if saude.pausada_por_qualidade:
-        logger.warning('Régua pausada: qualidade %s do número na Meta.', saude.qualidade)
-        return {}  # nada sai até a Meta voltar a GREEN
-    restante = teto.restante_no_dia(saude, local.date())
-    rodada = _Rodada(config, local.date(), limite=restante)
-    if restante > 0:  # teto do dia atingido: o resto fica para o próximo dia (os alertas não são mensagem)
+    restante = 0 if saude.pausada else teto.restante(saude, local)
+    if saude.pausada:  # qualidade ruim ou Meta sem resposta: nada sai até voltar ao normal
+        logger.warning('Régua pausada (%s); qualidade %s.', saude.motivo_pausa, saude.qualidade)
+    rodada = _Rodada(config, local.date(), limite=restante, teto_efetivo=saude.teto_efetivo)
+    if restante > 0:  # sem vaga ou pausada: o resto fica para depois (os alertas não são mensagem ao cliente)
         rodada.quitacoes()
         rodada.etapas()
         rodada.insistencias()

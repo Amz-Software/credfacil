@@ -56,14 +56,19 @@ class NumeroMetaSerializer(CrmSerializer):
     qualidade_display = serializers.CharField()
     fonte = serializers.ChoiceField(choices=['meta', 'ultima_leitura', 'padrao'])
     lido_em = serializers.DateTimeField(allow_null=True)
+    leitura_falhou = serializers.BooleanField(help_text='A última tentativa de ler a Meta deu erro.')
+    pausa = serializers.CharField(help_text='"", pausada_por_qualidade ou sem_leitura_recente.')
+    pausa_display = serializers.CharField()
 
 
 class TetoSerializer(CrmSerializer):
     automatico = serializers.IntegerField()
     configurado = serializers.IntegerField(allow_null=True)
     efetivo = serializers.IntegerField()
-    enviados_hoje = serializers.IntegerField()
-    restante_hoje = serializers.IntegerField()
+    enviados_24h = serializers.IntegerField(help_text='Templates da empresa nas últimas 24 h (janela da Meta).')
+    restante_agora = serializers.IntegerField()
+    reserva_regua_hoje = serializers.IntegerField(help_text='Avisos que a régua ainda vai mandar hoje.')
+    vagas_disparos = serializers.IntegerField(help_text='restante_agora − reserva_regua_hoje.')
 
 
 class JanelaSerializer(CrmSerializer):
@@ -72,7 +77,8 @@ class JanelaSerializer(CrmSerializer):
 
 
 class ReguaSerializer(CrmSerializer):
-    status = serializers.ChoiceField(choices=['ativa', 'pausada', 'pausada_por_qualidade', 'antes_da_ativacao'])
+    status = serializers.ChoiceField(choices=['ativa', 'pausada', 'pausada_por_qualidade', 'sem_leitura_recente',
+                                              'antes_da_ativacao'])
     status_display = serializers.CharField()
     ativa = serializers.BooleanField()
     ativada_em = serializers.DateTimeField(allow_null=True)

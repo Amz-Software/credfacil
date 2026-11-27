@@ -20,12 +20,13 @@ from ..serializers.disparos import (
 from .cobranca import TAGS_COBRANCA
 
 
-def _disparos():
-    return DisparoCobranca.objects.select_related('modelo', 'versao', 'criado_por', 'confirmado_por', 'cancelado_por')
+def _disparos(usuario):
+    """Escopo: quem não vê todas as lojas só vê e mexe nos disparos que criou."""
+    return disparos.visiveis(usuario).select_related('modelo', 'versao', 'criado_por', 'confirmado_por', 'cancelado_por')
 
 
 def _detalhe(pk: int, usuario) -> dict:
-    return DisparoDetalheSerializer(disparo_detalhe(get_object_or_404(_disparos(), pk=pk), usuario)).data
+    return DisparoDetalheSerializer(disparo_detalhe(get_object_or_404(_disparos(usuario), pk=pk), usuario)).data
 
 
 class ModelosView(CrmAPIView):
@@ -53,7 +54,8 @@ class DisparosView(CrmAPIView):
                    parameters=[DisparosQuerySerializer], responses=DisparoItemSerializer(many=True))
     def get(self, request):
         status = self.validar_query(DisparosQuerySerializer).get('status')
-        consulta = _disparos().filter(status=status) if status else _disparos().exclude(
+        visiveis = _disparos(request.user)
+        consulta = visiveis.filter(status=status) if status else visiveis.exclude(
             status=DisparoCobranca.Status.PREVIA)
         return self.paginar_convertendo(consulta, lista_disparos, DisparoItemSerializer)
 
@@ -87,7 +89,7 @@ class DestinatariosView(CrmAPIView):
         from crm.services.relatorios_cobranca import _no_escopo
         from vendas.models import Cliente
 
-        disparo = get_object_or_404(DisparoCobranca, pk=pk)
+        disparo = get_object_or_404(disparos.visiveis(request.user), pk=pk)
         situacao = self.validar_query(DestinatariosQuerySerializer).get('situacao')
         visiveis = _no_escopo(Cliente.objects.all(), request.user)
         itens = (ItemDisparo.objects.filter(disparo=disparo, cliente__in=visiveis)
@@ -106,7 +108,7 @@ class _AcaoDisparo(CrmAPIView):
         raise NotImplementedError
 
     def post(self, request, pk: int):
-        disparo = self.executar(get_object_or_404(DisparoCobranca, pk=pk))
+        disparo = self.executar(get_object_or_404(disparos.visiveis(request.user), pk=pk))
         self.auditar(self.acao, objeto=disparo, dados={'status': disparo.status, 'total': disparo.total})
         return Response(_detalhe(pk, request.user))
 

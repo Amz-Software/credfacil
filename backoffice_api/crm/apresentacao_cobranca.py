@@ -38,14 +38,15 @@ def parcela_mini(parcela) -> dict | None:
 def _status_regua(config: ConfiguracaoCRM, saude: teto.SaudeNumero, agora: datetime) -> str:
     if not config.cobranca_ativa:
         return 'pausada'
-    if saude.pausada_por_qualidade:
-        return 'pausada_por_qualidade'
+    if saude.pausada:
+        return saude.motivo_pausa  # pausada_por_qualidade ou sem_leitura_recente
     if config.cobranca_ativada_em and config.cobranca_ativada_em > agora:
         return 'antes_da_ativacao'
     return 'ativa'
 
 
 STATUS_REGUA = {'ativa': 'Ativa', 'pausada': 'Pausada', 'pausada_por_qualidade': 'Pausada pela qualidade do número',
+                'sem_leitura_recente': 'Pausada por segurança: a Meta não responde há mais de 1 hora',
                 'antes_da_ativacao': 'Ligada, começa na data marcada'}
 
 
@@ -57,21 +58,25 @@ def _janela_dict(config: ConfiguracaoCRM, agora: datetime) -> dict | None:
 def saude_dict(config: ConfiguracaoCRM, saude: teto.SaudeNumero, agora: datetime | None = None) -> dict:
     agora = agora or timezone.now()
     hoje = timezone.localtime(agora).date()
-    enviados = teto.enviados_no_dia(hoje)
+    enviados = teto.enviados_24h(agora)
+    restante = max(saude.teto_efetivo - enviados, 0)
     status = _status_regua(config, saude, agora)
-    situacao = disparos.situacao_envio(config, saude, agora)
+    reserva = agenda.reserva_da_regua(config, saude, agora).get(hoje, 0)
+    situacao = disparos.situacao_envio(config, saude, agora, reserva)
     return {
         'numero': {'limite_tier': saude.limite_tier, 'limite_meta': saude.limite_meta, 'qualidade': saude.qualidade,
-                   'qualidade_display': saude.qualidade_display, 'fonte': saude.fonte, 'lido_em': _iso(saude.lido_em)},
+                   'qualidade_display': saude.qualidade_display, 'fonte': saude.fonte, 'lido_em': _iso(saude.lido_em),
+                   'leitura_falhou': saude.falhou, 'pausa': saude.motivo_pausa,
+                   'pausa_display': rotulo(saude.motivo_pausa) if saude.pausada else ''},
         'teto': {'automatico': saude.teto_automatico, 'configurado': saude.teto_configurado,
-                 'efetivo': saude.teto_efetivo, 'enviados_hoje': enviados,
-                 'restante_hoje': max(saude.teto_efetivo - enviados, 0)},
+                 'efetivo': saude.teto_efetivo, 'enviados_24h': enviados, 'restante_agora': restante,
+                 'reserva_regua_hoje': reserva, 'vagas_disparos': max(restante - reserva, 0)},
         'regua': {'status': status, 'status_display': STATUS_REGUA[status], 'ativa': config.cobranca_ativa,
                   'ativada_em': _iso(config.cobranca_ativada_em),
                   'hora_envio': config.cobranca_hora_envio.strftime(FORMATO_HORA),
                   'fim_envio': janela.FIM_DOS_ENVIOS.strftime(FORMATO_HORA),
                   'proxima_janela': _janela_dict(config, agora),
-                  'enviando_agora': status == 'ativa' and not situacao},
+                  'enviando_agora': status == 'ativa' and janela.aberta(config, agora) and restante > 0},
         'disparos': {'em_andamento': DisparoCobranca.objects.filter(status__in=DisparoCobranca.EM_ANDAMENTO).count(),
                      'situacao_envio': situacao, 'situacao_envio_display': rotulo(situacao) if situacao else ''},
         'custo_por_mensagem': str(teto.CUSTO_POR_MENSAGEM),

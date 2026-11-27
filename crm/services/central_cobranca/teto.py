@@ -1,15 +1,18 @@
 """Teto diário de mensagens de cobrança e saúde do número na Meta.
 
-- Teto automático = 80% do limite diário do número (TIER_250 → 200, TIER_2K → 1600...).
+- Teto automático = 80% do limite do número (TIER_250 → 200, TIER_2K → 1600...).
   `cobranca_teto_diario` só baixa esse valor. Sem leitura da Meta: última leitura ou 200.
-- Qualidade YELLOW ou RED pausa a régua e os disparos até a Meta voltar a GREEN.
+- A Meta conta uma janela móvel de 24 h: o teto vale para os envios das últimas 24 h (não do dia).
+- Conta todo template iniciado pela empresa: avisos da régua, disparos, aberturas e compra
+  confirmada (sem as recusadas). Cada envio de cobrança confere o teto de novo dentro de uma
+  transação travada (`reservar_vaga`): régua e disparos, em qualquer processo, não passam do teto.
+- Qualidade YELLOW ou RED pausa a régua e os disparos até a Meta voltar a GREEN. Leitura da Meta
+  falhando com a última leitura boa com mais de 1 h (ou nenhuma): pausa de segurança.
 - A leitura fica 10 min no cache compartilhado (falha do cache não para nada).
-- Conta todo template iniciado pela empresa no dia: avisos da régua, disparos, aberturas e
-  compra confirmada (mensagens que saíram, sem as recusadas).
 """
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.conf import settings
@@ -18,7 +21,6 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from crm.models import ConfiguracaoCRM, Mensagem
-from crm.services.central_cobranca.janela import dia_local
 from crm.whatsapp import obter_provider
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,14 @@ LIMITES_META = {
 QUALIDADES_RUINS = frozenset({'YELLOW', 'RED'})
 ROTULOS_QUALIDADE = {'GREEN': 'Alta', 'YELLOW': 'Média', 'RED': 'Baixa'}
 ORIGENS_DA_EMPRESA = (Mensagem.Origem.COBRANCA, Mensagem.Origem.ABERTURA, Mensagem.Origem.COMPRA)
+JANELA_DA_META = timedelta(hours=24)
+LEITURA_VALIDA = timedelta(hours=1)  # Meta fora há mais que isso: pausa de segurança
+PAUSA_QUALIDADE = 'pausada_por_qualidade'
+PAUSA_SEM_LEITURA = 'sem_leitura_recente'
+
+
+class TetoAtingido(Exception):
+    """Sem vaga no teto das últimas 24 h: o envio fica para depois."""
 
 
 class Fonte:
@@ -52,6 +62,7 @@ class SaudeNumero:
     fonte: str
     lido_em: datetime | None
     teto_configurado: int | None
+    falhou: bool = False  # a última tentativa de ler a Meta deu erro
 
     @property
     def limite_meta(self) -> int | None:
@@ -70,6 +81,22 @@ class SaudeNumero:
     @property
     def pausada_por_qualidade(self) -> bool:
         return self.qualidade in QUALIDADES_RUINS
+
+    @property
+    def sem_leitura_recente(self) -> bool:
+        """Meta não responde e a última leitura boa é velha (ou não existe): não dá para saber a qualidade."""
+        return self.falhou and (self.lido_em is None or timezone.now() - self.lido_em > LEITURA_VALIDA)
+
+    @property
+    def motivo_pausa(self) -> str:
+        """'' = pode enviar; senão `PAUSA_QUALIDADE` ou `PAUSA_SEM_LEITURA`."""
+        if self.pausada_por_qualidade:
+            return PAUSA_QUALIDADE
+        return PAUSA_SEM_LEITURA if self.sem_leitura_recente else ''
+
+    @property
+    def pausada(self) -> bool:
+        return bool(self.motivo_pausa)
 
     @property
     def qualidade_display(self) -> str:
@@ -124,7 +151,7 @@ def _atualizar(config: ConfiguracaoCRM) -> dict:
         lida = _ler_da_meta()
     except Exception as erro:  # noqa: BLE001 — ErroWhatsApp ou rede: vale a última leitura
         logger.warning('Não foi possível ler o número na Meta: %s', getattr(erro, 'mensagem', erro))
-        leitura = _ultima_conhecida(config)
+        leitura = {**_ultima_conhecida(config), 'falhou': True}
         _guardar(leitura, CACHE_FALHA_SEGUNDOS)
         return leitura
     if not lida:
@@ -148,19 +175,27 @@ def ler_saude(config: ConfiguracaoCRM | None = None, forcar: bool = False) -> Sa
     lido_em = parse_datetime(leitura['lido_em']) if leitura.get('lido_em') else None
     return SaudeNumero(limite_tier=leitura.get('limite') or '', qualidade=leitura.get('qualidade') or '',
                        fonte=leitura.get('fonte') or Fonte.PADRAO, lido_em=lido_em,
-                       teto_configurado=config.cobranca_teto_diario)
+                       teto_configurado=config.cobranca_teto_diario, falhou=bool(leitura.get('falhou')))
 
 
-def enviados_no_dia(dia: date) -> int:
-    """Templates iniciados pela empresa no dia (régua, disparos, aberturas, compra confirmada)."""
-    inicio, fim = dia_local(dia)
-    return (Mensagem.objects.filter(direcao=Mensagem.Direcao.SAIDA, origem__in=ORIGENS_DA_EMPRESA,
-                                    criado_em__gte=inicio, criado_em__lt=fim)
+def enviados_24h(agora: datetime | None = None) -> int:
+    """Templates iniciados pela empresa nas últimas 24 h (régua, disparos, aberturas, compra confirmada)."""
+    desde = (agora or timezone.now()) - JANELA_DA_META
+    return (Mensagem.objects.filter(direcao=Mensagem.Direcao.SAIDA, origem__in=ORIGENS_DA_EMPRESA, criado_em__gte=desde)
             .exclude(status=Mensagem.Status.ERRO).count())
 
 
-def restante_no_dia(saude: SaudeNumero, dia: date) -> int:
-    return max(saude.teto_efetivo - enviados_no_dia(dia), 0)
+def restante(saude: SaudeNumero, agora: datetime | None = None) -> int:
+    """Vagas no teto agora (janela móvel de 24 h)."""
+    return max(saude.teto_efetivo - enviados_24h(agora), 0)
+
+
+def reservar_vaga(limite: int) -> None:
+    """Dentro de uma transação, antes de criar a mensagem: trava a linha única da configuração (todos os
+    envios de cobrança passam por aqui, em fila), reconta as últimas 24 h e recusa se não há vaga."""
+    ConfiguracaoCRM.objects.select_for_update().filter(pk=1).values_list('pk', flat=True).first()
+    if enviados_24h() >= limite:
+        raise TetoAtingido(f'Teto de {limite} mensagens em 24 h atingido.')
 
 
 def custo(quantidade: int) -> Decimal:

@@ -1,7 +1,8 @@
 """Disparo manual de cobrança (Central de cobrança): um template aprovado para um público filtrado.
 
-O público é congelado na prévia (`ItemDisparo`, um por cliente): o que a prévia mostrou é
+O público é congelado na prévia (`ItemDisparo`, um por parcela avaliada): o que a prévia mostrou é
 exatamente o que a rotina processa, item a item, conferindo de novo cada regra na hora do envio.
+Disparo confirmado há mais de 3 dias não envia mais (os itens na fila viram "expirado").
 Cada envio que sai vira também uma `TentativaContato` (tipo DISPARO, sequência = id do disparo):
 o histórico de contatos, a regra de "um aviso por dia" e a marcação de resposta valem igual.
 """
@@ -58,6 +59,7 @@ class ItemDisparo(models.Model):
 
     class Situacao(models.TextChoices):
         PENDENTE = 'PENDENTE', 'Na fila'
+        ENVIANDO = 'ENVIANDO', 'Enviando agora'  # reservado por uma rodada (evita envio duplo)
         ENVIADO = 'ENVIADO', 'Enviado'
         IGNORADO = 'IGNORADO', 'Ignorado no envio'
         FALHOU = 'FALHOU', 'Recusado pela Meta'
@@ -74,6 +76,6 @@ class ItemDisparo(models.Model):
     processado_em = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ['disparo', 'ordem']
+        ordering = ['disparo_id', 'ordem']
         default_permissions = ()
         indexes = [models.Index(fields=['disparo', 'situacao', 'ordem'])]
