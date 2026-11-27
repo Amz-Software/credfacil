@@ -188,7 +188,10 @@ def conversa_estado(conversa: Conversa, usuario) -> dict:
     """Resumo + trava de resposta (cabeçalho e compositor), sem mensagens nem notas."""
     conversa = anotar_lista(Conversa.objects.filter(pk=conversa.pk)).get()
     bloqueio = bloqueio_de(conversa, usuario)
-    return {**conversa_resumo(conversa), 'pode_responder': bloqueio is None, 'bloqueio': bloqueio}
+    from crm.services.organizacao import nomes_dos_clientes
+
+    return {**conversa_resumo(conversa), 'pode_responder': bloqueio is None, 'bloqueio': bloqueio,
+            'clientes_nomes': nomes_dos_clientes(conversa, usuario)}
 
 
 def _mensagens_recentes(conversa: Conversa) -> dict:

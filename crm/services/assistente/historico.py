@@ -78,6 +78,9 @@ def _papel(mensagem: Mensagem) -> str:
 
 def _mensagens_recentes(conversa: Conversa) -> list[Mensagem]:
     desde = timezone.now() - JANELA
+    encerrada = identidade.encerrada_em(conversa)
+    if encerrada and encerrada > desde:
+        desde = encerrada  # atendimento encerrado: o novo começa do zero
     recentes = (Mensagem.objects
                 .filter(conversa=conversa, criado_em__gte=desde)
                 .exclude(tipo__in=IGNORADAS)

@@ -54,8 +54,8 @@ def resumo_da_compra(pagamento, hoje: date) -> dict:
     pagas = [p for p in todas if p.pago]
     abertas = [p for p in todas if not p.pago]
     quitada = pagamento.quitado or not abertas
+    # Sem o nome do produto: o cliente pediu que o bot não descreva a compra (só valores e datas).
     compra = {
-        'produto': pagamentos._produto(pagamento.venda),
         'data_compra': _data(pagamento.venda.data_venda),
         'loja': _loja(pagamento.venda),
         'situacao': 'quitada' if quitada else 'em andamento',
@@ -71,6 +71,9 @@ def resumo_da_compra(pagamento, hoje: date) -> dict:
     atrasadas = [p for p in abertas if p.data_vencimento < hoje and not p.pagamento_efetuado]
     compra.update({
         'aparelho_bloqueado': bool(pagamento.bloqueado),
+        'qtd_em_aberto': len(abertas),
+        'qtd_atrasadas': len(atrasadas),
+        'atrasada_mais_antiga': _data(min(p.data_vencimento for p in atrasadas)) if atrasadas else None,
         'total_em_aberto': pagamentos.formatar_reais(sum((p.valor_restante for p in abertas), Decimal('0'))),
         'total_atrasado': pagamentos.formatar_reais(sum((p.valor_restante for p in atrasadas), Decimal('0'))),
         'parcelas': [_aberta(p, hoje) for p in abertas[:MAX_PARCELAS_ABERTAS]],

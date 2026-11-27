@@ -217,6 +217,12 @@ def pode_ver_cliente(usuario, cliente, lojas: set[int] | None = None) -> bool:
     return cliente.loja_id in (lojas if lojas is not None else _lojas_do_usuario(usuario))
 
 
+def nomes_dos_clientes(conversa: Conversa, usuario) -> list[str]:
+    """Nome dos clientes vinculados à conversa que o usuário pode ver (cabeçalho, abaixo do nome no WhatsApp)."""
+    lojas = _lojas_do_usuario(usuario)
+    return [c.nome for c in conversa.clientes.all() if pode_ver_cliente(usuario, c, lojas)]
+
+
 def mascarar_cpf(cpf: str) -> str:
     digitos = ''.join(c for c in cpf or '' if c.isdigit())
     if len(digitos) != 11:

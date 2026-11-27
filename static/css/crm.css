@@ -334,6 +334,18 @@
   text-overflow: ellipsis;
   color: var(--ipix-heading);
 }
+.crm-cabecalho__cliente {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  overflow: hidden;
+  font-size: .8125rem;
+  font-weight: 500;
+  color: var(--ipix-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .crm-cabecalho__detalhes {
   display: flex;
   flex-wrap: wrap;

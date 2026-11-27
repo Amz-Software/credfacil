@@ -21,6 +21,7 @@ from crm.telefone import somente_digitos
 logger = logging.getLogger(__name__)
 
 CHAVE = 'ia'
+ENCERRADA_EM = 'encerrada_em'
 VALIDADE = timedelta(hours=24)
 EXPIRACAO_FALHAS = timedelta(hours=24)
 MAX_FALHAS = 3
@@ -133,6 +134,17 @@ def identificar(conversa: Conversa, cpf: str, nascimento: str) -> list:
                'Acabaram as tentativas: transfira para um atendente.')
         )
     conversa.clientes.add(*clientes)
-    _gravar(conversa, {'clientes': [c.pk for c in clientes], 'verificado_em': timezone.now().isoformat(),
-                       'falhas': 0})
+    preservado = {k: v for k, v in _estado(conversa).items() if k == ENCERRADA_EM}
+    _gravar(conversa, {**preservado, 'clientes': [c.pk for c in clientes],
+                       'verificado_em': timezone.now().isoformat(), 'falhas': 0})
     return clientes
+
+
+def marcar_encerramento(conversa: Conversa) -> None:
+    """O atendimento automático foi encerrado: a próxima mensagem começa um atendimento novo
+    (o histórico enviado à IA passa a começar daqui). A identificação continua valendo."""
+    _gravar(conversa, {**_estado(conversa), ENCERRADA_EM: timezone.now().isoformat()})
+
+
+def encerrada_em(conversa: Conversa) -> datetime | None:
+    return _ler_momento(_estado(conversa).get(ENCERRADA_EM))

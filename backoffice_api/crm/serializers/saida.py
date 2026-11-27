@@ -102,6 +102,8 @@ class AcoesSerializer(CrmSerializer):
 
 
 class ConversaEstadoSerializer(ConversaItemSerializer):
+    clientes_nomes = serializers.ListField(
+        child=serializers.CharField(), help_text='Clientes vinculados ao número que o usuário pode ver.')
     pode_responder = serializers.BooleanField()
     bloqueio = BloqueioSerializer(allow_null=True)
     acoes = AcoesSerializer()

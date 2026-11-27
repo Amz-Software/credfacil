@@ -297,6 +297,19 @@ def transferir(conversa: Conversa, nota: str, silenciosa: bool = False) -> bool:
     return True
 
 
+def encerrar_automatico(conversa: Conversa, nota: str) -> bool:
+    """O atendimento automático terminou sem precisar da equipe: a conversa fica RESOLVIDA e
+    continua no automático (a próxima mensagem do cliente reabre e começa um atendimento novo)."""
+    with transaction.atomic():
+        conversa = Conversa.objects.select_for_update().get(pk=conversa.pk)
+        if conversa.modo != Conversa.Modo.AUTOMATICO:
+            return False
+        mudar_situacao(conversa, Conversa.Situacao.RESOLVIDA)
+        nota_automatica(conversa, nota, silenciosa=True)
+        avisos.emitir(conversa, 'conversa_atualizada')
+    return True
+
+
 def deve_retornar(conversa: Conversa, horas: int, agora=None) -> bool:
     if conversa.modo == Conversa.Modo.AUTOMATICO or horas <= 0:
         return False

@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from crm.models import ConfiguracaoCRM, Conversa, EncaminhamentoIA
 from crm.services import contatos, expediente, pagamentos
-from crm.services.assistente import anexos, consulta_parcelas, identidade
+from crm.services.assistente import anexos, consulta_parcelas, identidade, pix_empresa
 from crm.services.links_pagamento import LinkIndisponivel, online_disponivel, link_das_parcelas, pix_das_parcelas
 from vendas.services.erros import ErroDeNegocio
 
@@ -121,6 +121,29 @@ DEFINICOES = [
         },
     },
     {
+        'name': 'enviar_chave_pix',
+        'description': (
+            'Envia ao cliente, numa mensagem separada logo depois da sua resposta, a chave PIX da empresa (o '
+            'CNPJ), sozinha, para ele copiar. Na sua resposta diga que a chave PIX é o CNPJ e vai na mensagem '
+            'seguinte; nunca escreva a chave você mesma.'
+        ),
+        'input_schema': {'type': 'object', 'properties': {}, 'additionalProperties': False},
+    },
+    {
+        'name': 'encerrar_atendimento',
+        'description': (
+            'Encerra o atendimento automático depois da sua resposta deste turno (a conversa fica resolvida, '
+            'sem passar para a equipe). Use quando o roteiro do serviço mandar encerrar. Na resposta, despeça-se '
+            'numa frase curta dizendo que, se precisar, é só mandar mensagem.'
+        ),
+        'input_schema': {
+            'type': 'object',
+            'properties': {'resumo': {'type': 'string', 'description': 'Nota interna: o que foi resolvido.'}},
+            'required': ['resumo'],
+            'additionalProperties': False,
+        },
+    },
+    {
         'name': 'transferir_para_atendente',
         'description': (
             'Passa a conversa para a equipe humana. Depois, avise o cliente em uma frase curta que um atendente '
@@ -129,7 +152,7 @@ DEFINICOES = [
         'input_schema': {
             'type': 'object',
             'properties': {
-                'assunto': {'type': 'string', 'enum': [a for a in Assunto.values if a != Assunto.NOVO_APARELHO],
+                'assunto': {'type': 'string', 'enum': list(Assunto.values),
                             'description': 'Assunto principal do atendimento.'},
                 'motivo': {
                     'type': 'string',
@@ -154,6 +177,9 @@ class Turno:
     conversa: Conversa
     transferiu: bool = False
     mostrar_menu: bool = False  # o motor envia o menu de serviços no lugar do texto do modelo
+    encerrar: str = ''  # resumo do encerramento: o motor encerra o atendimento depois de responder
+    textos_intermediarios: list[str] = field(default_factory=list)  # texto escrito junto com ferramentas
+    links_gerados: list[str] = field(default_factory=list)  # links de pagamento gerados neste turno
     usou_dados: bool = False  # a resposta pode conter dados do cliente (o histórico oculta se a identidade expirar)
     # Textos do sistema enviados depois da resposta (ex.: Pix copia e cola), sem passar pelo modelo.
     mensagens_do_sistema: list[str] = field(default_factory=list)
@@ -268,6 +294,7 @@ def _gerar_link(turno: Turno, entrada: dict) -> dict:
     except LinkIndisponivel as erro:
         raise ErroFerramenta(f'{erro} Transfira para um atendente enviar o pagamento.') from erro
     resultado = {**resumo, **link}
+    turno.links_gerados.append(link['url'])
     if entrada.get('forma') == 'pix':
         resultado['observacao'] = 'O Pix direto não está disponível agora: mande o link da página.'
     return resultado
@@ -321,7 +348,8 @@ def _quitacao_da_compra(pagamento) -> dict | None:
         return None
     percentual = pagamento.porcentagem_desconto or Decimal('0')
     return {
-        'produto': pagamentos._produto(pagamento.venda), 'parcelas_em_aberto': len(plano.itens),
+        'data_compra': pagamento.venda.data_venda.strftime('%d/%m/%Y') if pagamento.venda.data_venda else None,
+        'parcelas_em_aberto': len(plano.itens),
         'parcela_id_para_quitar': plano.primeira.pk,
         'total_em_aberto': _reais(plano.total_sem_desconto), 'percentual_desconto': f'{percentual.normalize():f}%',
         'desconto': _reais(plano.desconto), 'valor_para_quitar': _reais(plano.valor),
@@ -385,6 +413,25 @@ def _transferir(turno: Turno, entrada: dict) -> dict:
                           'horário como base, que a equipe responde no próximo atendimento.')}
 
 
+def _chave_pix(turno: Turno, entrada: dict) -> dict:
+    chave = pix_empresa.chave()
+    if not chave:
+        raise ErroFerramenta('Não há chave PIX cadastrada. Transfira para um atendente enviar os dados de pagamento.')
+    if chave not in turno.mensagens_do_sistema:
+        turno.mensagens_do_sistema.append(chave)
+    return {'ok': True, 'tipo_da_chave': 'CNPJ',
+            'instrucao': 'A chave vai sozinha na mensagem seguinte. Não escreva a chave na sua resposta.'}
+
+
+def _encerrar(turno: Turno, entrada: dict) -> dict:
+    if turno.transferiu:
+        return {'observacao': 'A conversa já foi passada para a equipe: não há o que encerrar.'}
+    turno.encerrar = str(entrada.get('resumo') or '').strip()[:MAX_MOTIVO] or 'Atendimento automático concluído.'
+    return {'ok': True, 'instrucao': ('Agora escreva a resposta final COMPLETA para o cliente (os valores, datas e '
+                                      'o link que ele precisa, se for o caso) e termine com uma despedida curta; '
+                                      'depois dela o atendimento será encerrado.')}
+
+
 def _menu(turno: Turno, entrada: dict) -> dict:
     turno.mostrar_menu = True
     return {'ok': True, 'instrucao': 'O menu será enviado agora. Encerre o turno sem escrever texto.'}
@@ -398,6 +445,8 @@ EXECUTORES = {
     'simular_quitacao': _quitar,
     'simular_antecipacao': _antecipar,
     'registrar_comprovante': _comprovante,
+    'enviar_chave_pix': _chave_pix,
+    'encerrar_atendimento': _encerrar,
     'transferir_para_atendente': _transferir,
 }
 

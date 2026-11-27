@@ -9,6 +9,11 @@
     {% include "crm/parciais/avatar.html" with nome=conversa.nome_exibicao chave=conversa.id tamanho="md" %}
     <div class="min-w-0">
       <h5 class="crm-cabecalho__nome">{{ conversa.nome_exibicao }}</h5>
+      {% if conversa.clientes_nomes %}
+      <div class="crm-cabecalho__cliente" title="Cliente vinculado a este número">
+        <i class="bx bx-id-card"></i>{{ conversa.clientes_nomes|join:", " }}
+      </div>
+      {% endif %}
       <div class="crm-cabecalho__detalhes">
         <span>{{ conversa.telefone|telefone }}</span>
         <span class="crm-chip crm-chip--{{ conversa.modo|estado_modo }}">

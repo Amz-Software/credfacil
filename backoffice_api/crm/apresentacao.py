@@ -58,6 +58,7 @@ def estado(conversa_id: int, usuario) -> dict:
     bloqueio = bloqueio_de(conversa, usuario)
     return {
         **item_lista(conversa),
+        'clientes_nomes': organizacao.nomes_dos_clientes(conversa, usuario),
         'pode_responder': bloqueio is None,
         'bloqueio': None if bloqueio is None else {'motivo': bloqueio['motivo'], 'mensagem': bloqueio['detail']},
         'acoes': acoes_disponiveis(conversa, usuario),

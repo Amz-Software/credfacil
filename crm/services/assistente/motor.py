@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from django.utils import timezone
 
 from crm.models import LIMITE_TEXTO, ConfiguracaoCRM, Conversa, Mensagem
-from crm.services.assistente import historico, ia, identidade, instrucoes, menu
+from crm.services.assistente import atalhos, historico, ia, identidade, instrucoes, menu
 from crm.services.assistente.ferramentas import DEFINICOES, ErroFerramenta, Turno, executar
 
 logger = logging.getLogger(__name__)
@@ -78,6 +78,8 @@ def _conversar(turno: Turno) -> str:
         _manter_trava(turno.conversa)
         resposta = ia.chamar(system, DEFINICOES, mensagens)
         if resposta.stop_reason == 'tool_use' and resposta.chamadas:
+            if resposta.texto:
+                turno.textos_intermediarios.append(resposta.texto)
             resultados = [_resultado(turno, chamada, falhas) for chamada in resposta.chamadas]
             mensagens = [*mensagens, {'role': 'assistant', 'content': resposta.conteudo},
                          {'role': 'user', 'content': resultados}]
@@ -136,6 +138,21 @@ def _enviar_menu(conversa: Conversa) -> None:
         transferir(conversa, NOTA_NAO_ENTREGUE)
 
 
+def _com_intermediarios(turno: Turno, final: str) -> str:
+    """Nos turnos que encerram o atendimento ou mandam a chave PIX, o modelo às vezes escreve o essencial
+    (valor, vencimento, link) junto com a chamada da ferramenta e deixa só a despedida para o fim.
+    Esse texto também vai, sem repetir o que já está na resposta final."""
+    if not (turno.encerrar or turno.mensagens_do_sistema) or turno.transferiu:
+        return final
+    partes = [t for t in turno.textos_intermediarios if t not in final]
+    texto = '\n\n'.join(dict.fromkeys([*partes, final])).strip() if final else '\n\n'.join(partes)
+    if not turno.encerrar:
+        return texto
+    # O atendimento vai ser encerrado: o link de pagamento gerado não pode ficar de fora.
+    faltando = [url for url in dict.fromkeys(turno.links_gerados) if url not in texto]
+    return '\n\n'.join([texto, *(f'Link para pagamento: {url}' for url in faltando)]).strip()
+
+
 def _texto_do_turno(turno: Turno) -> str:
     try:
         texto = _conversar(turno)
@@ -148,9 +165,9 @@ def _texto_do_turno(turno: Turno) -> str:
         if turno.transferiu:
             return AVISO_TRANSFERENCIA
         raise FalhaAssistente('Erro inesperado no assistente.') from erro
-    texto = texto.strip()
+    texto = _com_intermediarios(turno, texto.strip())
     if turno.mostrar_menu:
-        return ''  # o menu já cumprimenta, lista os serviços e pergunta o nome
+        return ''  # o menu já cumprimenta e lista os serviços
     if texto:
         return texto
     if turno.transferiu:
@@ -158,10 +175,30 @@ def _texto_do_turno(turno: Turno) -> str:
     raise FalhaAssistente('O modelo terminou sem texto para o cliente.')
 
 
+def _encerrar_se_pedido(conversa: Conversa, turno: Turno) -> None:
+    from crm.services.conversas import encerrar_automatico
+
+    if not turno.encerrar or turno.transferiu:
+        return
+    if encerrar_automatico(conversa, f'Atendimento automático encerrado: {turno.encerrar}'):
+        identidade.marcar_encerramento(conversa)
+
+
+def _responder_atalho(conversa: Conversa, turno: Turno, textos: list[str]) -> None:
+    """Resposta fixa do código (sem IA): textos prontos, na ordem, e o encerramento se houver."""
+    for texto in textos:
+        _enviar(conversa, texto, pessoal=False)
+    _encerrar_se_pedido(conversa, turno)
+
+
 def atender(conversa: Conversa) -> None:
     if _excedeu_limite(conversa):
         raise FalhaAssistente(f'Mais de {MAX_RESPOSTAS_POR_HORA} respostas da IA na última hora.')
     turno = Turno(conversa=conversa)
+    textos_fixos = atalhos.resolver(conversa, turno)
+    if textos_fixos is not None:
+        _responder_atalho(conversa, turno, textos_fixos)
+        return
     texto = _texto_do_turno(turno)
     if not _links_permitidos(texto):
         logger.warning('Assistente tentou enviar link de fora do sistema na conversa %s.', conversa.pk)
@@ -181,3 +218,4 @@ def atender(conversa: Conversa) -> None:
     _enviar(conversa, texto, pessoal=pessoal)
     for extra in turno.mensagens_do_sistema:  # gerado pelo sistema (ex.: Pix copia e cola), não pelo modelo
         _enviar(conversa, extra, pessoal=True)
+    _encerrar_se_pedido(conversa, turno)

@@ -366,7 +366,8 @@ class FerramentasNovasTests(CobrancaBase):
         self.assertEqual(enviada.dados['lista']['itens'], list(menu.SERVICOS))
         self.assertIn('1. Desbloquear o aparelho\n2. Parcela em atraso', enviada.texto)
         self.assertIn('10. Falar com um atendente', enviada.texto)
-        self.assertIn('qual é o seu nome?', enviada.texto)
+        self.assertIn('9. Já quitei, novo aparelho', enviada.texto)
+        self.assertNotIn('seu nome', enviada.texto)  # o menu não pede dado nenhum
         self.assertTrue(all(len(item) <= 24 for item in menu.SERVICOS))  # limite da Meta por item
 
     def test_instrucoes_trazem_horario_assuntos_e_consulta(self):
@@ -378,7 +379,8 @@ class FerramentasNovasTests(CobrancaBase):
         self.assertIn('IPX Consulta', fixo)
         self.assertIn('DESBLOQUEIO', fixo)
         self.assertIn('8. IPX Consulta', fixo)
-        self.assertNotIn('NOVO_APARELHO', fixo)
+        self.assertIn('NOVO_APARELHO', fixo)  # "já quitei, quero novo aparelho" vai para a equipe
+        self.assertIn('NUNCA recuse atendimento', fixo)  # qualquer pessoa com CPF e nascimento é atendida
         self.assertTrue('horário comercial' in turno or 'atendendo agora' in turno)
 
 

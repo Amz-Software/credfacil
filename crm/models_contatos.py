@@ -114,6 +114,8 @@ class EncaminhamentoIA(models.Model):
 
     class Assunto(models.TextChoices):
         DESBLOQUEIO = 'DESBLOQUEIO', 'Desbloqueio do aparelho'
+        ATRASO = 'ATRASO', 'Parcela em atraso'
+        VALOR_PARCELA = 'VALOR_PARCELA', 'Valor da parcela'
         COMPROVANTE = 'COMPROVANTE', 'Comprovante de pagamento'
         NEGOCIACAO = 'NEGOCIACAO', 'Negociação de dívida'
         QUITACAO = 'QUITACAO', 'Oferta de quitação'
