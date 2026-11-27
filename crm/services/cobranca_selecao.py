@@ -83,12 +83,17 @@ def bons_pagadores(ids, hoje: date) -> set[int]:
 def _quitacoes(config: ConfiguracaoCRM, hoje: date):
     from vendas.models import Pagamento
 
+    from vendas.models import Parcela
+
     desde = hoje - JANELA_QUITACAO
     if config.cobranca_ativada_em:
         desde = max(desde, timezone.localtime(config.cobranca_ativada_em).date())
+    # Só agrupa compras com alguma parcela paga na janela (sem isso o banco agrega todas: segundos).
+    com_pagamento_recente = (Parcela.objects.filter(pago=True, data_pagamento__gte=desde, data_pagamento__lte=hoje)
+                             .values('pagamento_id'))
     return (Pagamento.objects
             .filter(tipo_pagamento__nome__iexact=TIPO_CREDFACIL, venda__is_deleted=False, devolucao=False,
-                    desativado=False)
+                    desativado=False, pk__in=com_pagamento_recente)
             .annotate(abertas=Count('parcelas_pagamento', filter=Q(parcelas_pagamento__pago=False)),
                       ultima=Max('parcelas_pagamento__data_pagamento'))
             .filter(abertas=0, ultima__gte=desde, ultima__lte=hoje)  # data no futuro = erro de digitação

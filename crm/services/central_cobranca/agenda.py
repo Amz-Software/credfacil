@@ -17,8 +17,8 @@ from django.utils import timezone
 
 from crm.models import ConfiguracaoCRM, TentativaContato
 from crm.services import cobranca
-from crm.services.cobranca_selecao import (ETAPAS, _candidatas_da_etapa, _parcelas_do_crediario, _quitacoes,
-                                           bons_pagadores)
+from crm.services.cobranca_selecao import (ETAPAS, JANELA_QUITACAO, _parcelas_abertas,
+                                           _parcelas_do_crediario, _quitacoes, bons_pagadores)
 
 from . import janela
 from .motivos import Motivo, mascarar, telefone_para_aviso
@@ -36,7 +36,7 @@ ORDEM = ('quitacao', 'antes', 'dia', 'apos', 'insistencia')
 PREFETCH_TELEFONES = 'pagamento__venda__cliente__telefones_crm'
 CHAVE_RESERVA = 'crm:cobranca:reserva_regua'
 CHAVE_GERACAO = 'crm:cobranca:agenda_geracao'
-CACHE_SEGUNDOS = 45  # projeção é cara: lista, resumo e reserva ficam 45 s no cache compartilhado
+CACHE_SEGUNDOS = 5 * 60  # projeção é cara: lista, resumo e reserva ficam 5 min no cache (mudar a config recalcula)
 
 
 @dataclass(frozen=True)
@@ -91,6 +91,27 @@ class _Projecao:
         campos = [etapa.campo_modelo for etapa in ETAPAS] + [cobranca.CAMPO_INSISTENCIA, cobranca.CAMPO_QUITACAO]
         self.versoes = {campo: cobranca.versao_vigente(config, campo) for campo in campos}
         self._base_insistencia = None
+        # Uma consulta por etapa para todo o horizonte (separadas por dia em memória): por dia eram segundos.
+        self._etapas_no_horizonte: dict[str, list] = {}
+        self._informadas_no_horizonte: dict[str, list] = {}
+        self._quitacoes_base: list | None = None
+
+    def _horizonte(self, etapa, base, guardadas: dict) -> list:
+        """Candidatas da etapa de hoje até hoje + MAX_DIAS (mesma regra de `cobranca_selecao._candidatas_da_etapa`)."""
+        if etapa.tipo not in guardadas:
+            inicio = max(self.hoje - timedelta(days=etapa.ultimo_dia),
+                         self.ativada_em - timedelta(days=etapa.primeiro_dia))
+            fim = self.hoje + timedelta(days=MAX_DIAS) - timedelta(days=etapa.primeiro_dia)
+            guardadas[etapa.tipo] = list(base.filter(data_vencimento__gte=inicio, data_vencimento__lte=fim)
+                                         .exclude(avisos_crm__tipo=etapa.tipo)
+                                         .order_by('data_vencimento', 'pk')
+                                         .prefetch_related(PREFETCH_TELEFONES))
+        return guardadas[etapa.tipo]
+
+    def _do_dia(self, etapa, dia: date, parcelas: list) -> list:
+        inicio = max(dia - timedelta(days=etapa.ultimo_dia), self.ativada_em - timedelta(days=etapa.primeiro_dia))
+        fim = dia - timedelta(days=etapa.primeiro_dia)
+        return [p for p in parcelas if inicio <= p.data_vencimento <= fim]
 
     # --- dia ---------------------------------------------------------------------------------
     def bloqueio(self, dia: date) -> str:
@@ -163,10 +184,13 @@ class _Projecao:
         sem_modelo = '' if self.versoes[cobranca.CAMPO_QUITACAO] else Motivo.ETAPA_SEM_MODELO
         from vendas.models import Parcela
 
-        parcelas = Parcela.objects.select_related('pagamento__venda__cliente').order_by('-numero_parcela')
-        pagamentos = _quitacoes(self.config, estado.data).prefetch_related(
-            Prefetch('parcelas_pagamento', queryset=parcelas, to_attr='parcelas_desc'))
-        for pagamento in pagamentos:
+        if self._quitacoes_base is None:
+            # Pagamentos já feitos (até hoje) servem a todos os dias: uma consulta só.
+            parcelas = Parcela.objects.select_related('pagamento__venda__cliente').order_by('-numero_parcela')
+            self._quitacoes_base = list(_quitacoes(self.config, self.hoje).prefetch_related(
+                Prefetch('parcelas_pagamento', queryset=parcelas, to_attr='parcelas_desc')))
+        desde = max(estado.data - JANELA_QUITACAO, self.ativada_em)
+        for pagamento in (p for p in self._quitacoes_base if p.ultima and p.ultima >= desde):
             ultima = pagamento.parcelas_desc[0] if pagamento.parcelas_desc else None
             if ultima is not None:
                 self._avaliar(estado, ultima, Tipo.AVISO_QUITACAO, motivo_fixo=sem_modelo)
@@ -174,10 +198,10 @@ class _Projecao:
     def _etapas(self, estado: _Dia) -> None:
         for etapa in ETAPAS:
             sem_modelo = '' if self.versoes[etapa.campo_modelo] else Motivo.ETAPA_SEM_MODELO
-            candidatas = list(_candidatas_da_etapa(etapa, estado.data, self.ativada_em)
-                              .prefetch_related(PREFETCH_TELEFONES))
+            candidatas = self._do_dia(etapa, estado.data,
+                                      self._horizonte(etapa, _parcelas_abertas(), self._etapas_no_horizonte))
             bons = set()
-            if etapa.tipo == Tipo.AVISO_ANTES and self.config.cobranca_pular_bom_pagador:
+            if candidatas and etapa.tipo == Tipo.AVISO_ANTES and self.config.cobranca_pular_bom_pagador:
                 bons = bons_pagadores({p.pagamento.venda.cliente_id for p in candidatas}, estado.data)
             for parcela in candidatas:
                 bom = Motivo.BOM_PAGADOR if parcela.pagamento.venda.cliente_id in bons else ''
@@ -207,10 +231,10 @@ class _Projecao:
 
     def _informados(self, estado: _Dia) -> None:
         """Pagamento informado (aguardando baixa) não recebe aviso: só aparece como excluído."""
-        informadas = (_parcelas_do_crediario().filter(pago=False, pagamento_efetuado=True)
-                      .prefetch_related(PREFETCH_TELEFONES))
+        informadas = _parcelas_do_crediario().filter(pago=False, pagamento_efetuado=True)
         for etapa in ETAPAS:
-            for parcela in _candidatas_da_etapa(etapa, estado.data, self.ativada_em, informadas):
+            horizonte = self._horizonte(etapa, informadas, self._informadas_no_horizonte)
+            for parcela in self._do_dia(etapa, estado.data, horizonte):
                 cliente = parcela.pagamento.venda.cliente
                 estado.itens.append(ItemAgenda(parcela=parcela, etapa=CHAVES[etapa.tipo],
                                                motivo=Motivo.PAGAMENTO_INFORMADO,

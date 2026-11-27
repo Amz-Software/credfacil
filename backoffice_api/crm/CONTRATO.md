@@ -344,7 +344,7 @@ quitação, antes, dia, depois, insistência; um aviso por cliente por dia; teto
 bloqueio passageiro (domingo, teto, régua pausada) volta a ser candidato no dia seguinte, como na rotina.
 Para **hoje**, só mostra o que **ainda vai sair** (o que já saiu está em `etapas[].enviados` e no histórico),
 e `capacidade` é o que resta do teto na janela de 24 h agora; nos dias seguintes, o teto inteiro (estimativa).
-A agenda fica até **45 s** em cache (mudar a configuração ou pausar/retomar a recalcula). Pagamentos futuros (quitações) e respostas futuras não são previstos;
+A agenda fica até **5 min** em cache (mudar a configuração ou pausar/retomar a recalcula). Pagamentos futuros (quitações) e respostas futuras não são previstos;
 os disparos manuais não entram na agenda (estão em `disparos/`).
 
 | Método | Caminho | Entrada | Resposta |
