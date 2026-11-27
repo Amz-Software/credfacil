@@ -20,6 +20,8 @@ class EscopoRelatorio:
 
     lojas_escolhidas: tuple
     aplicar_escopo: Callable[[QuerySet, str], QuerySet]
+    # Quem gera o relatório tem acesso ao CRM (tentativas de contato entram no "último contato").
+    ve_crm: bool = False
 
     def aplicar(self, queryset: QuerySet, campo: str) -> QuerySet:
         if self.lojas_escolhidas:

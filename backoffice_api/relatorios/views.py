@@ -8,6 +8,7 @@ from backoffice_api.nucleo.erros import REGRA_DE_NEGOCIO, ErroBackoffice
 from backoffice_api.nucleo.escopo import filtrar_por_lojas, lojas_da_requisicao
 from backoffice_api.nucleo.papel import tamanho_pagina
 from backoffice_api.nucleo.views import BackofficeAPIView
+from crm.permissoes import pode_acessar
 
 from .definicoes import RELATORIOS, DefinicaoRelatorio
 from .excel_parcelas import gerar_planilha
@@ -68,6 +69,7 @@ class _RelatorioBase(BackofficeAPIView):
         escopo = EscopoRelatorio(
             lojas_escolhidas=tuple(validados.get('lojas') or ()),
             aplicar_escopo=lambda qs, campo: filtrar_por_lojas(qs, self.request, campo, definicao.permissao_global_lojas),
+            ve_crm=pode_acessar(self.request.user),
         )
         consulta = definicao.servico.consultar(validados, escopo)
         return validados, consulta

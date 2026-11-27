@@ -6,6 +6,7 @@ from .contas import (
     SituacoesView,
     StatusPagamentoListaView,
 )
+from .contato_crm import ContatoCrmView, NotaCrmView, TentativaCrmView
 from .contatos_bo import BoPdfView, BoPreviaView, ContatoCriarView, ContatoEditarView
 from .parcelas import (
     AdicionarParcelasView,
@@ -24,10 +25,13 @@ __all__ = [
     'ComprovanteView',
     'ContaAReceberDetalheView',
     'ContasAReceberListaView',
+    'ContatoCrmView',
     'ContatoCriarView',
     'ContatoEditarView',
+    'NotaCrmView',
     'ParcelaView',
     'QuitarView',
     'SituacoesView',
     'StatusPagamentoListaView',
+    'TentativaCrmView',
 ]

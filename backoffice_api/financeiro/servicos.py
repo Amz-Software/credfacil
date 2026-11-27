@@ -27,6 +27,7 @@ ZERO = Decimal('0.00')
 CAMPOS_RASTREIO = ['modificado_por', 'modificado_em']
 CAMPOS_EDITAVEIS_PARCELA = ('valor_pago', 'pago', 'data_pagamento', 'data_vencimento', 'origem_baixa')
 MENSAGEM_SEM_QUITACAO = 'Nenhuma parcela aguardando confirmação de quitação.'
+MENSAGEM_SEM_PARCELA_ABERTA = 'Nenhuma parcela em aberto para quitar.'
 
 
 @dataclass(frozen=True)
@@ -77,20 +78,32 @@ def _salvar_parcela(parcela: Parcela, campos: list[str], user) -> None:
     parcela.save(user=user, update_fields=[*campos, *CAMPOS_RASTREIO])
 
 
-def confirmar_quitacao(pagamento: Pagamento, user) -> dict:
-    """Aplica o desconto do pagamento às parcelas informadas como pagas e as marca como pagas.
+def _parcelas_a_quitar(pagamento: Pagamento, forcar: bool) -> list[Parcela]:
+    """Informadas pelo cliente; com `forcar` (só administrador), todas as em aberto."""
+    filtro = {'pagamento': pagamento, 'pago': False}
+    if not forcar:
+        filtro['pagamento_efetuado'] = True
+    return list(Parcela.objects.select_for_update().filter(**filtro).order_by('numero_parcela', 'id'))
+
+
+def confirmar_quitacao(pagamento: Pagamento, user, forcar: bool = False) -> dict | None:
+    """Aplica o desconto do pagamento às parcelas a quitar e as marca como pagas.
 
     Distribui o total com desconto proporcionalmente; a última parcela absorve o
     arredondamento (mesmo cálculo da tela Django).
+
+    Idempotente: se a conta já está quitada e não sobrou parcela a quitar, devolve
+    None sem erro. Cobre a repetição depois de uma resposta que não chegou à tela
+    (timeout do navegador com a quitação já gravada no servidor).
     """
     with transaction.atomic():
-        parcelas = list(
-            Parcela.objects.select_for_update()
-            .filter(pagamento=pagamento, pagamento_efetuado=True, pago=False)
-            .order_by('numero_parcela', 'id')
-        )
+        # Trava o pagamento: duas confirmações simultâneas não quitam duas vezes.
+        quitado = Pagamento.objects.select_for_update().values_list('quitado', flat=True).get(pk=pagamento.pk)
+        parcelas = _parcelas_a_quitar(pagamento, forcar)
+        if not parcelas and quitado:
+            return None
         if not parcelas:
-            raise ErroDeNegocio(MENSAGEM_SEM_QUITACAO)
+            raise ErroDeNegocio(MENSAGEM_SEM_PARCELA_ABERTA if forcar else MENSAGEM_SEM_QUITACAO)
         total_original = sum((p.valor for p in parcelas), ZERO)
         desconto = pagamento.porcentagem_desconto or ZERO
         valor_desconto = (total_original * desconto / Decimal('100')).quantize(CENTAVO)
@@ -116,6 +129,7 @@ def confirmar_quitacao(pagamento: Pagamento, user) -> dict:
         'total_original': str(total_original),
         'porcentagem_desconto': str(desconto),
         'total_com_desconto': str(total_com_desconto),
+        'sem_informe_do_cliente': forcar,
         'ajustes': ajustes,
     }
 

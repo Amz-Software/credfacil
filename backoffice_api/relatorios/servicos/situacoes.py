@@ -2,11 +2,15 @@
 
 Período pela data de criação da venda (só quando início e fim vêm juntos, como hoje);
 situações combinadas com E; último contato do cliente com o analista que o registrou.
+O último contato é o mais recente entre o registro manual (`Contato`) e a tentativa feita
+pela equipe no CRM (`TentativaContato` MANUAL: ligações e tentativas; sem os avisos da régua),
+esta só para quem tem acesso ao CRM (`escopo.ve_crm`).
 """
 from datetime import timedelta
 
 from django.db.models import Prefetch, QuerySet
 
+from crm.models import TentativaContato
 from vendas.models import Contato, Pagamento, ProdutoVenda
 
 from .comum import EscopoRelatorio, filtrar_comodato, inicio_do_dia
@@ -38,14 +42,20 @@ def consultar(filtros: dict, escopo: EscopoRelatorio) -> QuerySet:
     if filtros.get('status_pagamento'):
         pagamentos = pagamentos.filter(statuses__in=filtros['status_pagamento'])
     contatos = Contato.objects.select_related('criado_por').order_by('-criado_em', '-id')
+    prefetches = [
+        'statuses',
+        Prefetch('venda__itens_venda', queryset=ProdutoVenda.objects.order_by('pk')),
+        Prefetch('venda__cliente__contatos', queryset=contatos, to_attr='contatos_ordenados'),
+    ]
+    if escopo.ve_crm:
+        tentativas = (TentativaContato.objects.filter(tipo=TentativaContato.Tipo.MANUAL).select_related('usuario')
+                      .order_by('-criado_em', '-id'))
+        prefetches.append(Prefetch('venda__cliente__tentativas_crm', queryset=tentativas,
+                                   to_attr='tentativas_da_equipe'))
     return (
         Pagamento.objects.filter(pk__in=pagamentos.values('pk'))
         .select_related('venda__loja', 'venda__cliente__informacao_pessoal', 'venda__cliente__contato_adicional')
-        .prefetch_related(
-            'statuses',
-            Prefetch('venda__itens_venda', queryset=ProdutoVenda.objects.order_by('pk')),
-            Prefetch('venda__cliente__contatos', queryset=contatos, to_attr='contatos_ordenados'),
-        )
+        .prefetch_related(*prefetches)
         .order_by('venda__criado_em', 'pk')
     )
 
@@ -61,11 +71,32 @@ def totais(pagamentos: QuerySet, filtros: dict | None = None) -> dict:
     }
 
 
+def _texto_tentativa(tentativa: TentativaContato) -> str:
+    texto = f'{tentativa.get_canal_display()} · {tentativa.get_resultado_display()}'
+    return f'{texto} — {tentativa.observacao}' if tentativa.observacao else texto
+
+
+def ultimo_contato(cliente) -> tuple[dict | None, object]:
+    """(último contato {data, observacao}, autor) entre o registro manual e a tentativa da equipe no CRM."""
+    contatos = getattr(cliente, 'contatos_ordenados', [])
+    tentativas = getattr(cliente, 'tentativas_da_equipe', [])
+    candidatos = []
+    if contatos:
+        manual = contatos[0]
+        candidatos.append((manual.criado_em, {'data': manual.criado_em, 'observacao': manual.observacao or ''},
+                           manual.criado_por))
+    if tentativas:
+        crm = tentativas[0]
+        candidatos.append((crm.criado_em, {'data': crm.criado_em, 'observacao': _texto_tentativa(crm)}, crm.usuario))
+    if not candidatos:
+        return None, None
+    _, dados, autor = max(candidatos, key=lambda candidato: candidato[0])
+    return dados, autor
+
+
 def _linha(pagamento) -> dict:
     venda = pagamento.venda
-    contatos = getattr(venda.cliente, 'contatos_ordenados', [])
-    ultimo = contatos[0] if contatos else None
-    autor = ultimo.criado_por if ultimo else None
+    ultimo, autor = ultimo_contato(venda.cliente)
     item = primeiro_item(venda)
     return {
         'pagamento_id': pagamento.pk,
@@ -79,9 +110,7 @@ def _linha(pagamento) -> dict:
         'situacoes': [rotulo for campo, rotulo in ROTULOS_SITUACAO if getattr(pagamento, campo)],
         'status_pagamento': [s.nome for s in pagamento.statuses.all()],
         'analista_ultimo_registro': (autor.get_full_name() or autor.username) if autor else None,
-        'ultimo_contato': (
-            {'data': ultimo.criado_em, 'observacao': ultimo.observacao or ''} if ultimo else None
-        ),
+        'ultimo_contato': ultimo,
     }
 
 

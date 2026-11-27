@@ -2,6 +2,7 @@
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from vendas.models import Parcela, ProdutoVenda, StatusPagamento
@@ -16,6 +17,8 @@ from ..serializers import ContaAReceberDetalheSerializer, ContaAReceberListaSeri
 from ..servicos import alterar_desconto, alterar_situacao, alterar_status_pagamento, confirmar_quitacao
 
 TAGS = ['bo-financeiro']
+SO_ADMIN = EmGrupo('ADMINISTRADOR')
+MENSAGEM_FORCAR_SO_ADMIN = 'Só administrador quita sem o cliente ter informado o pagamento.'
 PARAMETROS_LISTA = [
     OpenApiParameter('busca', str, description='Nome, CPF, observação de contato ou nº do pagamento'),
     OpenApiParameter('status', str, enum=['no_prazo', 'atrasado', 'quitado', 'pendente']),
@@ -118,8 +121,13 @@ class QuitarView(DetalheMixin, ContasAReceberBaseView):
         pagamento = self.obter_pagamento(pk)
         entrada = QuitacaoEntradaSerializer(data=request.data)
         entrada.is_valid(raise_exception=True)
-        resultado = confirmar_quitacao(pagamento, request.user)
-        self.auditar('pagamento_quitado', objeto=pagamento, motivo=entrada.validated_data['motivo'], dados=resultado)
+        forcar = entrada.validated_data['forcar']
+        if forcar and not SO_ADMIN.avaliar(request.user):
+            raise PermissionDenied(MENSAGEM_FORCAR_SO_ADMIN)
+        resultado = confirmar_quitacao(pagamento, request.user, forcar=forcar)
+        if resultado is not None:  # None = já estava quitada (repetição): nada a auditar
+            self.auditar('pagamento_quitado', objeto=pagamento, motivo=entrada.validated_data['motivo'],
+                         dados=resultado)
         return self.resposta_detalhe(pk)
 
 

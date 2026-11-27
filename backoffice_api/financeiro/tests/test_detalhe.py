@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.test import TestCase
 
+from backoffice_api.models import RegistroAuditoria
 from backoffice_api.tests.fabricas import cliente_logado, criar_loja, criar_usuario
 from vendas.models import Contato, Parcela, StatusPagamento
 
@@ -174,6 +175,50 @@ class QuitacaoTests(TestCase):
         registro = ultima_auditoria('pagamento_quitado')
         self.assertEqual(registro.motivo, 'Quitação antecipada')
         self.assertEqual(registro.dados['parcelas_quitadas'], 2)
+
+    def test_repetir_depois_de_quitada_devolve_o_detalhe_sem_erro_nem_nova_auditoria(self):
+        # Caso de produção: a 1ª resposta não chega à tela (timeout) e o usuário clica de novo.
+        Parcela.objects.filter(pagamento=self.conta, numero_parcela=3).update(pagamento_efetuado=True)
+        primeira = self.cliente.post(url(self.conta, 'quitar/'), {'motivo': 'Cliente pagou'}, format='json')
+        self.assertEqual(primeira.status_code, 200)
+
+        repetida = self.cliente.post(url(self.conta, 'quitar/'), {'motivo': 'Cliente pagou'}, format='json')
+
+        self.assertEqual(repetida.status_code, 200)
+        self.assertTrue(repetida.json()['quitado'])
+        self.assertEqual(parcelas_de(self.conta)[2].valor, Decimal('90.00'))
+        self.assertEqual(RegistroAuditoria.objects.filter(acao='pagamento_quitado').count(), 1)
+
+    def test_forcar_sem_ser_administrador_recebe_403(self):
+        resposta = self.cliente.post(url(self.conta, 'quitar/'), {'motivo': 'Cliente pagou', 'forcar': True},
+                                     format='json')
+        self.assertEqual(resposta.status_code, 403)
+        self.assertFalse(any(p.pago for p in parcelas_de(self.conta)))
+
+    def test_administrador_quita_sem_informe_do_cliente_todas_as_parcelas_em_aberto(self):
+        Parcela.objects.filter(pagamento=self.conta, numero_parcela=1).update(pago=True)
+        admin = criar_usuario('adm', permissoes=('vendas.can_confirm_quitacao',), grupos=('ADMINISTRADOR',),
+                              lojas=(self.loja,))
+
+        resposta = cliente_logado(admin).post(
+            url(self.conta, 'quitar/'), {'motivo': 'Pagou na loja', 'forcar': True}, format='json')
+
+        self.assertEqual(resposta.status_code, 200)
+        parcelas = parcelas_de(self.conta)
+        self.assertTrue(all(p.pago for p in parcelas))
+        self.assertEqual(parcelas[1].valor + parcelas[2].valor, Decimal('180.00'))
+        registro = ultima_auditoria('pagamento_quitado')
+        self.assertTrue(registro.dados['sem_informe_do_cliente'])
+        self.assertEqual(registro.dados['parcelas_quitadas'], 2)
+
+    def test_forcar_sem_parcela_em_aberto_recebe_422(self):
+        Parcela.objects.filter(pagamento=self.conta).update(pago=True)
+        admin = criar_usuario('adm', permissoes=('vendas.can_confirm_quitacao',), grupos=('ADMINISTRADOR',),
+                              lojas=(self.loja,))
+        resposta = cliente_logado(admin).post(
+            url(self.conta, 'quitar/'), {'motivo': 'Pagou na loja', 'forcar': True}, format='json')
+        self.assertEqual(resposta.status_code, 422)
+        self.assertEqual(resposta.json()['erro']['mensagem'], 'Nenhuma parcela em aberto para quitar.')
 
     def test_get_recebe_405(self):
         self.assertEqual(self.cliente.get(url(self.conta, 'quitar/')).status_code, 405)

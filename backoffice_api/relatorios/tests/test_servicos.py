@@ -114,6 +114,36 @@ class SituacoesTests(CarteiraMixin, TestCase):
         self.assertEqual(linhas[0]['situacoes'], ['Cobrança'])
         self.assertEqual(linhas[0]['ultimo_contato']['observacao'], 'Prometeu pagar')
 
+    def test_ultimo_contato_considera_tentativa_da_equipe_no_crm(self):
+        from datetime import timedelta
+
+        from django.contrib.auth import get_user_model
+        from django.utils import timezone
+
+        from crm.models import TentativaContato
+        from vendas.models import Contato
+
+        pedro = self.dados['pedro']
+        contato = Contato.objects.create(cliente=pedro, data=dias(-2), observacao='Visita')
+        Contato.objects.filter(pk=contato.pk).update(criado_em=timezone.now() - timedelta(days=2))
+        analista = get_user_model().objects.create_user(username='lia', first_name='Lia', password='x')
+        TentativaContato.objects.create(
+            cliente=pedro, numero='91999990000', tipo=TentativaContato.Tipo.MANUAL, usuario=analista,
+            canal=TentativaContato.Canal.LIGACAO, resultado=TentativaContato.Resultado.NAO_ATENDEU,
+            observacao='Caixa postal')
+        TentativaContato.objects.create(  # aviso automático da régua não conta como contato da equipe
+            cliente=pedro, numero='91999990000', tipo=TentativaContato.Tipo.AVISO_DIA)
+
+        filtros = {'situacoes': {'flag_atrasado'}}
+        com_crm = EscopoRelatorio(lojas_escolhidas=(), aplicar_escopo=lambda qs, campo: qs, ve_crm=True)
+
+        linha = situacoes.linhas(situacoes.consultar(filtros, com_crm))[0]
+        sem_crm = situacoes.linhas(situacoes.consultar(filtros, escopo_total()))[0]
+
+        self.assertEqual(linha['ultimo_contato']['observacao'], 'Ligação · Não atendeu — Caixa postal')
+        self.assertEqual(linha['analista_ultimo_registro'], 'Lia')
+        self.assertEqual(sem_crm['ultimo_contato']['observacao'], 'Visita')  # sem acesso ao CRM
+
 
 class ParcelasTests(CarteiraMixin, TestCase):
     def test_grade_e_totais_e_planilha(self):

@@ -110,10 +110,15 @@ Corpo — exatamente um de `situacao`/`status_pagamento`; sem `ativo` alterna, c
 Resposta: detalhe atualizado. Erros: 400, 403, 404 (status inexistente ou conta fora do escopo).
 
 ## POST `contas-a-receber/{id}/quitar/`
-Permissão: `vendas.can_confirm_quitacao`. Corpo: `{"motivo": "mín. 5 caracteres"}` (obrigatório).
+Permissão: `vendas.can_confirm_quitacao`. Corpo: `{"motivo": "mín. 5 caracteres", "forcar": false}` (motivo obrigatório).
 Aplica `porcentagem_desconto` às parcelas com `pagamento_efetuado` e não pagas (distribuição proporcional,
 última parcela absorve o arredondamento), marca-as pagas com a data de hoje e o pagamento como `quitado`.
-Auditado (`pagamento_quitado`, com os ajustes). Resposta: detalhe. Erros: 400 (motivo), 422 (nenhuma parcela aguardando).
+`forcar: true` (só ADMINISTRADOR/superusuário; senão 403) quita **todas** as parcelas em aberto, mesmo sem o
+cliente ter informado o pagamento; a tela pede confirmação dupla.
+Idempotente: conta já quitada e sem parcela a quitar devolve 200 com o detalhe, sem nova auditoria (repetição
+depois de uma resposta perdida por timeout).
+Auditado (`pagamento_quitado`, com os ajustes e `sem_informe_do_cliente`). Resposta: detalhe.
+Erros: 400 (motivo), 403 (`forcar` sem ser admin), 422 (nenhuma parcela aguardando / em aberto).
 
 ## POST `contas-a-receber/{id}/parcelas/` — adicionar até 4
 Permissão: analista/admin + `vendas.add_parcela`. Auditado (`parcelas_adicionadas`).
@@ -143,6 +148,22 @@ Qualquer outro campo (ex.: `valor`) → 400 "Campo não editável". Resposta: a 
   `{"id", "data", "observacao", "criado_em", "modificado_em", "criado_por"}`.
 - **PATCH `contas-a-receber/{id}/contatos/{contato_id}/`** — `vendas.change_contato`. Campos parciais.
   Contato de outro cliente → 404.
+
+### Ligado ao CRM (aba Contatos)
+- **GET `contas-a-receber/{id}/contato-crm/`** — analista/admin + `vendas.view_pagamento`. Painel:
+  `{"crm_disponivel", "status": {"codigo", "rotulo"} | null, "alerta", "telefones": [...], "conversa_id",
+  "pode_anotar", "linha_do_tempo": [...], "opcoes": {"canais", "resultados_cliente", "resultados_referencia"}}`.
+  A linha do tempo vem do mais novo para o mais antigo e junta `origem` `manual` (`Contato`, `somente_data`,
+  `contato_id` editável), `tentativa` (`TentativaContato`: avisos da régua com `automatica` e `parcela`,
+  ligações e tentativas da equipe, com `canal`, `numero`, `resultado`, `resultado_estado`) e `nota` (notas
+  internas das conversas do cliente, sem automáticas e apagadas). Sem `crm.acessar_crm`: `crm_disponivel=false`,
+  só os registros manuais, sem telefones. O GET sincroniza os telefones do cadastro (como o painel do CRM).
+- **POST `contas-a-receber/{id}/tentativas/`** — acima + `crm.acessar_crm`.
+  `{"telefone": <id de TelefoneCliente do cliente>, "canal": "LIGACAO"|"WHATSAPP", "resultado": "...",
+  "observacao": "..."}` → 201 com o painel. Telefone de outro cliente → 400 (`campos.telefone`); resultado que
+  não vale para o número (ex.: "Referência ajudou" em número do cliente) → 422.
+- **POST `contas-a-receber/{id}/notas/`** — acima + `crm.acessar_crm`. `{"texto": "..."}` (até 2000) → 201 com o
+  painel. A nota vai para a conversa do cliente com mensagem mais recente; sem conversa → 422.
 
 ## BO (notificação extrajudicial)
 Permissão: analista/admin + `financeiro.add_notificacaobo`. Exige parcela vencida em aberto (senão **422**).

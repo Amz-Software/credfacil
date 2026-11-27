@@ -1,6 +1,8 @@
 """Serializers de entrada (corpo das requisições) de contas a receber."""
 from rest_framework import serializers
 
+from crm.models import TelefoneCliente, TentativaContato
+from crm.services.organizacao import LIMITE_NOTA
 from vendas.models import ORIGEM_BAIXA_PAGBANK, ORIGENS_BAIXA, Contato
 
 from .arquivos import validar_comprovante
@@ -11,6 +13,8 @@ ORIGENS_BAIXA_MANUAL = [(chave, rotulo) for chave, rotulo in ORIGENS_BAIXA if ch
 
 TAMANHO_MAXIMO_MOTIVO = 1000
 TAMANHO_MAXIMO_REFERENCIAS = 5000
+TAMANHO_MAXIMO_RESULTADO = 12
+TAMANHO_MAXIMO_OBSERVACAO_TENTATIVA = 255
 
 
 def campo_motivo(obrigatorio: bool) -> serializers.CharField:
@@ -96,6 +100,8 @@ class ComprovanteEntradaSerializer(serializers.Serializer):
 
 class QuitacaoEntradaSerializer(serializers.Serializer):
     motivo = campo_motivo(obrigatorio=True)
+    # Só administrador: quita todas as parcelas em aberto sem o cliente ter informado o pagamento.
+    forcar = serializers.BooleanField(required=False, default=False)
 
 
 class ContatoEntradaSerializer(serializers.ModelSerializer):
@@ -104,6 +110,27 @@ class ContatoEntradaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contato
         fields = ['data', 'observacao']
+
+
+class TentativaCrmEntradaSerializer(serializers.Serializer):
+    """Tentativa registrada pela equipe no CRM; o telefone tem de ser do cliente da conta (`context['cliente']`)."""
+
+    telefone = serializers.PrimaryKeyRelatedField(queryset=TelefoneCliente.objects.none())
+    canal = serializers.ChoiceField(choices=TentativaContato.Canal.choices, default=TentativaContato.Canal.LIGACAO)
+    resultado = serializers.CharField(max_length=TAMANHO_MAXIMO_RESULTADO)
+    observacao = serializers.CharField(required=False, allow_blank=True, default='',
+                                       max_length=TAMANHO_MAXIMO_OBSERVACAO_TENTATIVA)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cliente = self.context.get('cliente')  # ausente na geração do OpenAPI
+        if cliente is not None:
+            self.fields['telefone'].queryset = (TelefoneCliente.objects.filter(cliente=cliente)
+                                                .select_related('cliente'))
+
+
+class NotaCrmEntradaSerializer(serializers.Serializer):
+    texto = serializers.CharField(max_length=LIMITE_NOTA)
 
 
 class BoPdfEntradaSerializer(serializers.Serializer):
