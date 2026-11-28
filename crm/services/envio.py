@@ -257,9 +257,14 @@ def aplicar_status(wa_message_id: str, status_meta: str, erros: list | None = No
             return True
         if novo == Mensagem.Status.ERRO:
             erro = (erros or [{}])[0]
+            detalhe = (erro.get('error_data') or {}).get('details', '') or erro.get('message', '')
             mensagem.status = novo
-            mensagem.erro = traduzir_erro(erro.get('code'), erro.get('title', ''),
-                                          (erro.get('error_data') or {}).get('details', '') or erro.get('message', ''))
+            mensagem.erro = traduzir_erro(erro.get('code'), erro.get('title', ''), detalhe)
+            # A frase traduzida esconde o motivo técnico; ele fica guardado para diagnóstico.
+            mensagem.dados = {**mensagem.dados, 'erro_meta': {
+                'codigo': erro.get('code'), 'titulo': erro.get('title', ''), 'detalhe': detalhe}}
+            logger.warning('Meta recusou a mensagem %s (%s, tipo %s): %s — %s', mensagem.pk, erro.get('code'),
+                           mensagem.tipo, erro.get('title', ''), detalhe)
             if mensagem.origem == Mensagem.Origem.COBRANCA:
                 from crm.services.contatos import marcar_falha
 
@@ -268,6 +273,6 @@ def aplicar_status(wa_message_id: str, status_meta: str, erros: list | None = No
             mensagem.status = novo
         else:
             return True
-        mensagem.save(update_fields=['status', 'erro'])
+        mensagem.save(update_fields=['status', 'erro', 'dados'])
         avisos.emitir(mensagem.conversa, 'mensagem_status')
     return True

@@ -108,6 +108,22 @@ class WebhookTests(CrmTestCase):
         self.assertEqual(saida.status, Mensagem.Status.ERRO)
         self.assertIn('código 131026', saida.erro)
 
+    def test_falha_guarda_o_detalhe_tecnico_da_meta(self):
+        conversa = self.conversa_com_humano()
+        self.web(self.atendente).post(f'/crm/conversas/{conversa.pk}/enviar/', {'texto': 'Olá!'})
+        saida = Mensagem.objects.get(direcao=Mensagem.Direcao.SAIDA, autor=Mensagem.Autor.HUMANO)
+        detalhe = 'Audio file uploaded with mimetype as audio/ogg, however on processing it is of type audio/opus'
+        erro = {'code': 131053, 'title': 'Media upload error', 'error_data': {'details': detalhe}}
+
+        with self.assertLogs('crm.services.envio', level='WARNING') as logs:
+            self._post(_payload(statuses=[{'id': saida.wa_message_id, 'status': 'failed', 'errors': [erro]}]))
+        saida.refresh_from_db()
+
+        self.assertIn('código 131053', saida.erro)
+        self.assertEqual(saida.dados['erro_meta'],
+                         {'codigo': 131053, 'titulo': 'Media upload error', 'detalhe': detalhe})
+        self.assertIn('audio/opus', logs.output[0])
+
 
 class NormalizacaoTests(SimpleTestCase):
     def test_tipos_principais(self):
